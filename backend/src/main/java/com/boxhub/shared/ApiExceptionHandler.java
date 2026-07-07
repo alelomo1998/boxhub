@@ -22,4 +22,19 @@ public class ApiExceptionHandler {
     ProblemDetail accessDenied(org.springframework.security.access.AccessDeniedException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
     }
+
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    ProblemDetail validation(org.springframework.web.bind.MethodArgumentNotValidException e) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
+        java.util.Map<String, String> errors = new java.util.LinkedHashMap<>();
+        e.getBindingResult().getFieldErrors()
+                .forEach(f -> errors.putIfAbsent(f.getField(), f.getDefaultMessage()));
+        pd.setProperty("errors", errors);
+        return pd;
+    }
+
+    @ExceptionHandler(java.util.NoSuchElementException.class)
+    ProblemDetail notFound(java.util.NoSuchElementException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Resource not found");
+    }
 }
