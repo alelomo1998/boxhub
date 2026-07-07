@@ -24,6 +24,11 @@ public class AuthService {
         u.setEmail(normalizedEmail);
         u.setPasswordHash(passwordEncoder.encode(rawPassword));
         u.setName(name);
-        return users.save(u);
+        try {
+            return users.saveAndFlush(u);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // concurrent register with same email lost the race to the unique index
+            throw new DuplicateEmailException();
+        }
     }
 }

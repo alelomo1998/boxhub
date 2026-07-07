@@ -12,9 +12,4 @@ public class ApiExceptionHandler {
     ProblemDetail duplicateEmail(DuplicateEmailException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
-
-    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
-    ProblemDetail dataIntegrity(org.springframework.dao.DataIntegrityViolationException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Resource already exists");
-    }
 }
