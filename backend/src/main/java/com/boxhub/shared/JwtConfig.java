@@ -18,6 +18,8 @@ public class JwtConfig {
 
     @Bean
     SecretKey jwtKey(@Value("${boxhub.jwt.secret}") String secret) {
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32)
+            throw new IllegalStateException("boxhub.jwt.secret must be at least 32 bytes");
         return new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 
