@@ -12,4 +12,9 @@ public class ApiExceptionHandler {
     ProblemDetail duplicateEmail(DuplicateEmailException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
+
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    ProblemDetail badCredentials(org.springframework.security.authentication.BadCredentialsException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
 }

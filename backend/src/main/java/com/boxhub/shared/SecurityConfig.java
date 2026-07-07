@@ -20,7 +20,21 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/auth/**", "/actuator/health").permitAll()
-                .anyRequest().authenticated());
+                .anyRequest().authenticated())
+            .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtAuthConverter())));
         return http.build();
+    }
+
+    private org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthConverter() {
+        var conv = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
+        conv.setJwtGrantedAuthoritiesConverter(jwt -> {
+            var auths = new java.util.ArrayList<org.springframework.security.core.GrantedAuthority>();
+            String scope = jwt.getClaimAsString("scope");
+            if (scope != null) auths.add(new org.springframework.security.core.authority.SimpleGrantedAuthority("SCOPE_" + scope));
+            String role = jwt.getClaimAsString("role");
+            if (role != null) auths.add(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role));
+            return auths;
+        });
+        return conv;
     }
 }
