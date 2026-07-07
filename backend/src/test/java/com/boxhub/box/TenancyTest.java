@@ -83,6 +83,22 @@ class TenancyTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void boxTokenForSuspendedMembershipIs403() throws Exception {
+        Membership suspended = new Membership();
+        suspended.setUser(alice);
+        suspended.setBox(boxB);
+        suspended.setRole("ATHLETE");
+        suspended.setStatus("SUSPENDED");
+        memberships.save(suspended);
+
+        String userToken = tokenService.userToken(alice);
+        mvc.perform(post("/api/auth/box-token").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + userToken)
+                        .content("{\"boxId\":\"" + boxB.getId() + "\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void boxCurrentReturnsOnlyTokenBox() throws Exception {
         String boxToken = tokenService.boxToken(alice, aliceInA);
         mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + boxToken))
