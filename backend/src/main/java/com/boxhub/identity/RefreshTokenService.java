@@ -43,9 +43,9 @@ public class RefreshTokenService {
     public User consume(String rawToken) {
         RefreshToken rt = tokens.findByTokenHash(sha256(rawToken))
                 .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
-        tokens.delete(rt);
         if (rt.getExpiresAt().isBefore(Instant.now()))
             throw new BadCredentialsException("Expired refresh token");
+        tokens.delete(rt);
         return rt.getUser();
     }
 

@@ -55,4 +55,12 @@ class LoginTest extends AbstractIntegrationTest {
                 """.formatted(user.getEmail())))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void unknownEmailIs401() throws Exception {
+        mvc.perform(post("/api/auth/login").contentType(APPLICATION_JSON).content("""
+                {"email":"nobody-here@t.io","password":"password123"}
+                """))
+                .andExpect(status().isUnauthorized());
+    }
 }

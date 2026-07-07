@@ -11,12 +11,14 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final MembershipRepository memberships;
+    private final String timingEqualizerHash;
 
     public AuthService(UserRepository users, PasswordEncoder passwordEncoder,
                        MembershipRepository memberships) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.memberships = memberships;
+        this.timingEqualizerHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
     }
 
     @Transactional
@@ -37,11 +39,13 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public User login(String email, String rawPassword) {
-        User u = users.findByEmail(email.toLowerCase().trim())
-                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
-        if (!passwordEncoder.matches(rawPassword, u.getPasswordHash()))
+        var maybeUser = users.findByEmail(email.toLowerCase().trim());
+        // Always run one bcrypt comparison so unknown-email and wrong-password take equal time
+        String hash = maybeUser.map(User::getPasswordHash).orElse(timingEqualizerHash);
+        boolean matches = passwordEncoder.matches(rawPassword, hash);
+        if (maybeUser.isEmpty() || !matches)
             throw new org.springframework.security.authentication.BadCredentialsException("Bad credentials");
-        return u;
+        return maybeUser.get();
     }
 
     @Transactional(readOnly = true)
