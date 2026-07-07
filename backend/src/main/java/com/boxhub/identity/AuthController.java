@@ -50,4 +50,16 @@ public class AuthController {
                 .toList();
         return new TokenPairResponse(tokenService.userToken(u), refreshTokens.issue(u), mems);
     }
+
+    record RefreshRequest(@NotBlank String refreshToken) {}
+
+    @PostMapping("/refresh")
+    public TokenPairResponse refresh(@Valid @RequestBody RefreshRequest req) {
+        User u = refreshTokens.consume(req.refreshToken());
+        var mems = authService.membershipsOf(u).stream()
+                .map(m -> new MembershipDto(m.getBox().getId(), m.getBox().getName(),
+                        m.getBox().getSlug(), m.getRole()))
+                .toList();
+        return new TokenPairResponse(tokenService.userToken(u), refreshTokens.issue(u), mems);
+    }
 }
