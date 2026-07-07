@@ -19,7 +19,10 @@ public class SecurityConfig {
         http.csrf(c -> c.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
-                .requestMatchers("/api/auth/**", "/actuator/health").permitAll()
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh",
+                        "/actuator/health").permitAll()
+                .requestMatchers("/api/auth/box-token").authenticated()
+                .requestMatchers("/api/box/**").hasAuthority("SCOPE_box")
                 .anyRequest().authenticated())
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtAuthConverter())));
         return http.build();

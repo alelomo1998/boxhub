@@ -17,4 +17,9 @@ public class ApiExceptionHandler {
     ProblemDetail badCredentials(org.springframework.security.authentication.BadCredentialsException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, e.getMessage());
     }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    ProblemDetail accessDenied(org.springframework.security.access.AccessDeniedException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+    }
 }

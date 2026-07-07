@@ -16,11 +16,16 @@ public class AuthController {
     private final AuthService authService;
     private final TokenService tokenService;
     private final RefreshTokenService refreshTokens;
+    private final MembershipRepository membershipRepo;
+    private final UserRepository userRepo;
 
-    public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens) {
+    public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens,
+                           MembershipRepository membershipRepo, UserRepository userRepo) {
         this.authService = authService;
         this.tokenService = tokenService;
         this.refreshTokens = refreshTokens;
+        this.membershipRepo = membershipRepo;
+        this.userRepo = userRepo;
     }
 
     record RegisterRequest(@NotBlank @Email String email,
@@ -61,5 +66,19 @@ public class AuthController {
                         m.getBox().getSlug(), m.getRole()))
                 .toList();
         return new TokenPairResponse(tokenService.userToken(u), refreshTokens.issue(u), mems);
+    }
+
+    record BoxTokenRequest(@jakarta.validation.constraints.NotNull UUID boxId) {}
+    record BoxTokenResponse(String accessToken) {}
+
+    @PostMapping("/box-token")
+    public BoxTokenResponse boxToken(@Valid @RequestBody BoxTokenRequest req) {
+        UUID userId = com.boxhub.shared.TenantContext.userId();
+        Membership m = membershipRepo.findByUserIdAndBoxId(userId, req.boxId())
+                .filter(mem -> "ACTIVE".equals(mem.getStatus()))
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "No active membership in this box"));
+        User u = userRepo.findById(userId).orElseThrow();
+        return new BoxTokenResponse(tokenService.boxToken(u, m));
     }
 }
