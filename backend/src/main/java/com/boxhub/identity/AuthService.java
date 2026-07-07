@@ -18,9 +18,10 @@ public class AuthService {
 
     @Transactional
     public User register(String email, String rawPassword, String name) {
-        if (users.findByEmail(email).isPresent()) throw new DuplicateEmailException();
+        String normalizedEmail = email.toLowerCase().trim();
+        if (users.findByEmail(normalizedEmail).isPresent()) throw new DuplicateEmailException();
         User u = new User();
-        u.setEmail(email.toLowerCase().trim());
+        u.setEmail(normalizedEmail);
         u.setPasswordHash(passwordEncoder.encode(rawPassword));
         u.setName(name);
         return users.save(u);

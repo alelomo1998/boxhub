@@ -41,4 +41,16 @@ class RegistrationTest extends AbstractIntegrationTest {
                 """))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void caseVariantDuplicateEmailIs409() throws Exception {
+        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content("""
+                {"email":"CaseDup@test.io","password":"password123","name":"Case Dup"}
+                """))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content("""
+                {"email":"casedup@test.io","password":"password123","name":"Case Dup 2"}
+                """))
+                .andExpect(status().isConflict());
+    }
 }
