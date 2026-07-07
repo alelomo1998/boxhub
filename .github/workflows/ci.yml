@@ -31,11 +31,13 @@ jobs:
       - run: docker compose -f docker/docker-compose.yml up -d --build
       - run: |
           for i in $(seq 1 60); do
-            curl -fsS http://localhost/actuator/health && break || sleep 2
+            curl -fsS http://localhost/actuator/health && exit 0
+            sleep 2
           done
+          echo "app never became healthy"; exit 1
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - run: cd e2e && npm ci && npx playwright install --with-deps chromium
       - run: cd e2e && npx playwright test
       - if: always()
-        run: docker compose -f docker/docker-compose.yml logs backend --tail 100
+        run: docker compose -f docker/docker-compose.yml logs --tail 100
