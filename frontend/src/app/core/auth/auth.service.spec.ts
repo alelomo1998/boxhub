@@ -51,3 +51,28 @@ describe('AuthService', () => {
     expect(service.activeBox()).toBeNull();
   });
 });
+
+describe('AuthService (corrupt localStorage)', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    localStorage.setItem('bh_memberships', '{not-json');
+    localStorage.setItem('bh_active_box', '<garbage>');
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+  });
+
+  afterEach(() => {
+    http = TestBed.inject(HttpTestingController);
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('survives corrupt localStorage values', () => {
+    const service = TestBed.inject(AuthService);
+    expect(service.memberships()).toEqual([]);
+    expect(service.activeBox()).toBeNull();
+    expect(localStorage.getItem('bh_memberships')).toBeNull();
+  });
+});

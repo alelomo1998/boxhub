@@ -11,12 +11,21 @@ const K = {
   memberships: 'bh_memberships',
 } as const;
 
+function safeParse<T>(key: string, fallback: T): T {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? JSON.stringify(fallback));
+  } catch {
+    localStorage.removeItem(key); // corrupt value: drop it rather than brick bootstrap
+    return fallback;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
 
-  readonly memberships = signal<MembershipDto[]>(JSON.parse(localStorage.getItem(K.memberships) ?? '[]'));
-  readonly activeBox = signal<ActiveBox | null>(JSON.parse(localStorage.getItem(K.activeBox) ?? 'null'));
+  readonly memberships = signal<MembershipDto[]>(safeParse<MembershipDto[]>(K.memberships, []));
+  readonly activeBox = signal<ActiveBox | null>(safeParse<ActiveBox | null>(K.activeBox, null));
 
   bearerToken(): string | null {
     return localStorage.getItem(K.box) ?? localStorage.getItem(K.user);
