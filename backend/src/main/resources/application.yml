@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/boxhub}
+    username: ${SPRING_DATASOURCE_USERNAME:boxhub}
+    password: ${SPRING_DATASOURCE_PASSWORD:boxhub}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+boxhub:
+  jwt:
+    secret: ${BOXHUB_JWT_SECRET:dev-only-secret-must-be-at-least-32-bytes!}
+    access-ttl: 15m
+    refresh-ttl: 30d
