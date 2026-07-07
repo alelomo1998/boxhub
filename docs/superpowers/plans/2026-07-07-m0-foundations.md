@@ -28,7 +28,6 @@
 - Create: `backend/src/main/java/com/boxhub/BoxhubApplication.java`
 - Create: `backend/src/main/resources/application.yml`
 - Create: `backend/.gitignore` (contains `target/`)
-- Test: `backend/src/test/java/com/boxhub/BoxhubApplicationTest.java`
 
 **Interfaces:**
 - Consumes: nothing (first task)
@@ -114,28 +113,12 @@ boxhub:
     refresh-ttl: 30d
 ```
 
-- [ ] **Step 3: Write the failing test**
+- [ ] **Step 3: Verify it compiles**
 
-`backend/src/test/java/com/boxhub/BoxhubApplicationTest.java`:
-```java
-package com.boxhub;
+Run: `cd backend && mvn -q compile`
+Expected: BUILD SUCCESS. (No tests yet — the first real test is the Testcontainers context/migration test in Task 2; a no-assert smoke test would be noise.)
 
-import org.junit.jupiter.api.Test;
-
-class BoxhubApplicationTest {
-    @Test
-    void mainClassExists() {
-        new BoxhubApplication(); // compile-level smoke; context test comes with Testcontainers in Task 2
-    }
-}
-```
-
-- [ ] **Step 4: Run test**
-
-Run: `cd backend && mvn -q test`
-Expected: BUILD SUCCESS, 1 test passed. (No DB needed yet — no context test until Task 2.)
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add backend/
