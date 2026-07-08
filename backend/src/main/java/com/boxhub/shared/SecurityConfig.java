@@ -25,6 +25,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/box/**").hasAuthority("SCOPE_box")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/invites/*").permitAll()
                 .requestMatchers("/api/invites/*/accept").authenticated()
+                .requestMatchers("/api/admin/**").hasRole("SUPERADMIN")
                 .anyRequest().authenticated())
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtAuthConverter())));
         return http.build();
@@ -38,6 +39,8 @@ public class SecurityConfig {
             if (scope != null) auths.add(new org.springframework.security.core.authority.SimpleGrantedAuthority("SCOPE_" + scope));
             String role = jwt.getClaimAsString("role");
             if (role != null) auths.add(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role));
+            if (Boolean.TRUE.equals(jwt.getClaim("superadmin")))
+                auths.add(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SUPERADMIN"));
             return auths;
         });
         return conv;

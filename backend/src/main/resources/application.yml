@@ -17,3 +17,4 @@ boxhub:
     secret: ${BOXHUB_JWT_SECRET:dev-only-secret-must-be-at-least-32-bytes!}
     access-ttl: 15m
     refresh-ttl: 30d
+  superadmin-emails: ${BOXHUB_SUPERADMIN_EMAILS:}
