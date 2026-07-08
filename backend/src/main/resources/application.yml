@@ -18,3 +18,4 @@ boxhub:
     access-ttl: 15m
     refresh-ttl: 30d
   superadmin-emails: ${BOXHUB_SUPERADMIN_EMAILS:}
+  auth-rate-limit: ${BOXHUB_AUTH_RATE_LIMIT:10}
