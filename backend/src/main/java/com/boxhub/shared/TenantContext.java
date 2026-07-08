@@ -18,6 +18,14 @@ public final class TenantContext {
         return UUID.fromString(boxId);
     }
 
+    /** Tenant id for the Hibernate resolver: null when unauthenticated or user-scoped. */
+    public static UUID boxIdOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof Jwt jwt)) return null;
+        String boxId = jwt.getClaimAsString("box_id");
+        return boxId == null ? null : UUID.fromString(boxId);
+    }
+
     public static String role() {
         return jwt().getClaimAsString("role");
     }
