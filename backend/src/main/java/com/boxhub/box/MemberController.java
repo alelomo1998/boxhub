@@ -45,7 +45,7 @@ public class MemberController {
         RoleGuard.requireBoxAdmin();
         String s = (search == null || search.isBlank()) ? null : search.trim();
         return memberships.searchByBox(TenantContext.requireBoxId(), s,
-                        PageRequest.of(page, Math.min(size, 100)))
+                        PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100)))
                 .map(this::toDto);
     }
 

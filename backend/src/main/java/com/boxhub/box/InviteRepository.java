@@ -9,11 +9,18 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface InviteRepository extends JpaRepository<Invite, UUID> {
-    Optional<Invite> findByTokenHash(String tokenHash);
+    // Native (not JPQL) so the @TenantId discriminator filter does NOT apply:
+    // invites are looked up by unguessable token hash regardless of the caller's active box.
+    @Query(value = "select * from invites where token_hash = :h", nativeQuery = true)
+    Optional<Invite> findByTokenHash(@Param("h") String tokenHash);
 
     // clearAutomatically: drop the stale in-context Invite (acceptedAt still null) so any
     // later re-read in the same tx sees the burned state.
+    // Native for the same reason as findByTokenHash: JPQL bulk updates on a @TenantId
+    // entity are filtered to the caller's active box, which would burn 0 rows for a
+    // cross-box invite accept.
     @Modifying(clearAutomatically = true)
-    @Query("update Invite i set i.acceptedAt = :now where i.id = :id and i.acceptedAt is null")
+    @Query(value = "update invites set accepted_at = :now where id = :id and accepted_at is null",
+            nativeQuery = true)
     int burnIfUnaccepted(@Param("id") UUID id, @Param("now") Instant now);
 }

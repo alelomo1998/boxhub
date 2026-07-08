@@ -114,6 +114,37 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void userWithActiveBoxTokenCanPreviewAndAcceptForeignBoxInvite() throws Exception {
+        long n = System.nanoTime();
+        // invite into the test's `box` (created in setup, admin-scoped)
+        String token = createInviteLink("cross-" + n + "@t.io", "ATHLETE");
+
+        // a user who is ALREADY an admin of a DIFFERENT box, holding that box's token
+        Box otherBox = new Box();
+        otherBox.setName("Other Box " + n);
+        otherBox.setSlug("other-" + n);
+        otherBox.setTimezone("Europe/Rome");
+        boxes.save(otherBox);
+        User joiner = authService.register("cross-" + n + "@t.io", "password123", "Cross Joiner");
+        Membership om = new Membership();
+        om.setUser(joiner);
+        om.setBox(otherBox);
+        om.setRole("BOX_ADMIN");
+        memberships.save(om);
+        String boxToken = tokenService.boxToken(joiner, om); // tenant = otherBox
+
+        // preview must resolve the invite even though the token's tenant is otherBox
+        mvc.perform(get("/api/invites/" + token).header("Authorization", "Bearer " + boxToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.boxName").value(box.getName()));
+
+        // accept must create membership in the INVITE's box (box), not otherBox
+        mvc.perform(post("/api/invites/" + token + "/accept").header("Authorization", "Bearer " + boxToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.boxId").value(box.getId().toString()));
+    }
+
+    @Test
     void burnIsAtomicSingleUse() throws Exception {
         long n = System.nanoTime();
         String token = createInviteLink("race-" + n + "@t.io", "ATHLETE");
