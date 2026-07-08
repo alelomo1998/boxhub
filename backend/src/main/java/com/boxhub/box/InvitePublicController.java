@@ -6,6 +6,7 @@ import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
 import com.boxhub.shared.TenantContext;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -57,6 +58,11 @@ public class InvitePublicController {
         if (memberships.findByUserIdAndBoxId(userId, inv.getBoxId()).isPresent())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Already a member of this box");
 
+        // Atomic single-use burn: the row-level lock serializes concurrent accepts;
+        // losers see 0 rows and get 410. Rolls back with the membership on failure.
+        if (invites.burnIfUnaccepted(inv.getId(), Instant.now()) == 0)
+            throw new ResponseStatusException(HttpStatus.GONE, "Invite expired or already used");
+
         Box box = boxes.findById(inv.getBoxId()).orElseThrow(NoSuchElementException::new);
         User user = users.findById(userId).orElseThrow(NoSuchElementException::new);
         Membership m = new Membership();
@@ -70,9 +76,11 @@ public class InvitePublicController {
                 m.setExpiresAt(LocalDate.now().plusDays(plan.getDurationDays()));
             }
         }
-        memberships.save(m);
-        inv.setAcceptedAt(Instant.now());
-        invites.save(inv);
+        try {
+            memberships.saveAndFlush(m);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Already a member of this box");
+        }
         return new AuthController.MembershipDto(box.getId(), box.getName(), box.getSlug(), m.getRole());
     }
 }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -24,6 +25,8 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
     @Autowired MembershipRepository memberships;
     @Autowired TokenService tokenService;
     @Autowired ObjectMapper om;
+    @Autowired InviteRepository invites;
+    @Autowired org.springframework.transaction.PlatformTransactionManager txManager;
 
     Box box;
     String adminToken;
@@ -108,5 +111,21 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/invites/" + token + "/accept")
                         .header("Authorization", "Bearer " + tokenService.userToken(joiner)))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void burnIsAtomicSingleUse() throws Exception {
+        long n = System.nanoTime();
+        String token = createInviteLink("race-" + n + "@t.io", "ATHLETE");
+        var inv = invites.findByTokenHash(
+                com.boxhub.identity.RefreshTokenService.sha256(token)).orElseThrow();
+        // @Modifying burn needs a tx; wrap only the burns (prod accept() is @Transactional).
+        // Second call must see 0 rows: the conditional UPDATE ... WHERE accepted_at IS NULL
+        // is what makes concurrent accepts single-use.
+        var tx = new org.springframework.transaction.support.TransactionTemplate(txManager);
+        tx.executeWithoutResult(s -> {
+            assertThat(invites.burnIfUnaccepted(inv.getId(), java.time.Instant.now())).isEqualTo(1);
+            assertThat(invites.burnIfUnaccepted(inv.getId(), java.time.Instant.now())).isEqualTo(0);
+        });
     }
 }
