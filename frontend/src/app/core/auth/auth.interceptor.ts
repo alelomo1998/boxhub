@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { catchError, of, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -23,11 +23,23 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             router.navigateByUrl('/auth/login');
             return throwError(() => err);
           }
-          const retry = req.clone({ setHeaders: { Authorization: `Bearer ${auth.bearerToken()}` } });
-          return next(retry);
+          const box = auth.activeBox();
+          // Re-mint the box token with the fresh user token so the retry
+          // doesn't reuse an expired box-scoped token.
+          const reselect = box ? auth.selectBox(box.boxId) : of(void 0);
+          return reselect.pipe(
+            switchMap(() => {
+              const retry = req.clone({ setHeaders: { Authorization: `Bearer ${auth.bearerToken()}` } });
+              return next(retry);
+            }),
+            catchError(() => {
+              auth.logout();
+              router.navigateByUrl('/auth/login');
+              return throwError(() => err);
+            }),
+          );
         }),
       );
     }),
   );
 };
-// ponytail: refresh renews user token only; box token refresh flow in M1 if it bites.
