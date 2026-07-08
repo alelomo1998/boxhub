@@ -10,6 +10,7 @@ public class Box {
     @Column(nullable = false) private String name;
     @Column(nullable = false, unique = true) private String slug;
     @Column(nullable = false) private String timezone;
+    @Column(name = "logo_url") private String logoUrl;
 
     public UUID getId() { return id; }
     public String getName() { return name; }
@@ -18,4 +19,6 @@ public class Box {
     public void setSlug(String slug) { this.slug = slug; }
     public String getTimezone() { return timezone; }
     public void setTimezone(String timezone) { this.timezone = timezone; }
+    public String getLogoUrl() { return logoUrl; }
+    public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
 }

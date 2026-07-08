@@ -37,4 +37,9 @@ public class ApiExceptionHandler {
     ProblemDetail notFound(java.util.NoSuchElementException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Resource not found");
     }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    ProblemDetail responseStatus(org.springframework.web.server.ResponseStatusException e) {
+        return ProblemDetail.forStatusAndDetail(e.getStatusCode(), e.getReason());
+    }
 }

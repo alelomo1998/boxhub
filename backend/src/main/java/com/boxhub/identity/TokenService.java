@@ -13,14 +13,23 @@ public class TokenService {
 
     private final JwtEncoder encoder;
     private final Duration accessTtl;
+    private final java.util.Set<String> superadminEmails;
 
-    public TokenService(JwtEncoder encoder, @Value("${boxhub.jwt.access-ttl}") Duration accessTtl) {
+    public TokenService(JwtEncoder encoder,
+                        @Value("${boxhub.jwt.access-ttl}") Duration accessTtl,
+                        @Value("${boxhub.superadmin-emails}") java.util.List<String> superadminEmails) {
         this.encoder = encoder;
         this.accessTtl = accessTtl;
+        this.superadminEmails = superadminEmails.stream()
+                .map(String::trim).map(String::toLowerCase)
+                .filter(s -> !s.isEmpty())
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     public String userToken(User user) {
-        return encode(baseClaims(user).claim("scope", "user").build());
+        JwtClaimsSet.Builder b = baseClaims(user).claim("scope", "user");
+        if (superadminEmails.contains(user.getEmail())) b.claim("superadmin", true);
+        return encode(b.build());
     }
 
     public String boxToken(User user, Membership membership) {

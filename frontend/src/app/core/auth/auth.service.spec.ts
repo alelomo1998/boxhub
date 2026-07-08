@@ -44,6 +44,39 @@ describe('AuthService', () => {
     expect(service.activeBox()?.role).toBe('COACH');
   });
 
+  it('refresh then selectBox chain renews box token (interceptor contract)', () => {
+    // login + select box to establish active box state
+    service.login('a@b.io', 'password123').subscribe();
+    http.expectOne('/api/auth/login').flush({
+      accessToken: 'AT', refreshToken: 'RT',
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+    });
+    service.selectBox('1').subscribe();
+    http.expectOne('/api/auth/box-token').flush({ accessToken: 'BOX-AT-1' });
+
+    // refresh rotates user token; a follow-up selectBox must be possible and update the box token
+    service.refresh().subscribe();
+    http.expectOne('/api/auth/refresh').flush({
+      accessToken: 'AT-2', refreshToken: 'RT-2',
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+    });
+    service.selectBox('1').subscribe();
+    http.expectOne('/api/auth/box-token').flush({ accessToken: 'BOX-AT-2' });
+    expect(localStorage.getItem('bh_box_token')).toBe('BOX-AT-2');
+  });
+
+  it('refresh updates memberships signal', () => {
+    service.refresh; // type presence
+    localStorage.setItem('bh_refresh_token', 'RT');
+    service.refresh().subscribe(ok => expect(ok).toBeTrue());
+    http.expectOne('/api/auth/refresh').flush({
+      accessToken: 'AT2', refreshToken: 'RT2',
+      memberships: [{ boxId: '9', boxName: 'New', boxSlug: 'new', role: 'ATHLETE' }],
+    });
+    expect(service.memberships().length).toBe(1);
+    expect(service.memberships()[0].boxId).toBe('9');
+  });
+
   it('logout clears everything', () => {
     localStorage.setItem('bh_user_token', 'x');
     service.logout();

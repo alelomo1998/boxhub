@@ -49,7 +49,7 @@ public class RefreshTokenService {
         return rt.getUser();
     }
 
-    static String sha256(String value) {
+    public static String sha256(String value) {
         try {
             return HexFormat.of().formatHex(
                     MessageDigest.getInstance("SHA-256").digest(value.getBytes()));
