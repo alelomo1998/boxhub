@@ -29,8 +29,8 @@ public class PlanController {
         }
     }
 
-    record CreatePlanRequest(@NotBlank String name, @Min(1) int durationDays, Integer weeklyClassLimit) {}
-    record PatchPlanRequest(String name, Integer durationDays, Integer weeklyClassLimit, Boolean archived) {}
+    record CreatePlanRequest(@NotBlank String name, @Min(1) int durationDays, @Min(1) Integer weeklyClassLimit) {}
+    record PatchPlanRequest(String name, @Min(1) Integer durationDays, @Min(1) Integer weeklyClassLimit, Boolean archived) {}
 
     @GetMapping
     public List<PlanDto> list() {
@@ -53,7 +53,7 @@ public class PlanController {
     }
 
     @PatchMapping("/{id}")
-    public PlanDto patch(@PathVariable UUID id, @RequestBody PatchPlanRequest req) {
+    public PlanDto patch(@PathVariable UUID id, @Valid @RequestBody PatchPlanRequest req) {
         RoleGuard.requireBoxAdmin();
         Plan p = plans.findById(id).orElseThrow(NoSuchElementException::new); // tenant filter: foreign ids look absent
         if (req.name() != null) p.setName(req.name().trim());

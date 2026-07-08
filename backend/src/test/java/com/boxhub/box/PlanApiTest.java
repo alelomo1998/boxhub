@@ -109,4 +109,26 @@ class PlanApiTest extends AbstractIntegrationTest {
                         .content("{\"durationDays\":99}"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void zeroDurationPatchIs400() throws Exception {
+        String body = mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Valid Plan\",\"durationDays\":30}"))
+                .andReturn().getResponse().getContentAsString();
+        String id = om.readTree(body).get("id").asText();
+
+        mvc.perform(patch("/api/box/plans/" + id).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"durationDays\":0}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void negativeWeeklyLimitOnCreateIs400() throws Exception {
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Neg Limit\",\"durationDays\":30,\"weeklyClassLimit\":-1}"))
+                .andExpect(status().isBadRequest());
+    }
 }
