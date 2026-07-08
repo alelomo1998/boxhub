@@ -63,4 +63,32 @@ class TenantIdIsolationTest extends AbstractIntegrationTest {
         actAsBox(boxB); // same repository call, different tenant: must see nothing of boxA
         assertThat(plans.findAll()).extracting(Plan::getName).doesNotContain("Unlimited " + n);
     }
+
+    @Test
+    void nullTenantSessionIsRootAndSeesAllBoxes_pinnedFailOpenBehavior() {
+        long n = System.nanoTime();
+        UUID boxA = newBoxId("root-a-" + n);
+        UUID boxB = newBoxId("root-b-" + n);
+
+        actAsBox(boxA);
+        Plan pa = new Plan();
+        pa.setName("Root Pin A " + n);
+        pa.setDurationDays(30);
+        plans.save(pa);
+
+        actAsBox(boxB);
+        Plan pb = new Plan();
+        pb.setName("Root Pin B " + n);
+        pb.setDurationDays(30);
+        plans.save(pb);
+
+        // No authentication -> resolver returns NO_TENANT sentinel -> isRoot -> filter OFF.
+        // PINNED ON PURPOSE: null-tenant sessions are fail-OPEN at the ORM layer (see ADR-001
+        // amendment). Isolation for real requests is enforced by SCOPE_box + TenantContext at
+        // the controller boundary. If this test starts failing, the tenancy semantics changed —
+        // re-read ADR-001 before "fixing" it.
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        assertThat(plans.findAll()).extracting(Plan::getName)
+                .contains("Root Pin A " + n, "Root Pin B " + n);
+    }
 }
