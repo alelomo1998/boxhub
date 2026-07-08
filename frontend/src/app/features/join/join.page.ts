@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { switchMap } from 'rxjs';
+import { map, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { redirectForRole, Role } from '../../core/auth/auth.models';
 
@@ -67,9 +67,10 @@ export class JoinPage {
     this.auth.register(this.email, this.password, this.name).pipe(
       switchMap(() => this.auth.login(this.email, this.password)),
       switchMap(() => this.auth.acceptInvite(this.token)),
-      switchMap(m => this.auth.refresh().pipe(switchMap(() => this.auth.selectBox(m.boxId)))),
+      // carry the authoritative role from the accept response, not the preview-time signal
+      switchMap(m => this.auth.refresh().pipe(switchMap(() => this.auth.selectBox(m.boxId)), map(() => m.role))),
     ).subscribe({
-      next: () => this.router.navigateByUrl(redirectForRole(this.role())),
+      next: role => this.router.navigateByUrl(redirectForRole(role)),
       error: e => this.error.set(e.error?.detail ?? 'Could not join — try again'),
     });
   }
@@ -77,9 +78,9 @@ export class JoinPage {
   acceptExisting() {
     this.error.set('');
     this.auth.acceptInvite(this.token).pipe(
-      switchMap(m => this.auth.refresh().pipe(switchMap(() => this.auth.selectBox(m.boxId)))),
+      switchMap(m => this.auth.refresh().pipe(switchMap(() => this.auth.selectBox(m.boxId)), map(() => m.role))),
     ).subscribe({
-      next: () => this.router.navigateByUrl(redirectForRole(this.role())),
+      next: role => this.router.navigateByUrl(redirectForRole(role)),
       error: e => this.error.set(e.error?.detail ?? 'Could not join — try again'),
     });
   }
