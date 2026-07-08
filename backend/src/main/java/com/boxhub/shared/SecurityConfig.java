@@ -23,6 +23,8 @@ public class SecurityConfig {
                         "/actuator/health").permitAll()
                 .requestMatchers("/api/auth/box-token").authenticated()
                 .requestMatchers("/api/box/**").hasAuthority("SCOPE_box")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/invites/*").permitAll()
+                .requestMatchers("/api/invites/*/accept").authenticated()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtAuthConverter())));
         return http.build();

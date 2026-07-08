@@ -96,6 +96,15 @@ class InviteAdminApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void unknownPlanIdIs400() throws Exception {
+        mvc.perform(post("/api/box/invites").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"email\":\"x@y.io\",\"role\":\"ATHLETE\",\"planId\":\"" +
+                                java.util.UUID.randomUUID() + "\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void revokeRemovesInvite_crossTenantRevokeIs404() throws Exception {
         String body = mvc.perform(post("/api/box/invites").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + adminToken)

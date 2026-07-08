@@ -19,10 +19,12 @@ public class InviteAdminController {
 
     private final InviteRepository invites;
     private final InviteService inviteService;
+    private final PlanRepository plans;
 
-    public InviteAdminController(InviteRepository invites, InviteService inviteService) {
+    public InviteAdminController(InviteRepository invites, InviteService inviteService, PlanRepository plans) {
         this.invites = invites;
         this.inviteService = inviteService;
+        this.plans = plans;
     }
 
     record CreateInviteRequest(@NotBlank @Email String email,
@@ -38,6 +40,8 @@ public class InviteAdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedInviteResponse create(@Valid @RequestBody CreateInviteRequest req) {
         RoleGuard.requireBoxAdmin();
+        if (req.planId() != null && plans.findById(req.planId()).isEmpty())
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown plan");
         var created = inviteService.create(req.email(), req.role(), req.planId());
         Invite i = created.invite();
         return new CreatedInviteResponse(i.getId(), i.getEmail(), i.getRole(), i.getPlanId(),

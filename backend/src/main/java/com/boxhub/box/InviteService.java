@@ -39,4 +39,17 @@ public class InviteService {
         inv.setCreatedBy(TenantContext.userId());
         return new CreatedInvite(invites.save(inv), token);
     }
+
+    public record InvitePreview(String boxName, String boxSlug, String role, String email, String planName) {}
+
+    // NOTE: runs tenant-less (public endpoint) — lookup by unguessable token hash.
+    @Transactional(readOnly = true)
+    public Invite findValid(String rawToken) {
+        Invite inv = invites.findByTokenHash(RefreshTokenService.sha256(rawToken))
+                .orElseThrow(java.util.NoSuchElementException::new);
+        if (inv.getAcceptedAt() != null || inv.getExpiresAt().isBefore(Instant.now()))
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.GONE, "Invite expired or already used");
+        return inv;
+    }
 }

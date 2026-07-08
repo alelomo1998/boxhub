@@ -18,6 +18,7 @@ public class Membership {
     @Column(nullable = false) private String role;
     @Column(nullable = false) private String status = "ACTIVE";
     @Column(name = "expires_at") private LocalDate expiresAt;
+    @Column(name = "plan_id") private UUID planId;
 
     public UUID getId() { return id; }
     public User getUser() { return user; }
@@ -30,4 +31,6 @@ public class Membership {
     public void setStatus(String status) { this.status = status; }
     public LocalDate getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDate expiresAt) { this.expiresAt = expiresAt; }
+    public UUID getPlanId() { return planId; }
+    public void setPlanId(UUID planId) { this.planId = planId; }
 }
