@@ -55,7 +55,9 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     }
 
     private String clientIp(HttpServletRequest req) {
-        String fwd = req.getHeader("X-Forwarded-For");
-        return fwd != null && !fwd.isBlank() ? fwd.split(",")[0].trim() : req.getRemoteAddr();
+        // X-Real-IP is set authoritatively by our nginx (overwrites any client value);
+        // never trust client-supplied X-Forwarded-For for rate-limit identity.
+        String realIp = req.getHeader("X-Real-IP");
+        return realIp != null && !realIp.isBlank() ? realIp.trim() : req.getRemoteAddr();
     }
 }
