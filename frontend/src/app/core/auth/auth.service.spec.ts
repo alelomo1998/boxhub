@@ -65,6 +65,18 @@ describe('AuthService', () => {
     expect(localStorage.getItem('bh_box_token')).toBe('BOX-AT-2');
   });
 
+  it('refresh updates memberships signal', () => {
+    service.refresh; // type presence
+    localStorage.setItem('bh_refresh_token', 'RT');
+    service.refresh().subscribe(ok => expect(ok).toBeTrue());
+    http.expectOne('/api/auth/refresh').flush({
+      accessToken: 'AT2', refreshToken: 'RT2',
+      memberships: [{ boxId: '9', boxName: 'New', boxSlug: 'new', role: 'ATHLETE' }],
+    });
+    expect(service.memberships().length).toBe(1);
+    expect(service.memberships()[0].boxId).toBe('9');
+  });
+
   it('logout clears everything', () => {
     localStorage.setItem('bh_user_token', 'x');
     service.logout();

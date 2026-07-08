@@ -20,6 +20,7 @@ export const routes: Routes = [
     ],
   },
   { path: 'tv', loadComponent: () => import('./features/tv/tv-shell.page').then(m => m.TvShellPage) },
+  { path: 'join/:token', loadComponent: () => import('./features/join/join.page').then(m => m.JoinPage) },
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
   { path: '**', redirectTo: 'auth/login' },
 ];

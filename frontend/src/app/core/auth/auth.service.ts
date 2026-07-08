@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, tap, of, catchError } from 'rxjs';
-import { ActiveBox, LoginResponse, MembershipDto } from './auth.models';
+import { ActiveBox, LoginResponse, MembershipDto, Role } from './auth.models';
 
 const K = {
   user: 'bh_user_token',
@@ -65,10 +65,28 @@ export class AuthService {
       tap(res => {
         localStorage.setItem(K.user, res.accessToken);
         localStorage.setItem(K.refresh, res.refreshToken);
+        localStorage.setItem(K.memberships, JSON.stringify(res.memberships));
+        this.memberships.set(res.memberships);
       }),
       map(() => true),
       catchError(() => of(false)),
     );
+  }
+
+  register(email: string, password: string, name: string): Observable<unknown> {
+    return this.http.post('/api/auth/register', { email, password, name });
+  }
+
+  previewInvite(token: string): Observable<{ boxName: string; boxSlug: string; role: Role; email: string; planName: string | null }> {
+    return this.http.get<{ boxName: string; boxSlug: string; role: Role; email: string; planName: string | null }>(`/api/invites/${token}`);
+  }
+
+  acceptInvite(token: string): Observable<MembershipDto> {
+    return this.http.post<MembershipDto>(`/api/invites/${token}/accept`, {});
+  }
+
+  hasUserToken(): boolean {
+    return localStorage.getItem(K.user) !== null;
   }
 
   logout(): void {
