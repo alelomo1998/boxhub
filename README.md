@@ -11,7 +11,8 @@ and `docs/superpowers/plans/` (milestone plans).
 - Frontend: `cd frontend && npm start` (proxies /api to :8080)
 - Full stack: `docker compose -f docker/docker-compose.yml up --build` → http://localhost
 - Dev users (profile `dev`): admin@demo.io / coach@demo.io / athlete@demo.io — password `password123`
-- Admin panel: log in as admin@demo.io → /admin (members, invites, plans, settings). Invites are shareable links (no email sending yet).
+- Admin panel: log in as admin@demo.io → /admin (members, schedule, invites, plans, settings). Invites are shareable links (no email sending yet).
+- Scheduling & booking: admin creates weekly class templates under /admin/schedule → sessions auto-generate to the booking horizon. Athletes book at /athlete/book (waitlist auto-promotes on cancel; plan weekly-limit + cancel cutoff enforced). Coaches run rosters + check-in at /coach/sessions.
 - Tests: `cd backend && mvn verify` · `cd frontend && npm test` · `cd e2e && npx playwright test`
 
 ## Deploy
