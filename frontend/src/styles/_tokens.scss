@@ -1,0 +1,41 @@
+:root {
+  /* DARK — home theme. Warm espresso near-black, never cold blue-black. */
+  --ground: #17120d;
+  --surface: #201a13;
+  --surface-2: #2a231a;
+  --hairline: #3a3124;
+  --bone: #ece3d2;
+  --bone-dim: #a99d86;
+  --faint: #6f6552;
+  --red: #ec4326;
+  --on-red: #ffffff;
+  --red-glow: rgba(236, 67, 38, 0.38);
+  --good: #63a45f;
+  --warn: #e0a32e;
+
+  --font-display: "Saira Condensed", system-ui, sans-serif;
+  --font-body: "Archivo", system-ui, -apple-system, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Menlo", monospace;
+
+  --edge: 4px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 40px; --sp-10: 64px;
+}
+
+@mixin light-tokens {
+  --ground: #f1ece0;
+  --surface: #f9f5ea;
+  --surface-2: #eee7d6;
+  --hairline: #d9d0be;
+  --bone: #1a1712;
+  --bone-dim: #5f5849;
+  --faint: #8a806c;
+  --red: #d5351d;
+  --red-glow: rgba(213, 53, 29, 0.16);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { @include light-tokens; }
+}
+:root[data-theme="light"] { @include light-tokens; }
+:root[data-theme="dark"] { /* dark base already on :root; explicit wins over OS */ }
