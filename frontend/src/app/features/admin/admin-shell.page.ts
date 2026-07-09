@@ -12,6 +12,7 @@ import { ThemeService } from '../../core/theme/theme.service';
       <bh-rail>
         <div class="brand"><span class="mark">B</span><span class="bn">BoxHub</span></div>
         <bh-nav-item label="Members" link="members" />
+        <bh-nav-item label="Schedule" link="schedule" />
         <bh-nav-item label="Invites" link="invites" />
         <bh-nav-item label="Plans" link="plans" />
         <bh-nav-item label="Settings" link="settings" />
