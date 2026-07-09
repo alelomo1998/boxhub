@@ -29,23 +29,24 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
       @if (lastPr()) { <p class="prbadge" data-testid="pr-badge">🏆 New PR!</p> }
       @if (notFound()) { <p class="warn">Pick a movement from the list.</p> }
 
-      <h2 class="t-h2">Recent</h2>
-      <div class="bh-table-wrap">
-        <table class="bh-table">
-          <thead><tr><th>Movement</th><th>Load</th><th>Reps</th><th>When</th><th></th></tr></thead>
-          <tbody>
-            @for (l of recent(); track l.id) {
-              <tr>
-                <td>{{ l.movementName }}</td>
-                <td class="num">{{ l.load }}</td>
-                <td class="num">{{ l.reps }}</td>
-                <td class="num">{{ l.performedOn | date:'d MMM y' }}</td>
-                <td>@if (l.isPr) { <span class="pr">PR</span> }</td>
-              </tr>
-            } @empty { <tr><td colspan="5" class="muted">No lifts logged yet.</td></tr> }
-          </tbody>
-        </table>
-      </div>
+      @if (recent().length) {
+        <h2 class="t-h2">{{ recentName() }} history</h2>
+        <div class="bh-table-wrap">
+          <table class="bh-table">
+            <thead><tr><th>Load</th><th>Reps</th><th>When</th><th></th></tr></thead>
+            <tbody>
+              @for (l of recent(); track l.id) {
+                <tr>
+                  <td class="num">{{ l.load }}</td>
+                  <td class="num">{{ l.reps }}</td>
+                  <td class="num">{{ l.performedOn | date:'d MMM y' }}</td>
+                  <td>@if (l.isPr) { <span class="pr">PR</span> }</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </section>
   `,
   styles: [`
@@ -69,30 +70,34 @@ export class LiftLogPage implements OnInit {
   reps = signal<number | null>(1);
   performedOn = signal(today());
   recent = signal<Lift[]>([]);
+  recentName = signal('');
   lastPr = signal(false);
   notFound = signal(false);
 
   ngOnInit() {
     this.prog.movements().subscribe(m => this.movements.set(m));
-    this.loadRecent();
   }
 
   resolvedId(): string | undefined {
     return this.movements().find(m => m.name.toLowerCase() === this.movementName().trim().toLowerCase())?.id;
   }
 
-  // "Recent" = current best per movement (the PR list).
-  private loadRecent() { this.perf.prs().subscribe(p => this.recent.set(p)); }
+  // history for the last-logged movement (newest first)
+  private loadHistory(movementId: string, name: string) {
+    this.recentName.set(name);
+    this.perf.lifts(movementId).subscribe(entries => this.recent.set([...entries].reverse()));
+  }
 
   save() {
     const id = this.resolvedId();
     if (!id) { this.notFound.set(true); return; }
     this.notFound.set(false);
+    const name = this.movementName().trim();
     this.perf.logLift({ movementId: id, load: this.load()!, reps: this.reps() ?? 1, performedOn: this.performedOn() })
       .subscribe(l => {
         this.lastPr.set(l.isPr);
         this.load.set(null);
-        this.loadRecent();
+        this.loadHistory(id, name);
       });
   }
 }
