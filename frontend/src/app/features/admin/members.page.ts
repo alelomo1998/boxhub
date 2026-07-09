@@ -3,60 +3,73 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { AdminService, Member, PageResponse, Plan } from './admin.service';
 import { Role } from '../../core/auth/auth.models';
+import { ButtonComponent } from '../../ui/button.component';
+import { PillComponent } from '../../ui/pill.component';
 
 @Component({
   selector: 'bh-admin-members',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, ButtonComponent, PillComponent],
   template: `
-    <section>
-      <h2>Members</h2>
-      <input placeholder="Search name or email" [ngModel]="search()" name="search"
-             (ngModelChange)="onSearch($event)" data-testid="member-search" />
-      <table>
-        <thead>
-          <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Plan</th><th>Expires</th><th></th></tr>
-        </thead>
-        <tbody>
-          @for (m of page().content; track m.membershipId) {
-            <tr [attr.data-testid]="'member-' + m.email">
-              <td>{{ m.name }}</td>
-              <td>{{ m.email }}</td>
-              <td>
-                <select [ngModel]="m.role" [name]="'role-' + m.membershipId"
-                        (ngModelChange)="patch(m, { role: $event })">
-                  <option>ATHLETE</option><option>COACH</option><option>BOX_ADMIN</option>
-                </select>
-              </td>
-              <td>
-                <select [ngModel]="m.status" [name]="'status-' + m.membershipId"
-                        (ngModelChange)="patch(m, { status: $event })">
-                  <option>ACTIVE</option><option>SUSPENDED</option>
-                </select>
-              </td>
-              <td>
-                <select [ngModel]="m.planId" [name]="'plan-' + m.membershipId"
-                        (ngModelChange)="patch(m, { planId: $event })">
-                  <option [ngValue]="null">—</option>
-                  @for (p of plans(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
-                </select>
-              </td>
-              <td>
-                {{ m.expiresAt | date:'dd/MM/yyyy' }}
-                @if (m.expiringSoon) { <span class="badge-warn" data-testid="expiring">expiring</span> }
-              </td>
-              <td>@if (error() === m.membershipId) { <span class="error">failed</span> }</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+    <section class="bh-section">
+      <div class="bh-section-head">
+        <h2 class="t-h2">Members <span class="count">{{ page().totalElements }} total</span></h2>
+        <input class="bh-input" placeholder="Search name or email" [ngModel]="search()" name="search"
+               (ngModelChange)="onSearch($event)" data-testid="member-search" />
+      </div>
+      <div class="bh-table-wrap">
+        <table class="bh-table">
+          <thead>
+            <tr><th>Member</th><th>Role</th><th>Status</th><th>Plan</th><th>Expires</th></tr>
+          </thead>
+          <tbody>
+            @for (m of page().content; track m.membershipId) {
+              <tr [attr.data-testid]="'member-' + m.email">
+                <td><div class="mname">{{ m.name }}</div><div class="memail">{{ m.email }}</div></td>
+                <td>
+                  <select class="bh-select" [ngModel]="m.role" [name]="'role-' + m.membershipId"
+                          (ngModelChange)="patch(m, { role: $event })">
+                    <option>ATHLETE</option><option>COACH</option><option>BOX_ADMIN</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="bh-select" [ngModel]="m.status" [name]="'status-' + m.membershipId"
+                          (ngModelChange)="patch(m, { status: $event })">
+                    <option>ACTIVE</option><option>SUSPENDED</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="bh-select" [ngModel]="m.planId" [name]="'plan-' + m.membershipId"
+                          (ngModelChange)="patch(m, { planId: $event })">
+                    <option [ngValue]="null">—</option>
+                    @for (p of plans(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
+                  </select>
+                </td>
+                <td class="num">
+                  {{ m.expiresAt | date:'dd MMM yyyy' }}
+                  @if (m.expiringSoon) { <span data-testid="expiring"><bh-pill tone="warn" label="expiring" /></span> }
+                  @if (error() === m.membershipId) { <span class="failed">· failed</span> }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
       @if (page().totalPages > 1) {
-        <button (click)="go(-1)" [disabled]="pageIndex() === 0">Prev</button>
-        <span>{{ pageIndex() + 1 }} / {{ page().totalPages }}</span>
-        <button (click)="go(1)" [disabled]="pageIndex() + 1 >= page().totalPages">Next</button>
+        <div class="pager">
+          <bh-button variant="ghost" size="sm" [disabled]="pageIndex() === 0" (click)="go(-1)">Prev</bh-button>
+          <span class="num">{{ pageIndex() + 1 }} / {{ page().totalPages }}</span>
+          <bh-button variant="ghost" size="sm" [disabled]="pageIndex() + 1 >= page().totalPages" (click)="go(1)">Next</bh-button>
+        </div>
       }
     </section>
   `,
+  styles: [`
+    .count { font-family: var(--font-mono); font-size: 12px; color: var(--faint); text-transform: none; letter-spacing: 0.06em; margin-left: 10px; }
+    .bh-section-head .bh-input { max-width: 240px; }
+    .failed { color: var(--red); font-size: 12px; font-family: var(--font-mono); margin-left: 8px; }
+    .pager { display: flex; align-items: center; gap: var(--sp-3); }
+  `],
 })
 export class MembersPage implements OnInit {
   private admin = inject(AdminService);

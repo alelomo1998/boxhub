@@ -1,0 +1,9 @@
+/* @fontsource css (woff2, self-hosted) is added via angular.json styles.
+   Type-scale utility classes — used by components/screens, all token-driven. */
+.t-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--faint); }
+.t-display { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; letter-spacing: -0.03em; line-height: 0.9; }
+.t-h2 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 30px; letter-spacing: -0.01em; }
+.t-h3 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 20px; letter-spacing: -0.005em; }
+.t-figure { font-family: var(--font-body); font-weight: 700; font-variant-numeric: tabular-nums; }
+.t-body { font-family: var(--font-body); font-weight: 400; }
+.num { font-variant-numeric: tabular-nums; }

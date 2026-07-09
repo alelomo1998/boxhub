@@ -24,5 +24,9 @@ CrossFit box platform. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16. Mul
 - **Numbers are tabular.** Screens are built from shared `bh-*` components; re-implementing a component's markup in a screen is a bug.
 - Type: display = Saira Condensed, body/UI = Archivo, eyebrows = system mono. Embedded as data-URI (CSP blocks font CDNs).
 
-## Process pace (from M2 onward)
-Lean & fast but keep the superpowers flow (brainstorm → writing-plans → subagent-driven-development → finishing-a-development-branch). Batch 3–5 plan tasks per implementer; one review pass per batch; deep per-task review only for security/money/tenancy code. Track progress in `.superpowers/sdd/progress.md`.
+## Process pace (DEFAULT — lightweight)
+Keep the superpowers arc (brainstorm → writing-plans → execute → finish) but execute LIGHT:
+- **Default = inline execution by the main thread.** Write/Edit the files directly, run tests+build, commit. NO implementer subagent, NO reviewer subagent, NO per-task brief/report files for mechanical, well-specified work (restyles, CRUD from a detailed plan, transcription). Tests + build + targeted greps are the gate.
+- **Spawn a subagent ONLY when:** the work is genuinely parallelizable, high-uncertainty/high-risk (security, tenancy, money, tricky concurrency), or too big to hold in one context. Then one implementer + one review, not a loop.
+- Commit in batches (several plan tasks per commit is fine). Track progress in `.superpowers/sdd/progress.md`.
+- This is a correction from M0/M1, which used per-task implement+review+fix subagents — too heavy/slow/expensive for this stage.

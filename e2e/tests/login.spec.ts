@@ -7,7 +7,7 @@ test('athlete logs in and lands on athlete shell', async ({ page }) => {
   await page.fill('input[name="password"]', 'password123');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/athlete/);
-  await expect(page.locator('h1')).toHaveText('Athlete');
+  await expect(page.locator('h1')).toHaveText('Your training');
 });
 
 test('admin lands on admin shell', async ({ page }) => {
@@ -16,7 +16,8 @@ test('admin lands on admin shell', async ({ page }) => {
   await page.fill('input[name="password"]', 'password123');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/admin/);
-  await expect(page.locator('h1')).toHaveText('Box Admin');
+  // admin shell is now a rail + router-outlet; default child is the members board
+  await expect(page.getByTestId('member-search')).toBeVisible();
 });
 
 test('wrong password shows error', async ({ page }) => {
