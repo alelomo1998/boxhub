@@ -1,6 +1,7 @@
 package com.boxhub.box;
 
 import com.boxhub.shared.RoleGuard;
+import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -18,9 +19,11 @@ import java.util.UUID;
 public class ClassTemplateController {
 
     private final ClassTemplateRepository templates;
+    private final SessionGenerator generator;
 
-    public ClassTemplateController(ClassTemplateRepository templates) {
+    public ClassTemplateController(ClassTemplateRepository templates, SessionGenerator generator) {
         this.templates = templates;
+        this.generator = generator;
     }
 
     public record TemplateDto(UUID id, String name, int weekday, LocalTime startTime,
@@ -55,7 +58,9 @@ public class ClassTemplateController {
         t.setDurationMin(req.durationMin());
         t.setCapacity(req.capacity());
         t.setCoachId(req.coachId());
-        return TemplateDto.of(templates.save(t));
+        ClassTemplate saved = templates.save(t);
+        generator.generateForBox(TenantContext.requireBoxId());
+        return TemplateDto.of(saved);
     }
 
     @PatchMapping("/{id}")
@@ -69,6 +74,8 @@ public class ClassTemplateController {
         if (req.capacity() != null) t.setCapacity(req.capacity());
         if (req.coachId() != null) t.setCoachId(req.coachId());
         if (req.active() != null) t.setActive(req.active());
-        return TemplateDto.of(templates.save(t));
+        ClassTemplate saved = templates.save(t);
+        if (saved.isActive()) generator.generateForBox(TenantContext.requireBoxId());
+        return TemplateDto.of(saved);
     }
 }
