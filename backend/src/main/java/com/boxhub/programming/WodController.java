@@ -31,8 +31,7 @@ public class WodController {
                          String bodyText, WodJson.Blocks blocks, String scalingNotes, UUID benchmarkTemplateId) {}
 
     WodDto toDto(Wod w) {
-        return new WodDto(w.getId(), w.getTitle(), w.getWodType(), w.getScoreType(), w.getTimeCapSeconds(),
-                w.getBodyText(), service.deserialize(w.getBlocksJson()), w.getScalingNotes(), w.getBenchmarkTemplateId());
+        return service.toDto(w);
     }
 
     record CreateWodRequest(@NotBlank String title, @NotBlank String wodType, @NotBlank String scoreType,

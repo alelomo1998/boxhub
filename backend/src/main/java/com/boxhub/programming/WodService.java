@@ -39,6 +39,12 @@ public class WodService {
         }
     }
 
+    public WodController.WodDto toDto(Wod w) {
+        return new WodController.WodDto(w.getId(), w.getTitle(), w.getWodType(), w.getScoreType(),
+                w.getTimeCapSeconds(), w.getBodyText(), deserialize(w.getBlocksJson()),
+                w.getScalingNotes(), w.getBenchmarkTemplateId());
+    }
+
     /** Clone a global benchmark template into a box WOD (tenant from TenantContext), keeping provenance. */
     Wod cloneFromBenchmark(java.util.UUID templateId) {
         BenchmarkTemplate t = benchmarks.findById(templateId).orElseThrow(NoSuchElementException::new);
