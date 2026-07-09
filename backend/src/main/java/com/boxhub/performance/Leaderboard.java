@@ -21,6 +21,14 @@ public final class Leaderboard {
         return out;
     }
 
+    /** Best of a set for the athlete's OWN history (privacy NOT applied — it's their own data). */
+    public static WodScore best(List<WodScore> scores, String scoreType) {
+        Comparator<WodScore> cmp = comparator(scoreType);
+        if (scores.isEmpty()) return null;
+        if (cmp == null) return scores.get(0); // NONE: first
+        return scores.stream().min(cmp).orElse(null);
+    }
+
     private static Comparator<WodScore> comparator(String scoreType) {
         return switch (scoreType) {
             case "TIME" ->
