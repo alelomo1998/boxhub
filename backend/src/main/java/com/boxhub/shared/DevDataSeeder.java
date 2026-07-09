@@ -28,14 +28,17 @@ public class DevDataSeeder implements CommandLineRunner {
     private final AuthService authService;
     private final ClassTemplateRepository templates;
     private final SessionGenerator sessionGenerator;
+    private final com.boxhub.programming.TrackService trackService;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
-                         ClassTemplateRepository templates, SessionGenerator sessionGenerator) {
+                         ClassTemplateRepository templates, SessionGenerator sessionGenerator,
+                         com.boxhub.programming.TrackService trackService) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
         this.templates = templates;
         this.sessionGenerator = sessionGenerator;
+        this.trackService = trackService;
     }
 
     @Override
@@ -46,6 +49,7 @@ public class DevDataSeeder implements CommandLineRunner {
         demo.setSlug("demo");
         demo.setTimezone("Europe/Rome");
         boxes.save(demo);
+        trackService.seedDefaults(demo.getId()); // RX + Fitness
         seed(demo, "admin@demo.io", "Demo Admin", "BOX_ADMIN");
         User coach = seed(demo, "coach@demo.io", "Demo Coach", "COACH");
         seed(demo, "athlete@demo.io", "Demo Athlete", "ATHLETE");
