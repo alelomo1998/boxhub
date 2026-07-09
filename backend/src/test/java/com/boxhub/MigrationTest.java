@@ -65,4 +65,19 @@ class MigrationTest extends AbstractIntegrationTest {
         Integer b = jdbc.queryForObject("select count(*) from benchmark_template", Integer.class);
         assertThat(b).isGreaterThanOrEqualTo(15);
     }
+
+    @Test
+    void v6AddedTrackingTables() {
+        Integer t = jdbc.queryForObject("""
+                select count(*) from information_schema.tables
+                where table_name in ('wod_score','lift_entry')
+                """, Integer.class);
+        assertThat(t).isEqualTo(2);
+        Integer uq = jdbc.queryForObject("""
+                select count(*) from pg_indexes
+                where tablename='wod_score' and indexdef like '%UNIQUE%'
+                  and indexdef like '%box_id%' and indexdef like '%slot_id%' and indexdef like '%membership_id%'
+                """, Integer.class);
+        assertThat(uq).isEqualTo(1);
+    }
 }

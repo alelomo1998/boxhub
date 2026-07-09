@@ -1,11 +1,13 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ProgrammingService, Board } from '../programming/programming.service';
+import { ScoreFormComponent } from '../performance/score-form.component';
+import { PerformanceService, Leaderboard } from '../performance/performance.service';
 
 @Component({
   selector: 'bh-wod-board',
   standalone: true,
-  imports: [DatePipe, DecimalPipe],
+  imports: [DatePipe, DecimalPipe, ScoreFormComponent],
   template: `
     <section class="board">
       <header class="bhead">
@@ -35,6 +37,32 @@ import { ProgrammingService, Board } from '../programming/programming.service';
                   }
                   @if (w.bodyText) { <pre class="wb">{{ w.bodyText }}</pre> }
                   @if (w.scalingNotes) { <p class="scaling">Scaling — {{ w.scalingNotes }}</p> }
+
+                  @if (t.slotId; as slotId) {
+                    <div class="track-foot">
+                      <button class="act" (click)="toggleScore(slotId)" [attr.data-testid]="'log-' + t.trackId">
+                        {{ openScore() === slotId ? 'Close' : 'Log score' }}
+                      </button>
+                      <button class="act" (click)="toggleBoard(slotId)">
+                        {{ openBoard() === slotId ? 'Hide leaderboard' : 'Leaderboard' }}
+                      </button>
+                    </div>
+                    @if (openScore() === slotId) {
+                      <bh-score-form [slotId]="slotId" [scoreType]="w.scoreType" (saved)="onSaved(slotId)" />
+                    }
+                    @if (openBoard() === slotId && boards()[slotId]; as lb) {
+                      <div class="lb" data-testid="leaderboard">
+                        @for (e of lb.entries; track e.rank) {
+                          <div class="lb-row" [class.win]="e.rank === 1">
+                            <span class="lb-rank">{{ e.rank }}</span>
+                            <span class="lb-name">{{ e.athleteName }}</span>
+                            <span class="lb-tag">{{ e.rx ? 'RX' : 'Sc' }}</span>
+                            <span class="lb-val">{{ formatEntry(lb.scoreType, e) }}</span>
+                          </div>
+                        } @empty { <p class="lb-empty">No scores yet.</p> }
+                      </div>
+                    }
+                  }
                 }
               </article>
             }
@@ -73,13 +101,54 @@ import { ProgrammingService, Board } from '../programming/programming.service';
     .wb { font-family: var(--font-body); font-size: 15px; color: var(--bone-dim); white-space: pre-wrap; margin: var(--sp-3) 0 0; }
     .scaling { font-size: 13px; color: var(--faint); margin-top: var(--sp-3); }
     .empty { color: var(--bone-dim); font-size: 16px; padding: var(--sp-6) 0; }
+    .track-foot { display: flex; gap: var(--sp-3); margin-top: var(--sp-4); }
+    .act { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
+      color: var(--bone); font-size: 13px; padding: 7px 12px; cursor: pointer; }
+    .lb { margin-top: var(--sp-3); }
+    .lb-row { display: grid; grid-template-columns: 28px 1fr auto auto; gap: var(--sp-3); align-items: baseline;
+      padding: 5px 0; border-bottom: 1px solid var(--hairline); }
+    .lb-rank { font-family: var(--font-display); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--faint); }
+    .lb-row.win .lb-rank { color: var(--red); text-shadow: 0 0 10px var(--red-glow); }
+    .lb-tag { font-family: var(--font-mono); font-size: 10px; color: var(--faint); }
+    .lb-val { font-variant-numeric: tabular-nums; color: var(--bone); }
+    .lb-empty { color: var(--bone-dim); font-size: 13px; }
     @media (max-width: 560px) { .title { font-size: 34px; } .wt { font-size: 26px; } }
   `],
 })
 export class WodBoardPage implements OnInit {
   private prog = inject(ProgrammingService);
+  private perf = inject(PerformanceService);
   board = signal<Board | null>(null);
   today = signal(new Date());
+  openScore = signal<string | null>(null);
+  openBoard = signal<string | null>(null);
+  boards = signal<Record<string, Leaderboard>>({});
 
   ngOnInit() { this.prog.board().subscribe(b => this.board.set(b)); }
+
+  toggleScore(slotId: string) { this.openScore.update(s => s === slotId ? null : slotId); }
+
+  toggleBoard(slotId: string) {
+    if (this.openBoard() === slotId) { this.openBoard.set(null); return; }
+    this.openBoard.set(slotId);
+    this.perf.leaderboard(slotId).subscribe(lb => this.boards.update(m => ({ ...m, [slotId]: lb })));
+  }
+
+  onSaved(slotId: string) {
+    this.openScore.set(null);
+    if (this.openBoard() === slotId) {
+      this.perf.leaderboard(slotId).subscribe(lb => this.boards.update(m => ({ ...m, [slotId]: lb })));
+    }
+  }
+
+  formatEntry(scoreType: string, e: { timeSeconds: number | null; rounds: number | null; reps: number | null; load: number | null; finished: boolean }): string {
+    switch (scoreType) {
+      case 'TIME': return e.finished && e.timeSeconds != null
+        ? `${Math.floor(e.timeSeconds / 60)}:${String(e.timeSeconds % 60).padStart(2, '0')}`
+        : `${e.reps ?? 0} reps`;
+      case 'ROUNDS_REPS': return `${e.rounds ?? 0}+${e.reps ?? 0}`;
+      case 'LOAD': return `${e.load ?? 0}`;
+      default: return '✓';
+    }
+  }
 }

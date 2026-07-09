@@ -19,7 +19,7 @@ export interface Slot {
   id: string; slotDate: string; trackId: string; trackName: string;
   wodId: string; wodTitle: string; status: string;
 }
-export interface BoardTrack { trackId: string; trackName: string; wod: Wod | null; status: string | null; }
+export interface BoardTrack { trackId: string; trackName: string; slotId: string | null; wod: Wod | null; status: string | null; }
 export interface Board { date: string; tracks: BoardTrack[]; }
 
 export type WodInput = Partial<Omit<Wod, 'id' | 'blocks'>> & { blocks?: WodBlocks };

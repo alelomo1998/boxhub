@@ -25,6 +25,17 @@
 - `program_slot` unique-conflict on concurrent assign to same (date,track) surfaces as 500 (upsert find-or-create races) — add ON CONFLICT / retry if two coaches program the same cell simultaneously.
 - WodService.deserialize swallows bad JSON to empty blocks (defensive; malformed blocks_json would silently blank a WOD's structure — only reachable via direct DB tampering since writes go through serialize).
 
+## Deferred from M4 (tracking)
+- Realtime/live leaderboard push (M5 TV) — M4 leaderboard is on-load only.
+- Coach bulk score-entry grid (M6 class runner) — M4 is athlete self-log only.
+- Rep-adjusted 1RM estimation for PRs — auto-PR is raw best-load, rep-agnostic.
+- Load unit (kg/lb) per-box setting + conversion — `wod_score.load`/`lift_entry.load` are unit-agnostic numerics, displayed as-is.
+- Score photos/videos; comments/reactions on scores.
+- Cross-box/global benchmark leaderboards (e.g. all-boxes Fran board).
+- Advanced charting: zoom, multi-movement overlay, PR trend lines (M4 chart is a single-movement inline SVG line).
+- HistoryController/LeaderboardController use `findAll()` maps (slots/wods/tracks/memberships) for name/context lookup — fine at pilot scale; batch/join if a box's history grows hot.
+- LiftController `/prs` groups in Java over all the athlete's lifts — fine at pilot scale.
+
 ## Quality / polish
 - Member list: planName N+1 in MemberController.toDto (bounded by page-size cap 100) — batch findAllById if member lists get hot.
 - Invite pending() in-memory filter — derived query (findByAcceptedAtIsNullAndExpiresAtAfter) when a box's invite history grows.
