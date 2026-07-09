@@ -1,35 +1,48 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService, Plan } from './admin.service';
+import { ButtonComponent } from '../../ui/button.component';
 
 @Component({
   selector: 'bh-admin-plans',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, ButtonComponent],
   template: `
-    <section>
-      <h2>Plans</h2>
-      <form (ngSubmit)="create()">
-        <input name="name" required placeholder="Plan name" [(ngModel)]="name" data-testid="plan-name" />
-        <input name="durationDays" type="number" min="1" [(ngModel)]="durationDays" data-testid="plan-duration" />
-        <input name="weeklyClassLimit" type="number" min="1" placeholder="Weekly limit (optional)"
+    <section class="bh-section">
+      <h2 class="t-h2">Plans</h2>
+      <form class="row" (ngSubmit)="create()">
+        <input class="bh-input" name="name" required placeholder="Plan name" [(ngModel)]="name" data-testid="plan-name" />
+        <input class="bh-input dur" name="durationDays" type="number" min="1" [(ngModel)]="durationDays" data-testid="plan-duration" />
+        <input class="bh-input" name="weeklyClassLimit" type="number" min="1" placeholder="Weekly limit (optional)"
                [(ngModel)]="weeklyClassLimit" />
-        <button type="submit" data-testid="plan-create">Add plan</button>
+        <bh-button type="submit" size="sm" data-testid="plan-create">Add plan</bh-button>
       </form>
-      @if (error()) { <p class="error">{{ error() }}</p> }
-      <ul>
+      @if (error()) { <p class="err">{{ error() }}</p> }
+      <ul class="list">
         @for (p of plans(); track p.id) {
           <li>
-            {{ p.name }} — {{ p.durationDays }} days
-            @if (p.weeklyClassLimit) { — {{ p.weeklyClassLimit }}/week }
-            <button (click)="archive(p)" [attr.data-testid]="'plan-archive-' + p.name">Archive</button>
+            <span class="who"><b class="pn">{{ p.name }}</b>
+              <span class="meta num">{{ p.durationDays }} days@if (p.weeklyClassLimit) { · {{ p.weeklyClassLimit }}/week }</span></span>
+            <bh-button variant="ghost" size="sm" (click)="archive(p)" [attr.data-testid]="'plan-archive-' + p.name">Archive</bh-button>
           </li>
-        } @empty { <li>No plans yet.</li> }
+        } @empty { <li class="empty">No plans yet.</li> }
       </ul>
     </section>
   `,
+  styles: [`
+    .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
+    .dur { max-width: 100px; }
+    .err { color: var(--red); font-size: 13px; margin: 0; }
+    .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+    .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+      padding: 12px 4px; border-bottom: 1px solid var(--hairline); }
+    .list li:last-child { border-bottom: none; }
+    .pn { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 17px; }
+    .meta { color: var(--faint); font-size: 13px; margin-left: 10px; }
+    .empty { color: var(--bone-dim); font-size: 14px; }
+  `],
 })
-export class PlansPage {
+export class PlansPage implements OnInit {
   private admin = inject(AdminService);
   name = '';
   durationDays = 30;
