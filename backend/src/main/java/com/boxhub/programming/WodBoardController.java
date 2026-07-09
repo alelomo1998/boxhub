@@ -29,7 +29,7 @@ public class WodBoardController {
         this.wodService = wodService;
     }
 
-    public record BoardTrack(UUID trackId, String trackName, WodController.WodDto wod, String status) {}
+    public record BoardTrack(UUID trackId, String trackName, UUID slotId, WodController.WodDto wod, String status) {}
     public record BoardDto(LocalDate date, List<BoardTrack> tracks) {}
 
     private boolean isStaff() {
@@ -55,7 +55,7 @@ public class WodBoardController {
                 .map(t -> {
                     ProgramSlot s = slotByTrack.get(t.getId());
                     Wod w = s == null ? null : wodsById.get(s.getWodId());
-                    return new BoardTrack(t.getId(), t.getName(),
+                    return new BoardTrack(t.getId(), t.getName(), s == null ? null : s.getId(),
                             w == null ? null : wodService.toDto(w),
                             s == null ? null : s.getStatus());
                 })
