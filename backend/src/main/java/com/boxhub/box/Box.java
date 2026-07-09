@@ -11,6 +11,8 @@ public class Box {
     @Column(nullable = false, unique = true) private String slug;
     @Column(nullable = false) private String timezone;
     @Column(name = "logo_url") private String logoUrl;
+    @Column(name = "cancel_cutoff_min", nullable = false) private int cancelCutoffMin = 120;
+    @Column(name = "booking_horizon_weeks", nullable = false) private int bookingHorizonWeeks = 2;
 
     public UUID getId() { return id; }
     public String getName() { return name; }
@@ -21,4 +23,8 @@ public class Box {
     public void setTimezone(String timezone) { this.timezone = timezone; }
     public String getLogoUrl() { return logoUrl; }
     public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
+    public int getCancelCutoffMin() { return cancelCutoffMin; }
+    public void setCancelCutoffMin(int cancelCutoffMin) { this.cancelCutoffMin = cancelCutoffMin; }
+    public int getBookingHorizonWeeks() { return bookingHorizonWeeks; }
+    public void setBookingHorizonWeeks(int bookingHorizonWeeks) { this.bookingHorizonWeeks = bookingHorizonWeeks; }
 }
