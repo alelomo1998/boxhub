@@ -29,3 +29,4 @@
 - join page: accept/register tail duplication; login link plain href not routerLink; admin pages use ngOnInit without implements OnInit.
 - box-settings partial-patch branches not individually tested (timezone-only, logo-clear).
 - interceptor reselect catchError rethrows outer err not reselect err (intentional — caller sees original 401).
+- e2e cold-start/parallel-isolation flake: login/admin-panel/invite specs fail with --retries=0, pass with configured retries=1 (shared seeded backend, no per-test isolation). Add test isolation or serialize when it bites.
