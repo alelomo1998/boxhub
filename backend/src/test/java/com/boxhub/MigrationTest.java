@@ -42,4 +42,19 @@ class MigrationTest extends AbstractIntegrationTest {
                 """, Integer.class);
         assertThat(c).isEqualTo(2);
     }
+
+    @Test
+    void v4AddedProgrammingTables() {
+        Integer t = jdbc.queryForObject("""
+                select count(*) from information_schema.tables
+                where table_name in ('movement','benchmark_template','track','wod','program_slot')
+                """, Integer.class);
+        assertThat(t).isEqualTo(5);
+        Integer uq = jdbc.queryForObject("""
+                select count(*) from pg_indexes
+                where tablename='program_slot' and indexdef like '%UNIQUE%'
+                  and indexdef like '%box_id%' and indexdef like '%slot_date%' and indexdef like '%track_id%'
+                """, Integer.class);
+        assertThat(uq).isEqualTo(1);
+    }
 }
