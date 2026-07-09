@@ -11,6 +11,7 @@ import java.util.UUID;
 
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Booking> findBySessionId(UUID sessionId);
+    List<Booking> findByMembershipId(UUID membershipId);
     Optional<Booking> findBySessionIdAndMembershipId(UUID sessionId, UUID membershipId);
     long countBySessionIdAndStatus(UUID sessionId, String status);
     List<Booking> findBySessionIdAndStatusOrderByPosition(UUID sessionId, String status);
