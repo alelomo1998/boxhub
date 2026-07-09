@@ -12,6 +12,8 @@ export const routes: Routes = [
       { path: 'wod', loadComponent: () => import('./features/athlete/wod-board.page').then(m => m.WodBoardPage) },
       { path: 'book', loadComponent: () => import('./features/athlete/book.page').then(m => m.BookPage) },
       { path: 'my-bookings', loadComponent: () => import('./features/athlete/my-bookings.page').then(m => m.MyBookingsPage) },
+      { path: 'progress', loadComponent: () => import('./features/athlete/progress.page').then(m => m.ProgressPage) },
+      { path: 'lifts', loadComponent: () => import('./features/athlete/lift-log.page').then(m => m.LiftLogPage) },
     ],
   },
   {

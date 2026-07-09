@@ -14,6 +14,8 @@ import { ThemeService } from '../../core/theme/theme.service';
         <bh-nav-item label="Today's WOD" link="wod" />
         <bh-nav-item label="Book" link="book" />
         <bh-nav-item label="My bookings" link="my-bookings" />
+        <bh-nav-item label="Progress" link="progress" />
+        <bh-nav-item label="Log lift" link="lifts" />
         <button class="theme" (click)="theme.toggle()">◐ theme</button>
       </bh-rail>
       <main class="content"><router-outlet /></main>
