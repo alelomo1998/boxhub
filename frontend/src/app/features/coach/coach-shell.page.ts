@@ -12,6 +12,9 @@ import { ThemeService } from '../../core/theme/theme.service';
       <bh-rail>
         <div class="brand"><span class="mark">B</span><span class="bn">BoxHub</span></div>
         <bh-nav-item label="Sessions" link="sessions" />
+        <bh-nav-item label="Calendar" link="calendar" />
+        <bh-nav-item label="WODs" link="wods" />
+        <bh-nav-item label="Benchmarks" link="benchmarks" />
         <button class="theme" (click)="theme.toggle()">◐ theme</button>
       </bh-rail>
       <main class="content"><router-outlet /></main>

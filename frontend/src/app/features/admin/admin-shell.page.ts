@@ -15,6 +15,8 @@ import { ThemeService } from '../../core/theme/theme.service';
         <bh-nav-item label="Schedule" link="schedule" />
         <bh-nav-item label="Invites" link="invites" />
         <bh-nav-item label="Plans" link="plans" />
+        <bh-nav-item label="Tracks" link="tracks" />
+        <bh-nav-item label="Movements" link="movements" />
         <bh-nav-item label="Settings" link="settings" />
         <button class="theme" (click)="theme.toggle()">◐ theme</button>
       </bh-rail>
