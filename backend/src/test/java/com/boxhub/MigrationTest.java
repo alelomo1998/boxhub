@@ -57,4 +57,12 @@ class MigrationTest extends AbstractIntegrationTest {
                 """, Integer.class);
         assertThat(uq).isEqualTo(1);
     }
+
+    @Test
+    void v5SeededMovementsAndBenchmarks() {
+        Integer m = jdbc.queryForObject("select count(*) from movement where box_id is null", Integer.class);
+        assertThat(m).isGreaterThanOrEqualTo(100);
+        Integer b = jdbc.queryForObject("select count(*) from benchmark_template", Integer.class);
+        assertThat(b).isGreaterThanOrEqualTo(15);
+    }
 }
