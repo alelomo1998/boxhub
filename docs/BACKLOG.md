@@ -14,6 +14,17 @@
 - Register concurrent-race catch path has no direct test (hard to force with MockMvc; DB-enforced).
 - No email delivery for invites — admin copies the shareable link manually (SMTP integration later).
 
+## Deferred from M3 (programming)
+- Movement media: videos, coaching cues, images (seed is names + category + modality only).
+- WOD versioning / revision history / comments.
+- Tag system + search-by-movement across the WOD library.
+- Structured minute-by-minute EMOM/interval modeling (hybrid text lines cover it for now).
+- Snapshot-on-publish: editing a published WOD is currently live (athletes see edits immediately).
+- Drag-and-drop track reorder + drag-to-move calendar slots (M3 ships up/down + click-assign).
+- Bulk-copy a full week to another week / programming-cycle templates.
+- `program_slot` unique-conflict on concurrent assign to same (date,track) surfaces as 500 (upsert find-or-create races) — add ON CONFLICT / retry if two coaches program the same cell simultaneously.
+- WodService.deserialize swallows bad JSON to empty blocks (defensive; malformed blocks_json would silently blank a WOD's structure — only reachable via direct DB tampering since writes go through serialize).
+
 ## Quality / polish
 - Member list: planName N+1 in MemberController.toDto (bounded by page-size cap 100) — batch findAllById if member lists get hot.
 - Invite pending() in-memory filter — derived query (findByAcceptedAtIsNullAndExpiresAtAfter) when a box's invite history grows.

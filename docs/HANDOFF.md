@@ -18,12 +18,12 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 - **M1 box core** — plans CRUD, invites (one-time hashed shareable link, no SMTP), public preview + accept, superadmin + box creation, member list/search/patch (last-admin guard), box settings, per-IP auth rate limiting, Hibernate `@TenantId`. Flyway V2.
 - **Design system** — warm-dark "broadcast/heritage" identity. Token file is single source of truth; `bh-*` shared components; ThemeService (dark default). ALL existing screens restyled.
 - **M2 scheduling & booking** — Flyway V3; class templates → auto-generated sessions (rolling horizon, `@Scheduled`); **BookingService** engine (session-row pessimistic lock, FIFO waitlist auto-promote, cancel cutoff, plan weekly-limit — no-oversell proven by concurrency test); coach roster + check-in; nightly no-show sweep; athlete booking UI + coach sessions/roster + admin schedule; richer booking view (coach name + booked athletes); dev seeder now seeds a real weekly schedule.
+- **M3 programming** — Flyway V4 (schema) + V5 (seed ~122 movements + 18 girls/heroes benchmarks); `com.boxhub.programming` package. **Hybrid WOD model** (typed top-level wod_type/score_type/time_cap + semi-structured `blocks_json` movement lines). **Box-configurable tracks** (`track` @TenantId, RX+Fitness seeded on box create via `TrackService.seedDefaults`). **Global copy-on-use benchmarks** (`benchmark_template` NON-@TenantId, cloned into box WOD w/ provenance). **Programming calendar**: `program_slot` unique (box,date,track), per-slot DRAFT/PUBLISHED, bulk publish. **Published-only WOD board** (athletes never see drafts — proven). Coach UI: WOD builder (movement-picker datalist) + library + week-grid calendar + benchmark browse/clone. Admin: tracks + custom-movement management. Athlete: **WOD board hero screen** (replaced the coming-soon placeholder). `movement`/`benchmark_template` are deliberately NOT @TenantId — explicit `box_id IS NULL OR = :box` filter (gotcha #1).
 
-**Tests:** backend ~77 (Testcontainers Postgres), frontend 24 Karma specs, e2e 7 Playwright (SERIAL — `workers:1`). All green on `main`. No open branches. Working tree clean except a stashed doc-title edit (ignore).
+**Tests:** backend 103 (Testcontainers Postgres), frontend 31 Karma specs, e2e 8 Playwright (SERIAL — `workers:1`). All green. M3 on branch `m3-programming` (merge pending).
 
 ## What's NOT done (next)
-- **M3 programming** — movements catalog, WOD builder (typed JSONB blocks), programming calendar, tracks (RX/Fitness). Tracks were deliberately deferred from M2.
-- **M4 tracking** — score/PR logging, history, per-movement progression, leaderboards. (Athlete WOD/PR screens are still "coming soon" placeholders wired to the design system.)
+- **M4 tracking** — score/PR logging, history, per-movement progression, leaderboards. (Athlete PR screen still a "coming soon" placeholder; the WOD board is now real. `wod.score_type` + `program_slot` + `wod.benchmark_template_id` are the seams M4 scores hang off.)
 - **M5 TV display** — `/tv` pairing + live WOD/timer/leaderboard (its own high-contrast surface on the same tokens). TV shell is a placeholder.
 - **M6 coach class runner** — live in-class runner (M2 built the static roster as its seed).
 - **M7 hardening & pilot.**
@@ -42,7 +42,7 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 3. **`@Transactional` on a test method** binds the Hibernate session before auth is set → sentinel tenant. Don't; wrap only the locking call in a `TransactionTemplate` after `actAsBox`.
 4. **Lazy `User` on `Membership`** (OSIV off): endpoints resolving athlete/coach names need `@Transactional(readOnly=true)` to keep the session open.
 5. **Build env:** `export JAVA_HOME=/opt/homebrew/opt/openjdk@21` for all backend mvn (system JDK is 26, too new for Boot 3.4). Testcontainers pinned `1.21.4` (older pins Docker API v1.32, rejected by local Docker 29). Node 26 warns for Angular 19 — ignore.
-6. **e2e is serial** (`e2e/playwright.config.ts` workers:1) + retries:1 — it shares one seeded backend; parallel caused flake. Cold-start still needs the retry.
+6. **e2e is serial** (`e2e/playwright.config.ts` workers:1) + retries:1 — it shares one seeded backend; parallel caused flake. **The "cold-start flake" was actually the auth rate limit:** the serial suite fires >10 logins/min from one IP, tripping the strict prod default of 10 → 429 cascade. Fixed in M3 by `BOXHUB_AUTH_RATE_LIMIT=200` in the dev/e2e compose backend env (prod overrides strict). If you add more logging-in specs, this is why.
 
 ## How to run / test
 - Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io`, password `password123`. Fresh volume seeds Demo Box + a weekly schedule.
@@ -59,4 +59,4 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-Pick M3 (programming) or M4 (tracking) with the user, then run the superpowers flow: brainstorm the milestone's specific decisions → write spec (get approval) → write plan → execute lean. The design system + booking foundations are ready to build on. A compose stack may still be running locally (`docker compose ... down` to stop).
+**M4 tracking** is next. Run the superpowers flow: brainstorm → spec (approval) → plan → execute lean. Foundations ready: `wod.score_type` (TIME/ROUNDS_REPS/LOAD/NONE) tells M4 which score input to show; `program_slot` is what an athlete logs a score against; `wod.benchmark_template_id` gives benchmark identity for history; the coach static roster (M2) + WOD board (M3) are the athlete/coach seams. M3 spec `docs/superpowers/specs/2026-07-09-m3-programming-design.md`, plan `docs/superpowers/plans/2026-07-09-m3-programming.md`.

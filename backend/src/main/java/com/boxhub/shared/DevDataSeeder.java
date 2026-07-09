@@ -28,14 +28,26 @@ public class DevDataSeeder implements CommandLineRunner {
     private final AuthService authService;
     private final ClassTemplateRepository templates;
     private final SessionGenerator sessionGenerator;
+    private final com.boxhub.programming.TrackService trackService;
+    private final com.boxhub.programming.TrackRepository tracks;
+    private final com.boxhub.programming.WodRepository wods;
+    private final com.boxhub.programming.ProgramSlotRepository slots;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
-                         ClassTemplateRepository templates, SessionGenerator sessionGenerator) {
+                         ClassTemplateRepository templates, SessionGenerator sessionGenerator,
+                         com.boxhub.programming.TrackService trackService,
+                         com.boxhub.programming.TrackRepository tracks,
+                         com.boxhub.programming.WodRepository wods,
+                         com.boxhub.programming.ProgramSlotRepository slots) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
         this.templates = templates;
         this.sessionGenerator = sessionGenerator;
+        this.trackService = trackService;
+        this.tracks = tracks;
+        this.wods = wods;
+        this.slots = slots;
     }
 
     @Override
@@ -46,10 +58,55 @@ public class DevDataSeeder implements CommandLineRunner {
         demo.setSlug("demo");
         demo.setTimezone("Europe/Rome");
         boxes.save(demo);
+        trackService.seedDefaults(demo.getId()); // RX + Fitness
         seed(demo, "admin@demo.io", "Demo Admin", "BOX_ADMIN");
         User coach = seed(demo, "coach@demo.io", "Demo Coach", "COACH");
         seed(demo, "athlete@demo.io", "Demo Athlete", "ATHLETE");
         seedSchedule(demo, coach.getId());
+        seedProgramming(demo);
+    }
+
+    /** A published sample week on both tracks so a fresh demo box has a WOD board. */
+    private void seedProgramming(Box box) {
+        runAsBox(box.getId(), () -> {
+            var trackList = tracks.findByArchivedFalseOrderBySortOrderAsc();
+            if (trackList.isEmpty()) return;
+            UUID rx = trackList.get(0).getId();
+            UUID fitness = trackList.size() > 1 ? trackList.get(1).getId() : rx;
+            java.time.LocalDate monday = java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+            String[][] week = {
+                    {"Fran", "FOR_TIME", "TIME", "21-15-9: Thrusters (95/65), Pull-Ups"},
+                    {"Cindy", "AMRAP", "ROUNDS_REPS", "AMRAP 20: 5 Pull-Ups, 10 Push-Ups, 15 Air Squats"},
+                    {"Back Squat 5x5", "STRENGTH", "LOAD", "Back Squat 5x5 @ 80%"},
+                    {"Helen", "FOR_TIME", "TIME", "3 RFT: 400m Run, 21 KB Swings, 12 Pull-Ups"},
+                    {"Grace", "FOR_TIME", "TIME", "30 Clean and Jerks (135/95) for time"},
+            };
+            for (int i = 0; i < week.length; i++) {
+                java.time.LocalDate d = monday.plusDays(i);
+                UUID wodId = wod(week[i]);
+                publishSlot(d, rx, wodId);
+                publishSlot(d, fitness, wod(new String[]{week[i][0] + " (scaled)", week[i][1], week[i][2], week[i][3]}));
+            }
+        });
+    }
+
+    private UUID wod(String[] spec) {
+        com.boxhub.programming.Wod w = new com.boxhub.programming.Wod();
+        w.setTitle(spec[0]);
+        w.setWodType(spec[1]);
+        w.setScoreType(spec[2]);
+        w.setBodyText(spec[3]);
+        return wods.save(w).getId();
+    }
+
+    private void publishSlot(java.time.LocalDate date, UUID trackId, UUID wodId) {
+        com.boxhub.programming.ProgramSlot s = new com.boxhub.programming.ProgramSlot();
+        s.setSlotDate(date);
+        s.setTrackId(trackId);
+        s.setWodId(wodId);
+        s.setStatus("PUBLISHED");
+        s.setPublishedAt(java.time.Instant.now());
+        slots.save(s);
     }
 
     private User seed(Box box, String email, String name, String role) {
