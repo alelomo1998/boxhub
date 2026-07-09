@@ -25,6 +25,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-boxhub}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}
       BOXHUB_JWT_SECRET: ${BOXHUB_JWT_SECRET:-dev-only-secret-must-be-at-least-32-bytes!}
+      # Dev/e2e stack: the serial Playwright suite logs in many times from one IP within the
+      # 1-min window. Prod overrides this with a strict value; keep the default relaxed here.
+      BOXHUB_AUTH_RATE_LIMIT: ${BOXHUB_AUTH_RATE_LIMIT:-200}
     depends_on:
       db:
         condition: service_healthy

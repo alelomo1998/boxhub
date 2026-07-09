@@ -7,8 +7,8 @@ test('athlete logs in and lands on athlete shell', async ({ page }) => {
   await page.fill('input[name="password"]', 'password123');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/athlete/);
-  // athlete shell now redirects to the Book page (rail + outlet)
-  await expect(page.getByText('Book a class')).toBeVisible();
+  // athlete shell now defaults to the WOD board hero screen (rail + outlet)
+  await expect(page.getByRole('heading', { name: 'WOD Board' })).toBeVisible();
 });
 
 test('admin lands on admin shell', async ({ page }) => {
