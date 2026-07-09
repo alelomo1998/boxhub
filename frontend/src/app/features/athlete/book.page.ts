@@ -17,9 +17,16 @@ import { PillComponent } from '../../ui/pill.component';
           <h3 class="t-h3 dayhead">{{ day.label }}</h3>
           @for (s of day.sessions; track s.id) {
             <div class="sess" [attr.data-testid]="'session-' + s.id">
-              <div class="when">
-                <span class="time num">{{ s.startAt | date:'HH:mm' }}</span>
-                <span class="nm">{{ s.name }}</span>
+              <div class="info">
+                <div class="when">
+                  <span class="time num">{{ s.startAt | date:'HH:mm' }}</span>
+                  <span class="nm">{{ s.name }}</span>
+                </div>
+                <div class="sub">
+                  @if (s.coachName) { <span class="coach">Coach {{ s.coachName }}</span> }
+                  <span class="cnt num">{{ s.bookedCount }}/{{ s.capacity }} booked@if (s.waitlistCount) { · {{ s.waitlistCount }} waiting }</span>
+                </div>
+                @if (s.booked.length) { <div class="who">{{ s.booked.join(', ') }}</div> }
               </div>
               <div class="state">
                 @if (s.myBookingStatus === 'BOOKED') {
@@ -48,11 +55,17 @@ import { PillComponent } from '../../ui/pill.component';
     .day { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--sp-5); }
     .dayhead { color: var(--bone-dim); margin: 0 0 var(--sp-2); }
     .sess { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4);
-      padding: 12px 4px; border-bottom: 1px solid var(--hairline); }
+      padding: 14px 4px; border-bottom: 1px solid var(--hairline); }
+    .info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
     .when { display: flex; align-items: baseline; gap: var(--sp-4); }
     .time { font-family: var(--font-body); font-weight: 700; font-size: 18px; min-width: 54px; }
     .nm { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 18px; letter-spacing: -0.01em; }
-    .state { display: flex; align-items: center; gap: var(--sp-3); }
+    .sub { display: flex; align-items: center; gap: var(--sp-3); font-size: 12.5px; padding-left: 70px; }
+    .coach { color: var(--bone-dim); }
+    .coach::after { content: "·"; margin-left: var(--sp-3); color: var(--faint); }
+    .cnt { color: var(--faint); font-size: 12px; }
+    .who { color: var(--faint); font-size: 12px; padding-left: 70px; overflow: hidden; text-overflow: ellipsis; }
+    .state { display: flex; align-items: center; gap: var(--sp-3); flex-shrink: 0; }
     .spots { font-family: var(--font-mono); font-size: 12px; color: var(--faint); }
   `],
 })

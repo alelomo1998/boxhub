@@ -2,13 +2,18 @@ package com.boxhub.box;
 
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.identity.User;
+import com.boxhub.identity.UserRepository;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,26 +26,43 @@ public class SessionController {
     private final ClassSessionRepository sessions;
     private final BookingRepository bookings;
     private final MembershipRepository memberships;
+    private final UserRepository users;
     private final BookingService bookingService;
 
     public SessionController(ClassSessionRepository sessions, BookingRepository bookings,
-                            MembershipRepository memberships, BookingService bookingService) {
+                            MembershipRepository memberships, UserRepository users, BookingService bookingService) {
         this.sessions = sessions;
         this.bookings = bookings;
         this.memberships = memberships;
+        this.users = users;
         this.bookingService = bookingService;
     }
 
     record SessionView(UUID id, String name, Instant startAt, int durationMin, int capacity, UUID coachId,
-                       String status, long bookedCount, long waitlistCount,
-                       String myBookingStatus, Integer myPosition) {}
+                       String coachName, String status, long bookedCount, long waitlistCount,
+                       List<String> booked, String myBookingStatus, Integer myPosition) {}
 
+    @Transactional(readOnly = true) // keep session open for lazy coach/athlete User names
     @GetMapping
     public List<SessionView> list(@RequestParam Instant from, @RequestParam Instant to) {
         Optional<Membership> caller = memberships.findByUserIdAndBoxId(TenantContext.userId(), TenantContext.requireBoxId());
+        List<ClassSession> sessionList = sessions.findByStartAtBetweenOrderByStartAt(from, to);
+
+        // coach names, resolved once
+        Map<UUID, String> coachNames = new HashMap<>();
+        for (ClassSession s : sessionList) {
+            if (s.getCoachId() != null && !coachNames.containsKey(s.getCoachId())) {
+                users.findById(s.getCoachId()).ifPresent(u -> coachNames.put(s.getCoachId(), u.getName()));
+            }
+        }
+
         List<SessionView> out = new ArrayList<>();
-        for (ClassSession s : sessions.findByStartAtBetweenOrderByStartAt(from, to)) {
-            long booked = bookings.countBySessionIdAndStatus(s.getId(), "BOOKED");
+        for (ClassSession s : sessionList) {
+            List<Booking> bookedRows = bookings.findBySessionIdAndStatusOrderByPosition(s.getId(), "BOOKED");
+            List<String> bookedNames = new ArrayList<>();
+            for (Booking b : bookedRows) {
+                memberships.findById(b.getMembershipId()).ifPresent(m -> bookedNames.add(m.getUser().getName()));
+            }
             long waitlist = bookings.countBySessionIdAndStatus(s.getId(), "WAITLIST");
             String myStatus = null; Integer myPos = null;
             if (caller.isPresent()) {
@@ -48,7 +70,8 @@ public class SessionController {
                 if (mine.isPresent()) { myStatus = mine.get().getStatus(); myPos = mine.get().getPosition(); }
             }
             out.add(new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
-                    s.getCoachId(), s.getStatus(), booked, waitlist, myStatus, myPos));
+                    s.getCoachId(), s.getCoachId() == null ? null : coachNames.get(s.getCoachId()),
+                    s.getStatus(), bookedNames.size(), waitlist, bookedNames, myStatus, myPos));
         }
         return out;
     }
@@ -66,8 +89,10 @@ public class SessionController {
         sessions.save(s);
         long booked = bookings.countBySessionIdAndStatus(s.getId(), "BOOKED");
         long waitlist = bookings.countBySessionIdAndStatus(s.getId(), "WAITLIST");
+        String coachName = s.getCoachId() == null ? null :
+                users.findById(s.getCoachId()).map(User::getName).orElse(null);
         return new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
-                s.getCoachId(), s.getStatus(), booked, waitlist, null, null);
+                s.getCoachId(), coachName, s.getStatus(), booked, waitlist, List.of(), null, null);
     }
 
     record RosterEntry(UUID bookingId, String name, String email, String status, Integer position) {}

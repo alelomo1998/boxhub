@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 
 export interface SessionView {
   id: string; name: string; startAt: string; durationMin: number;
-  capacity: number; coachId: string | null; status: string;
-  bookedCount: number; waitlistCount: number;
+  capacity: number; coachId: string | null; coachName: string | null; status: string;
+  bookedCount: number; waitlistCount: number; booked: string[];
   myBookingStatus: string | null; myPosition: number | null;
 }
 export interface BookingResult { bookingId: string; status: string; position: number | null; }
