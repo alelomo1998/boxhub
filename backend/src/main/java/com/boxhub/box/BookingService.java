@@ -104,6 +104,17 @@ public class BookingService {
         return bookings.save(b);
     }
 
+    /** Undo a check-in (mis-tap): CHECKED_IN -> BOOKED. */
+    @Transactional
+    public Booking uncheck(UUID bookingId) {
+        Booking b = bookings.findById(bookingId).orElseThrow();
+        if ("CHECKED_IN".equals(b.getStatus())) {
+            b.setStatus("BOOKED");
+            b.setCheckedInAt(null);
+        }
+        return bookings.save(b);
+    }
+
     @Transactional
     public Booking markNoShow(UUID bookingId) {
         Booking b = bookings.findById(bookingId).orElseThrow();

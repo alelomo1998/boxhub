@@ -56,6 +56,12 @@ public class ProfileController {
                 masked ? null : queries.streakWeeks(target.getId()));
     }
 
+    @GetMapping("/me/profile")
+    @Transactional(readOnly = true)
+    public ProfileDto myProfile() {
+        return profile(caller().getId());
+    }
+
     @PutMapping("/me/avatar")
     @Transactional
     public ProfileDto setAvatar(@Valid @RequestBody AvatarRequest req) {

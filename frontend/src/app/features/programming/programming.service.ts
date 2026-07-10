@@ -2,7 +2,6 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-export interface Track { id: string; name: string; sortOrder: number; archived: boolean; }
 export interface Movement { id: string; name: string; category: string; modality: string | null; global: boolean; }
 export interface WodLine { text: string; movementId?: string; reps?: string; load?: string; scaling?: string; }
 export interface WodBlock { label?: string; note?: string; lines: WodLine[]; }
@@ -15,25 +14,26 @@ export interface Benchmark {
   id: string; name: string; kind: string; scoreType: string;
   timeCapSeconds: number | null; bodyText: string; blocks: WodBlocks;
 }
-export interface Slot {
-  id: string; slotDate: string; trackId: string; trackName: string;
-  wodId: string; wodTitle: string; status: string;
+export interface SessionItem {
+  id: string; wodId: string; wod: Wod; sortOrder: number;
+  scoreable: boolean; scoreType: string; myScoreLogged: boolean;
 }
-export interface BoardTrack { trackId: string; trackName: string; slotId: string | null; wod: Wod | null; status: string | null; }
-export interface Board { date: string; tracks: BoardTrack[]; }
+export interface ItemInput { wodId: string; scoreable: boolean; scoreType?: string | null; }
+export interface SkeletonPiece { id?: string; sortOrder?: number; label: string; wodType: string; }
+export interface SessionRef {
+  id: string; name: string; startAt: string; imagePath: string | null; programmingStatus: string;
+}
+export interface MyClass { session: SessionRef | null; booked: boolean; items: SessionItem[]; otherToday: SessionRef[]; }
 
 export type WodInput = Partial<Omit<Wod, 'id' | 'blocks'>> & { blocks?: WodBlocks };
+
+export const PIECE_TYPES = ['WARMUP', 'STRENGTH', 'FOR_TIME', 'AMRAP', 'EMOM', 'INTERVAL', 'CIRCUIT', 'SKILL', 'CUSTOM'];
 
 @Injectable({ providedIn: 'root' })
 export class ProgrammingService {
   private http = inject(HttpClient);
 
-  // tracks
-  tracks(): Observable<Track[]> { return this.http.get<Track[]>('/api/box/tracks'); }
-  createTrack(name: string): Observable<Track> { return this.http.post<Track>('/api/box/tracks', { name }); }
-  patchTrack(id: string, patch: Partial<Track>): Observable<Track> { return this.http.patch<Track>(`/api/box/tracks/${id}`, patch); }
-
-  // movements
+  // movements (unchanged)
   movements(search?: string, category?: string): Observable<Movement[]> {
     let params = new HttpParams();
     if (search) params = params.set('search', search);
@@ -47,7 +47,7 @@ export class ProgrammingService {
     return this.http.patch<Movement>(`/api/box/movements/${id}`, patch);
   }
 
-  // wods
+  // piece library (wods)
   wods(search?: string): Observable<Wod[]> {
     const params = search ? new HttpParams().set('search', search) : undefined;
     return this.http.get<Wod[]>('/api/box/wods', { params });
@@ -58,33 +58,33 @@ export class ProgrammingService {
   deleteWod(id: string): Observable<void> { return this.http.delete<void>(`/api/box/wods/${id}`); }
   duplicateWod(id: string): Observable<Wod> { return this.http.post<Wod>(`/api/box/wods/${id}/duplicate`, {}); }
 
-  // benchmarks
+  // benchmarks (unchanged)
   benchmarks(kind?: string): Observable<Benchmark[]> {
     const params = kind ? new HttpParams().set('kind', kind) : undefined;
     return this.http.get<Benchmark[]>('/api/box/benchmarks', { params });
   }
   cloneBenchmark(id: string): Observable<Wod> { return this.http.post<Wod>(`/api/box/benchmarks/${id}/clone`, {}); }
 
-  // program (calendar)
-  program(from: string, to: string, trackId?: string): Observable<Slot[]> {
-    let params = new HttpParams().set('from', from).set('to', to);
-    if (trackId) params = params.set('trackId', trackId);
-    return this.http.get<Slot[]>('/api/box/program', { params });
+  // class-instance programming
+  sessionItems(sessionId: string): Observable<SessionItem[]> {
+    return this.http.get<SessionItem[]>(`/api/box/sessions/${sessionId}/items`);
   }
-  assignSlot(slotDate: string, trackId: string, wodId: string): Observable<Slot> {
-    return this.http.put<Slot>('/api/box/program', { slotDate, trackId, wodId });
+  putItems(sessionId: string, items: ItemInput[]): Observable<SessionItem[]> {
+    return this.http.put<SessionItem[]>(`/api/box/sessions/${sessionId}/items`, { items });
   }
-  patchSlot(id: string, status: string): Observable<Slot> { return this.http.patch<Slot>(`/api/box/program/${id}`, { status }); }
-  deleteSlot(id: string): Observable<void> { return this.http.delete<void>(`/api/box/program/${id}`); }
-  publish(from: string, to: string, trackId?: string): Observable<{ published: number }> {
-    return this.http.post<{ published: number }>('/api/box/program/publish', { from, to, trackId });
+  publishProgramming(sessionId: string, status: 'DRAFT' | 'PUBLISHED'): Observable<{ programmingStatus: string }> {
+    return this.http.patch<{ programmingStatus: string }>(`/api/box/sessions/${sessionId}/programming`, { status });
   }
 
-  // board
-  board(date?: string, includeDrafts?: boolean): Observable<Board> {
-    let params = new HttpParams();
-    if (date) params = params.set('date', date);
-    if (includeDrafts) params = params.set('includeDrafts', 'true');
-    return this.http.get<Board>('/api/box/wod-board', { params });
+  // skeletons on class types
+  skeleton(templateId: string): Observable<SkeletonPiece[]> {
+    return this.http.get<SkeletonPiece[]>(`/api/box/class-templates/${templateId}/skeleton`);
   }
+  putSkeleton(templateId: string, pieces: SkeletonPiece[]): Observable<SkeletonPiece[]> {
+    return this.http.put<SkeletonPiece[]>(`/api/box/class-templates/${templateId}/skeleton`,
+      { pieces: pieces.map(p => ({ label: p.label, wodType: p.wodType })) });
+  }
+
+  // athlete WOD tab
+  myClassToday(): Observable<MyClass> { return this.http.get<MyClass>('/api/box/my-class-today'); }
 }

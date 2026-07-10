@@ -27,10 +27,10 @@ public class ClassTemplateController {
     }
 
     public record TemplateDto(UUID id, String name, int weekday, LocalTime startTime,
-                              int durationMin, int capacity, UUID coachId, boolean active) {
+                              int durationMin, int capacity, UUID coachId, boolean active, String imagePath) {
         static TemplateDto of(ClassTemplate t) {
             return new TemplateDto(t.getId(), t.getName(), t.getWeekday(), t.getStartTime(),
-                    t.getDurationMin(), t.getCapacity(), t.getCoachId(), t.isActive());
+                    t.getDurationMin(), t.getCapacity(), t.getCoachId(), t.isActive(), t.getImagePath());
         }
     }
 
@@ -38,7 +38,7 @@ public class ClassTemplateController {
                                  @NotBlank String startTime, @Min(1) int durationMin,
                                  @Min(1) int capacity, UUID coachId) {}
 
-    record PatchTemplateRequest(String name, @Min(0) @Max(6) Integer weekday, String startTime,
+    record PatchTemplateRequest(String name, @Min(0) @Max(6) Integer weekday, String startTime, String imagePath,
                                 @Min(1) Integer durationMin, @Min(1) Integer capacity,
                                 UUID coachId, Boolean active) {}
 
@@ -73,6 +73,7 @@ public class ClassTemplateController {
         if (req.durationMin() != null) t.setDurationMin(req.durationMin());
         if (req.capacity() != null) t.setCapacity(req.capacity());
         if (req.coachId() != null) t.setCoachId(req.coachId());
+        if (req.imagePath() != null) t.setImagePath(req.imagePath());
         if (req.active() != null) t.setActive(req.active());
         ClassTemplate saved = templates.save(t);
         if (saved.isActive()) generator.generateForBox(TenantContext.requireBoxId());
