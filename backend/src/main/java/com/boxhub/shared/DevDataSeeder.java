@@ -32,6 +32,9 @@ import java.util.UUID;
 @Profile("dev")
 public class DevDataSeeder implements CommandLineRunner {
 
+    @org.springframework.beans.factory.annotation.Value("${boxhub.media-dir}")
+    private String mediaDir;
+
     private final BoxRepository boxes;
     private final MembershipRepository memberships;
     private final AuthService authService;
@@ -83,6 +86,51 @@ public class DevDataSeeder implements CommandLineRunner {
         seedClassesAndProgramming(demo, coach.getId());
         seedScoresAndLifts(demo, athlete.getId(), athlete2.getId(), athlete3.getId());
         seedAnnouncement(demo, coach.getId());
+        seedImages(demo, coach.getId(), athlete.getId(), athlete2.getId(), athlete3.getId());
+    }
+
+    /** Generated placeholder images so photo-driven screens render on a fresh box. */
+    private void seedImages(Box box, UUID... userIds) {
+        runAsBox(box.getId(), () -> {
+            java.util.Map<String, java.awt.Color> classColors = java.util.Map.of(
+                    "WOD Class", new java.awt.Color(0x8a2f1a),
+                    "Burn It", new java.awt.Color(0x1a5a52),
+                    "Weekend Team WOD", new java.awt.Color(0x3a2f6b));
+            for (ClassTemplate t : templates.findByActiveTrue()) {
+                if (t.getImagePath() != null) continue;
+                java.awt.Color c = classColors.getOrDefault(t.getName(), new java.awt.Color(0x444444));
+                String path = writePng(box.getId(), 640, 360, c, "cl-" + t.getId());
+                if (path != null) { t.setImagePath(path); templates.save(t); }
+            }
+            java.awt.Color[] avatarColors = { new java.awt.Color(0xB0562F), new java.awt.Color(0x2F6BB0),
+                    new java.awt.Color(0x5A8A3C), new java.awt.Color(0x8A3C7A) };
+            int idx = 0;
+            for (UUID uid : userIds) {
+                var m = memberships.findByUserIdAndBoxId(uid, box.getId()).orElse(null);
+                if (m == null || m.getAvatarPath() != null) continue;
+                String path = writePng(box.getId(), 200, 200, avatarColors[idx++ % avatarColors.length], "av-" + uid);
+                if (path != null) { m.setAvatarPath(path); memberships.save(m); }
+            }
+        });
+    }
+
+    private String writePng(UUID boxId, int w, int h, java.awt.Color color, String name) {
+        try {
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            var g = img.createGraphics();
+            g.setColor(color);
+            g.fillRect(0, 0, w, h);
+            g.setColor(color.brighter());
+            g.fillOval(w / 4, h / 4, w / 2, h / 2);
+            g.dispose();
+            java.nio.file.Path dir = java.nio.file.Path.of(mediaDir).resolve(boxId.toString());
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path file = dir.resolve(name + ".png");
+            javax.imageio.ImageIO.write(img, "png", file.toFile());
+            return "/media/" + boxId + "/" + name + ".png";
+        } catch (Exception e) {
+            return null; // dev seeding only — never fail startup over a placeholder image
+        }
     }
 
     private User seed(Box box, String email, String name, String role) {
