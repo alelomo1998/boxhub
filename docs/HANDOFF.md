@@ -26,7 +26,7 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 **Tests:** backend 120 (Testcontainers Postgres), frontend 42 Karma specs, e2e 9 Playwright (SERIAL — `workers:1`). All green on `main`.
 
 ## What's NOT done (next)
-- **M5 TV display** — `/tv` pairing + live WOD/timer/leaderboard on a high-contrast surface. The M4 leaderboard is on-load; M5 adds realtime push (WebSocket). TV shell is still a placeholder. Seams: `GET /program/{slotId}/leaderboard`, the WOD board, `wod_score`.
+- **M6 TV display** — `/tv` pairing + live WOD/timer/leaderboard on a high-contrast surface. The M4 leaderboard is on-load; M5 adds realtime push (WebSocket). TV shell is still a placeholder. Seams: `GET /program/{slotId}/leaderboard`, the WOD board, `wod_score`.
 - **M5 TV display** — `/tv` pairing + live WOD/timer/leaderboard (its own high-contrast surface on the same tokens). TV shell is a placeholder.
 - **M6 coach class runner** — live in-class runner (M2 built the static roster as its seed).
 - **M7 hardening & pilot.**
@@ -62,4 +62,4 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**M5 TV display** is next. Run the superpowers flow: brainstorm → spec (approval) → plan → execute lean. Foundations ready: the athlete WOD board (M3) + `GET /program/{slotId}/leaderboard` (M4) are the views the TV renders big; `wod_score` is the live data. M5 adds `/tv` pairing (device code flow, admin device management) + realtime push (WebSocket, reconnect + last-state cache) + server-synced timers. Consider whether the per-node in-memory story (rate-limit, and any WS state) needs Redis for two nodes — currently single-node (BACKLOG). Specs/plans for M3/M4 in `docs/superpowers/specs|plans/2026-07-09-m{3,4}-*`.
+**M6 TV display** is next (roadmap renumbered by the M5 spec: TV→M6, runner→M7, +M8 full SaaS analytics, hardening→M9). Run the superpowers flow: brainstorm → spec (approval) → plan → execute lean. Foundations ready: the athlete WOD board (M3) + `GET /program/{slotId}/leaderboard` (M4) are the views the TV renders big; `wod_score` is the live data. M5 adds `/tv` pairing (device code flow, admin device management) + realtime push (WebSocket, reconnect + last-state cache) + server-synced timers. Consider whether the per-node in-memory story (rate-limit, and any WS state) needs Redis for two nodes — currently single-node (BACKLOG). Specs/plans for M3/M4 in `docs/superpowers/specs|plans/2026-07-09-m{3,4}-*`.
