@@ -43,6 +43,15 @@
 - Sheet component: no focus trap beyond native dialog behavior; no swipe-to-dismiss.
 - progression-chart aria conveys count+best only, not per-point data (table alternative exists below it).
 
+## Deferred from M5 (product UX overhaul)
+- Media reads unauthenticated (unguessable UUID paths) — add auth or signed URLs before real athlete photos at scale; EXIF strip.
+- Instance-builder save: quick-created pieces become library wods each save — edited re-saves create new wod rows (library grows); dedupe/GC or update-in-place later.
+- Types page fan-out (image/skeleton applied per weekly slot row) — partial-failure leaves slots inconsistent; move "class type" to a first-class entity if it bites.
+- Book pager: no swipe gesture, 14-day bound; "bookings open at" windows still absent.
+- Coach check-in long-press = contextmenu (desktop right-click); verify iOS Safari long-press behavior on device.
+- Admin tables on phone are scroll-tables, not cards (shell + dashboard are responsive; deep pages later).
+- Detector false-positive pattern: Angular [src] bindings in @if guards trip `broken-image` — consider repo-level ignore for the rule if the noise annoys.
+
 ## Quality / polish
 - Member list: planName N+1 in MemberController.toDto (bounded by page-size cap 100) — batch findAllById if member lists get hot.
 - Invite pending() in-memory filter — derived query (findByAcceptedAtIsNullAndExpiresAtAfter) when a box's invite history grows.

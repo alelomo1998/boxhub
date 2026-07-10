@@ -23,13 +23,15 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 - **Athlete surface rebuild (impeccable, 2026-07-10)** — phone-first app: bottom tab bar (Today/Book/Progress) + desktop rail; **Today hub** (WOD board + booked-class strip + score status, one red Log score action); score entry + leaderboard as native `<dialog>` bottom sheets (`bh-sheet`); Book folds in my-bookings; Progress folds in lift quick-log + PR celebration + fixed SVG chart. Reliability: loading states everywhere, saves have pending/inline-error with preserved values, prefill race fixed, input validation. A11y: `--faint` relit AA both themes, 44px targets (`--tap`), `--fs-*` type tokens, `--scrim`, focus rings, wired labels. Legacy routes `/athlete/{wod,my-bookings,lifts}` redirect. `PRODUCT.md` + `DESIGN.md` at repo root now anchor design work (impeccable init). Critique snapshots in `.impeccable/` (gitignored).
 
-**Tests:** backend 120 (Testcontainers Postgres), frontend 42 Karma specs, e2e 9 Playwright (SERIAL — `workers:1`). All green on `main`.
+- **M5 Product UX overhaul (2026-07-10, branch `m5-ux-overhaul`)** — **class-centric model**: CLASS TYPE (`class_templates` + `template_piece` skeleton + `image_path`) → CLASS instance (`class_sessions` + `programming_status`) → ordered PIECES (`session_item` → `wod`; per-piece scoreable + score-type override; piece types +WARMUP/CIRCUIT/SKILL). Scores/leaderboards/history per item; **tracks + `program_slot` DROPPED (V7 — no prod data, demo reseeded)**. Media uploads (`POST /api/box/media` → docker volume, nginx `/media/**`, unguessable UUID paths, unauthenticated reads = pilot tradeoff). Athlete profiles (avatar upload, privacy = photo+name always), member-visible session detail (coach top + avatar grid Active/queue), announcement, home aggregate, admin KPIs, coach `uncheck`. FE: athlete tabs **Home·Book·WOD·Progress** (info-hub home, photo class cards + date pager, class detail → tappable athlete profiles, per-piece scoring via sheets); coach tabs **Classes·Build·Bench·Types** (photo check-in grid, skeleton-seeded instance builder mobile + desktop two-pane, types w/ image+skeleton editor); admin **SaaS shell** + KPI dashboard; `bh-avatar`. **Design law v2 codified** (CLAUDE.md + design-system spec) incl. the impeccable shape→critique≥28 gate.
+
+**Tests:** backend 130 (Testcontainers Postgres), frontend 41 Karma specs, e2e 10 Playwright (SERIAL — `workers:1`). All green.
 
 ## What's NOT done (next)
-- **M6 TV display** — `/tv` pairing + live WOD/timer/leaderboard on a high-contrast surface. The M4 leaderboard is on-load; M5 adds realtime push (WebSocket). TV shell is still a placeholder. Seams: `GET /program/{slotId}/leaderboard`, the WOD board, `wod_score`.
-- **M5 TV display** — `/tv` pairing + live WOD/timer/leaderboard (its own high-contrast surface on the same tokens). TV shell is a placeholder.
-- **M6 coach class runner** — live in-class runner (M2 built the static roster as its seed).
-- **M7 hardening & pilot.**
+- **M6 TV display** — `/tv` pairing + live class/timer/leaderboard on a high-contrast surface. Leaderboards are on-load; M6 adds realtime push (WebSocket). Seams: `GET /sessions/items/{id}/leaderboard`, session detail, `wod_score`.
+- **M7 coach class runner** — live in-class runner + TV command (check-in grid from M5 is its seed).
+- **M8 full SaaS analytics** — economics, engagement, class stats (admin dashboard shell + 3 KPIs shipped in M5).
+- **M9 hardening & pilot.**
 - **BACKLOG.md** items: box-token refresh already done; open items incl. no server-side logout/revocation, no purge job for expired refresh_tokens/invites, rate-limit is per-node in-memory, member-list N+1, e2e cold-start flake (mitigated by workers:1), and the **@TenantId native-query audit** (see gotchas). VPS never deployed. `TODO` in spec §6: member export + hard delete.
 
 ## Architecture
