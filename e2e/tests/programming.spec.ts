@@ -32,9 +32,9 @@ test('coach builds a WOD, programs today, publishes; athlete sees it on the boar
   await page.getByRole('button', { name: 'Publish week' }).click();
   await expect(page.locator('.wod.pub .wt', { hasText: title })).toBeVisible();
 
-  // athlete sees the published WOD on today's board
+  // athlete sees the published WOD on the Today hub (legacy /wod redirects there)
   await login(page, 'athlete@demo.io');
   await page.goto('/athlete/wod');
-  await expect(page.getByRole('heading', { name: 'WOD Board' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
   await expect(page.locator('.wt', { hasText: title })).toBeVisible();
 });

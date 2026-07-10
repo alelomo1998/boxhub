@@ -31,9 +31,9 @@ test('admin schedules a class, athlete books it, coach checks them in', async ({
   await sessionRow.getByTestId('book-btn').click();
   await expect(sessionRow.getByText('Booked')).toBeVisible();
 
-  // shows in My bookings
-  await page.goto('/athlete/my-bookings');
-  await expect(page.locator('li', { hasText: className })).toBeVisible();
+  // shows in the "Yours" section of Book (my-bookings folded in by the athlete rebuild)
+  await page.goto('/athlete/book');
+  await expect(page.locator('.mine .mrow', { hasText: className })).toBeVisible();
 
   // coach opens the roster and checks the athlete in
   await login(page, 'coach@demo.io');

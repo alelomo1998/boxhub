@@ -6,10 +6,12 @@
   --hairline: #3a3124;
   --bone: #ece3d2;
   --bone-dim: #a99d86;
-  --faint: #6f6552;
+  /* WCAG AA: >=4.5:1 on --ground (was #6f6552 @ ~3.3:1) */
+  --faint: #90846c;
   --red: #ec4326;
   --on-red: #ffffff;
   --red-glow: rgba(236, 67, 38, 0.38);
+  --scrim: rgba(10, 7, 4, 0.55);
   --good: #63a45f;
   --warn: #e0a32e;
 
@@ -20,6 +22,19 @@
   --edge: 4px;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
   --sp-5: 20px; --sp-6: 24px; --sp-8: 40px; --sp-10: 64px;
+
+  /* Type scale (fixed rem; product register). Screens read these, never raw px. */
+  --fs-hero: 2.5rem;      /* 40 — screen titles (display) */
+  --fs-display: 1.75rem;  /* 28 — WOD names, PR numbers (display) */
+  --fs-h2: 1.25rem;       /* 20 — section headings */
+  --fs-body: 0.9375rem;   /* 15 — body/UI */
+  --fs-sm: 0.8125rem;     /* 13 — secondary */
+  --fs-meta: 0.6875rem;   /* 11 — mono eyebrows/meta */
+
+  /* Interaction */
+  --tap: 44px;            /* minimum touch target */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 200ms;
 }
 
 @mixin light-tokens {
@@ -29,9 +44,11 @@
   --hairline: #d9d0be;
   --bone: #1a1712;
   --bone-dim: #5f5849;
-  --faint: #8a806c;
+  /* WCAG AA: >=4.5:1 on light --ground (was #8a806c @ ~3.3:1) */
+  --faint: #6f6552;
   --red: #d5351d;
   --red-glow: rgba(213, 53, 29, 0.16);
+  --scrim: rgba(26, 23, 18, 0.4);
 }
 
 @media (prefers-color-scheme: light) {
