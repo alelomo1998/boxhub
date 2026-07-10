@@ -12,7 +12,7 @@ import { BookingService } from '../booking/booking.service';
   standalone: true,
   imports: [DatePipe, RouterLink, AvatarComponent],
   template: `
-    <section class="home">
+    <section class="home" data-testid="home-root">
       @switch (state()) {
         @case ('loading') { <p class="stateline">Loading…</p> }
         @case ('error') {

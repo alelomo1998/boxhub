@@ -7,8 +7,8 @@ test('athlete logs in and lands on athlete shell', async ({ page }) => {
   await page.fill('input[name="password"]', 'password123');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/athlete/);
-  // athlete shell defaults to the Today hub (rebuilt athlete surface)
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  // athlete shell defaults to the Home info-hub (M5)
+  await expect(page.getByTestId('home-root')).toBeVisible();
 });
 
 test('admin lands on admin shell', async ({ page }) => {
@@ -17,8 +17,8 @@ test('admin lands on admin shell', async ({ page }) => {
   await page.fill('input[name="password"]', 'password123');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/admin/);
-  // admin shell is now a rail + router-outlet; default child is the members board
-  await expect(page.getByTestId('member-search')).toBeVisible();
+  // admin shell defaults to the SaaS dashboard (M5)
+  await expect(page.getByTestId('kpi-members')).toBeVisible();
 });
 
 test('wrong password shows error', async ({ page }) => {

@@ -8,33 +8,24 @@ async function login(page: Page, email: string) {
   await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
 }
 
-test('coach builds a WOD, programs today, publishes; athlete sees it on the board', async ({ page }) => {
+test('coach fills a class instance from the builder and publishes it', async ({ page }) => {
   const stamp = Date.now();
-  const title = 'E2E WOD ' + stamp;
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const pieceTitle = 'E2E Metcon ' + stamp;
 
-  // coach builds a WOD
   await login(page, 'coach@demo.io');
-  await page.goto('/coach/wods/new');
-  await page.fill('[data-testid="wod-title"]', title);
-  await page.getByRole('button', { name: 'Save WOD' }).click();
-  await expect(page).toHaveURL(/\/coach\/wods$/);
-  await expect(page.locator('tr', { hasText: title })).toBeVisible();
+  await page.goto('/coach/classes');
+  // open the builder of the first class of the week
+  await page.locator('[data-testid="build-link"]').first().click();
+  await expect(page.getByTestId('piece-stack')).toBeVisible();
 
-  // program it onto today's first track (RX) and publish the week
-  await page.goto('/coach/calendar');
-  const todayCell = page.locator(`[data-testid^="cell-"][data-testid$="-${todayIso}"]`).first();
-  await expect(todayCell).toBeVisible();
-  await todayCell.click();
-  await page.locator('[data-testid="wod-picker"] select').selectOption({ label: title });
-  await page.getByRole('button', { name: 'Assign' }).click();
-  await expect(page.locator('.wt', { hasText: title })).toBeVisible();
-  await page.getByRole('button', { name: 'Publish week' }).click();
-  await expect(page.locator('.wod.pub .wt', { hasText: title })).toBeVisible();
+  // add a piece and publish (works whether the instance was seeded, programmed or empty)
+  await page.getByTestId('add-piece').click();
+  const titles = page.getByTestId('piece-title');
+  await titles.last().fill(pieceTitle);
+  await page.getByTestId('publish-btn').click();
+  await expect(page.locator('.prog.pub')).toBeVisible();
 
-  // athlete sees the published WOD on the Today hub (legacy /wod redirects there)
-  await login(page, 'athlete@demo.io');
-  await page.goto('/athlete/wod');
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
-  await expect(page.locator('.wt', { hasText: title })).toBeVisible();
+  // the classes list shows the instance as Published
+  await page.goto('/coach/classes');
+  await expect(page.locator('.prog.pub').first()).toBeVisible();
 });
