@@ -16,7 +16,7 @@ Dark-first ("warm broadcast"): warm espresso near-black ground, never cold blue-
 | `--hairline` | `#3a3124` | `#d9d0be` | 1px rules, borders |
 | `--bone` | `#ece3d2` | `#1a1712` | primary text |
 | `--bone-dim` | `#a99d86` | `#5f5849` | secondary text |
-| `--faint` | `#6f6552` | `#8a806c` | ⚠ fails AA on dark (~3.26:1) — being relit in the athlete rebuild; until then decorative-only |
+| `--faint` | `#90846c` | `#6f6552` | tertiary text — relit to pass WCAG AA (≥4.5:1) on both themes |
 | `--red` | `#ec4326` | `#d5351d` | THE accent. live / primary / winning ONLY. Never decorative, never a status fill |
 | `--on-red` | `#ffffff` | — | text on red |
 | `--red-glow` | rgba(236,67,38,.38) | rgba(213,53,29,.16) | rationed glow (see Effects) |
@@ -31,7 +31,7 @@ Color strategy: **Restrained** — tinted warm neutrals + one accent. No gradien
 - **Mono:** system mono stack — eyebrows, meta labels, timestamps, code-like chips.
 - Fonts self-hosted via @fontsource (CSP blocks font CDNs).
 - **All numbers tabular** (`font-variant-numeric: tabular-nums`): scores, reps, loads, counts, times.
-- Type sizes are currently hardcoded px per screen (drift: 44/40px titles) — the athlete rebuild introduces a tokenized `--fs-*` scale.
+- Type scale tokenized: `--fs-hero/display/h2/body/sm/meta` (athlete surface uses it; older coach/admin screens still carry raw px — migrate opportunistically).
 
 ## Spacing & Shape
 

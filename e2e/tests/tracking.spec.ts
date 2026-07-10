@@ -8,7 +8,7 @@ async function login(page: Page, email: string) {
   await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
 }
 
-test('athlete logs a score, sees the leaderboard, and logs a PR lift', async ({ page }) => {
+test('athlete logs a score on Today, sees the leaderboard, and logs a lift on Progress', async ({ page }) => {
   const stamp = Date.now();
   const title = 'Track WOD ' + stamp;
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -27,33 +27,34 @@ test('athlete logs a score, sees the leaderboard, and logs a PR lift', async ({ 
   await page.getByRole('button', { name: 'Publish week' }).click();
   await expect(page.locator('.wod.pub .wt', { hasText: title })).toBeVisible();
 
-  // athlete logs a time on that WOD
+  // athlete: Today hub shows the WOD; log a time via the score sheet
   await login(page, 'athlete@demo.io');
-  await page.goto('/athlete/wod');
-  const card = page.locator('.tk', { hasText: title });
-  await expect(card).toBeVisible();
-  await card.getByRole('button', { name: 'Log score' }).click();
-  await card.locator('input[name="mins"]').fill('3');
-  await card.locator('input[name="secs"]').fill('30');
-  await card.getByRole('button', { name: 'Save score' }).click();
+  await page.goto('/athlete/today');
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.locator('.wt', { hasText: title })).toBeVisible();
+  // slot may already carry a score from a previous run (shared seeded DB): Edit instead of Log
+  const logBtn = page.getByTestId('log-score');
+  if (await logBtn.isVisible().catch(() => false)) await logBtn.click();
+  else await page.getByRole('button', { name: 'Edit' }).click();
+  await page.locator('input[name="mins"]').fill('3');
+  await page.locator('input[name="secs"]').fill('30');
+  await page.getByRole('button', { name: 'Save score' }).click();
 
-  // leaderboard shows the score
-  await card.getByRole('button', { name: 'Leaderboard' }).click();
-  await expect(card.getByTestId('leaderboard')).toBeVisible();
-  await expect(card.getByTestId('leaderboard').getByText('3:30')).toBeVisible();
+  // the card now shows the logged score; leaderboard sheet shows the time
+  await expect(page.getByTestId('my-score')).toBeVisible();
+  await expect(page.getByTestId('my-score')).toContainText('3:30');
+  await page.getByRole('button', { name: 'Leaderboard' }).click();
+  await expect(page.getByTestId('leaderboard')).toBeVisible();
+  await expect(page.getByTestId('leaderboard').getByText('3:30')).toBeVisible();
+  await page.keyboard.press('Escape');
 
-  // log a Back Squat; use a unique load so this run's entry is identifiable (and re-run safe)
-  const load = String(200 + (stamp % 90)); // 200..289, always > the seeded max (120)
-  await page.goto('/athlete/lifts');
+  // Progress: quick-log a Back Squat with a unique load; history shows it
+  const load = String(200 + (stamp % 90) + 0.5); // unique, > seeded max
+  await page.goto('/athlete/progress');
+  await expect(page.getByRole('heading', { name: 'Records' })).toBeVisible();
   await page.fill('[data-testid="lift-movement"]', 'Back Squat');
   await page.fill('input[name="load"]', load);
   await page.getByRole('button', { name: 'Save' }).click();
-  // the lift appears in the movement's history table with its load
-  await expect(page.getByRole('heading', { name: 'Back Squat history' })).toBeVisible();
-  await expect(page.locator('tbody tr', { hasText: load })).toBeVisible();
-
-  // progress page renders the PR sections
-  await page.goto('/athlete/progress');
-  await expect(page.getByRole('heading', { name: 'Records' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Back Squat progression' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Back Squat/ })).toBeVisible();
+  await expect(page.locator('.hrow', { hasText: load })).toBeVisible();
 });

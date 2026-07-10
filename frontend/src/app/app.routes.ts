@@ -8,12 +8,14 @@ export const routes: Routes = [
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/athlete/athlete-shell.page').then(m => m.AthleteShellPage),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'wod' },
-      { path: 'wod', loadComponent: () => import('./features/athlete/wod-board.page').then(m => m.WodBoardPage) },
+      { path: '', pathMatch: 'full', redirectTo: 'today' },
+      { path: 'today', loadComponent: () => import('./features/athlete/today.page').then(m => m.TodayPage) },
       { path: 'book', loadComponent: () => import('./features/athlete/book.page').then(m => m.BookPage) },
-      { path: 'my-bookings', loadComponent: () => import('./features/athlete/my-bookings.page').then(m => m.MyBookingsPage) },
       { path: 'progress', loadComponent: () => import('./features/athlete/progress.page').then(m => m.ProgressPage) },
-      { path: 'lifts', loadComponent: () => import('./features/athlete/lift-log.page').then(m => m.LiftLogPage) },
+      // legacy paths from the pre-rebuild athlete surface
+      { path: 'wod', redirectTo: 'today' },
+      { path: 'my-bookings', redirectTo: 'book' },
+      { path: 'lifts', redirectTo: 'progress' },
     ],
   },
   {

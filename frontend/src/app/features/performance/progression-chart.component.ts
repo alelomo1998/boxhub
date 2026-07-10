@@ -7,7 +7,8 @@ export interface ChartPoint { date: string; load: number; }
   standalone: true,
   template: `
     @if (pts().length >= 1) {
-      <svg class="chart" [attr.viewBox]="'0 0 ' + W + ' ' + H" preserveAspectRatio="none" role="img" aria-label="Load progression">
+      <svg class="chart" [attr.viewBox]="'0 0 ' + W + ' ' + H" role="img"
+           [attr.aria-label]="'Load progression: ' + pts().length + ' entries, best ' + maxLoad()">
         <line [attr.x1]="PAD" [attr.y1]="H - PAD" [attr.x2]="W - PAD" [attr.y2]="H - PAD" class="axis" />
         <line [attr.x1]="PAD" [attr.y1]="PAD" [attr.x2]="PAD" [attr.y2]="H - PAD" class="axis" />
         @if (pts().length >= 2) { <polyline [attr.points]="polyline()" class="ln" /> }
@@ -18,7 +19,7 @@ export interface ChartPoint { date: string; load: number; }
     } @else { <p class="none">No data yet — log a lift to see progression.</p> }
   `,
   styles: [`
-    .chart { width: 100%; height: 180px; }
+    .chart { width: 100%; height: auto; max-height: 220px; }
     .axis { stroke: var(--hairline); stroke-width: 1; }
     .ln { fill: none; stroke: var(--red); stroke-width: 2; vector-effect: non-scaling-stroke; }
     .dot { fill: var(--red); }
