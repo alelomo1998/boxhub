@@ -19,6 +19,8 @@ public class Membership {
     @Column(nullable = false) private String status = "ACTIVE";
     @Column(name = "expires_at") private LocalDate expiresAt;
     @Column(name = "plan_id") private UUID planId;
+    @Column(name = "avatar_path") private String avatarPath;
+    @Column(name = "private", nullable = false) private boolean privateProfile = false;
 
     public UUID getId() { return id; }
     public User getUser() { return user; }
@@ -33,4 +35,8 @@ public class Membership {
     public void setExpiresAt(LocalDate expiresAt) { this.expiresAt = expiresAt; }
     public UUID getPlanId() { return planId; }
     public void setPlanId(UUID planId) { this.planId = planId; }
+    public String getAvatarPath() { return avatarPath; }
+    public void setAvatarPath(String avatarPath) { this.avatarPath = avatarPath; }
+    public boolean isPrivateProfile() { return privateProfile; }
+    public void setPrivateProfile(boolean privateProfile) { this.privateProfile = privateProfile; }
 }

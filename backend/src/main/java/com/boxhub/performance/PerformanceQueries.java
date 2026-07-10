@@ -1,0 +1,114 @@
+package com.boxhub.performance;
+
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
+import com.boxhub.programming.*;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/** Read-model helpers shared by history, profile and home endpoints. */
+@Service
+public class PerformanceQueries {
+
+    private final WodScoreRepository scores;
+    private final SessionItemRepository items;
+    private final ClassSessionRepository sessions;
+    private final WodRepository wods;
+    private final BenchmarkTemplateRepository benchmarks;
+    private final LiftEntryRepository lifts;
+    private final MovementRepository movements;
+
+    public PerformanceQueries(WodScoreRepository scores, SessionItemRepository items,
+                              ClassSessionRepository sessions, WodRepository wods,
+                              BenchmarkTemplateRepository benchmarks, LiftEntryRepository lifts,
+                              MovementRepository movements) {
+        this.scores = scores;
+        this.items = items;
+        this.sessions = sessions;
+        this.wods = wods;
+        this.benchmarks = benchmarks;
+        this.lifts = lifts;
+        this.movements = movements;
+    }
+
+    public record BenchmarkBest(String benchmarkName, String scoreType, Integer timeSeconds, Integer rounds,
+                                Integer reps, java.math.BigDecimal load, LocalDate achievedOn) {}
+    public record LiftPr(UUID movementId, String movementName, java.math.BigDecimal load, int reps,
+                         LocalDate performedOn) {}
+
+    public List<BenchmarkBest> benchmarkHistory(UUID membershipId) {
+        List<WodScore> mine = scores.findByMembershipIdOrderByCreatedAtDesc(membershipId);
+        Map<UUID, SessionItem> itemById = items.findAll().stream()
+                .collect(Collectors.toMap(SessionItem::getId, i -> i, (a, b) -> a));
+        Map<UUID, ClassSession> sessionById = sessions.findAll().stream()
+                .collect(Collectors.toMap(ClassSession::getId, s -> s, (a, b) -> a));
+        Map<UUID, Wod> wodById = wods.findAll().stream().collect(Collectors.toMap(Wod::getId, w -> w, (a, b) -> a));
+        Map<UUID, String> benchmarkNames = benchmarks.findAll().stream()
+                .collect(Collectors.toMap(BenchmarkTemplate::getId, BenchmarkTemplate::getName, (a, b) -> a));
+
+        Map<UUID, List<WodScore>> byBenchmark = new java.util.HashMap<>();
+        Map<UUID, String> scoreTypeByBenchmark = new java.util.HashMap<>();
+        for (WodScore s : mine) {
+            SessionItem i = itemById.get(s.getSessionItemId());
+            Wod w = i == null ? null : wodById.get(i.getWodId());
+            if (i == null || w == null || w.getBenchmarkTemplateId() == null) continue;
+            byBenchmark.computeIfAbsent(w.getBenchmarkTemplateId(), k -> new ArrayList<>()).add(s);
+            scoreTypeByBenchmark.put(w.getBenchmarkTemplateId(), SessionItemController.effectiveScoreType(i, w));
+        }
+
+        List<BenchmarkBest> out = new ArrayList<>();
+        for (var e : byBenchmark.entrySet()) {
+            String scoreType = scoreTypeByBenchmark.get(e.getKey());
+            WodScore b = Leaderboard.best(e.getValue(), scoreType);
+            if (b == null) continue;
+            SessionItem i = itemById.get(b.getSessionItemId());
+            ClassSession cs = i == null ? null : sessionById.get(i.getSessionId());
+            out.add(new BenchmarkBest(benchmarkNames.getOrDefault(e.getKey(), "—"), scoreType,
+                    b.getTimeSeconds(), b.getRounds(), b.getReps(), b.getLoad(),
+                    cs == null || cs.getStartAt() == null ? null
+                            : cs.getStartAt().atZone(ZoneId.systemDefault()).toLocalDate()));
+        }
+        out.sort(Comparator.comparing(BenchmarkBest::benchmarkName, String.CASE_INSENSITIVE_ORDER));
+        return out;
+    }
+
+    public List<LiftPr> liftPrs(UUID membershipId, UUID boxId) {
+        Map<UUID, String> names = movements.findVisible(boxId).stream()
+                .collect(Collectors.toMap(Movement::getId, Movement::getName, (a, b) -> a));
+        Map<UUID, LiftEntry> best = lifts.findByMembershipIdOrderByPerformedOnDesc(membershipId).stream()
+                .collect(Collectors.toMap(LiftEntry::getMovementId, l -> l,
+                        (a, b) -> a.getLoad().compareTo(b.getLoad()) >= 0 ? a : b));
+        return best.values().stream()
+                .sorted(Comparator.comparing((LiftEntry l) -> names.getOrDefault(l.getMovementId(), "")))
+                .map(l -> new LiftPr(l.getMovementId(), names.getOrDefault(l.getMovementId(), "—"),
+                        l.getLoad(), l.getReps(), l.getPerformedOn()))
+                .toList();
+    }
+
+    /** Distinct ISO weeks with at least one score or lift in the last 8 weeks. */
+    public int streakWeeks(UUID membershipId) {
+        Instant cutoff = Instant.now().minusSeconds(8L * 7 * 86400);
+        var weeks = new java.util.HashSet<String>();
+        scores.findByMembershipIdOrderByCreatedAtDesc(membershipId).stream()
+                .filter(s -> s.getCreatedAt().isAfter(cutoff))
+                .forEach(s -> weeks.add(isoWeek(s.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate())));
+        lifts.findByMembershipIdOrderByPerformedOnDesc(membershipId).stream()
+                .filter(l -> l.getPerformedOn().isAfter(LocalDate.now().minusWeeks(8)))
+                .forEach(l -> weeks.add(isoWeek(l.getPerformedOn())));
+        return weeks.size();
+    }
+
+    private static String isoWeek(LocalDate d) {
+        var wf = java.time.temporal.WeekFields.ISO;
+        return d.get(wf.weekBasedYear()) + "-" + d.get(wf.weekOfWeekBasedYear());
+    }
+}

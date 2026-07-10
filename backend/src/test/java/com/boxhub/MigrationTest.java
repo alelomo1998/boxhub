@@ -36,26 +36,21 @@ class MigrationTest extends AbstractIntegrationTest {
                 where table_name in ('class_templates','class_sessions','bookings')
                 """, Integer.class);
         assertThat(t).isEqualTo(3);
-        Integer c = jdbc.queryForObject("""
-                select count(*) from information_schema.columns
-                where table_name='boxes' and column_name in ('cancel_cutoff_min','booking_horizon_weeks')
-                """, Integer.class);
-        assertThat(c).isEqualTo(2);
     }
 
     @Test
-    void v4AddedProgrammingTables() {
+    void v4ProgrammingTablesSurviveMinusRetired() {
+        // track + program_slot were retired by V7; the library tables remain
         Integer t = jdbc.queryForObject("""
                 select count(*) from information_schema.tables
-                where table_name in ('movement','benchmark_template','track','wod','program_slot')
+                where table_name in ('movement','benchmark_template','wod')
                 """, Integer.class);
-        assertThat(t).isEqualTo(5);
-        Integer uq = jdbc.queryForObject("""
-                select count(*) from pg_indexes
-                where tablename='program_slot' and indexdef like '%UNIQUE%'
-                  and indexdef like '%box_id%' and indexdef like '%slot_date%' and indexdef like '%track_id%'
+        assertThat(t).isEqualTo(3);
+        Integer gone = jdbc.queryForObject("""
+                select count(*) from information_schema.tables
+                where table_name in ('track','program_slot')
                 """, Integer.class);
-        assertThat(uq).isEqualTo(1);
+        assertThat(gone).isZero();
     }
 
     @Test
@@ -67,16 +62,23 @@ class MigrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void v6AddedTrackingTables() {
+    void v7ClassModel() {
         Integer t = jdbc.queryForObject("""
                 select count(*) from information_schema.tables
-                where table_name in ('wod_score','lift_entry')
+                where table_name in ('session_item','template_piece','announcement','wod_score','lift_entry')
                 """, Integer.class);
-        assertThat(t).isEqualTo(2);
+        assertThat(t).isEqualTo(5);
+        Integer c = jdbc.queryForObject("""
+                select count(*) from information_schema.columns
+                where (table_name='class_sessions' and column_name='programming_status')
+                   or (table_name='class_templates' and column_name='image_path')
+                   or (table_name='memberships' and column_name='avatar_path')
+                   or (table_name='memberships' and column_name='private')
+                """, Integer.class);
+        assertThat(c).isEqualTo(4);
         Integer uq = jdbc.queryForObject("""
                 select count(*) from pg_indexes
-                where tablename='wod_score' and indexdef like '%UNIQUE%'
-                  and indexdef like '%box_id%' and indexdef like '%slot_id%' and indexdef like '%membership_id%'
+                where tablename='wod_score' and indexdef like '%UNIQUE%' and indexdef like '%session_item_id%'
                 """, Integer.class);
         assertThat(uq).isEqualTo(1);
     }

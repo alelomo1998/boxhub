@@ -1,8 +1,10 @@
 package com.boxhub.performance;
 
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.identity.MembershipRepository;
-import com.boxhub.programming.ProgramSlot;
-import com.boxhub.programming.ProgramSlotRepository;
+import com.boxhub.programming.SessionItem;
+import com.boxhub.programming.SessionItemRepository;
 import com.boxhub.shared.TenantContext;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -18,12 +20,15 @@ import java.util.UUID;
 public class ScoreService {
 
     private final WodScoreRepository scores;
-    private final ProgramSlotRepository slots;
+    private final SessionItemRepository items;
+    private final ClassSessionRepository sessions;
     private final MembershipRepository memberships;
 
-    public ScoreService(WodScoreRepository scores, ProgramSlotRepository slots, MembershipRepository memberships) {
+    public ScoreService(WodScoreRepository scores, SessionItemRepository items,
+                        ClassSessionRepository sessions, MembershipRepository memberships) {
         this.scores = scores;
-        this.slots = slots;
+        this.items = items;
+        this.sessions = sessions;
         this.memberships = memberships;
     }
 
@@ -37,13 +42,21 @@ public class ScoreService {
     public record ScoreInput(boolean rx, Integer timeSeconds, Integer rounds, Integer reps, BigDecimal load,
                              Boolean finished, String notes, boolean isPrivate) {}
 
+    /** An item is loggable only when its class instance's programming is PUBLISHED and the item is scoreable. */
+    SessionItem loggableItem(UUID itemId) {
+        SessionItem item = items.findById(itemId).orElseThrow(NoSuchElementException::new); // tenant-filtered
+        ClassSession session = sessions.findById(item.getSessionId()).orElseThrow(NoSuchElementException::new);
+        if (!"PUBLISHED".equals(session.getProgrammingStatus())) throw new NoSuchElementException();
+        if (!item.isScoreable()) throw new NoSuchElementException();
+        return item;
+    }
+
     @Transactional
-    public WodScore upsert(UUID slotId, ScoreInput in) {
-        ProgramSlot slot = slots.findById(slotId).orElseThrow(NoSuchElementException::new); // tenant-filtered -> foreign 404
-        if (!"PUBLISHED".equals(slot.getStatus())) throw new NoSuchElementException(); // drafts invisible to athletes
+    public WodScore upsert(UUID itemId, ScoreInput in) {
+        loggableItem(itemId);
         UUID mid = callerMembershipId();
-        WodScore s = scores.findBySlotIdAndMembershipId(slotId, mid).orElseGet(WodScore::new);
-        s.setSlotId(slotId);
+        WodScore s = scores.findBySessionItemIdAndMembershipId(itemId, mid).orElseGet(WodScore::new);
+        s.setSessionItemId(itemId);
         s.setMembershipId(mid);
         s.setRx(in.rx());
         s.setTimeSeconds(in.timeSeconds());
@@ -58,8 +71,8 @@ public class ScoreService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<WodScore> mine(UUID slotId) {
-        slots.findById(slotId).orElseThrow(NoSuchElementException::new);
-        return scores.findBySlotIdAndMembershipId(slotId, callerMembershipId());
+    public Optional<WodScore> mine(UUID itemId) {
+        items.findById(itemId).orElseThrow(NoSuchElementException::new);
+        return scores.findBySessionItemIdAndMembershipId(itemId, callerMembershipId());
     }
 }

@@ -18,12 +18,12 @@ import java.util.UUID;
 public class WodController {
 
     private final WodRepository wods;
-    private final ProgramSlotRepository slots;
+    private final SessionItemRepository items;
     private final WodService service;
 
-    public WodController(WodRepository wods, ProgramSlotRepository slots, WodService service) {
+    public WodController(WodRepository wods, SessionItemRepository items, WodService service) {
         this.wods = wods;
-        this.slots = slots;
+        this.items = items;
         this.service = service;
     }
 
@@ -88,7 +88,7 @@ public class WodController {
     public void delete(@PathVariable UUID id) {
         RoleGuard.requireStaff();
         Wod w = wods.findById(id).orElseThrow(NoSuchElementException::new);
-        if (slots.existsByWodId(w.getId()))
+        if (items.existsByWodId(w.getId()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "WOD in use");
         wods.delete(w);
     }

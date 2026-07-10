@@ -50,7 +50,7 @@ public class ClassTemplateController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public TemplateDto create(@Valid @RequestBody CreateTemplateRequest req) {
-        RoleGuard.requireBoxAdmin();
+        RoleGuard.requireStaff(); // M5: class types are coach/admin-managed
         ClassTemplate t = new ClassTemplate();
         t.setName(req.name().trim());
         t.setWeekday(req.weekday());
@@ -65,7 +65,7 @@ public class ClassTemplateController {
 
     @PatchMapping("/{id}")
     public TemplateDto patch(@PathVariable UUID id, @Valid @RequestBody PatchTemplateRequest req) {
-        RoleGuard.requireBoxAdmin();
+        RoleGuard.requireStaff(); // M5: class types are coach/admin-managed
         ClassTemplate t = templates.findById(id).orElseThrow(NoSuchElementException::new); // tenant filter: foreign = 404
         if (req.name() != null) t.setName(req.name().trim());
         if (req.weekday() != null) t.setWeekday(req.weekday());

@@ -14,7 +14,7 @@ public class WodScore {
     @TenantId
     @Column(name = "box_id", nullable = false)
     private UUID boxId;
-    @Column(name = "slot_id", nullable = false) private UUID slotId;
+    @Column(name = "session_item_id", nullable = false) private UUID sessionItemId;
     @Column(name = "membership_id", nullable = false) private UUID membershipId;
     @Column(nullable = false) private boolean rx = true;
     @Column(name = "time_seconds") private Integer timeSeconds;
@@ -29,8 +29,8 @@ public class WodScore {
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
-    public UUID getSlotId() { return slotId; }
-    public void setSlotId(UUID slotId) { this.slotId = slotId; }
+    public UUID getSessionItemId() { return sessionItemId; }
+    public void setSessionItemId(UUID sessionItemId) { this.sessionItemId = sessionItemId; }
     public UUID getMembershipId() { return membershipId; }
     public void setMembershipId(UUID membershipId) { this.membershipId = membershipId; }
     public boolean isRx() { return rx; }
