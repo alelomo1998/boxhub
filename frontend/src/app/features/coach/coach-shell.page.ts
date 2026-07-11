@@ -14,7 +14,7 @@ import { AuthService } from '../../core/auth/auth.service';
         <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }} · Coach</span></div>
         <nav class="hnav" aria-label="Coach">
           @for (t of tabs; track t.link) {
-            <a class="hitem" [routerLink]="t.link" routerLinkActive="active">{{ t.label }}</a>
+            <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
           }
         </nav>
         <div class="acts">
@@ -27,7 +27,7 @@ import { AuthService } from '../../core/auth/auth.service';
 
       <nav class="bh-dock" aria-label="Coach">
         @for (t of tabs; track t.link) {
-          <a class="bh-dock-item" [routerLink]="t.link" routerLinkActive="active">
+          <a class="bh-dock-item" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">
             <span class="glyph" aria-hidden="true">{{ t.glyph }}</span>
             <span class="tlabel">{{ t.label }}</span>
           </a>

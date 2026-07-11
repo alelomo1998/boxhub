@@ -52,6 +52,17 @@
 - Admin tables on phone are scroll-tables, not cards (shell + dashboard are responsive; deep pages later).
 - Detector false-positive pattern: Angular [src] bindings in @if guards trip `broken-image` — consider repo-level ignore for the rule if the noise annoys.
 
+## Deferred from M5.5 (fe polish, critique 28/40 — P0 fonts + 3 P1 fixed in-session)
+- Loads unitless product-wide — kg/lb box setting (dupes M4 item; leaderboard hero makes it louder).
+- Logout/theme placement differs per shell (athlete profile sheet vs coach/admin header ⎋); header CSS ~90% duplicated 3× — fold into the bh-shell dedupe item.
+- Day pager (Book + coach Classes): no swipe, chevrons out of thumb zone, no week-strip with availability dots (paging to find the next open class = up to 13 taps).
+- Booking error renders at list top, not in the card foot next to the button that caused it.
+- RX/Scaled segmented control: role="radio" without roving tabindex/arrow keys; sheet discard bar doesn't move focus on appear.
+- Shared leaderboard URL loses WOD title (query param); leaderboard `track e.rank` breaks on tied ranks if API ever ties.
+- Unicode glyph icons (⎋ ⌘ ◐) read as placeholder icon system — consider a real icon set.
+- Builder score-type select still a 5-option decision per scored piece ("auto (time)" helps).
+- No coach-facing help for skeleton→instance→publish flow.
+
 ## Quality / polish
 - Member list: planName N+1 in MemberController.toDto (bounded by page-size cap 100) — batch findAllById if member lists get hot.
 - Invite pending() in-memory filter — derived query (findByAcceptedAtIsNullAndExpiresAtAfter) when a box's invite history grows.

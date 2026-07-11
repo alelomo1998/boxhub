@@ -9,7 +9,7 @@ import { DatePipe } from '@angular/common';
   template: `
     <div class="pager">
       <button class="pg" (click)="shift(-1)" [disabled]="offset === 0" aria-label="Previous day">‹</button>
-      <span class="pg-date">{{ day() | date:'EEEE d MMMM' }}</span>
+      <span class="pg-date" aria-live="polite">{{ day() | date:'EEEE d MMMM' }}</span>
       <button class="pg" (click)="shift(1)" [disabled]="offset >= max" aria-label="Next day">›</button>
     </div>
   `,

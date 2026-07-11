@@ -103,7 +103,7 @@ interface PieceDraft {
                 <button class="add" (click)="addBlank()" data-testid="add-piece">＋ Add piece</button>
 
                 <div class="actions">
-                  <bh-button [disabled]="saving()" (click)="save(false)">{{ saving() ? 'Saving…' : 'Save draft' }}</bh-button>
+                  <bh-button variant="ghost" [disabled]="saving()" (click)="save(false)">{{ saving() ? 'Saving…' : 'Save draft' }}</bh-button>
                   <bh-button [disabled]="saving()" (click)="save(true)" data-testid="publish-btn">
                     {{ saving() ? '…' : (published() ? 'Save & republish' : 'Save & publish') }}</bh-button>
                 </div>
@@ -327,6 +327,12 @@ export class InstanceBuilderPage implements OnInit, HasUnsaved {
 
   /** Save: quick-created pieces become library wods, then the item list replaces the instance's programming. */
   save(publish: boolean) {
+    // a piece with content but no title would be silently dropped — block instead of losing work
+    const untitled = this.pieces().findIndex(p => !p.title.trim() && p.bodyText.trim());
+    if (untitled >= 0) {
+      this.saveError.set(`Piece ${untitled + 1} has content but no title — give it a title or remove it.`);
+      return;
+    }
     const drafts = this.pieces().filter(p => p.title.trim());
     if (!drafts.length) { this.saveError.set('Add at least one piece.'); return; }
     this.saveError.set('');

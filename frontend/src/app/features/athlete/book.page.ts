@@ -6,7 +6,7 @@ import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
 import { DayPagerComponent } from '../../ui/day-pager.component';
 
-function dayKey(d: Date): string { return d.toISOString().slice(0, 10); }
+function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
 
 /** Book a class: date pager + photo class cards (reference-app concept, our style). */
 @Component({
@@ -41,7 +41,10 @@ function dayKey(d: Date): string { return d.toISOString().slice(0, 10); }
                 </div>
               </a>
               <div class="foot">
-                @if (s.myBookingStatus === 'BOOKED') {
+                @if (started(s)) {
+                  <span class="mut">Started {{ s.startAt | date:'HH:mm' }}</span>
+                  @if (s.myBookingStatus === 'BOOKED') { <bh-pill tone="active" label="Booked" /> }
+                } @else if (s.myBookingStatus === 'BOOKED') {
                   <bh-pill tone="active" label="Booked" />
                   <bh-button variant="ghost" size="sm" data-testid="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)">Cancel</bh-button>
                 } @else if (s.myBookingStatus === 'WAITLIST') {
@@ -143,6 +146,7 @@ export class BookPage implements OnInit {
 
   imageOf(s: SessionView): string | null { return this.images().get(s.name) ?? null; }
   endOf(s: SessionView): Date { return new Date(new Date(s.startAt).getTime() + s.durationMin * 60000); }
+  started(s: SessionView): boolean { return new Date(s.startAt).getTime() <= Date.now(); }
 
   book(s: SessionView) { this.act(s, this.booking.book(s.id)); }
   cancel(s: SessionView) { this.act(s, this.booking.cancel(s.id)); }

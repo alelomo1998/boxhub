@@ -20,7 +20,7 @@ import { SheetComponent } from '../../ui/sheet.component';
 
       <nav class="side" aria-label="Admin">
         @for (i of nav; track i.link) {
-          <a class="s-item" [routerLink]="i.link" routerLinkActive="active">{{ i.label }}</a>
+          <a class="s-item" [routerLink]="i.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ i.label }}</a>
         }
       </nav>
 
@@ -28,7 +28,7 @@ import { SheetComponent } from '../../ui/sheet.component';
 
       <nav class="bh-dock" aria-label="Admin">
         @for (i of mobileTabs; track i.link) {
-          <a class="bh-dock-item" [routerLink]="i.link" routerLinkActive="active">
+          <a class="bh-dock-item" [routerLink]="i.link" routerLinkActive="active" ariaCurrentWhenActive="page">
             <span class="glyph" aria-hidden="true">{{ i.glyph }}</span>
             <span class="tlabel">{{ i.label }}</span>
           </a>

@@ -17,7 +17,7 @@ import { HomeService } from './home.service';
         <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }}</span></div>
         <nav class="hnav" aria-label="Athlete">
           @for (t of tabs; track t.link) {
-            <a class="hitem" [routerLink]="t.link" routerLinkActive="active">{{ t.label }}</a>
+            <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
           }
         </nav>
         <button class="me" (click)="profileOpen.set(true)" aria-label="Your profile">
@@ -29,7 +29,7 @@ import { HomeService } from './home.service';
 
       <nav class="bh-dock" aria-label="Athlete">
         @for (t of tabs; track t.link) {
-          <a class="bh-dock-item" [routerLink]="t.link" routerLinkActive="active">
+          <a class="bh-dock-item" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">
             <span class="glyph" aria-hidden="true">{{ t.glyph }}</span>
             <span class="tlabel">{{ t.label }}</span>
           </a>
