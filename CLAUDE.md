@@ -25,6 +25,9 @@ CrossFit box platform. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16. Mul
 - Type: display = Saira Condensed, body/UI = Archivo, eyebrows = system mono. Embedded as data-URI (CSP blocks font CDNs).
 - **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through impeccable (shape → build → critique ≥28/40, no open P0/P1)**.
 
+## Communication (binding)
+- **Caveman mode, level `full` (not ultra):** terse prose, drop articles/filler/pleasantries, fragments OK. All technical substance stays. Code, commits, PRs, security warnings written normally. Goal: cut token burn, not clarity.
+
 ## Process pace (DEFAULT — lightweight)
 Keep the superpowers arc (brainstorm → writing-plans → execute → finish) but execute LIGHT:
 - **Default = inline execution by the main thread.** Write/Edit the files directly, run tests+build, commit. NO implementer subagent, NO reviewer subagent, NO per-task brief/report files for mechanical, well-specified work (restyles, CRUD from a detailed plan, transcription). Tests + build + targeted greps are the gate.
