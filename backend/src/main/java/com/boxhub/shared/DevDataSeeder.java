@@ -146,8 +146,8 @@ public class DevDataSeeder implements CommandLineRunner {
     /** Class types with skeletons + a weekly schedule; today's instances get published programming. */
     private void seedClassesAndProgramming(Box box, UUID coachId) {
         runAsBox(box.getId(), () -> {
-            // class types (every weekday so a fresh box always has a class today)
-            for (int weekday = 0; weekday <= 4; weekday++) {
+            // every day (incl. weekends) so a fresh box always has a WOD Class + Burn It today
+            for (int weekday = 0; weekday <= 6; weekday++) {
                 template("WOD Class", weekday, LocalTime.of(18, 0), 14, coachId);
                 template("Burn It", weekday, LocalTime.of(19, 0), 12, coachId);
             }

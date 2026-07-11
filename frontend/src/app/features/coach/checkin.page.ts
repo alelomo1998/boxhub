@@ -32,8 +32,9 @@ import { AvatarComponent } from '../../ui/avatar.component';
                   <button class="cell" [class.in]="a.status === 'CHECKED_IN'" [class.busy]="busy() === a.bookingId"
                           [class.noshow]="a.status === 'NO_SHOW'"
                           [attr.data-testid]="'athlete-' + a.bookingId"
-                          (click)="toggle(a)"
-                          (contextmenu)="noShow(a, $event)"
+                          (click)="onTap(a)"
+                          (pointerdown)="pressStart(a)" (pointerup)="pressEnd()" (pointerleave)="pressEnd()"
+                          (contextmenu)="onContext(a, $event)"
                           [attr.aria-pressed]="a.status === 'CHECKED_IN'">
                     <span class="ring"><bh-avatar [path]="a.avatarPath" [name]="a.name" size="lg" /></span>
                     <span class="cell-name">{{ a.name }}</span>
@@ -45,7 +46,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
                   </button>
                 }
               </div>
-              <p class="hint">Tap = check in / undo · long-press (or right-click) = no-show</p>
+              <p class="hint">Tap = check in / undo · long-press = no-show (tap a no-show to restore)</p>
             } @else { <p class="stateline">No one booked for this class.</p> }
 
             @if (queue().length) {
@@ -85,6 +86,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
     .cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--sp-3) var(--sp-2);
       background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); cursor: pointer; text-align: center; min-height: 130px;
+      touch-action: manipulation; -webkit-touch-callout: none; user-select: none;
       transition: border-color var(--dur) var(--ease-out); }
     .cell:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
     .ring { border-radius: 50%; padding: 2px; border: 2px solid transparent; display: inline-flex;
@@ -137,26 +139,49 @@ export class CheckinPage implements OnInit {
     });
   }
 
-  toggle(a: RosterEntry) {
+  private pressTimer: any = null;
+  private longFired = false;
+
+  pressStart(a: RosterEntry) {
+    this.longFired = false;
+    this.pressTimer = setTimeout(() => { this.longFired = true; this.setNoShow(a); }, 500);
+  }
+  pressEnd() { clearTimeout(this.pressTimer); }
+
+  onContext(a: RosterEntry, ev: Event) { ev.preventDefault(); this.setNoShow(a); }
+
+  onTap(a: RosterEntry) {
+    if (this.longFired) { this.longFired = false; return; } // the long-press already acted
+    // tapping check-in toggles; tapping a no-show restores it to booked
+    const next = a.status === 'CHECKED_IN' ? 'BOOKED' : a.status === 'NO_SHOW' ? 'BOOKED' : 'CHECKED_IN';
+    const call = next === 'CHECKED_IN'
+      ? this.booking.checkIn(this.sessionId, a.bookingId)
+      : this.booking.uncheck(this.sessionId, a.bookingId);
+    this.act(a, next, call);
+  }
+
+  private setNoShow(a: RosterEntry) {
     if (a.status === 'NO_SHOW') return;
+    this.act(a, 'NO_SHOW', this.booking.noShow(this.sessionId, a.bookingId));
+  }
+
+  /** Optimistic: repaint the cell immediately, reconcile on the response. */
+  private act(a: RosterEntry, next: string, call: { subscribe: Function }) {
     this.actionError.set('');
+    const prev = a.status;
+    this.setStatusLocal(a.bookingId, next);
     this.busy.set(a.bookingId);
-    const call = a.status === 'CHECKED_IN'
-      ? this.booking.uncheck(this.sessionId, a.bookingId)
-      : this.booking.checkIn(this.sessionId, a.bookingId);
     call.subscribe({
-      next: () => { this.busy.set(null); this.load(); },
-      error: () => { this.busy.set(null); this.actionError.set("Couldn't update — try again."); },
+      next: () => this.busy.set(null),
+      error: () => {
+        this.busy.set(null);
+        this.setStatusLocal(a.bookingId, prev); // revert
+        this.actionError.set("Couldn't update — try again.");
+      },
     });
   }
 
-  noShow(a: RosterEntry, ev: Event) {
-    ev.preventDefault();
-    if (a.status === 'NO_SHOW') return;
-    this.busy.set(a.bookingId);
-    this.booking.noShow(this.sessionId, a.bookingId).subscribe({
-      next: () => { this.busy.set(null); this.load(); },
-      error: () => { this.busy.set(null); this.actionError.set("Couldn't update — try again."); },
-    });
+  private setStatusLocal(bookingId: string, status: string) {
+    this.roster.update(rs => rs.map(r => r.bookingId === bookingId ? { ...r, status } : r));
   }
 }

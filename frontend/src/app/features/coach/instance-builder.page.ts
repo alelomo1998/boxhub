@@ -56,6 +56,7 @@ interface PieceDraft {
                 </header>
 
                 @if (saveError()) { <p class="err" role="alert">{{ saveError() }}</p> }
+                @if (saved()) { <p class="ok" role="status" data-testid="saved-ok">Saved ✓</p> }
 
                 <div class="stack" data-testid="piece-stack">
                   @for (p of pieces(); track $index; let i = $index) {
@@ -71,9 +72,9 @@ interface PieceDraft {
                           <button class="mini danger" (click)="remove(i)" aria-label="Remove piece">✕</button>
                         </div>
                       </div>
-                      <input class="in" [(ngModel)]="p.title" [name]="'title' + i"
+                      <input class="in" [(ngModel)]="p.title" [name]="'title' + i" aria-label="Piece title"
                              [placeholder]="p.label || 'Piece title'" data-testid="piece-title" />
-                      <textarea class="in area" [(ngModel)]="p.bodyText" [name]="'body' + i"
+                      <textarea class="in area" [(ngModel)]="p.bodyText" [name]="'body' + i" aria-label="Piece content"
                                 placeholder="The work — movements, reps, loads…"></textarea>
                       <div class="p-foot">
                         <label class="chk"><input type="checkbox" [(ngModel)]="p.scoreable" [name]="'sc' + i" /> Scored</label>
@@ -110,6 +111,8 @@ interface PieceDraft {
     .ib { max-width: 1100px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
     .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
+    .ok { color: var(--good); font-size: var(--fs-sm); font-family: var(--font-mono);
+      text-transform: uppercase; letter-spacing: 0.06em; }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);
       text-decoration: none; margin-bottom: var(--sp-2); }
     .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
@@ -191,6 +194,7 @@ export class InstanceBuilderPage implements OnInit {
   library = signal<Wod[]>([]);
   search = signal('');
   saving = signal(false);
+  saved = signal(false);
   saveError = signal('');
   published = signal(false);
   private searchTimer: any;
@@ -249,9 +253,11 @@ export class InstanceBuilderPage implements OnInit {
   }
 
   private fromItem(i: SessionItem): PieceDraft {
+    // i.scoreType is the EFFECTIVE type; treat it as an override only when it differs from the type default
+    const override = i.scoreType !== this.apiDefaultScore(i.wod.wodType) ? i.scoreType : null;
     return {
       label: i.wod.title, wodType: i.wod.wodType, scoreable: i.scoreable,
-      scoreType: null, wodId: i.wodId, title: i.wod.title, bodyText: i.wod.bodyText ?? '',
+      scoreType: override, wodId: i.wodId, title: i.wod.title, bodyText: i.wod.bodyText ?? '',
     };
   }
 
@@ -303,19 +309,22 @@ export class InstanceBuilderPage implements OnInit {
     this.saveError.set('');
     this.saving.set(true);
 
+    // A draft's wodId is reused only when nothing about the piece changed; otherwise a wod is
+    // created ONCE and its id is written back into the draft so a later save (draft -> publish)
+    // reuses it instead of creating a duplicate.
     const ensureWod = (p: PieceDraft): Promise<string> => {
-      // library piece left untouched -> reuse; edited or new -> create a wod for this instance
       if (p.wodId) {
         const lib = this.library().find(w => w.id === p.wodId);
-        if (lib && lib.title === p.title.trim() && (lib.bodyText ?? '') === p.bodyText && lib.wodType === p.wodType) {
-          return Promise.resolve(p.wodId);
-        }
+        const unchanged = lib
+          ? (lib.title === p.title.trim() && (lib.bodyText ?? '') === p.bodyText && lib.wodType === p.wodType)
+          : true; // id from a prior save this session (not in the library list) -> already matches the draft
+        if (unchanged) return Promise.resolve(p.wodId);
       }
       return new Promise((resolve, reject) =>
         this.prog.createWod({
           title: p.title.trim(), wodType: p.wodType,
           scoreType: p.scoreType ?? this.apiDefaultScore(p.wodType), bodyText: p.bodyText,
-        }).subscribe({ next: w => resolve(w.id), error: reject }));
+        }).subscribe({ next: w => { p.wodId = w.id; resolve(w.id); }, error: reject }));
     };
 
     Promise.all(drafts.map(ensureWod))
@@ -328,7 +337,7 @@ export class InstanceBuilderPage implements OnInit {
             this.prog.publishProgramming(this.sessionId, 'PUBLISHED')
               .subscribe({ next: () => { this.published.set(true); resolve(); }, error: reject }))
         : Promise.resolve())
-      .then(() => { this.saving.set(false); })
+      .then(() => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); })
       .catch(() => {
         this.saving.set(false);
         this.saveError.set("Couldn't save — your pieces are still here, try again.");
