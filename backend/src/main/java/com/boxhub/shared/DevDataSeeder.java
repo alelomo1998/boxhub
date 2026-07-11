@@ -2,6 +2,8 @@ package com.boxhub.shared;
 
 import com.boxhub.box.Announcement;
 import com.boxhub.box.AnnouncementRepository;
+import com.boxhub.box.Booking;
+import com.boxhub.box.BookingRepository;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
 import com.boxhub.box.ClassSession;
@@ -48,13 +50,14 @@ public class DevDataSeeder implements CommandLineRunner {
     private final WodScoreRepository wodScores;
     private final LiftEntryRepository liftEntries;
     private final AnnouncementRepository announcements;
+    private final BookingRepository bookings;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
                          ClassTemplateRepository templates, ClassSessionRepository sessions,
                          SessionGenerator sessionGenerator, TemplatePieceRepository skeletons,
                          SessionItemRepository items, WodRepository wods, MovementRepository movements,
                          WodScoreRepository wodScores, LiftEntryRepository liftEntries,
-                         AnnouncementRepository announcements) {
+                         AnnouncementRepository announcements, BookingRepository bookings) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
@@ -68,6 +71,7 @@ public class DevDataSeeder implements CommandLineRunner {
         this.wodScores = wodScores;
         this.liftEntries = liftEntries;
         this.announcements = announcements;
+        this.bookings = bookings;
     }
 
     @Override
@@ -80,13 +84,27 @@ public class DevDataSeeder implements CommandLineRunner {
         boxes.save(demo);
         seed(demo, "admin@demo.io", "Demo Admin", "BOX_ADMIN");
         User coach = seed(demo, "coach@demo.io", "Demo Coach", "COACH");
+        User coach2 = seed(demo, "coach2@demo.io", "Jordan Blake", "COACH");
         User athlete = seed(demo, "athlete@demo.io", "Demo Athlete", "ATHLETE");
         User athlete2 = seed(demo, "athlete2@demo.io", "Sam Rivera", "ATHLETE");
         User athlete3 = seed(demo, "athlete3@demo.io", "Alex Kim", "ATHLETE");
-        seedClassesAndProgramming(demo, coach.getId());
+        User athlete4 = seed(demo, "athlete4@demo.io", "Maria Silva", "ATHLETE");
+        User athlete5 = seed(demo, "athlete5@demo.io", "Tom Baker", "ATHLETE");
+        User athlete6 = seed(demo, "athlete6@demo.io", "Nina Petrova", "ATHLETE");
+        User athlete7 = seed(demo, "athlete7@demo.io", "Leo Rossi", "ATHLETE");
+        User athlete8 = seed(demo, "athlete8@demo.io", "Ana Costa", "ATHLETE");
+        List<User> athletes = List.of(athlete, athlete2, athlete3, athlete4, athlete5, athlete6, athlete7, athlete8);
+
+        seedClassesAndProgramming(demo, coach.getId(), coach2.getId());
         seedScoresAndLifts(demo, athlete.getId(), athlete2.getId(), athlete3.getId());
+        seedBookings(demo, athletes);
         seedAnnouncement(demo, coach.getId());
-        seedImages(demo, coach.getId(), athlete.getId(), athlete2.getId(), athlete3.getId());
+
+        List<UUID> photoUserIds = new java.util.ArrayList<>();
+        photoUserIds.add(coach.getId());
+        photoUserIds.add(coach2.getId());
+        for (User a : athletes) photoUserIds.add(a.getId());
+        seedImages(demo, photoUserIds.toArray(UUID[]::new));
     }
 
     /** Generated placeholder images so photo-driven screens render on a fresh box. */
@@ -144,12 +162,12 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     /** Class types with skeletons + a weekly schedule; today's instances get published programming. */
-    private void seedClassesAndProgramming(Box box, UUID coachId) {
+    private void seedClassesAndProgramming(Box box, UUID coachId, UUID coach2Id) {
         runAsBox(box.getId(), () -> {
             // every day (incl. weekends) so a fresh box always has a WOD Class + Burn It today
             for (int weekday = 0; weekday <= 6; weekday++) {
                 template("WOD Class", weekday, LocalTime.of(18, 0), 14, coachId);
-                template("Burn It", weekday, LocalTime.of(19, 0), 12, coachId);
+                template("Burn It", weekday, LocalTime.of(19, 0), 12, coach2Id);
             }
             template("Weekend Team WOD", 5, LocalTime.of(10, 0), 20, coachId);
 
@@ -168,6 +186,14 @@ public class DevDataSeeder implements CommandLineRunner {
             }
         });
         sessionGenerator.generateForBox(box.getId());
+
+        // clock-relative "today" instances: the fixed 18:00/19:00 slots may already be past by the
+        // time the box seeds (or not yet generated for tonight) — these guarantee today always has
+        // one class in progress (checkin demo) and one still bookable, regardless of seed time.
+        runAsBox(box.getId(), () -> {
+            todaySession("WOD Class", Instant.now().minus(java.time.Duration.ofMinutes(20)), 60, 14, coachId);
+            todaySession("Burn It", Instant.now().plus(java.time.Duration.ofMinutes(40)), 60, 12, coach2Id);
+        });
 
         // publish modular programming on today's instances
         runAsBox(box.getId(), () -> {
@@ -223,6 +249,50 @@ public class DevDataSeeder implements CommandLineRunner {
         });
     }
 
+    /** Books athletes onto the coming week's sessions so schedule/roster/check-in screens have real rosters. */
+    private void seedBookings(Box box, List<User> athletes) {
+        runAsBox(box.getId(), () -> {
+            List<UUID> mids = athletes.stream().map(a -> membershipId(a.getId(), box.getId())).toList();
+            var zone = java.time.ZoneId.of(box.getTimezone());
+            // from start-of-today, not now: the synthetic in-progress "today" session starts in the
+            // past (see todaySession) and still needs a roster for the check-in demo.
+            var from = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant();
+            var to = java.time.LocalDate.now(zone).plusDays(8).atStartOfDay(zone).toInstant();
+            List<ClassSession> upcoming = sessions.findByStartAtBetweenOrderByStartAt(from, to);
+
+            int offset = 0;
+            for (ClassSession s : upcoming) {
+                int count = "Weekend Team WOD".equals(s.getName()) ? 7 : 3 + (offset % 3); // 3-5 regular, 7 team WOD
+                for (int k = 0; k < count && k < mids.size(); k++) {
+                    booking(s.getId(), mids.get((offset + k) % mids.size()), "BOOKED", null);
+                }
+                offset++;
+            }
+
+            // classes already underway read as mid-session: a couple checked in, one no-show
+            var todayEnd = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant();
+            for (ClassSession s : sessions.findByStartAtBetweenOrderByStartAt(from, todayEnd)) {
+                if (s.getStartAt().isAfter(Instant.now())) continue; // hasn't started — nobody's checked in yet
+                List<Booking> roster = bookings.findBySessionId(s.getId());
+                for (int i = 0; i < roster.size(); i++) {
+                    Booking b = roster.get(i);
+                    if (i == 0) { b.setStatus("CHECKED_IN"); b.setCheckedInAt(Instant.now()); bookings.save(b); }
+                    else if (i == 1 && roster.size() > 3) { b.setStatus("NO_SHOW"); bookings.save(b); }
+                }
+            }
+        });
+    }
+
+    private void booking(UUID sessionId, UUID membershipId, String status, Integer position) {
+        if (bookings.findBySessionIdAndMembershipId(sessionId, membershipId).isPresent()) return;
+        Booking b = new Booking();
+        b.setSessionId(sessionId);
+        b.setMembershipId(membershipId);
+        b.setStatus(status);
+        b.setPosition(position);
+        bookings.save(b);
+    }
+
     private void seedAnnouncement(Box box, UUID coachUserId) {
         runAsBox(box.getId(), () -> {
             Announcement a = new Announcement();
@@ -230,6 +300,16 @@ public class DevDataSeeder implements CommandLineRunner {
             a.setUpdatedBy(coachUserId);
             announcements.save(a);
         });
+    }
+
+    private void todaySession(String name, Instant startAt, int durationMin, int capacity, UUID coachId) {
+        ClassSession s = new ClassSession();
+        s.setName(name);
+        s.setStartAt(startAt);
+        s.setDurationMin(durationMin);
+        s.setCapacity(capacity);
+        s.setCoachId(coachId);
+        sessions.save(s);
     }
 
     private void template(String name, int weekday, LocalTime start, int capacity, UUID coachId) {
