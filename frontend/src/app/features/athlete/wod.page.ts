@@ -95,9 +95,10 @@ import { AvatarComponent } from '../../ui/avatar.component';
     </section>
 
     <bh-sheet [open]="scoreItem() !== null" [title]="'Log — ' + (scoreItem()?.wod?.title ?? '')"
-              label="Log score" (closed)="scoreItem.set(null)">
+              label="Log score" [confirmClose]="scoreDirty()" (closed)="scoreItem.set(null)">
       @if (scoreItem(); as i) {
-        <bh-score-form [itemId]="i.id" [scoreType]="i.scoreType" (saved)="onSaved()" />
+        <bh-score-form [itemId]="i.id" [scoreType]="i.scoreType"
+                       (dirtyChange)="scoreDirty.set($event)" (saved)="onSaved()" />
       }
     </bh-sheet>
 
@@ -190,6 +191,7 @@ export class WodPage implements OnInit {
   data = signal<MyClass | null>(null);
   state = signal<'loading' | 'error' | 'ready'>('loading');
   scoreItem = signal<SessionItem | null>(null);
+  scoreDirty = signal(false);
   boardItem = signal<SessionItem | null>(null);
   lb = signal<Leaderboard | null>(null);
 
@@ -208,7 +210,7 @@ export class WodPage implements OnInit {
     return i.scoreable && i.scoreType !== 'NONE' ? `${t} · scored` : t;
   }
 
-  openScore(i: SessionItem) { this.scoreItem.set(i); }
+  openScore(i: SessionItem) { this.scoreDirty.set(false); this.scoreItem.set(i); }
 
   openBoard(i: SessionItem) {
     this.boardItem.set(i);
@@ -220,6 +222,7 @@ export class WodPage implements OnInit {
   }
 
   onSaved() {
+    this.scoreDirty.set(false);
     this.scoreItem.set(null);
     this.load(); // refresh myScoreLogged marks
   }

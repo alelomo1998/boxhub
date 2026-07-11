@@ -25,14 +25,18 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
           @for (m of movements(); track m.id) { <option [value]="m.name"></option> }
         </datalist>
         <form class="qform" (ngSubmit)="saveLift()">
-          <input class="in mv" list="mvList" [(ngModel)]="movementName" name="mv"
-                 placeholder="Movement" aria-label="Movement" data-testid="lift-movement" />
-          <input class="in n" type="number" inputmode="decimal" min="0.5" step="0.5" [(ngModel)]="liftLoad"
-                 name="load" placeholder="Load" aria-label="Load" />
-          <input class="in n" type="number" inputmode="numeric" min="1" max="100" [(ngModel)]="liftReps"
-                 name="reps" placeholder="Reps" aria-label="Reps" />
-          <input class="in date" type="date" [(ngModel)]="liftDate" name="date" aria-label="Date" />
-          <bh-button size="sm" type="submit" [disabled]="liftPending()">{{ liftPending() ? 'Saving…' : 'Save' }}</bh-button>
+          <label class="qf mv"><span class="qlab">Movement</span>
+            <input class="in" list="mvList" [(ngModel)]="movementName" name="mv"
+                   placeholder="Back squat…" data-testid="lift-movement" /></label>
+          <label class="qf"><span class="qlab">Load</span>
+            <input class="in n" type="number" inputmode="decimal" min="0.5" step="0.5" [(ngModel)]="liftLoad"
+                   name="load" placeholder="0" /></label>
+          <label class="qf"><span class="qlab">Reps</span>
+            <input class="in n" type="number" inputmode="numeric" min="1" max="100" [(ngModel)]="liftReps"
+                   name="reps" /></label>
+          <label class="qf date"><span class="qlab">Date</span>
+            <input class="in" type="date" [(ngModel)]="liftDate" name="date" /></label>
+          <bh-button class="qsave full" type="submit" [disabled]="liftPending()">{{ liftPending() ? 'Saving…' : 'Save lift' }}</bh-button>
         </form>
         @if (liftError()) { <p class="err" role="alert">{{ liftError() }}</p> }
       </div>
@@ -106,17 +110,26 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .err { color: var(--red); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
 
     .quicklog { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
-      padding: var(--sp-4); margin-bottom: var(--sp-5); }
+      padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-5); }
     .qh { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
       letter-spacing: 0.1em; color: var(--faint); margin: 0 0 var(--sp-3); }
-    .qform { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
-    .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
+    .qform { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+    .qf { display: flex; flex-direction: column; gap: 6px; }
+    .qf.mv, .qf.date { grid-column: 1 / -1; }
+    .qlab { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--faint); }
+    .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
-      font-size: var(--fs-body); box-sizing: border-box; }
+      font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
     .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
-    .in.mv { flex: 2 1 160px; min-width: 0; }
-    .in.n { width: 84px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
-    .in.date { flex: 1 1 130px; }
+    .in.n { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 20px;
+      font-variant-numeric: tabular-nums; min-height: 52px; }
+    .qsave { grid-column: 1 / -1; }
+    @media (min-width: 560px) {
+      .qform { grid-template-columns: 2fr 1fr 1fr 1.4fr; align-items: end; }
+      .qf.mv { grid-column: auto; } .qf.date { grid-column: auto; }
+      .qsave { grid-column: 1 / -1; }
+    }
 
     .pr-moment { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
       border: 1px solid var(--red); border-radius: var(--r-card); padding: var(--sp-4);

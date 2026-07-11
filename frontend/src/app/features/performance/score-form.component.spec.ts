@@ -47,6 +47,16 @@ describe('ScoreFormComponent', () => {
     expect(c.pending()).toBeFalse();
   });
 
+  it('emits dirtyChange true once on first input', () => {
+    const fixture = create('TIME');
+    const spy = jasmine.createSpy('dirty');
+    fixture.componentInstance.dirtyChange.subscribe(spy);
+    const form = fixture.nativeElement.querySelector('form');
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(spy).toHaveBeenCalledOnceWith(true);
+  });
+
   it('shows an inline error and preserves values when the save fails', () => {
     const fixture = create('LOAD');
     const c = fixture.componentInstance;
