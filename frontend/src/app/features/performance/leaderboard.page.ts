@@ -71,6 +71,11 @@ import { AvatarComponent } from '../../ui/avatar.component';
       text-transform: uppercase; color: var(--faint); }
     .val { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); }
     .num { font-variant-numeric: tabular-nums; }
+    @media (max-width: 479px) {
+      .row { grid-template-columns: 36px auto 1fr auto; gap: var(--sp-3); }
+      .nm { font-size: var(--fs-body); }
+      .rank { font-size: var(--fs-h2); }
+    }
     .empty { padding: var(--sp-8) 0; }
     .e1 { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
       text-transform: uppercase; color: var(--bone-dim); margin: 0 0 var(--sp-2); }
