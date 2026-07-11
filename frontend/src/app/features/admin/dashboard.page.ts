@@ -66,7 +66,7 @@ import { AdminService, AdminStats } from './admin.service';
       text-transform: uppercase; margin: 2px 0 0; }
 
     .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-4); }
-    .kpi { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .kpi { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); display: flex; flex-direction: column; gap: 4px;
       color: var(--bone); text-decoration: none; }
     .kpi:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }

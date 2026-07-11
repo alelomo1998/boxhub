@@ -74,7 +74,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
       border: 1px solid var(--hairline); border-radius: var(--edge); font-size: var(--fs-sm); cursor: pointer; }
     .aslink { display: inline-flex; align-items: center; text-decoration: none; margin-left: var(--sp-2); }
 
-    .hero { border: 1px solid var(--hairline); border-radius: var(--edge); overflow: hidden;
+    .hero { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden;
       background: var(--surface); margin-bottom: var(--sp-4); }
     .hero-img { width: 100%; max-height: 180px; object-fit: cover; display: block; }
     .hero-body { padding: var(--sp-4); }
@@ -84,7 +84,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
       text-transform: uppercase; margin: 2px 0 0; text-wrap: balance; }
 
     .coach { display: flex; align-items: center; gap: var(--sp-4); border: 1px solid var(--hairline);
-      border-radius: var(--edge); background: var(--surface); padding: var(--sp-3) var(--sp-4);
+      border-radius: var(--r-card); background: var(--surface); padding: var(--sp-3) var(--sp-4);
       margin-bottom: var(--sp-4); }
     .c-who { display: flex; flex-direction: column; }
     .c-k { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;

@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
@@ -15,24 +15,25 @@ import { SheetComponent } from '../../ui/sheet.component';
         <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }}</span></div>
         <span class="area">Admin</span>
         <button class="theme" (click)="theme.toggle()" aria-label="Toggle theme">◐</button>
+        <button class="theme" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
       </header>
 
       <nav class="side" aria-label="Admin">
         @for (i of nav; track i.link) {
-          <a class="s-item" [routerLink]="i.link" routerLinkActive="active">{{ i.label }}</a>
+          <a class="s-item" [routerLink]="i.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ i.label }}</a>
         }
       </nav>
 
       <main class="content"><router-outlet /></main>
 
-      <nav class="tabs" aria-label="Admin">
+      <nav class="bh-dock" aria-label="Admin">
         @for (i of mobileTabs; track i.link) {
-          <a class="tab" [routerLink]="i.link" routerLinkActive="active">
+          <a class="bh-dock-item" [routerLink]="i.link" routerLinkActive="active" ariaCurrentWhenActive="page">
             <span class="glyph" aria-hidden="true">{{ i.glyph }}</span>
             <span class="tlabel">{{ i.label }}</span>
           </a>
         }
-        <button class="tab" (click)="moreOpen.set(true)">
+        <button class="bh-dock-item" (click)="moreOpen.set(true)">
           <span class="glyph" aria-hidden="true">⋯</span>
           <span class="tlabel">More</span>
         </button>
@@ -44,6 +45,7 @@ import { SheetComponent } from '../../ui/sheet.component';
         @for (i of moreLinks; track i.link) {
           <a class="m-item" [routerLink]="i.link" (click)="moreOpen.set(false)">{{ i.label }}</a>
         }
+        <button class="m-item asbtn" (click)="logout()">Log out</button>
       </div>
     </bh-sheet>
   `,
@@ -80,30 +82,24 @@ import { SheetComponent } from '../../ui/sheet.component';
       font-size: var(--fs-body); }
     .m-item:last-child { border-bottom: none; }
     .m-item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .asbtn { background: none; border-left: none; border-right: none; border-top: 1px solid var(--hairline);
+      width: 100%; text-align: left; cursor: pointer; font: inherit; }
 
     @media (max-width: 719px) {
       .admin { grid-template-columns: 1fr; grid-template-areas: "top" "content"; grid-template-rows: auto 1fr; }
       .side { display: none; }
-      .content { padding: var(--sp-4) var(--sp-4) calc(72px + env(safe-area-inset-bottom)); }
-      .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid;
-        grid-template-columns: repeat(4, 1fr); background: var(--surface);
-        border-top: 1px solid var(--hairline); padding-bottom: env(safe-area-inset-bottom); }
-      .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-        min-height: 56px; color: var(--bone-dim); text-decoration: none; background: none; border: none;
-        cursor: pointer; }
-      .tab .glyph { font-size: 17px; line-height: 1; }
-      .tab .tlabel { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
-      .tab.active { color: var(--bone); }
-      .tab.active .glyph { color: var(--red); }
-      .tab:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--red-glow); }
+      .content { padding: var(--sp-4) var(--sp-4) calc(88px + env(safe-area-inset-bottom)); }
     }
   `],
 })
 export class AdminShellPage {
   theme = inject(ThemeService);
   private auth = inject(AuthService);
+  private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || 'BoxHub';
   moreOpen = signal(false);
+
+  logout() { this.auth.logout(); this.router.navigate(['/auth/login']); }
 
   nav = [
     { link: 'dashboard', label: 'Dashboard' },

@@ -45,7 +45,7 @@ import { ButtonComponent } from '../../ui/button.component';
   styles: [`
     .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--sp-4); }
     .card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--hairline);
-      border-radius: var(--edge); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-3); }
+      border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-3); }
     .title { font-size: 44px; margin: 0 0 var(--sp-2); }
     .muted { color: var(--bone-dim); font-size: 15px; margin: 0 0 var(--sp-3); }
     .muted strong { color: var(--bone); }

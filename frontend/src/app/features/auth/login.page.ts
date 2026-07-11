@@ -25,7 +25,7 @@ import { ButtonComponent } from '../../ui/button.component';
   styles: [`
     .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--sp-4); }
     .card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--hairline);
-      border-radius: var(--edge); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-4); }
+      border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-4); }
     .brand { display: flex; align-items: center; gap: 10px; margin-bottom: var(--sp-2); }
     .mark { width: 34px; height: 34px; border-radius: var(--edge); background: var(--red); color: var(--on-red);
       display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 21px; }

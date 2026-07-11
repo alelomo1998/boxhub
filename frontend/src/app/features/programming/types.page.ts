@@ -91,7 +91,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       text-transform: uppercase; margin: 2px 0 0; }
 
     .list { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .type { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .type { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       overflow: hidden; }
     .t-head { display: flex; align-items: center; gap: var(--sp-3); width: 100%; background: none;
       border: none; padding: var(--sp-2) var(--sp-3); color: var(--bone); cursor: pointer;
@@ -110,7 +110,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       flex-direction: column; gap: var(--sp-3); }
     .slots { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
     .slot { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
-      border: 1px solid var(--hairline); border-radius: var(--edge); padding: 4px 8px; }
+      border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 4px 10px; }
     .upload { display: inline-flex; align-items: center; align-self: flex-start; min-height: var(--tap);
       padding: 0 var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--edge);
       font-size: var(--fs-sm); color: var(--bone); cursor: pointer; }

@@ -6,7 +6,7 @@ import { Component, Input } from '@angular/core';
   template: `<span class="pill {{ tone }}"><span class="d"></span>{{ label }}</span>`,
   styles: [`
     .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
-      border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid transparent; }
+      border-radius: var(--r-full); font-size: 12px; font-weight: 600; border: 1px solid transparent; }
     .d { width: 6px; height: 6px; border-radius: 50%; }
     .active { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent);
       background: color-mix(in srgb, var(--good) 13%, transparent); }

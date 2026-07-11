@@ -10,59 +10,63 @@ let uid = 0;
   standalone: true,
   imports: [FormsModule, ButtonComponent],
   template: `
-    <form class="sform" (ngSubmit)="save()" (input)="dirty = true" data-testid="score-form">
+    <form class="sform" (ngSubmit)="save()" (input)="markDirty()" data-testid="score-form">
       <div class="seg" role="radiogroup" aria-label="Division">
-        <button type="button" class="segbtn" [class.on]="rx()" (click)="rx.set(true)"
+        <button type="button" class="segbtn" [class.on]="rx()" (click)="rx.set(true); markDirty()"
                 role="radio" [attr.aria-checked]="rx()">RX</button>
-        <button type="button" class="segbtn" [class.on]="!rx()" (click)="rx.set(false)"
+        <button type="button" class="segbtn" [class.on]="!rx()" (click)="rx.set(false); markDirty()"
                 role="radio" [attr.aria-checked]="!rx()">Scaled</button>
       </div>
 
       @switch (scoreType) {
         @case ('TIME') {
           <div class="grp">
-            <label class="lab" [for]="id + '-min'">Time</label>
-            <div class="time">
-              <input class="in n" [id]="id + '-min'" type="number" inputmode="numeric" min="0" max="99"
-                     [(ngModel)]="mins" name="mins" placeholder="mm" />
+            <span class="lab" [id]="id + '-tlab'">Time</span>
+            <div class="time" role="group" [attr.aria-labelledby]="id + '-tlab'">
+              <input class="in big" [id]="id + '-min'" type="number" inputmode="numeric" min="0" max="99"
+                     [(ngModel)]="mins" name="mins" placeholder="mm" aria-label="Minutes" />
               <span class="colon" aria-hidden="true">:</span>
-              <input class="in n" [attr.aria-label]="'Seconds'" type="number" inputmode="numeric" min="0" max="59"
-                     [(ngModel)]="secs" name="secs" placeholder="ss" />
+              <input class="in big" type="number" inputmode="numeric" min="0" max="59"
+                     [(ngModel)]="secs" name="secs" placeholder="ss" aria-label="Seconds" />
             </div>
           </div>
-          <label class="chk"><input type="checkbox" [(ngModel)]="finished" name="finished" />
-            Finished <span class="hint">(uncheck if you hit the cap)</span></label>
+          <label class="switch"><span class="sw-lab">Finished <span class="hint">(off = hit the cap)</span></span>
+            <input type="checkbox" [(ngModel)]="finished" name="finished" (change)="markDirty()" /><span class="knob" aria-hidden="true"></span></label>
           @if (!finished()) {
             <div class="grp">
               <label class="lab" [for]="id + '-reps'">Reps at cap</label>
-              <input class="in n" [id]="id + '-reps'" type="number" inputmode="numeric" min="0" [(ngModel)]="reps" name="reps" />
+              <input class="in big wide" [id]="id + '-reps'" type="number" inputmode="numeric" min="0" [(ngModel)]="reps" name="reps" />
             </div>
           }
         }
         @case ('ROUNDS_REPS') {
           <div class="grp">
-            <label class="lab" [for]="id + '-rounds'">Rounds</label>
-            <input class="in n" [id]="id + '-rounds'" type="number" inputmode="numeric" min="0" max="999" [(ngModel)]="rounds" name="rounds" />
-          </div>
-          <div class="grp">
-            <label class="lab" [for]="id + '-xreps'">+ Reps</label>
-            <input class="in n" [id]="id + '-xreps'" type="number" inputmode="numeric" min="0" max="999" [(ngModel)]="reps" name="reps" />
+            <span class="lab" [id]="id + '-rrlab'">Rounds + reps</span>
+            <div class="time" role="group" [attr.aria-labelledby]="id + '-rrlab'">
+              <input class="in big" [id]="id + '-rounds'" type="number" inputmode="numeric" min="0" max="999"
+                     [(ngModel)]="rounds" name="rounds" placeholder="rounds" aria-label="Rounds" />
+              <span class="colon" aria-hidden="true">+</span>
+              <input class="in big" type="number" inputmode="numeric" min="0" max="999"
+                     [(ngModel)]="reps" name="reps" placeholder="reps" aria-label="Reps" />
+            </div>
           </div>
         }
         @case ('LOAD') {
           <div class="grp">
             <label class="lab" [for]="id + '-load'">Load</label>
-            <input class="in n" [id]="id + '-load'" type="number" inputmode="decimal" min="0" step="0.5" [(ngModel)]="load" name="load" />
+            <input class="in big wide" [id]="id + '-load'" type="number" inputmode="decimal" min="0" step="0.5" [(ngModel)]="load" name="load" />
           </div>
         }
         @default { <p class="done">Mark today's work complete.</p> }
       }
 
-      <label class="chk"><input type="checkbox" [(ngModel)]="isPrivate" name="private" />
-        Private <span class="hint">(hidden from the leaderboard — still counts for your history)</span></label>
+      <label class="switch"><span class="sw-lab">Private <span class="hint">(off the leaderboard — still counts for your history)</span></span>
+        <input type="checkbox" [(ngModel)]="isPrivate" name="private" (change)="markDirty()" /><span class="knob" aria-hidden="true"></span></label>
 
-      <label class="lab" [for]="id + '-notes'">Notes</label>
-      <input class="in" [id]="id + '-notes'" [(ngModel)]="notes" name="notes" placeholder="Optional" />
+      <div class="grp">
+        <label class="lab" [for]="id + '-notes'">Notes</label>
+        <input class="in" [id]="id + '-notes'" [(ngModel)]="notes" name="notes" placeholder="Optional" />
+      </div>
 
       @if (error()) { <p class="err" role="alert" data-testid="score-error">{{ error() }}</p> }
 
@@ -73,35 +77,49 @@ let uid = 0;
   `,
   styles: [`
     .sform { display: flex; flex-direction: column; gap: var(--sp-4); }
-    .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--hairline);
-      border-radius: var(--edge); overflow: hidden; }
-    .segbtn { min-height: var(--tap); background: transparent; border: none; color: var(--bone-dim);
-      font-family: var(--font-body); font-weight: 700; font-size: var(--fs-sm); text-transform: uppercase;
-      letter-spacing: 0.04em; cursor: pointer; }
-    .segbtn.on { background: var(--surface-2); color: var(--bone); box-shadow: inset 0 -2px 0 var(--red); }
+    .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+      background: var(--surface-2); border-radius: var(--r-full); }
+    .segbtn { min-height: var(--tap); background: transparent; border: none; border-radius: var(--r-full);
+      color: var(--bone-dim); font-family: var(--font-body); font-weight: 700; font-size: var(--fs-sm);
+      text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+      transition: background var(--dur) var(--ease-out); }
+    .segbtn.on { background: var(--surface); color: var(--bone); box-shadow: inset 0 0 0 1px var(--hairline); }
     .segbtn:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--red-glow); }
-    .grp { display: flex; align-items: center; gap: var(--sp-3); }
+    .grp { display: flex; flex-direction: column; gap: 6px; }
     .lab { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--faint); min-width: 84px; }
-    .time { display: flex; align-items: center; gap: 6px; }
-    .colon { font-family: var(--font-display); font-weight: 700; font-size: 20px; }
-    .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
+      letter-spacing: 0.08em; color: var(--faint); }
+    .time { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); }
+    .colon { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); color: var(--faint); }
+    .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
-    .in.n { width: 88px; text-align: center; font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 700; }
+    .in.big { width: 116px; min-height: 64px; text-align: center; font-family: var(--font-display);
+      font-weight: 800; font-size: var(--fs-display); font-variant-numeric: tabular-nums; }
+    .in.big.wide { width: 100%; max-width: 240px; align-self: center; }
     .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
-    .chk { display: flex; align-items: center; gap: 10px; min-height: var(--tap);
-      font-size: var(--fs-sm); color: var(--bone); cursor: pointer; }
-    .chk input { width: 20px; height: 20px; accent-color: var(--red); }
+    .switch { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--tap);
+      font-size: var(--fs-sm); color: var(--bone); cursor: pointer; position: relative; }
+    .sw-lab { flex: 1; }
+    .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .knob { width: 46px; height: 28px; border-radius: var(--r-full); background: var(--surface-2);
+      border: 1px solid var(--hairline); position: relative; flex-shrink: 0;
+      transition: background var(--dur) var(--ease-out); }
+    .knob::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+      border-radius: var(--r-full); background: var(--bone-dim); transition: transform var(--dur) var(--ease-out); }
+    .switch input:checked + .knob { background: var(--red); border-color: var(--red); }
+    .switch input:checked + .knob::after { transform: translateX(18px); background: var(--on-red); }
+    .switch input:focus-visible + .knob { box-shadow: 0 0 0 3px var(--red-glow); }
     .hint { color: var(--faint); }
     .done { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    @media (prefers-reduced-motion: reduce) { .knob, .knob::after, .segbtn { transition: none; } }
   `],
 })
 export class ScoreFormComponent implements OnInit {
   @Input({ required: true }) itemId!: string;
   @Input({ required: true }) scoreType!: string;
   @Output() saved = new EventEmitter<Score>();
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   private perf = inject(PerformanceService);
   readonly id = 'sf' + uid++;
@@ -118,6 +136,8 @@ export class ScoreFormComponent implements OnInit {
   pending = signal(false);
   error = signal('');
   dirty = false; // once the user types, a late-arriving prefill must not overwrite their input
+
+  markDirty() { if (!this.dirty) { this.dirty = true; this.dirtyChange.emit(true); } }
 
   ngOnInit() {
     this.perf.myScore(this.itemId).subscribe({ next: s => { if (s && !this.dirty) this.prefill(s); }, error: () => {} });

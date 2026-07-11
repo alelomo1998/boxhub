@@ -91,7 +91,9 @@ Boldness = the **jumps** between eyebrow → display → body. Give headings `te
 
 ## 6. Spacing, radius, layout tokens
 
-- Radius: `--edge: 4px` (squarer, industrial — not soft rounded cards). One value; avoid a zoo of radii.
+- Radius (v2.1, M5.5): a four-step scale — `--r-ctl: 10px` (controls), `--r-card: 14px` (cards/panels),
+  `--r-lg: 20px` (sheets/dialogs/auth cards), `--r-full` (pills/dock/segments/status chips). `--edge` is a
+  legacy alias of `--r-ctl`. Rounder, modern; identity now carries in type scale, warm ink and restraint — not squareness.
 - Spacing scale (tokenized): 4 / 8 / 12 / 16 / 20 / 24 / 40 / 64 — lay out with flex/grid + `gap`, never per-element margin stacks.
 - Layout is **editorial**: content on the ground with strong horizontal rules (1px `--hairline`, 2px `--bone` for major breaks) and generous margins. Not a card-grid-everywhere.
 - Wide content (tables, boards) gets `overflow-x: auto` on its own wrapper; page body never scrolls sideways.

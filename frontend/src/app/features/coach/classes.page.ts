@@ -2,12 +2,13 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
+import { DayPagerComponent } from '../../ui/day-pager.component';
 
-/** Coach home: the week's classes with programming status; tap into check-in or the builder. */
+/** Coach home: one day's classes at a time (same pager as Book); tap into check-in or the builder. */
 @Component({
   selector: 'bh-coach-classes',
   standalone: true,
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, DayPagerComponent],
   template: `
     <section class="cls">
       <header class="head">
@@ -15,38 +16,37 @@ import { BookingService, SessionView } from '../booking/booking.service';
         <h1 class="title">Classes</h1>
       </header>
 
+      <bh-day-pager [offset]="dayOffset()" [max]="6" (offsetChange)="dayOffset.set($event)" />
+
       @if (loading()) { <p class="stateline">Loading classes…</p> }
       @else if (error()) {
         <p class="stateline err">Couldn't load.
           <button class="retry" (click)="load()">Try again</button></p>
       } @else {
-        @for (day of days(); track day.label) {
-          <h2 class="dayhead">{{ day.label }}</h2>
-          <div class="list">
-            @for (s of day.sessions; track s.id) {
-              <div class="row" [attr.data-testid]="'class-' + s.id">
-                <span class="time num">{{ s.startAt | date:'HH:mm' }}</span>
-                <div class="mid">
-                  <span class="nm">{{ s.name }}</span>
-                  <span class="sub num">{{ s.bookedCount }}/{{ s.capacity }} booked
-                    @if (s.waitlistCount) { · {{ s.waitlistCount }} in line }</span>
-                </div>
-                <span class="prog" [class.pub]="s.programmingStatus === 'PUBLISHED'">
-                  {{ s.programmingStatus === 'PUBLISHED' ? 'Published' : 'Draft' }}
-                </span>
-                <div class="acts">
-                  <a class="act" [routerLink]="['/coach/classes', s.id, 'build']" data-testid="build-link">Build</a>
-                  <a class="act" [routerLink]="['/coach/classes', s.id, 'checkin']" data-testid="checkin-link">Check-in</a>
-                </div>
+        <div class="list">
+          @for (s of daySessions(); track s.id) {
+            <div class="row" [attr.data-testid]="'class-' + s.id">
+              <span class="time num">{{ s.startAt | date:'HH:mm' }}</span>
+              <div class="mid">
+                <span class="nm">{{ s.name }}</span>
+                <span class="sub num">{{ s.bookedCount }}/{{ s.capacity }} booked
+                  @if (s.waitlistCount) { · {{ s.waitlistCount }} in line }</span>
               </div>
-            }
-          </div>
-        } @empty {
-          <div class="empty">
-            <p class="e1">No classes this week.</p>
-            <p class="e2">Create class types and schedule them in the Types tab.</p>
-          </div>
-        }
+              <span class="prog" [class.pub]="s.programmingStatus === 'PUBLISHED'">
+                {{ s.programmingStatus === 'PUBLISHED' ? 'Published' : 'Draft' }}
+              </span>
+              <div class="acts">
+                <a class="act" [routerLink]="['/coach/classes', s.id, 'build']" data-testid="build-link">Build</a>
+                <a class="act" [routerLink]="['/coach/classes', s.id, 'checkin']" data-testid="checkin-link">Check-in</a>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty">
+              <p class="e1">No classes this day.</p>
+              <p class="e2">Flip through the week with ‹ › — or schedule class types in the Types tab.</p>
+            </div>
+          }
+        </div>
       }
     </section>
   `,
@@ -61,11 +61,10 @@ import { BookingService, SessionView } from '../booking/booking.service';
       text-transform: uppercase; color: var(--faint); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
-    .dayhead { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);
-      text-transform: uppercase; color: var(--bone-dim); margin: var(--sp-5) 0 var(--sp-2); }
-    .list { display: flex; flex-direction: column; }
+    .list { display: flex; flex-direction: column; gap: var(--sp-3); }
     .row { display: grid; grid-template-columns: 56px 1fr auto auto; align-items: center; gap: var(--sp-3);
-      padding: 10px 4px; border-bottom: 1px solid var(--hairline); }
+      padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--r-card);
+      background: var(--surface); }
     .time { font-family: var(--font-display); font-weight: 800; font-size: 18px; }
     .num { font-variant-numeric: tabular-nums; }
     .mid { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -73,7 +72,7 @@ import { BookingService, SessionView } from '../booking/booking.service';
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sub { font-size: var(--fs-sm); color: var(--faint); }
     .prog { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-      padding: 3px 8px; border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--faint); }
+      padding: 3px 10px; border: 1px solid var(--hairline); border-radius: var(--r-full); color: var(--faint); }
     .prog.pub { color: var(--good); border-color: var(--good); }
     .acts { display: flex; gap: var(--sp-2); }
     .act { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-3);
@@ -98,15 +97,12 @@ export class CoachClassesPage implements OnInit {
   loading = signal(true);
   error = signal(false);
 
-  days = computed(() => {
-    const groups = new Map<string, { label: string; sessions: SessionView[] }>();
-    for (const s of this.sessions()) {
-      const d = new Date(s.startAt);
-      const label = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
-      if (!groups.has(label)) groups.set(label, { label, sessions: [] });
-      groups.get(label)!.sessions.push(s);
-    }
-    return [...groups.values()];
+  dayOffset = signal(0);
+
+  daySessions = computed(() => {
+    const d = new Date(); d.setDate(d.getDate() + this.dayOffset());
+    const key = d.toDateString();
+    return this.sessions().filter(s => new Date(s.startAt).toDateString() === key);
   });
 
   ngOnInit() { this.load(); }

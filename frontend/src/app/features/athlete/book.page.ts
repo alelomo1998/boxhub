@@ -4,21 +4,18 @@ import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
+import { DayPagerComponent } from '../../ui/day-pager.component';
 
-function dayKey(d: Date): string { return d.toISOString().slice(0, 10); }
+function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
 
 /** Book a class: date pager + photo class cards (reference-app concept, our style). */
 @Component({
   selector: 'bh-book',
   standalone: true,
-  imports: [DatePipe, RouterLink, ButtonComponent, PillComponent],
+  imports: [RouterLink, ButtonComponent, PillComponent, DayPagerComponent, DatePipe],
   template: `
     <section class="book">
-      <div class="pager">
-        <button class="pg" (click)="shift(-1)" [disabled]="dayOffset() === 0" aria-label="Previous day">‹</button>
-        <span class="pg-date">{{ day() | date:'EEEE d MMMM' }}</span>
-        <button class="pg" (click)="shift(1)" [disabled]="dayOffset() >= 13" aria-label="Next day">›</button>
-      </div>
+      <bh-day-pager [offset]="dayOffset()" [max]="13" (offsetChange)="dayOffset.set($event)" />
 
       @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
 
@@ -44,7 +41,10 @@ function dayKey(d: Date): string { return d.toISOString().slice(0, 10); }
                 </div>
               </a>
               <div class="foot">
-                @if (s.myBookingStatus === 'BOOKED') {
+                @if (started(s)) {
+                  <span class="mut">Started {{ s.startAt | date:'HH:mm' }}</span>
+                  @if (s.myBookingStatus === 'BOOKED') { <bh-pill tone="active" label="Booked" /> }
+                } @else if (s.myBookingStatus === 'BOOKED') {
                   <bh-pill tone="active" label="Booked" />
                   <bh-button variant="ghost" size="sm" data-testid="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)">Cancel</bh-button>
                 } @else if (s.myBookingStatus === 'WAITLIST') {
@@ -74,21 +74,13 @@ function dayKey(d: Date): string { return d.toISOString().slice(0, 10); }
     .stateline { color: var(--bone-dim); }
     .err { color: var(--red); font-size: var(--fs-sm); }
 
-    .pager { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-3);
-      margin-bottom: var(--sp-4); }
-    .pg { min-width: var(--tap); min-height: var(--tap); background: var(--surface); color: var(--bone);
-      border: 1px solid var(--hairline); border-radius: var(--edge); font-size: 20px; cursor: pointer; }
-    .pg:disabled { opacity: 0.35; cursor: default; }
-    .pg:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
-    .pg-date { text-align: center; font-family: var(--font-display); font-weight: 700;
-      font-size: var(--fs-h2); text-transform: uppercase; }
-
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .card { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       overflow: hidden; }
     .body { display: flex; align-items: stretch; gap: var(--sp-3); text-decoration: none; color: var(--bone); }
     .body:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--red-glow); }
-    .img { width: 84px; min-height: 84px; object-fit: cover; flex-shrink: 0; }
+    .img { width: 96px; min-height: 84px; object-fit: cover; flex-shrink: 0;
+      border-radius: var(--r-card) 0 0 var(--r-card); }
     .img.ph { display: grid; place-items: center; background: var(--surface-2);
       font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--faint);
       text-transform: uppercase; }
@@ -152,10 +144,9 @@ export class BookPage implements OnInit {
     });
   }
 
-  shift(days: number) { this.dayOffset.update(o => Math.min(13, Math.max(0, o + days))); }
-
   imageOf(s: SessionView): string | null { return this.images().get(s.name) ?? null; }
   endOf(s: SessionView): Date { return new Date(new Date(s.startAt).getTime() + s.durationMin * 60000); }
+  started(s: SessionView): boolean { return new Date(s.startAt).getTime() <= Date.now(); }
 
   book(s: SessionView) { this.act(s, this.booking.book(s.id)); }
   cancel(s: SessionView) { this.act(s, this.booking.cancel(s.id)); }
