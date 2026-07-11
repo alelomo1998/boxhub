@@ -2,16 +2,14 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProgrammingService, MyClass, SessionItem } from '../programming/programming.service';
-import { PerformanceService, Leaderboard } from '../performance/performance.service';
 import { ScoreFormComponent } from '../performance/score-form.component';
 import { SheetComponent } from '../../ui/sheet.component';
-import { AvatarComponent } from '../../ui/avatar.component';
 
 /** The day's work: your booked class's pieces, log per scored piece, leaderboard per piece. */
 @Component({
   selector: 'bh-wod',
   standalone: true,
-  imports: [DatePipe, RouterLink, ScoreFormComponent, SheetComponent, AvatarComponent],
+  imports: [DatePipe, RouterLink, ScoreFormComponent, SheetComponent],
   template: `
     <section class="wodpage">
       @switch (state()) {
@@ -57,7 +55,8 @@ import { AvatarComponent } from '../../ui/avatar.component';
                           } @else {
                             <button class="log" [attr.data-testid]="'log-' + i.id" (click)="openScore(i)">Log score</button>
                           }
-                          <button class="quiet" (click)="openBoard(i)">Leaderboard</button>
+                          <a class="quiet aslink" [routerLink]="['/athlete/board', i.id]"
+                             [queryParams]="{ title: i.wod.title }">Leaderboard</a>
                         </div>
                       } @else if (i.wod.wodType === 'STRENGTH') {
                         <div class="p-actions">
@@ -102,24 +101,6 @@ import { AvatarComponent } from '../../ui/avatar.component';
       }
     </bh-sheet>
 
-    <bh-sheet [open]="boardItem() !== null" [title]="boardItem()?.wod?.title ?? 'Leaderboard'"
-              label="Leaderboard" (closed)="boardItem.set(null)">
-      @if (boardItem()) {
-        @if (lb(); as board) {
-          <div class="lb" data-testid="leaderboard">
-            @for (e of board.entries; track e.rank) {
-              <div class="lb-row" [class.win]="e.rank === 1">
-                <span class="lb-rank num">{{ e.rank }}</span>
-                <bh-avatar [path]="e.avatarPath" [name]="e.athleteName" size="sm" />
-                <span class="lb-name">{{ e.athleteName }}</span>
-                <span class="lb-tag">{{ e.rx ? 'RX' : 'Scaled' }}</span>
-                <span class="lb-val num">{{ formatEntry(board.scoreType, e) }}</span>
-              </div>
-            } @empty { <p class="stateline">No scores yet — be first on the board.</p> }
-          </div>
-        } @else { <p class="stateline">Loading leaderboard…</p> }
-      }
-    </bh-sheet>
   `,
   styles: [`
     .wodpage { max-width: 720px; margin: 0 auto; }
@@ -172,28 +153,16 @@ import { AvatarComponent } from '../../ui/avatar.component';
     .e2 { color: var(--faint); margin: 0 0 var(--sp-3); }
     .others { list-style: none; margin: 0 0 var(--sp-4); padding: 0; color: var(--bone-dim); }
     .others li { padding: 6px 0; border-bottom: 1px solid var(--hairline); }
-
-    .lb-row { display: grid; grid-template-columns: 28px 28px 1fr auto auto; gap: var(--sp-3);
-      align-items: center; padding: 8px 0; border-bottom: 1px solid var(--hairline); }
-    .lb-rank { font-family: var(--font-display); font-weight: 700; color: var(--faint); }
-    .lb-row.win .lb-rank { color: var(--red); }
-    .lb-name { font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .lb-tag { font-family: var(--font-mono); font-size: 10px; color: var(--faint); }
-    .lb-val { font-weight: 700; }
     .num { font-variant-numeric: tabular-nums; }
   `],
 })
 export class WodPage implements OnInit {
   private prog = inject(ProgrammingService);
-  private perf = inject(PerformanceService);
 
   data = signal<MyClass | null>(null);
   state = signal<'loading' | 'error' | 'ready'>('loading');
   scoreItem = signal<SessionItem | null>(null);
   scoreDirty = signal(false);
-  boardItem = signal<SessionItem | null>(null);
-  lb = signal<Leaderboard | null>(null);
 
   ngOnInit() { this.load(); }
 
@@ -212,29 +181,9 @@ export class WodPage implements OnInit {
 
   openScore(i: SessionItem) { this.scoreDirty.set(false); this.scoreItem.set(i); }
 
-  openBoard(i: SessionItem) {
-    this.boardItem.set(i);
-    this.lb.set(null);
-    this.perf.leaderboard(i.id).subscribe({
-      next: l => this.lb.set(l),
-      error: () => this.lb.set({ scoreType: 'NONE', entries: [] }),
-    });
-  }
-
   onSaved() {
     this.scoreDirty.set(false);
     this.scoreItem.set(null);
     this.load(); // refresh myScoreLogged marks
-  }
-
-  formatEntry(scoreType: string, e: { timeSeconds: number | null; rounds: number | null; reps: number | null; load: number | null; finished: boolean }): string {
-    switch (scoreType) {
-      case 'TIME': return e.finished && e.timeSeconds != null
-        ? `${Math.floor(e.timeSeconds / 60)}:${String(e.timeSeconds % 60).padStart(2, '0')}`
-        : `${e.reps ?? 0} reps`;
-      case 'ROUNDS_REPS': return `${e.rounds ?? 0}+${e.reps ?? 0}`;
-      case 'LOAD': return `${e.load ?? 0}`;
-      default: return 'Done';
-    }
   }
 }

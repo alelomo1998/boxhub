@@ -1,10 +1,11 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, HostListener, inject, signal, computed, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BookingService, SessionDetail } from '../booking/booking.service';
 import { ProgrammingService, Wod, SessionItem, PIECE_TYPES } from '../programming/programming.service';
 import { ButtonComponent } from '../../ui/button.component';
+import { HasUnsaved } from '../../core/unsaved.guard';
 
 /**
  * Build one class instance: a stack of pieces, pre-seeded from the class type's skeleton.
@@ -13,6 +14,7 @@ import { ButtonComponent } from '../../ui/button.component';
 interface PieceDraft {
   label: string;            // skeleton label or piece title
   wodType: string;
+  typeLocked: boolean;      // skeleton/library pieces show a static type; "change" unlocks the select
   scoreable: boolean;
   scoreType: string | null; // null = default for the type
   wodId: string | null;     // picked from library (or created on save)
@@ -63,9 +65,14 @@ interface PieceDraft {
                     <div class="piece">
                       <div class="p-top">
                         <span class="p-num num">{{ i + 1 }}</span>
-                        <select class="in type" [(ngModel)]="p.wodType" [name]="'type' + i" aria-label="Piece type">
-                          @for (t of types; track t) { <option [value]="t">{{ t.replace('_', ' ') }}</option> }
-                        </select>
+                        @if (p.typeLocked) {
+                          <span class="typetag">{{ p.wodType.replace('_', ' ') }}</span>
+                          <button class="unlock" type="button" (click)="p.typeLocked = false">change</button>
+                        } @else {
+                          <select class="in type" [(ngModel)]="p.wodType" [name]="'type' + i" aria-label="Piece type">
+                            @for (t of types; track t) { <option [value]="t">{{ t.replace('_', ' ') }}</option> }
+                          </select>
+                        }
                         <div class="ord">
                           <button class="mini" (click)="move(i, -1)" [disabled]="i === 0" aria-label="Move up">↑</button>
                           <button class="mini" (click)="move(i, 1)" [disabled]="i === pieces().length - 1" aria-label="Move down">↓</button>
@@ -161,6 +168,12 @@ interface PieceDraft {
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
     .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
     .in.type { width: auto; min-width: 130px; text-transform: capitalize; }
+    .typetag { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--bone-dim); padding: 6px 12px;
+      border: 1px solid var(--hairline); border-radius: var(--r-full); }
+    .unlock { background: none; border: none; min-height: var(--tap); color: var(--faint);
+      font-size: var(--fs-sm); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .unlock:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); border-radius: var(--r-ctl); }
     .in.st { width: auto; }
     .area { min-height: 76px; padding: 10px 12px; resize: vertical; }
     .p-foot { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
@@ -181,7 +194,7 @@ interface PieceDraft {
     }
   `],
 })
-export class InstanceBuilderPage implements OnInit {
+export class InstanceBuilderPage implements OnInit, HasUnsaved {
   private booking = inject(BookingService);
   private prog = inject(ProgrammingService);
   private route = inject(ActivatedRoute);
@@ -198,6 +211,13 @@ export class InstanceBuilderPage implements OnInit {
   saveError = signal('');
   published = signal(false);
   private searchTimer: any;
+  private baseline = '[]'; // pieces snapshot at load/save; differing snapshot = unsaved work
+
+  private snapshot(): string { return JSON.stringify(this.pieces()); }
+  hasUnsaved(): boolean { return this.state() === 'ready' && this.snapshot() !== this.baseline; }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(ev: BeforeUnloadEvent) { if (this.hasUnsaved()) ev.preventDefault(); }
 
   libraryResults = computed(() => {
     const q = this.search().toLowerCase();
@@ -222,6 +242,7 @@ export class InstanceBuilderPage implements OnInit {
       next: items => {
         if (items.length) {
           this.pieces.set(items.map(i => this.fromItem(i)));
+          this.baseline = this.snapshot();
           this.state.set('ready');
         } else {
           this.seedFromSkeleton(d);
@@ -240,9 +261,11 @@ export class InstanceBuilderPage implements OnInit {
         this.prog.skeleton(t.id).subscribe({
           next: sk => {
             this.pieces.set(sk.map(p => ({
-              label: p.label, wodType: p.wodType, scoreable: this.scoredByDefault(p.wodType),
+              label: p.label, wodType: p.wodType, typeLocked: true,
+              scoreable: this.scoredByDefault(p.wodType),
               scoreType: null, wodId: null, title: p.label, bodyText: '',
             })));
+            this.baseline = this.snapshot();
             this.state.set('ready');
           },
           error: () => this.state.set('ready'),
@@ -256,7 +279,7 @@ export class InstanceBuilderPage implements OnInit {
     // i.scoreType is the EFFECTIVE type; treat it as an override only when it differs from the type default
     const override = i.scoreType !== this.apiDefaultScore(i.wod.wodType) ? i.scoreType : null;
     return {
-      label: i.wod.title, wodType: i.wod.wodType, scoreable: i.scoreable,
+      label: i.wod.title, wodType: i.wod.wodType, typeLocked: true, scoreable: i.scoreable,
       scoreType: override, wodId: i.wodId, title: i.wod.title, bodyText: i.wod.bodyText ?? '',
     };
   }
@@ -280,12 +303,12 @@ export class InstanceBuilderPage implements OnInit {
   }
 
   addBlank() {
-    this.pieces.update(p => [...p, { label: '', wodType: 'FOR_TIME', scoreable: true,
+    this.pieces.update(p => [...p, { label: '', wodType: 'FOR_TIME', typeLocked: false, scoreable: true,
       scoreType: null, wodId: null, title: '', bodyText: '' }]);
   }
 
   addFromLibrary(w: Wod) {
-    this.pieces.update(p => [...p, { label: w.title, wodType: w.wodType,
+    this.pieces.update(p => [...p, { label: w.title, wodType: w.wodType, typeLocked: true,
       scoreable: this.scoredByDefault(w.wodType), scoreType: null, wodId: w.id,
       title: w.title, bodyText: w.bodyText ?? '' }]);
   }
@@ -337,7 +360,10 @@ export class InstanceBuilderPage implements OnInit {
             this.prog.publishProgramming(this.sessionId, 'PUBLISHED')
               .subscribe({ next: () => { this.published.set(true); resolve(); }, error: reject }))
         : Promise.resolve())
-      .then(() => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); })
+      .then(() => {
+        this.baseline = this.snapshot();
+        this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500);
+      })
       .catch(() => {
         this.saving.set(false);
         this.saveError.set("Couldn't save — your pieces are still here, try again.");

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { roleGuard } from './core/auth/role.guard';
+import { unsavedGuard } from './core/unsaved.guard';
 
 export const routes: Routes = [
   { path: 'auth/login', loadComponent: () => import('./features/auth/login.page').then(m => m.LoginPage) },
@@ -13,6 +14,7 @@ export const routes: Routes = [
       { path: 'book', loadComponent: () => import('./features/athlete/book.page').then(m => m.BookPage) },
       { path: 'wod', loadComponent: () => import('./features/athlete/wod.page').then(m => m.WodPage) },
       { path: 'progress', loadComponent: () => import('./features/athlete/progress.page').then(m => m.ProgressPage) },
+      { path: 'board/:itemId', loadComponent: () => import('./features/performance/leaderboard.page').then(m => m.LeaderboardPage) },
       { path: 'class/:id', loadComponent: () => import('./features/athlete/class-detail.page').then(m => m.ClassDetailPage) },
       { path: 'profile/:membershipId', loadComponent: () => import('./features/athlete/athlete-profile.page').then(m => m.AthleteProfilePage) },
       // legacy paths
@@ -28,7 +30,8 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'classes' },
       { path: 'classes', loadComponent: () => import('./features/coach/classes.page').then(m => m.CoachClassesPage) },
       { path: 'classes/:id/checkin', loadComponent: () => import('./features/coach/checkin.page').then(m => m.CheckinPage) },
-      { path: 'classes/:id/build', loadComponent: () => import('./features/coach/instance-builder.page').then(m => m.InstanceBuilderPage) },
+      { path: 'classes/:id/build', canDeactivate: [unsavedGuard],
+        loadComponent: () => import('./features/coach/instance-builder.page').then(m => m.InstanceBuilderPage) },
       { path: 'types', loadComponent: () => import('./features/programming/types.page').then(m => m.TypesPage) },
       { path: 'wods', loadComponent: () => import('./features/programming/wod-library.page').then(m => m.WodLibraryPage) },
       { path: 'wods/new', loadComponent: () => import('./features/programming/wod-builder.page').then(m => m.WodBuilderPage) },

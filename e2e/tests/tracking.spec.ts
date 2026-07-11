@@ -33,11 +33,11 @@ test('athlete books today, logs a per-piece score, sees the leaderboard', async 
   await page.getByRole('button', { name: 'Save score' }).click();
   await expect(fran.getByTestId('logged-mark')).toBeVisible();
 
-  // leaderboard sheet shows the time
-  await fran.getByRole('button', { name: 'Leaderboard' }).click();
+  // leaderboard hero page shows the time
+  await fran.getByRole('link', { name: 'Leaderboard' }).click();
+  await expect(page).toHaveURL(/\/athlete\/board\//);
   await expect(page.getByTestId('leaderboard')).toBeVisible();
   await expect(page.getByTestId('leaderboard').getByText('3:30')).toBeVisible();
-  await page.keyboard.press('Escape');
 
   // progress page still renders records
   await page.goto('/athlete/progress');
