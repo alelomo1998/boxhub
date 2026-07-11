@@ -113,10 +113,10 @@ import { BookingService } from '../booking/booking.service';
     .retry { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); min-height: var(--tap); padding: 0 var(--sp-4); margin-left: var(--sp-2); cursor: pointer; }
 
-    .warn { border: 1px solid var(--warn); border-radius: var(--edge); padding: var(--sp-3) var(--sp-4);
+    .warn { border: 1px solid var(--warn); border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4);
       color: var(--warn); font-size: var(--fs-sm); }
 
-    .card { display: block; border: 1px solid var(--hairline); border-radius: var(--edge);
+    .card { display: block; border: 1px solid var(--hairline); border-radius: var(--r-card);
       background: var(--surface); padding: var(--sp-4); color: var(--bone); text-decoration: none; }
     .card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
     .k { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
@@ -139,13 +139,13 @@ import { BookingService } from '../booking/booking.service';
       font-weight: 700; font-size: var(--fs-h2); text-transform: uppercase; color: var(--red); }
 
     .teaser .pieces { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
-    .piece { border: 1px solid var(--hairline); border-radius: var(--edge); padding: 5px 10px;
+    .piece { border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 5px 12px;
       font-size: var(--fs-sm); color: var(--bone-dim); }
     .piece.scored { color: var(--bone); font-weight: 600; }
     .done { color: var(--good); margin-left: 5px; }
 
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-3); }
-    .stat { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .stat { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: 2px; }
     .s-val { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
       font-variant-numeric: tabular-nums; }

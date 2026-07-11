@@ -73,7 +73,7 @@ import { BookingService, SessionView } from '../booking/booking.service';
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sub { font-size: var(--fs-sm); color: var(--faint); }
     .prog { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-      padding: 3px 8px; border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--faint); }
+      padding: 3px 10px; border: 1px solid var(--hairline); border-radius: var(--r-full); color: var(--faint); }
     .prog.pub { color: var(--good); border-color: var(--good); }
     .acts { display: flex; gap: var(--sp-2); }
     .act { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-3);

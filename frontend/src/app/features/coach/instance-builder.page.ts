@@ -119,7 +119,7 @@ interface PieceDraft {
     .mut { color: var(--faint); font-size: var(--fs-sm); }
 
     .two-pane { display: grid; grid-template-columns: 260px 1fr; gap: var(--sp-5); align-items: start; }
-    .library { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .library { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-3); position: sticky; top: var(--sp-3); }
     .lh { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); margin: 0 0 var(--sp-2); }
@@ -141,11 +141,11 @@ interface PieceDraft {
       text-transform: uppercase; margin: 2px 0 0; text-wrap: balance; }
     .prog { position: absolute; top: 0; right: 0; font-family: var(--font-mono); font-size: 10px;
       letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px;
-      border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--faint); }
+      border: 1px solid var(--hairline); border-radius: var(--r-full); color: var(--faint); }
     .prog.pub { color: var(--good); border-color: var(--good); }
 
     .stack { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .piece { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .piece { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
     .p-top { display: flex; align-items: center; gap: var(--sp-2); }
     .p-num { font-family: var(--font-display); font-weight: 800; color: var(--faint); min-width: 20px; }

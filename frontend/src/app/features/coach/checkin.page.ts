@@ -84,7 +84,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
 
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--sp-3); }
     .cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--sp-3) var(--sp-2);
-      background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--edge);
+      background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-card);
       color: var(--bone); cursor: pointer; text-align: center; min-height: 130px;
       touch-action: manipulation; -webkit-touch-callout: none; user-select: none;
       transition: border-color var(--dur) var(--ease-out); }

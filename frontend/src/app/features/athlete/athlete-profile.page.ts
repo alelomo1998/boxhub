@@ -89,7 +89,7 @@ import { HomeService, Profile } from './home.service';
       text-transform: uppercase; color: var(--faint); }
 
     .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
-    .stat { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .stat { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-3); display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .s-val { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); }
     .s-lab { font-size: var(--fs-sm); color: var(--faint); }
@@ -99,7 +99,7 @@ import { HomeService, Profile } from './home.service';
     .sh { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);
       text-transform: uppercase; margin: var(--sp-5) 0 var(--sp-3); }
     .trophies { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); }
-    .trophy { border: 1px solid var(--hairline); border-radius: var(--edge); padding: var(--sp-3) var(--sp-4);
+    .trophy { border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4);
       display: flex; flex-direction: column; gap: 2px; background: var(--surface); }
     .t-name { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--bone-dim); }

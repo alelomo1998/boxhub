@@ -87,7 +87,7 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
     .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-3); }
     .area { min-height: 72px; resize: vertical; }
     .blocks { margin-top: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
-    .block { border: 1px solid var(--hairline); border-radius: var(--edge); padding: var(--sp-3); }
+    .block { border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-3); }
     .brow { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-2); margin-bottom: var(--sp-2); }
     .lrow { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: var(--sp-2); margin-bottom: 6px; }
     .sm { padding: 7px 9px; font-size: 13px; }

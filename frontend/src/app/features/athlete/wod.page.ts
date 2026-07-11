@@ -136,7 +136,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
       text-transform: uppercase; margin: 2px 0 0; text-wrap: balance; }
 
     .pieces { display: flex; flex-direction: column; gap: var(--sp-4); }
-    .piece { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .piece { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); }
     .p-head { margin-bottom: var(--sp-3); }
     .p-type { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;

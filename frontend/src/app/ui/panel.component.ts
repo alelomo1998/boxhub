@@ -5,7 +5,7 @@ import { Component, Input } from '@angular/core';
   standalone: true,
   template: `<div class="panel" [class.padded]="padded"><ng-content /></div>`,
   styles: [`
-    .panel { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--edge); }
+    .panel { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-card); }
     .panel.padded { padding: var(--sp-6); }
   `],
 })

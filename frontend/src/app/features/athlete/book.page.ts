@@ -84,7 +84,7 @@ function dayKey(d: Date): string { return d.toISOString().slice(0, 10); }
       font-size: var(--fs-h2); text-transform: uppercase; }
 
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .card { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       overflow: hidden; }
     .body { display: flex; align-items: stretch; gap: var(--sp-3); text-decoration: none; color: var(--bone); }
     .body:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--red-glow); }

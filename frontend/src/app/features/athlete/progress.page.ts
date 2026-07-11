@@ -105,7 +105,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .stateline { color: var(--bone-dim); font-size: var(--fs-body); }
     .err { color: var(--red); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
 
-    .quicklog { border: 1px solid var(--hairline); border-radius: var(--edge); background: var(--surface);
+    .quicklog { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4); margin-bottom: var(--sp-5); }
     .qh { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
       letter-spacing: 0.1em; color: var(--faint); margin: 0 0 var(--sp-3); }
@@ -119,7 +119,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .in.date { flex: 1 1 130px; }
 
     .pr-moment { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-      border: 1px solid var(--red); border-radius: var(--edge); padding: var(--sp-4);
+      border: 1px solid var(--red); border-radius: var(--r-card); padding: var(--sp-4);
       margin-bottom: var(--sp-5); animation: prpop 350ms var(--ease-out); }
     .pr-kicker { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.16em;
       text-transform: uppercase; color: var(--red); }
@@ -135,7 +135,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .sh-sub { color: var(--faint); font-weight: 400; }
 
     .trophies { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); }
-    .trophy { border: 1px solid var(--hairline); border-radius: var(--edge); padding: var(--sp-3) var(--sp-4);
+    .trophy { border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4);
       display: flex; flex-direction: column; gap: 2px; background: var(--surface); }
     .t-name { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--bone-dim); }
