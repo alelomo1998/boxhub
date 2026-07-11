@@ -3,6 +3,8 @@ package com.boxhub.performance;
 import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.identity.AuthService;
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
@@ -29,9 +31,9 @@ class PerformanceRepositoryTest extends AbstractIntegrationTest {
     @Autowired BoxRepository boxes;
     @Autowired AuthService authService;
     @Autowired MembershipRepository memberships;
-    @Autowired TrackRepository tracks;
+    @Autowired ClassSessionRepository sessions;
     @Autowired WodRepository wods;
-    @Autowired ProgramSlotRepository slots;
+    @Autowired SessionItemRepository items;
     @Autowired MovementRepository movements;
     @Autowired WodScoreRepository scores;
     @Autowired LiftEntryRepository lifts;
@@ -62,11 +64,18 @@ class PerformanceRepositoryTest extends AbstractIntegrationTest {
         UUID boxId = newBox("perf-" + n);
         actAsBox(boxId);
 
-        Track t = new Track(); t.setName("RX"); tracks.save(t);
+        ClassSession s = new ClassSession();
+        s.setName("WOD Class");
+        s.setStartAt(Instant.now().plusSeconds(3600));
+        s.setDurationMin(60);
+        s.setCapacity(12);
+        s.setProgrammingStatus("PUBLISHED");
+        sessions.save(s);
+
         Wod w = new Wod(); w.setTitle("Fran"); w.setWodType("FOR_TIME"); w.setScoreType("TIME"); wods.save(w);
-        ProgramSlot s = new ProgramSlot();
-        s.setSlotDate(LocalDate.now()); s.setTrackId(t.getId()); s.setWodId(w.getId()); s.setStatus("PUBLISHED");
-        slots.save(s);
+        SessionItem item = new SessionItem();
+        item.setSessionId(s.getId()); item.setWodId(w.getId()); item.setSortOrder(0); item.setScoreable(true);
+        items.save(item);
 
         User u = authService.register("perf-" + n + "@t.io", "password123", "Ath");
         Membership m = new Membership();
@@ -74,12 +83,12 @@ class PerformanceRepositoryTest extends AbstractIntegrationTest {
         UUID mid = memberships.save(m).getId();
 
         WodScore sc = new WodScore();
-        sc.setSlotId(s.getId()); sc.setMembershipId(mid); sc.setTimeSeconds(180);
+        sc.setSessionItemId(item.getId()); sc.setMembershipId(mid); sc.setTimeSeconds(180);
         scores.saveAndFlush(sc);
-        assertThat(scores.findBySlotIdAndMembershipId(s.getId(), mid)).isPresent();
+        assertThat(scores.findBySessionItemIdAndMembershipId(item.getId(), mid)).isPresent();
 
         WodScore dup = new WodScore();
-        dup.setSlotId(s.getId()); dup.setMembershipId(mid); dup.setTimeSeconds(200);
+        dup.setSessionItemId(item.getId()); dup.setMembershipId(mid); dup.setTimeSeconds(200);
         assertThatThrownBy(() -> scores.saveAndFlush(dup)).isInstanceOf(DataIntegrityViolationException.class);
 
         Movement mv = new Movement(); mv.setBoxId(boxId); mv.setName("Back Squat " + n); mv.setCategory("BARBELL");

@@ -20,6 +20,7 @@ public class ClassTemplate {
     @Column(nullable = false) private int capacity;
     @Column(name = "coach_id") private UUID coachId;
     @Column(nullable = false) private boolean active = true;
+    @Column(name = "image_path") private String imagePath;
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
@@ -35,6 +36,8 @@ public class ClassTemplate {
     public void setCapacity(int capacity) { this.capacity = capacity; }
     public UUID getCoachId() { return coachId; }
     public void setCoachId(UUID coachId) { this.coachId = coachId; }
+    public String getImagePath() { return imagePath; }
+    public void setImagePath(String imagePath) { this.imagePath = imagePath; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 }

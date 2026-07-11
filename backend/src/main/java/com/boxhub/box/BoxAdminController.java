@@ -15,11 +15,9 @@ import java.util.UUID;
 public class BoxAdminController {
 
     private final BoxRepository boxes;
-    private final com.boxhub.programming.TrackService trackService;
 
-    public BoxAdminController(BoxRepository boxes, com.boxhub.programming.TrackService trackService) {
+    public BoxAdminController(BoxRepository boxes) {
         this.boxes = boxes;
-        this.trackService = trackService;
     }
 
     record CreateBoxRequest(@NotBlank String name,
@@ -40,7 +38,6 @@ public class BoxAdminController {
         } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Slug already taken");
         }
-        trackService.seedDefaults(b.getId()); // RX + Fitness for the new box
         return new BoxDto(b.getId(), b.getName(), b.getSlug(), b.getTimezone());
     }
 }

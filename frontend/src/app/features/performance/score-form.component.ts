@@ -99,7 +99,7 @@ let uid = 0;
   `],
 })
 export class ScoreFormComponent implements OnInit {
-  @Input({ required: true }) slotId!: string;
+  @Input({ required: true }) itemId!: string;
   @Input({ required: true }) scoreType!: string;
   @Output() saved = new EventEmitter<Score>();
 
@@ -120,7 +120,7 @@ export class ScoreFormComponent implements OnInit {
   dirty = false; // once the user types, a late-arriving prefill must not overwrite their input
 
   ngOnInit() {
-    this.perf.myScore(this.slotId).subscribe({ next: s => { if (s && !this.dirty) this.prefill(s); }, error: () => {} });
+    this.perf.myScore(this.itemId).subscribe({ next: s => { if (s && !this.dirty) this.prefill(s); }, error: () => {} });
   }
 
   private prefill(s: Score) {
@@ -156,7 +156,7 @@ export class ScoreFormComponent implements OnInit {
       input.load = this.load();
     }
     this.pending.set(true);
-    this.perf.putScore(this.slotId, input).subscribe({
+    this.perf.putScore(this.itemId, input).subscribe({
       next: s => { this.pending.set(false); this.saved.emit(s); },
       error: () => {
         this.pending.set(false);

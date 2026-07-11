@@ -1,11 +1,20 @@
 package com.boxhub.shared;
 
+import com.boxhub.box.Announcement;
+import com.boxhub.box.AnnouncementRepository;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.box.ClassTemplate;
 import com.boxhub.box.ClassTemplateRepository;
 import com.boxhub.box.SessionGenerator;
 import com.boxhub.identity.*;
+import com.boxhub.performance.LiftEntry;
+import com.boxhub.performance.LiftEntryRepository;
+import com.boxhub.performance.WodScore;
+import com.boxhub.performance.WodScoreRepository;
+import com.boxhub.programming.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -23,40 +32,42 @@ import java.util.UUID;
 @Profile("dev")
 public class DevDataSeeder implements CommandLineRunner {
 
+    @org.springframework.beans.factory.annotation.Value("${boxhub.media-dir}")
+    private String mediaDir;
+
     private final BoxRepository boxes;
     private final MembershipRepository memberships;
     private final AuthService authService;
     private final ClassTemplateRepository templates;
+    private final ClassSessionRepository sessions;
     private final SessionGenerator sessionGenerator;
-    private final com.boxhub.programming.TrackService trackService;
-    private final com.boxhub.programming.TrackRepository tracks;
-    private final com.boxhub.programming.WodRepository wods;
-    private final com.boxhub.programming.ProgramSlotRepository slots;
-    private final com.boxhub.programming.MovementRepository movements;
-    private final com.boxhub.performance.WodScoreRepository wodScores;
-    private final com.boxhub.performance.LiftEntryRepository liftEntries;
+    private final TemplatePieceRepository skeletons;
+    private final SessionItemRepository items;
+    private final WodRepository wods;
+    private final MovementRepository movements;
+    private final WodScoreRepository wodScores;
+    private final LiftEntryRepository liftEntries;
+    private final AnnouncementRepository announcements;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
-                         ClassTemplateRepository templates, SessionGenerator sessionGenerator,
-                         com.boxhub.programming.TrackService trackService,
-                         com.boxhub.programming.TrackRepository tracks,
-                         com.boxhub.programming.WodRepository wods,
-                         com.boxhub.programming.ProgramSlotRepository slots,
-                         com.boxhub.programming.MovementRepository movements,
-                         com.boxhub.performance.WodScoreRepository wodScores,
-                         com.boxhub.performance.LiftEntryRepository liftEntries) {
+                         ClassTemplateRepository templates, ClassSessionRepository sessions,
+                         SessionGenerator sessionGenerator, TemplatePieceRepository skeletons,
+                         SessionItemRepository items, WodRepository wods, MovementRepository movements,
+                         WodScoreRepository wodScores, LiftEntryRepository liftEntries,
+                         AnnouncementRepository announcements) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
         this.templates = templates;
+        this.sessions = sessions;
         this.sessionGenerator = sessionGenerator;
-        this.trackService = trackService;
-        this.tracks = tracks;
+        this.skeletons = skeletons;
+        this.items = items;
         this.wods = wods;
-        this.slots = slots;
         this.movements = movements;
         this.wodScores = wodScores;
         this.liftEntries = liftEntries;
+        this.announcements = announcements;
     }
 
     @Override
@@ -67,115 +78,59 @@ public class DevDataSeeder implements CommandLineRunner {
         demo.setSlug("demo");
         demo.setTimezone("Europe/Rome");
         boxes.save(demo);
-        trackService.seedDefaults(demo.getId()); // RX + Fitness
         seed(demo, "admin@demo.io", "Demo Admin", "BOX_ADMIN");
         User coach = seed(demo, "coach@demo.io", "Demo Coach", "COACH");
         User athlete = seed(demo, "athlete@demo.io", "Demo Athlete", "ATHLETE");
         User athlete2 = seed(demo, "athlete2@demo.io", "Sam Rivera", "ATHLETE");
         User athlete3 = seed(demo, "athlete3@demo.io", "Alex Kim", "ATHLETE");
-        seedSchedule(demo, coach.getId());
-        seedProgramming(demo);
+        seedClassesAndProgramming(demo, coach.getId());
         seedScoresAndLifts(demo, athlete.getId(), athlete2.getId(), athlete3.getId());
+        seedAnnouncement(demo, coach.getId());
+        seedImages(demo, coach.getId(), athlete.getId(), athlete2.getId(), athlete3.getId());
     }
 
-    /** Scores on the published week + a lift history so leaderboards/PRs/charts render on a fresh box. */
-    private void seedScoresAndLifts(Box box, UUID athlete, UUID athlete2, UUID athlete3) {
+    /** Generated placeholder images so photo-driven screens render on a fresh box. */
+    private void seedImages(Box box, UUID... userIds) {
         runAsBox(box.getId(), () -> {
-            UUID mA = membershipId(athlete, box.getId());
-            UUID mB = membershipId(athlete2, box.getId());
-            UUID mC = membershipId(athlete3, box.getId());
-
-            // score the earliest TIME-scored published slot (RX Fran on Monday) for three athletes
-            slots.findAll().stream()
-                    .filter(s -> "PUBLISHED".equals(s.getStatus()))
-                    .filter(s -> wods.findById(s.getWodId()).map(w -> "TIME".equals(w.getScoreType())).orElse(false))
-                    .min(java.util.Comparator.comparing(com.boxhub.programming.ProgramSlot::getSlotDate))
-                    .ifPresent(slot -> {
-                        score(slot.getId(), mA, true, 183, true, false);
-                        score(slot.getId(), mB, true, 201, true, false);
-                        score(slot.getId(), mC, false, 240, true, true); // scaled + private
-                    });
-
-            // lift history for the demo athlete on Back Squat: ascending -> PR on the last
-            movements.findVisible(box.getId()).stream()
-                    .filter(m -> "Back Squat".equals(m.getName())).findFirst()
-                    .ifPresent(bs -> {
-                        java.time.LocalDate d0 = java.time.LocalDate.now().minusWeeks(6);
-                        lift(mA, bs.getId(), "100.0", d0, false);
-                        lift(mA, bs.getId(), "110.0", d0.plusWeeks(2), true);
-                        lift(mA, bs.getId(), "115.0", d0.plusWeeks(4), true);
-                        lift(mA, bs.getId(), "120.0", d0.plusWeeks(6), true);
-                    });
-        });
-    }
-
-    private UUID membershipId(UUID userId, UUID boxId) {
-        return memberships.findByUserIdAndBoxId(userId, boxId).orElseThrow().getId();
-    }
-
-    private void score(UUID slotId, UUID membershipId, boolean rx, Integer timeSeconds, boolean finished, boolean priv) {
-        com.boxhub.performance.WodScore s = new com.boxhub.performance.WodScore();
-        s.setSlotId(slotId);
-        s.setMembershipId(membershipId);
-        s.setRx(rx);
-        s.setTimeSeconds(timeSeconds);
-        s.setFinished(finished);
-        s.setPrivate(priv);
-        wodScores.save(s);
-    }
-
-    private void lift(UUID membershipId, UUID movementId, String load, java.time.LocalDate on, boolean pr) {
-        com.boxhub.performance.LiftEntry l = new com.boxhub.performance.LiftEntry();
-        l.setMembershipId(membershipId);
-        l.setMovementId(movementId);
-        l.setLoad(new java.math.BigDecimal(load));
-        l.setReps(1);
-        l.setPerformedOn(on);
-        l.setPr(pr);
-        liftEntries.save(l);
-    }
-
-    /** A published sample week on both tracks so a fresh demo box has a WOD board. */
-    private void seedProgramming(Box box) {
-        runAsBox(box.getId(), () -> {
-            var trackList = tracks.findByArchivedFalseOrderBySortOrderAsc();
-            if (trackList.isEmpty()) return;
-            UUID rx = trackList.get(0).getId();
-            UUID fitness = trackList.size() > 1 ? trackList.get(1).getId() : rx;
-            java.time.LocalDate monday = java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY);
-            String[][] week = {
-                    {"Fran", "FOR_TIME", "TIME", "21-15-9: Thrusters (95/65), Pull-Ups"},
-                    {"Cindy", "AMRAP", "ROUNDS_REPS", "AMRAP 20: 5 Pull-Ups, 10 Push-Ups, 15 Air Squats"},
-                    {"Back Squat 5x5", "STRENGTH", "LOAD", "Back Squat 5x5 @ 80%"},
-                    {"Helen", "FOR_TIME", "TIME", "3 RFT: 400m Run, 21 KB Swings, 12 Pull-Ups"},
-                    {"Grace", "FOR_TIME", "TIME", "30 Clean and Jerks (135/95) for time"},
-            };
-            for (int i = 0; i < week.length; i++) {
-                java.time.LocalDate d = monday.plusDays(i);
-                UUID wodId = wod(week[i]);
-                publishSlot(d, rx, wodId);
-                publishSlot(d, fitness, wod(new String[]{week[i][0] + " (scaled)", week[i][1], week[i][2], week[i][3]}));
+            java.util.Map<String, java.awt.Color> classColors = java.util.Map.of(
+                    "WOD Class", new java.awt.Color(0x8a2f1a),
+                    "Burn It", new java.awt.Color(0x1a5a52),
+                    "Weekend Team WOD", new java.awt.Color(0x3a2f6b));
+            for (ClassTemplate t : templates.findByActiveTrue()) {
+                if (t.getImagePath() != null) continue;
+                java.awt.Color c = classColors.getOrDefault(t.getName(), new java.awt.Color(0x444444));
+                String path = writePng(box.getId(), 640, 360, c, "cl-" + t.getId());
+                if (path != null) { t.setImagePath(path); templates.save(t); }
+            }
+            java.awt.Color[] avatarColors = { new java.awt.Color(0xB0562F), new java.awt.Color(0x2F6BB0),
+                    new java.awt.Color(0x5A8A3C), new java.awt.Color(0x8A3C7A) };
+            int idx = 0;
+            for (UUID uid : userIds) {
+                var m = memberships.findByUserIdAndBoxId(uid, box.getId()).orElse(null);
+                if (m == null || m.getAvatarPath() != null) continue;
+                String path = writePng(box.getId(), 200, 200, avatarColors[idx++ % avatarColors.length], "av-" + uid);
+                if (path != null) { m.setAvatarPath(path); memberships.save(m); }
             }
         });
     }
 
-    private UUID wod(String[] spec) {
-        com.boxhub.programming.Wod w = new com.boxhub.programming.Wod();
-        w.setTitle(spec[0]);
-        w.setWodType(spec[1]);
-        w.setScoreType(spec[2]);
-        w.setBodyText(spec[3]);
-        return wods.save(w).getId();
-    }
-
-    private void publishSlot(java.time.LocalDate date, UUID trackId, UUID wodId) {
-        com.boxhub.programming.ProgramSlot s = new com.boxhub.programming.ProgramSlot();
-        s.setSlotDate(date);
-        s.setTrackId(trackId);
-        s.setWodId(wodId);
-        s.setStatus("PUBLISHED");
-        s.setPublishedAt(java.time.Instant.now());
-        slots.save(s);
+    private String writePng(UUID boxId, int w, int h, java.awt.Color color, String name) {
+        try {
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            var g = img.createGraphics();
+            g.setColor(color);
+            g.fillRect(0, 0, w, h);
+            g.setColor(color.brighter());
+            g.fillOval(w / 4, h / 4, w / 2, h / 2);
+            g.dispose();
+            java.nio.file.Path dir = java.nio.file.Path.of(mediaDir).resolve(boxId.toString());
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path file = dir.resolve(name + ".png");
+            javax.imageio.ImageIO.write(img, "png", file.toFile());
+            return "/media/" + boxId + "/" + name + ".png";
+        } catch (Exception e) {
+            return null; // dev seeding only — never fail startup over a placeholder image
+        }
     }
 
     private User seed(Box box, String email, String name, String role) {
@@ -188,15 +143,93 @@ public class DevDataSeeder implements CommandLineRunner {
         return u;
     }
 
-    /** A small realistic weekly schedule so a fresh demo box isn't empty. */
-    private void seedSchedule(Box box, UUID coachId) {
+    /** Class types with skeletons + a weekly schedule; today's instances get published programming. */
+    private void seedClassesAndProgramming(Box box, UUID coachId) {
         runAsBox(box.getId(), () -> {
-            template("Morning WOD", 0, LocalTime.of(6, 30), 12, coachId);   // Mon
-            template("Evening WOD", 2, LocalTime.of(18, 30), 14, coachId);  // Wed
-            template("Evening WOD", 4, LocalTime.of(18, 30), 14, coachId);  // Fri
-            template("Weekend Team WOD", 5, LocalTime.of(10, 0), 20, coachId); // Sat
+            // every day (incl. weekends) so a fresh box always has a WOD Class + Burn It today
+            for (int weekday = 0; weekday <= 6; weekday++) {
+                template("WOD Class", weekday, LocalTime.of(18, 0), 14, coachId);
+                template("Burn It", weekday, LocalTime.of(19, 0), 12, coachId);
+            }
+            template("Weekend Team WOD", 5, LocalTime.of(10, 0), 20, coachId);
+
+            // skeletons per type name
+            for (ClassTemplate t : templates.findByActiveTrue()) {
+                if (!skeletons.findByTemplateIdOrderBySortOrderAsc(t.getId()).isEmpty()) continue;
+                if ("Burn It".equals(t.getName())) {
+                    skeleton(t.getId(), 0, "Warm-up", "WARMUP");
+                    skeleton(t.getId(), 1, "Engine circuit", "CIRCUIT");
+                    skeleton(t.getId(), 2, "Burner", "AMRAP");
+                } else {
+                    skeleton(t.getId(), 0, "Warm-up", "WARMUP");
+                    skeleton(t.getId(), 1, "Strength", "STRENGTH");
+                    skeleton(t.getId(), 2, "Metcon", "FOR_TIME");
+                }
+            }
         });
         sessionGenerator.generateForBox(box.getId());
+
+        // publish modular programming on today's instances
+        runAsBox(box.getId(), () -> {
+            UUID warmup = wod("Row + mobility", "WARMUP", "NONE", "5' easy row, hip openers, empty-bar work");
+            UUID strength = wod("Back Squat 5x5", "STRENGTH", "LOAD", "Back Squat 5x5 @ 80% — log your top set");
+            UUID fran = wods.findByTitleContainingIgnoreCaseOrderByUpdatedAtDesc("Fran").stream().findFirst()
+                    .map(Wod::getId).orElseGet(() -> wod("Fran", "FOR_TIME", "TIME", "21-15-9: Thrusters (95/65), Pull-Ups"));
+            UUID burner = wod("10' burner", "AMRAP", "ROUNDS_REPS", "AMRAP 10: 8 cal row, 8 burpees, 8 wall balls");
+
+            var zone = java.time.ZoneId.of(box.getTimezone());
+            var from = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant();
+            var to = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant();
+            for (ClassSession s : sessions.findByStartAtBetweenOrderByStartAt(from, to)) {
+                if ("Burn It".equals(s.getName())) {
+                    item(s.getId(), 0, warmup, false, null);
+                    item(s.getId(), 1, burner, true, null);
+                } else {
+                    item(s.getId(), 0, warmup, false, null);
+                    item(s.getId(), 1, strength, true, null);
+                    item(s.getId(), 2, fran, true, null);
+                }
+                s.setProgrammingStatus("PUBLISHED");
+                sessions.save(s);
+            }
+        });
+    }
+
+    private void seedScoresAndLifts(Box box, UUID athlete, UUID athlete2, UUID athlete3) {
+        runAsBox(box.getId(), () -> {
+            UUID mA = membershipId(athlete, box.getId());
+            UUID mB = membershipId(athlete2, box.getId());
+            UUID mC = membershipId(athlete3, box.getId());
+
+            // scores on today's first TIME-scored item
+            items.findAll().stream()
+                    .filter(SessionItem::isScoreable)
+                    .filter(i -> wods.findById(i.getWodId()).map(w -> "FOR_TIME".equals(w.getWodType())).orElse(false))
+                    .findFirst().ifPresent(i -> {
+                        score(i.getId(), mA, true, 183, false);
+                        score(i.getId(), mB, true, 201, false);
+                        score(i.getId(), mC, false, 240, true); // scaled + private
+                    });
+
+            movements.findVisible(box.getId()).stream()
+                    .filter(m -> "Back Squat".equals(m.getName())).findFirst()
+                    .ifPresent(bs -> {
+                        java.time.LocalDate d0 = java.time.LocalDate.now().minusWeeks(6);
+                        lift(mA, bs.getId(), "100.0", d0, false);
+                        lift(mA, bs.getId(), "110.0", d0.plusWeeks(2), true);
+                        lift(mA, bs.getId(), "115.0", d0.plusWeeks(4), true);
+                        lift(mA, bs.getId(), "120.0", d0.plusWeeks(6), true);
+                    });
+        });
+    }
+
+    private void seedAnnouncement(Box box, UUID coachUserId) {
+        runAsBox(box.getId(), () -> {
+            Announcement a = new Announcement();
+            a.setBody("Saturday: Team WOD at 10:00 — bring a friend! The box closes early at 20:00 this Friday.");
+            a.setUpdatedBy(coachUserId);
+            announcements.save(a);
+        });
     }
 
     private void template(String name, int weekday, LocalTime start, int capacity, UUID coachId) {
@@ -208,6 +241,60 @@ public class DevDataSeeder implements CommandLineRunner {
         t.setCapacity(capacity);
         t.setCoachId(coachId);
         templates.save(t);
+    }
+
+    private void skeleton(UUID templateId, int sort, String label, String type) {
+        TemplatePiece p = new TemplatePiece();
+        p.setTemplateId(templateId);
+        p.setSortOrder(sort);
+        p.setLabel(label);
+        p.setWodType(type);
+        skeletons.save(p);
+    }
+
+    private UUID wod(String title, String type, String scoreType, String body) {
+        Wod w = new Wod();
+        w.setTitle(title);
+        w.setWodType(type);
+        w.setScoreType(scoreType);
+        w.setBodyText(body);
+        return wods.save(w).getId();
+    }
+
+    private void item(UUID sessionId, int sort, UUID wodId, boolean scoreable, String scoreType) {
+        SessionItem i = new SessionItem();
+        i.setSessionId(sessionId);
+        i.setSortOrder(sort);
+        i.setWodId(wodId);
+        i.setScoreable(scoreable);
+        i.setScoreType(scoreType);
+        items.save(i);
+    }
+
+    private UUID membershipId(UUID userId, UUID boxId) {
+        return memberships.findByUserIdAndBoxId(userId, boxId).orElseThrow().getId();
+    }
+
+    private void score(UUID itemId, UUID membershipId, boolean rx, Integer timeSeconds, boolean priv) {
+        WodScore s = new WodScore();
+        s.setSessionItemId(itemId);
+        s.setMembershipId(membershipId);
+        s.setRx(rx);
+        s.setTimeSeconds(timeSeconds);
+        s.setFinished(true);
+        s.setPrivate(priv);
+        wodScores.save(s);
+    }
+
+    private void lift(UUID membershipId, UUID movementId, String load, java.time.LocalDate on, boolean pr) {
+        LiftEntry l = new LiftEntry();
+        l.setMembershipId(membershipId);
+        l.setMovementId(movementId);
+        l.setLoad(new java.math.BigDecimal(load));
+        l.setReps(1);
+        l.setPerformedOn(on);
+        l.setPr(pr);
+        liftEntries.save(l);
     }
 
     private void runAsBox(UUID boxId, Runnable r) {

@@ -146,3 +146,17 @@ Each is one shared Angular component. **The API (inputs/outputs) is the stable c
 6. Verify both themes, reduced-motion, and that no raw hex remains outside the token file.
 
 M2+ milestone screens are built against this from day one. Hero surfaces (§8) get bespoke treatment as they land.
+
+---
+
+## Design law v2 (M5, 2026-07-10) — binding for ALL future frontend work
+
+Amendments layered on everything above; where they conflict, v2 wins.
+
+1. **Tokens only, expanded.** The token set now includes the type scale (`--fs-hero/display/h2/body/sm/meta`), `--tap` (44px minimum touch target), `--scrim`, `--dur`, `--ease-out`. A raw hex, raw px type size, or sub-44px interactive target outside `_tokens.scss` is a bug.
+2. **State is never silent.** Every fetch renders loading + error + empty states; every save shows pending → success/inline-error with user input preserved. Gym wifi is a design constraint.
+3. **WCAG AA.** Text contrast ≥ 4.5:1 on both themes, `:focus-visible` rings everywhere, labels wired to inputs, `prefers-reduced-motion` alternative for every animation.
+4. **Shells.** Phone-first roles (athlete, coach) use bottom-tab app shells (≤5 tabs, thumb zone, safe-area aware); admin desktop uses the SaaS shell (side nav + top bar), collapsing to bottom tabs + a More sheet on mobile. Screens are app screens, not scrolling documents.
+5. **Overlays are `bh-sheet`** (native dialog bottom sheet). Avatars are `bh-avatar` (photo or initials). Screens compose `bh-*`; re-implementing a component in a screen is a bug.
+6. **Red & glow ration unchanged** (live / primary / winning; hover, live dot, focus ring).
+7. **Process gate: every frontend feature ships through impeccable** — a `shape` brief before building, a `critique` after; merge requires ≥28/40 with no open P0/P1.

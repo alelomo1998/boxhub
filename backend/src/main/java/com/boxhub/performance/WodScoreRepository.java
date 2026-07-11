@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface WodScoreRepository extends JpaRepository<WodScore, UUID> {
-    Optional<WodScore> findBySlotIdAndMembershipId(UUID slotId, UUID membershipId);
-    List<WodScore> findBySlotId(UUID slotId);
+    Optional<WodScore> findBySessionItemIdAndMembershipId(UUID sessionItemId, UUID membershipId);
+    List<WodScore> findBySessionItemId(UUID sessionItemId);
     List<WodScore> findByMembershipIdOrderByCreatedAtDesc(UUID membershipId);
 }

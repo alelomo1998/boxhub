@@ -3,6 +3,8 @@ package com.boxhub.programming;
 import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +14,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,9 +23,10 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired BoxRepository boxes;
     @Autowired MovementRepository movements;
-    @Autowired TrackRepository tracks;
+    @Autowired ClassSessionRepository sessions;
     @Autowired WodRepository wods;
-    @Autowired ProgramSlotRepository slots;
+    @Autowired SessionItemRepository items;
+    @Autowired TemplatePieceRepository pieces;
 
     @AfterEach
     void clear() { SecurityContextHolder.clearContext(); }
@@ -72,35 +74,64 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void trackWodSlotRoundTripAndSlotUniqueness() {
+    void sessionItemRoundTripAndSortUniqueness() {
         long n = System.nanoTime();
-        UUID boxId = newBox("tws-" + n);
+        UUID boxId = newBox("si-" + n);
         actAsBox(boxId);
 
-        Track t = new Track();
-        t.setName("RX");
-        tracks.save(t);
-        assertThat(tracks.findByArchivedFalseOrderBySortOrderAsc()).extracting(Track::getName).contains("RX");
+        ClassSession s = new ClassSession();
+        s.setName("WOD Class");
+        s.setStartAt(Instant.now().plusSeconds(3600));
+        s.setDurationMin(60);
+        s.setCapacity(12);
+        sessions.save(s);
+        assertThat(s.getProgrammingStatus()).isEqualTo("DRAFT");
 
         Wod w = new Wod();
         w.setTitle("Fran");
         w.setWodType("FOR_TIME");
         w.setScoreType("TIME");
         wods.save(w);
-        assertThat(wods.findByOrderByUpdatedAtDesc()).extracting(Wod::getTitle).contains("Fran");
 
-        LocalDate d = LocalDate.now();
-        ProgramSlot s1 = new ProgramSlot();
-        s1.setSlotDate(d);
-        s1.setTrackId(t.getId());
-        s1.setWodId(w.getId());
-        slots.saveAndFlush(s1);
-        assertThat(slots.findBySlotDateAndTrackId(d, t.getId())).isPresent();
+        SessionItem i1 = new SessionItem();
+        i1.setSessionId(s.getId());
+        i1.setWodId(w.getId());
+        i1.setSortOrder(0);
+        i1.setScoreable(true);
+        items.saveAndFlush(i1);
+        assertThat(items.findBySessionIdOrderBySortOrderAsc(s.getId())).hasSize(1);
 
-        ProgramSlot dup = new ProgramSlot();
-        dup.setSlotDate(d);
-        dup.setTrackId(t.getId());
+        SessionItem dup = new SessionItem();
+        dup.setSessionId(s.getId());
         dup.setWodId(w.getId());
-        assertThatThrownBy(() -> slots.saveAndFlush(dup)).isInstanceOf(DataIntegrityViolationException.class);
+        dup.setSortOrder(0);
+        assertThatThrownBy(() -> items.saveAndFlush(dup)).isInstanceOf(DataIntegrityViolationException.class);
     }
+
+    @Test
+    void skeletonPiecesOrderPerTemplate() {
+        long n = System.nanoTime();
+        UUID boxId = newBox("sk-" + n);
+        actAsBox(boxId);
+        UUID templateId = UUID.randomUUID(); // FK-free check not possible: template FK enforced — create one
+        com.boxhub.box.ClassTemplate t = new com.boxhub.box.ClassTemplate();
+        t.setName("Muscle Class");
+        t.setWeekday(0);
+        t.setStartTime(java.time.LocalTime.of(18, 0));
+        t.setDurationMin(60);
+        t.setCapacity(12);
+        templateId = templatesRepo.save(t).getId();
+
+        TemplatePiece p1 = new TemplatePiece();
+        p1.setTemplateId(templateId); p1.setSortOrder(1); p1.setLabel("Strength"); p1.setWodType("STRENGTH");
+        pieces.save(p1);
+        TemplatePiece p0 = new TemplatePiece();
+        p0.setTemplateId(templateId); p0.setSortOrder(0); p0.setLabel("Warm-up"); p0.setWodType("WARMUP");
+        pieces.save(p0);
+
+        assertThat(pieces.findByTemplateIdOrderBySortOrderAsc(templateId))
+                .extracting(TemplatePiece::getLabel).containsExactly("Warm-up", "Strength");
+    }
+
+    @Autowired com.boxhub.box.ClassTemplateRepository templatesRepo;
 }

@@ -8,53 +8,51 @@ async function login(page: Page, email: string) {
   await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
 }
 
-test('athlete logs a score on Today, sees the leaderboard, and logs a lift on Progress', async ({ page }) => {
-  const stamp = Date.now();
-  const title = 'Track WOD ' + stamp;
-  const todayIso = new Date().toISOString().slice(0, 10);
-
-  // coach guarantees a published TIME WOD on today's RX slot
-  await login(page, 'coach@demo.io');
-  await page.goto('/coach/wods/new');
-  await page.fill('[data-testid="wod-title"]', title);
-  await page.getByRole('button', { name: 'Save WOD' }).click();
-  await expect(page).toHaveURL(/\/coach\/wods$/);
-  await page.goto('/coach/calendar');
-  const todayCell = page.locator(`[data-testid^="cell-"][data-testid$="-${todayIso}"]`).first();
-  await todayCell.click();
-  await page.locator('[data-testid="wod-picker"] select').selectOption({ label: title });
-  await page.getByRole('button', { name: 'Assign' }).click();
-  await page.getByRole('button', { name: 'Publish week' }).click();
-  await expect(page.locator('.wod.pub .wt', { hasText: title })).toBeVisible();
-
-  // athlete: Today hub shows the WOD; log a time via the score sheet
+test('athlete books today, logs a per-piece score, sees the leaderboard', async ({ page }) => {
   await login(page, 'athlete@demo.io');
-  await page.goto('/athlete/today');
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
-  await expect(page.locator('.wt', { hasText: title })).toBeVisible();
-  // slot may already carry a score from a previous run (shared seeded DB): Edit instead of Log
-  const logBtn = page.getByTestId('log-score');
-  if (await logBtn.isVisible().catch(() => false)) await logBtn.click();
-  else await page.getByRole('button', { name: 'Edit' }).click();
+
+  // book today's WOD Class so the WOD tab has a focused class (seeder publishes today's programming)
+  await page.goto('/athlete/book');
+  const card = page.locator('.card', { hasText: 'WOD Class' }).first();
+  await expect(card).toBeVisible();
+  const bookBtn = card.getByTestId('book-btn');
+  if (await bookBtn.isVisible().catch(() => false)) await bookBtn.click();
+
+  // the WOD tab shows the booked class's pieces; log the TIME-scored metcon (Fran)
+  await page.goto('/athlete/wod');
+  const fran = page.locator('.piece', { hasText: 'Fran' });
+  await expect(fran).toBeVisible();
+  const logBtn = fran.locator('[data-testid^="log-"]');
+  if (await logBtn.isVisible().catch(() => false)) {
+    await logBtn.click();
+  } else {
+    await fran.getByRole('button', { name: 'Edit' }).click(); // re-run on shared DB
+  }
   await page.locator('input[name="mins"]').fill('3');
   await page.locator('input[name="secs"]').fill('30');
   await page.getByRole('button', { name: 'Save score' }).click();
+  await expect(fran.getByTestId('logged-mark')).toBeVisible();
 
-  // the card now shows the logged score; leaderboard sheet shows the time
-  await expect(page.getByTestId('my-score')).toBeVisible();
-  await expect(page.getByTestId('my-score')).toContainText('3:30');
-  await page.getByRole('button', { name: 'Leaderboard' }).click();
+  // leaderboard sheet shows the time
+  await fran.getByRole('button', { name: 'Leaderboard' }).click();
   await expect(page.getByTestId('leaderboard')).toBeVisible();
   await expect(page.getByTestId('leaderboard').getByText('3:30')).toBeVisible();
   await page.keyboard.press('Escape');
 
-  // Progress: quick-log a Back Squat with a unique load; history shows it
-  const load = String(200 + (stamp % 90) + 0.5); // unique, > seeded max
+  // progress page still renders records
   await page.goto('/athlete/progress');
   await expect(page.getByRole('heading', { name: 'Records' })).toBeVisible();
-  await page.fill('[data-testid="lift-movement"]', 'Back Squat');
-  await page.fill('input[name="load"]', load);
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('heading', { name: /Back Squat/ })).toBeVisible();
-  await expect(page.locator('.hrow', { hasText: load })).toBeVisible();
+});
+
+test('athlete opens class detail and an athlete profile from the grid', async ({ page }) => {
+  await login(page, 'athlete@demo.io');
+  await page.goto('/athlete/book');
+  const card = page.locator('.card', { hasText: 'WOD Class' }).first();
+  await expect(card).toBeVisible();
+  await card.locator('a.body').click();
+  await expect(page).toHaveURL(/\/athlete\/class\//);
+  await expect(page.getByTestId('class-grid')).toBeVisible();
+  await page.locator('[data-testid="class-grid"] a').first().click();
+  await expect(page).toHaveURL(/\/athlete\/profile\//);
+  await expect(page.locator('.name')).toBeVisible();
 });

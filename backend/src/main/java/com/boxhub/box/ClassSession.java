@@ -20,6 +20,7 @@ public class ClassSession {
     @Column(nullable = false) private int capacity;
     @Column(name = "coach_id") private UUID coachId;
     @Column(nullable = false) private String status = "SCHEDULED";
+    @Column(name = "programming_status", nullable = false) private String programmingStatus = "DRAFT";
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
@@ -35,6 +36,8 @@ public class ClassSession {
     public void setCapacity(int capacity) { this.capacity = capacity; }
     public UUID getCoachId() { return coachId; }
     public void setCoachId(UUID coachId) { this.coachId = coachId; }
+    public String getProgrammingStatus() { return programmingStatus; }
+    public void setProgrammingStatus(String programmingStatus) { this.programmingStatus = programmingStatus; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 }

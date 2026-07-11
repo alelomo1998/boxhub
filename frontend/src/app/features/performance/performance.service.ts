@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface Score {
-  id: string; slotId: string; rx: boolean; timeSeconds: number | null; rounds: number | null;
+  id: string; itemId: string; rx: boolean; timeSeconds: number | null; rounds: number | null;
   reps: number | null; load: number | null; finished: boolean; notes: string | null;
   isPrivate: boolean; scoreType: string;
 }
@@ -12,7 +12,7 @@ export interface ScoreInput {
   load?: number | null; finished?: boolean; notes?: string | null; isPrivate: boolean;
 }
 export interface LeaderboardEntry {
-  rank: number; athleteName: string; rx: boolean; timeSeconds: number | null;
+  rank: number; athleteName: string; avatarPath: string | null; rx: boolean; timeSeconds: number | null;
   rounds: number | null; reps: number | null; load: number | null; finished: boolean;
 }
 export interface Leaderboard { scoreType: string; entries: LeaderboardEntry[]; }
@@ -22,7 +22,7 @@ export interface Lift {
 }
 export interface LiftInput { movementId: string; load: number; reps?: number; performedOn?: string; notes?: string; }
 export interface MyScore {
-  slotId: string; slotDate: string; wodTitle: string; trackName: string; scoreType: string;
+  itemId: string; day: string; className: string; wodTitle: string; scoreType: string;
   rx: boolean; timeSeconds: number | null; rounds: number | null; reps: number | null;
   load: number | null; finished: boolean;
 }
@@ -35,14 +35,14 @@ export interface BenchmarkHistory {
 export class PerformanceService {
   private http = inject(HttpClient);
 
-  putScore(slotId: string, input: ScoreInput): Observable<Score> {
-    return this.http.put<Score>(`/api/box/program/${slotId}/score`, input);
+  putScore(itemId: string, input: ScoreInput): Observable<Score> {
+    return this.http.put<Score>(`/api/box/sessions/items/${itemId}/score`, input);
   }
-  myScore(slotId: string): Observable<Score> {
-    return this.http.get<Score>(`/api/box/program/${slotId}/score`);
+  myScore(itemId: string): Observable<Score> {
+    return this.http.get<Score>(`/api/box/sessions/items/${itemId}/score`);
   }
-  leaderboard(slotId: string): Observable<Leaderboard> {
-    return this.http.get<Leaderboard>(`/api/box/program/${slotId}/leaderboard`);
+  leaderboard(itemId: string): Observable<Leaderboard> {
+    return this.http.get<Leaderboard>(`/api/box/sessions/items/${itemId}/leaderboard`);
   }
   logLift(input: LiftInput): Observable<Lift> { return this.http.post<Lift>('/api/box/lifts', input); }
   lifts(movementId: string): Observable<Lift[]> {

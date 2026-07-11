@@ -4,16 +4,24 @@ import { Observable } from 'rxjs';
 
 export interface SessionView {
   id: string; name: string; startAt: string; durationMin: number;
-  capacity: number; coachId: string | null; coachName: string | null; status: string;
+  capacity: number; coachId: string | null; coachName: string | null; status: string; programmingStatus: string;
   bookedCount: number; waitlistCount: number; booked: string[];
   myBookingStatus: string | null; myPosition: number | null;
 }
 export interface BookingResult { bookingId: string; status: string; position: number | null; }
 export interface MyBooking { sessionId: string; sessionName: string; startAt: string; status: string; position: number | null; }
-export interface RosterEntry { bookingId: string; name: string; email: string; status: string; position: number | null; }
+export interface RosterEntry { bookingId: string; name: string; email: string; avatarPath: string | null; status: string; position: number | null; }
 export interface ClassTemplate {
   id: string; name: string; weekday: number; startTime: string;
   durationMin: number; capacity: number; coachId: string | null; active: boolean;
+  imagePath?: string | null;
+}
+export interface GridEntry { membershipId: string; name: string; avatarPath: string | null; status: string; }
+export interface SessionDetail {
+  id: string; name: string; startAt: string; durationMin: number; capacity: number;
+  imagePath: string | null; programmingStatus: string;
+  coach: { name: string; avatarPath: string | null } | null;
+  active: GridEntry[]; queue: GridEntry[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -33,11 +41,17 @@ export class BookingService {
   myBookings(from: string): Observable<MyBooking[]> {
     return this.http.get<MyBooking[]>('/api/box/my-bookings', { params: new HttpParams().set('from', from) });
   }
+  sessionDetail(sessionId: string): Observable<SessionDetail> {
+    return this.http.get<SessionDetail>(`/api/box/sessions/${sessionId}/detail`);
+  }
   roster(sessionId: string): Observable<RosterEntry[]> {
     return this.http.get<RosterEntry[]>(`/api/box/sessions/${sessionId}/roster`);
   }
   checkIn(sessionId: string, bookingId: string): Observable<void> {
     return this.http.post<void>(`/api/box/sessions/${sessionId}/checkin`, { bookingId });
+  }
+  uncheck(sessionId: string, bookingId: string): Observable<void> {
+    return this.http.post<void>(`/api/box/sessions/${sessionId}/uncheck`, { bookingId });
   }
   noShow(sessionId: string, bookingId: string): Observable<void> {
     return this.http.post<void>(`/api/box/sessions/${sessionId}/no-show`, { bookingId });
@@ -50,7 +64,7 @@ export class BookingService {
   createTemplate(t: { name: string; weekday: number; startTime: string; durationMin: number; capacity: number; coachId?: string }): Observable<ClassTemplate> {
     return this.http.post<ClassTemplate>('/api/box/class-templates', t);
   }
-  patchTemplate(id: string, patch: Partial<ClassTemplate>): Observable<ClassTemplate> {
+  patchTemplate(id: string, patch: Partial<ClassTemplate> & { imagePath?: string }): Observable<ClassTemplate> {
     return this.http.patch<ClassTemplate>(`/api/box/class-templates/${id}`, patch);
   }
 }

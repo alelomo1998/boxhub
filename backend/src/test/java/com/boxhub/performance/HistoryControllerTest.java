@@ -3,15 +3,20 @@ package com.boxhub.performance;
 import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.identity.*;
-import com.boxhub.programming.TrackService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.boxhub.programming.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -25,24 +30,64 @@ class HistoryControllerTest extends AbstractIntegrationTest {
     @Autowired BoxRepository boxes;
     @Autowired MembershipRepository memberships;
     @Autowired TokenService tokenService;
-    @Autowired TrackService trackService;
-    @Autowired ObjectMapper om;
+    @Autowired ClassSessionRepository sessions;
+    @Autowired SessionItemRepository items;
+    @Autowired WodRepository wods;
+    @Autowired BenchmarkTemplateRepository benchmarks;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-    String coach, athlete;
-    UUID rxTrack;
-    LocalDate today = LocalDate.now();
-    LocalDate tomorrow = LocalDate.now().plusDays(1);
+    String athlete;
+    UUID benchItem1, benchItem2, plainItem;
+
+    @AfterEach
+    void clear() { SecurityContextHolder.clearContext(); }
 
     @BeforeEach
-    void setup() throws Exception {
+    void setup() {
         long n = System.nanoTime();
         Box a = newBox("Hist A " + n, "hist-a-" + n);
-        trackService.seedDefaults(a.getId());
-        coach = boxToken("hc-" + n + "@t.io", a, "COACH");
         athlete = boxToken("ha-" + n + "@t.io", a, "ATHLETE");
-        String tracks = mvc.perform(get("/api/box/tracks").header("Authorization", "Bearer " + coach))
-                .andReturn().getResponse().getContentAsString();
-        rxTrack = UUID.fromString(om.readTree(tracks).get(0).get("id").asText());
+
+        actAsBox(a.getId());
+        // a benchmark-linked wod (provenance) + a plain one
+        UUID bmId = UUID.randomUUID();
+        jdbc.update("insert into benchmark_template (id, name, kind, score_type, body_text, blocks_json) "
+                        + "values (?, ?, 'GIRL', 'TIME', 'x', '{\"blocks\":[]}'::jsonb)",
+                bmId, "Fran " + n);
+        Wod bench = new Wod();
+        bench.setTitle("Fran " + n); bench.setWodType("FOR_TIME"); bench.setScoreType("TIME");
+        bench.setBenchmarkTemplateId(bmId);
+        wods.save(bench);
+        Wod plain = new Wod();
+        plain.setTitle("Random " + n); plain.setWodType("FOR_TIME"); plain.setScoreType("TIME");
+        wods.save(plain);
+
+        benchItem1 = item(session(Instant.now().minusSeconds(86400)), bench.getId());
+        benchItem2 = item(session(Instant.now()), bench.getId());
+        plainItem = item(session(Instant.now().plusSeconds(3600)), plain.getId());
+        SecurityContextHolder.clearContext();
+    }
+
+    private UUID session(Instant startAt) {
+        ClassSession s = new ClassSession();
+        s.setName("WOD Class"); s.setStartAt(startAt); s.setDurationMin(60); s.setCapacity(12);
+        s.setProgrammingStatus("PUBLISHED");
+        return sessions.save(s).getId();
+    }
+
+    private UUID item(UUID sessionId, UUID wodId) {
+        SessionItem i = new SessionItem();
+        i.setSessionId(sessionId); i.setWodId(wodId); i.setSortOrder(0); i.setScoreable(true);
+        return items.save(i).getId();
+    }
+
+    private void actAsBox(UUID boxId) {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
+                .subject(UUID.randomUUID().toString())
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
     }
 
     private Box newBox(String name, String slug) {
@@ -57,55 +102,17 @@ class HistoryControllerTest extends AbstractIntegrationTest {
         return tokenService.boxToken(u, m);
     }
 
-    private UUID cloneFirstBenchmark() throws Exception {
-        String bms = mvc.perform(get("/api/box/benchmarks").header("Authorization", "Bearer " + coach))
-                .andReturn().getResponse().getContentAsString();
-        UUID bmId = UUID.fromString(om.readTree(bms).get(0).get("id").asText());
-        String wod = mvc.perform(post("/api/box/benchmarks/" + bmId + "/clone").header("Authorization", "Bearer " + coach))
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(om.readTree(wod).get("id").asText());
-    }
-
-    private UUID createPlainWod() throws Exception {
-        String wod = mvc.perform(post("/api/box/wods").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach)
-                        .content("{\"title\":\"Random\",\"wodType\":\"FOR_TIME\",\"scoreType\":\"TIME\"}"))
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(om.readTree(wod).get("id").asText());
-    }
-
-    private String publishSlot(LocalDate date, UUID track, UUID wod) throws Exception {
-        String body = mvc.perform(put("/api/box/program").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach)
-                        .content("{\"slotDate\":\"" + date + "\",\"trackId\":\"" + track + "\",\"wodId\":\"" + wod + "\"}"))
-                .andReturn().getResponse().getContentAsString();
-        String id = om.readTree(body).get("id").asText();
-        mvc.perform(patch("/api/box/program/" + id).contentType(APPLICATION_JSON)
-                .header("Authorization", "Bearer " + coach).content("{\"status\":\"PUBLISHED\"}"));
-        return id;
-    }
-
-    private void score(String slot, int seconds) throws Exception {
-        mvc.perform(put("/api/box/program/" + slot + "/score").contentType(APPLICATION_JSON)
+    private void score(UUID itemId, int seconds) throws Exception {
+        mvc.perform(put("/api/box/sessions/items/" + itemId + "/score").contentType(APPLICATION_JSON)
                 .header("Authorization", "Bearer " + athlete)
                 .content("{\"rx\":true,\"timeSeconds\":" + seconds + ",\"finished\":true,\"isPrivate\":false}"));
     }
 
     @Test
     void benchmarkHistoryPicksBestAndExcludesNonBenchmark() throws Exception {
-        UUID benchWod = cloneFirstBenchmark();
-        String s1 = publishSlot(today, rxTrack, benchWod);
-        UUID fitTrack;
-        String tracks = mvc.perform(get("/api/box/tracks").header("Authorization", "Bearer " + coach))
-                .andReturn().getResponse().getContentAsString();
-        fitTrack = UUID.fromString(om.readTree(tracks).get(1).get("id").asText());
-        String s2 = publishSlot(today, fitTrack, benchWod); // same benchmark, different slot
-        score(s1, 200);
-        score(s2, 150); // better
-
-        UUID plain = createPlainWod();
-        String s3 = publishSlot(tomorrow, rxTrack, plain);
-        score(s3, 90); // non-benchmark, must be excluded from benchmark-history
+        score(benchItem1, 200);
+        score(benchItem2, 150); // better
+        score(plainItem, 90);   // non-benchmark, excluded
 
         mvc.perform(get("/api/box/benchmark-history").header("Authorization", "Bearer " + athlete))
                 .andExpect(status().isOk())
@@ -114,6 +121,7 @@ class HistoryControllerTest extends AbstractIntegrationTest {
 
         mvc.perform(get("/api/box/my-scores").header("Authorization", "Bearer " + athlete))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3));
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].className").value("WOD Class"));
     }
 }

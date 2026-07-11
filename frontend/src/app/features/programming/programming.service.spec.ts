@@ -14,13 +14,6 @@ describe('ProgrammingService', () => {
   });
   afterEach(() => http.verify());
 
-  it('tracks GETs the tracks endpoint', () => {
-    service.tracks().subscribe();
-    const req = http.expectOne('/api/box/tracks');
-    expect(req.request.method).toBe('GET');
-    req.flush([]);
-  });
-
   it('createWod POSTs the wod body', () => {
     service.createWod({ title: 'Fran', wodType: 'FOR_TIME', scoreType: 'TIME' }).subscribe();
     const req = http.expectOne('/api/box/wods');
@@ -29,35 +22,36 @@ describe('ProgrammingService', () => {
     req.flush({});
   });
 
-  it('duplicateWod POSTs to the duplicate endpoint', () => {
-    service.duplicateWod('w1').subscribe();
-    const req = http.expectOne('/api/box/wods/w1/duplicate');
-    expect(req.request.method).toBe('POST');
-    req.flush({});
-  });
-
-  it('assignSlot PUTs date/track/wod', () => {
-    service.assignSlot('2026-07-13', 't1', 'w1').subscribe();
-    const req = http.expectOne('/api/box/program');
+  it('putItems PUTs the ordered items', () => {
+    service.putItems('s1', [{ wodId: 'w1', scoreable: false }, { wodId: 'w2', scoreable: true }]).subscribe();
+    const req = http.expectOne('/api/box/sessions/s1/items');
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ slotDate: '2026-07-13', trackId: 't1', wodId: 'w1' });
-    req.flush({});
+    expect(req.request.body.items.length).toBe(2);
+    expect(req.request.body.items[1].scoreable).toBeTrue();
+    req.flush([]);
   });
 
-  it('publish POSTs the range', () => {
-    service.publish('2026-07-13', '2026-07-19', 't1').subscribe();
-    const req = http.expectOne('/api/box/program/publish');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ from: '2026-07-13', to: '2026-07-19', trackId: 't1' });
-    req.flush({ published: 3 });
+  it('publishProgramming PATCHes the instance status', () => {
+    service.publishProgramming('s1', 'PUBLISHED').subscribe();
+    const req = http.expectOne('/api/box/sessions/s1/programming');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body.status).toBe('PUBLISHED');
+    req.flush({ programmingStatus: 'PUBLISHED' });
   });
 
-  it('board passes date + includeDrafts', () => {
-    service.board('2026-07-13', true).subscribe();
-    const req = http.expectOne(r => r.url === '/api/box/wod-board'
-      && r.params.get('date') === '2026-07-13' && r.params.get('includeDrafts') === 'true');
+  it('skeleton round-trips label+type only', () => {
+    service.putSkeleton('t1', [{ label: 'Warm-up', wodType: 'WARMUP', sortOrder: 9, id: 'x' }]).subscribe();
+    const req = http.expectOne('/api/box/class-templates/t1/skeleton');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body.pieces).toEqual([{ label: 'Warm-up', wodType: 'WARMUP' }]);
+    req.flush([]);
+  });
+
+  it('myClassToday GETs the aggregate', () => {
+    service.myClassToday().subscribe();
+    const req = http.expectOne('/api/box/my-class-today');
     expect(req.request.method).toBe('GET');
-    req.flush({ date: '2026-07-13', tracks: [] });
+    req.flush({ session: null, booked: false, items: [], otherToday: [] });
   });
 
   it('cloneBenchmark POSTs to the clone endpoint', () => {

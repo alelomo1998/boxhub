@@ -39,8 +39,8 @@ public class SessionController {
     }
 
     record SessionView(UUID id, String name, Instant startAt, int durationMin, int capacity, UUID coachId,
-                       String coachName, String status, long bookedCount, long waitlistCount,
-                       List<String> booked, String myBookingStatus, Integer myPosition) {}
+                       String coachName, String status, String programmingStatus, long bookedCount,
+                       long waitlistCount, List<String> booked, String myBookingStatus, Integer myPosition) {}
 
     @Transactional(readOnly = true) // keep session open for lazy coach/athlete User names
     @GetMapping
@@ -71,7 +71,7 @@ public class SessionController {
             }
             out.add(new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
                     s.getCoachId(), s.getCoachId() == null ? null : coachNames.get(s.getCoachId()),
-                    s.getStatus(), bookedNames.size(), waitlist, bookedNames, myStatus, myPos));
+                    s.getStatus(), s.getProgrammingStatus(), bookedNames.size(), waitlist, bookedNames, myStatus, myPos));
         }
         return out;
     }
@@ -92,10 +92,10 @@ public class SessionController {
         String coachName = s.getCoachId() == null ? null :
                 users.findById(s.getCoachId()).map(User::getName).orElse(null);
         return new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
-                s.getCoachId(), coachName, s.getStatus(), booked, waitlist, List.of(), null, null);
+                s.getCoachId(), coachName, s.getStatus(), s.getProgrammingStatus(), booked, waitlist, List.of(), null, null);
     }
 
-    record RosterEntry(UUID bookingId, String name, String email, String status, Integer position) {}
+    record RosterEntry(UUID bookingId, String name, String email, String avatarPath, String status, Integer position) {}
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true) // keep session open for lazy User
     @GetMapping("/{id}/roster")
@@ -108,7 +108,8 @@ public class SessionController {
             Membership m = memberships.findById(b.getMembershipId()).orElse(null);
             String name = m != null ? m.getUser().getName() : "";
             String email = m != null ? m.getUser().getEmail() : "";
-            out.add(new RosterEntry(b.getId(), name, email, b.getStatus(), b.getPosition()));
+            String avatar = m != null ? m.getAvatarPath() : null;
+            out.add(new RosterEntry(b.getId(), name, email, avatar, b.getStatus(), b.getPosition()));
         }
         return out;
     }
@@ -120,6 +121,13 @@ public class SessionController {
         RoleGuard.requireStaff();
         sessions.findById(id).orElseThrow(NoSuchElementException::new);
         bookingService.checkIn(req.bookingId());
+    }
+
+    @PostMapping("/{id}/uncheck")
+    public void uncheck(@PathVariable UUID id, @RequestBody BookingIdRequest req) {
+        RoleGuard.requireStaff();
+        sessions.findById(id).orElseThrow(NoSuchElementException::new);
+        bookingService.uncheck(req.bookingId());
     }
 
     @PostMapping("/{id}/no-show")

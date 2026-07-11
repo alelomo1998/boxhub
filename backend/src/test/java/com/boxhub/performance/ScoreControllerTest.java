@@ -3,15 +3,23 @@ package com.boxhub.performance;
 import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.identity.*;
-import com.boxhub.programming.TrackService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.boxhub.programming.SessionItem;
+import com.boxhub.programming.SessionItemRepository;
+import com.boxhub.programming.Wod;
+import com.boxhub.programming.WodRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -25,54 +33,69 @@ class ScoreControllerTest extends AbstractIntegrationTest {
     @Autowired BoxRepository boxes;
     @Autowired MembershipRepository memberships;
     @Autowired TokenService tokenService;
-    @Autowired TrackService trackService;
-    @Autowired ObjectMapper om;
+    @Autowired ClassSessionRepository sessions;
+    @Autowired SessionItemRepository items;
+    @Autowired WodRepository wods;
 
-    String coach, athleteA, athleteB, otherAthlete;
-    String publishedSlot, draftSlot;
-    LocalDate today = LocalDate.now();
+    String athleteA, athleteB, otherAthlete;
+    UUID publishedItem, draftItem, unscoreableItem;
+
+    @AfterEach
+    void clear() { SecurityContextHolder.clearContext(); }
 
     @BeforeEach
-    void setup() throws Exception {
+    void setup() {
         long n = System.nanoTime();
-        Box boxA = newBox("Score A " + n, "sc-a-" + n);
-        Box boxB = newBox("Score B " + n, "sc-b-" + n);
-        trackService.seedDefaults(boxA.getId());
-        coach = boxToken("scc-" + n + "@t.io", boxA, "COACH");
-        athleteA = boxToken("sca-" + n + "@t.io", boxA, "ATHLETE");
-        athleteB = boxToken("scb-" + n + "@t.io", boxA, "ATHLETE");
-        otherAthlete = boxToken("sco-" + n + "@t.io", boxB, "ATHLETE");
+        Box a = newBox("Sc A " + n, "sc-a-" + n);
+        Box b = newBox("Sc B " + n, "sc-b-" + n);
+        athleteA = boxToken("sca-" + n + "@t.io", a, "ATHLETE");
+        athleteB = boxToken("scb-" + n + "@t.io", a, "ATHLETE");
+        otherAthlete = boxToken("sco-" + n + "@t.io", b, "ATHLETE");
 
-        String tracks = mvc.perform(get("/api/box/tracks").header("Authorization", "Bearer " + coach))
-                .andReturn().getResponse().getContentAsString();
-        UUID rx = UUID.fromString(om.readTree(tracks).get(0).get("id").asText());
-        UUID fit = UUID.fromString(om.readTree(tracks).get(1).get("id").asText());
-        UUID wod = createWod("Fran");
-        publishedSlot = assign(rx, wod);
-        mvc.perform(patch("/api/box/program/" + publishedSlot).contentType(APPLICATION_JSON)
-                .header("Authorization", "Bearer " + coach).content("{\"status\":\"PUBLISHED\"}"));
-        draftSlot = assign(fit, wod); // left DRAFT
+        actAsBox(a.getId());
+        UUID published = session("PUBLISHED");
+        UUID draft = session("DRAFT");
+        Wod fran = wod("Fran " + n, "FOR_TIME", "TIME");
+        Wod warm = wod("Warmup " + n, "WARMUP", "NONE");
+        publishedItem = item(published, fran.getId(), 0, true);
+        unscoreableItem = item(published, warm.getId(), 1, false);
+        draftItem = item(draft, fran.getId(), 0, true);
+        SecurityContextHolder.clearContext();
     }
 
-    private UUID createWod(String title) throws Exception {
-        String body = mvc.perform(post("/api/box/wods").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach)
-                        .content("{\"title\":\"" + title + "\",\"wodType\":\"FOR_TIME\",\"scoreType\":\"TIME\"}"))
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(om.readTree(body).get("id").asText());
+    private UUID session(String programmingStatus) {
+        ClassSession s = new ClassSession();
+        s.setName("WOD Class");
+        s.setStartAt(Instant.now().plusSeconds(3600));
+        s.setDurationMin(60);
+        s.setCapacity(12);
+        s.setProgrammingStatus(programmingStatus);
+        return sessions.save(s).getId();
     }
 
-    private String assign(UUID track, UUID wod) throws Exception {
-        String body = mvc.perform(put("/api/box/program").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach)
-                        .content("{\"slotDate\":\"" + today + "\",\"trackId\":\"" + track + "\",\"wodId\":\"" + wod + "\"}"))
-                .andReturn().getResponse().getContentAsString();
-        return om.readTree(body).get("id").asText();
+    private Wod wod(String title, String type, String scoreType) {
+        Wod w = new Wod(); w.setTitle(title); w.setWodType(type); w.setScoreType(scoreType);
+        return wods.save(w);
+    }
+
+    private UUID item(UUID sessionId, UUID wodId, int sort, boolean scoreable) {
+        SessionItem i = new SessionItem();
+        i.setSessionId(sessionId); i.setWodId(wodId); i.setSortOrder(sort); i.setScoreable(scoreable);
+        return items.save(i).getId();
+    }
+
+    private void actAsBox(UUID boxId) {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
+                .subject(UUID.randomUUID().toString())
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
     }
 
     private Box newBox(String name, String slug) {
-        Box b = new Box(); b.setName(name); b.setSlug(slug); b.setTimezone("Europe/Rome");
-        return boxes.save(b);
+        Box x = new Box(); x.setName(name); x.setSlug(slug); x.setTimezone("Europe/Rome");
+        return boxes.save(x);
     }
 
     private String boxToken(String email, Box box, String role) {
@@ -84,46 +107,52 @@ class ScoreControllerTest extends AbstractIntegrationTest {
 
     @Test
     void athleteLogsAndEditsOwnScore() throws Exception {
-        mvc.perform(put("/api/box/program/" + publishedSlot + "/score").contentType(APPLICATION_JSON)
+        mvc.perform(put("/api/box/sessions/items/" + publishedItem + "/score").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + athleteA)
                         .content("{\"rx\":true,\"timeSeconds\":183,\"finished\":true,\"isPrivate\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timeSeconds").value(183))
                 .andExpect(jsonPath("$.scoreType").value("TIME"));
-        // edit
-        mvc.perform(put("/api/box/program/" + publishedSlot + "/score").contentType(APPLICATION_JSON)
+        mvc.perform(put("/api/box/sessions/items/" + publishedItem + "/score").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + athleteA)
                         .content("{\"rx\":true,\"timeSeconds\":170,\"finished\":true,\"isPrivate\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timeSeconds").value(170));
-        mvc.perform(get("/api/box/program/" + publishedSlot + "/score").header("Authorization", "Bearer " + athleteA))
+        mvc.perform(get("/api/box/sessions/items/" + publishedItem + "/score")
+                        .header("Authorization", "Bearer " + athleteA))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timeSeconds").value(170));
     }
 
     @Test
-    void scoresArePerAthleteAndPrivate() throws Exception {
-        mvc.perform(put("/api/box/program/" + publishedSlot + "/score").contentType(APPLICATION_JSON)
+    void scoresArePerAthlete() throws Exception {
+        mvc.perform(put("/api/box/sessions/items/" + publishedItem + "/score").contentType(APPLICATION_JSON)
                 .header("Authorization", "Bearer " + athleteA).content("{\"rx\":true,\"timeSeconds\":183,\"isPrivate\":false}"));
-        mvc.perform(put("/api/box/program/" + publishedSlot + "/score").contentType(APPLICATION_JSON)
+        mvc.perform(put("/api/box/sessions/items/" + publishedItem + "/score").contentType(APPLICATION_JSON)
                 .header("Authorization", "Bearer " + athleteB).content("{\"rx\":false,\"timeSeconds\":240,\"isPrivate\":false}"));
-        // each reads only their own
-        mvc.perform(get("/api/box/program/" + publishedSlot + "/score").header("Authorization", "Bearer " + athleteA))
+        mvc.perform(get("/api/box/sessions/items/" + publishedItem + "/score").header("Authorization", "Bearer " + athleteA))
                 .andExpect(jsonPath("$.timeSeconds").value(183));
-        mvc.perform(get("/api/box/program/" + publishedSlot + "/score").header("Authorization", "Bearer " + athleteB))
+        mvc.perform(get("/api/box/sessions/items/" + publishedItem + "/score").header("Authorization", "Bearer " + athleteB))
                 .andExpect(jsonPath("$.timeSeconds").value(240));
     }
 
     @Test
-    void cannotScoreDraftSlot() throws Exception {
-        mvc.perform(put("/api/box/program/" + draftSlot + "/score").contentType(APPLICATION_JSON)
+    void cannotScoreDraftInstance() throws Exception {
+        mvc.perform(put("/api/box/sessions/items/" + draftItem + "/score").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + athleteA).content("{\"rx\":true,\"timeSeconds\":183}"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void cannotScoreForeignSlot() throws Exception {
-        mvc.perform(put("/api/box/program/" + publishedSlot + "/score").contentType(APPLICATION_JSON)
+    void cannotScoreUnscoreablePiece() throws Exception {
+        mvc.perform(put("/api/box/sessions/items/" + unscoreableItem + "/score").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + athleteA).content("{\"rx\":true,\"timeSeconds\":183}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cannotScoreForeignItem() throws Exception {
+        mvc.perform(put("/api/box/sessions/items/" + publishedItem + "/score").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + otherAthlete).content("{\"rx\":true,\"timeSeconds\":183}"))
                 .andExpect(status().isNotFound());
     }

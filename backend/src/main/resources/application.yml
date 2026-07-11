@@ -1,4 +1,8 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/boxhub}
     username: ${SPRING_DATASOURCE_USERNAME:boxhub}
@@ -19,3 +23,4 @@ boxhub:
     refresh-ttl: 30d
   superadmin-emails: ${BOXHUB_SUPERADMIN_EMAILS:}
   auth-rate-limit: ${BOXHUB_AUTH_RATE_LIMIT:10}
+  media-dir: ${BOXHUB_MEDIA_DIR:./media}

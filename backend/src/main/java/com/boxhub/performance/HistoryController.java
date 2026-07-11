@@ -1,11 +1,15 @@
 package com.boxhub.performance;
 
+import com.boxhub.box.ClassSession;
+import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.programming.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,47 +21,64 @@ import java.util.stream.Collectors;
 public class HistoryController {
 
     private final WodScoreRepository scores;
-    private final ProgramSlotRepository slots;
+    private final SessionItemRepository items;
+    private final ClassSessionRepository sessions;
     private final WodRepository wods;
-    private final TrackRepository tracks;
     private final BenchmarkTemplateRepository benchmarks;
     private final ScoreService scoreService;
 
-    public HistoryController(WodScoreRepository scores, ProgramSlotRepository slots, WodRepository wods,
-                             TrackRepository tracks, BenchmarkTemplateRepository benchmarks, ScoreService scoreService) {
+    public HistoryController(WodScoreRepository scores, SessionItemRepository items, ClassSessionRepository sessions,
+                             WodRepository wods, BenchmarkTemplateRepository benchmarks, ScoreService scoreService) {
         this.scores = scores;
-        this.slots = slots;
+        this.items = items;
+        this.sessions = sessions;
         this.wods = wods;
-        this.tracks = tracks;
         this.benchmarks = benchmarks;
         this.scoreService = scoreService;
     }
 
-    public record MyScoreDto(UUID slotId, LocalDate slotDate, String wodTitle, String trackName, String scoreType,
+    public record MyScoreDto(UUID itemId, LocalDate day, String className, String wodTitle, String scoreType,
                              boolean rx, Integer timeSeconds, Integer rounds, Integer reps, BigDecimal load,
                              boolean finished) {}
     public record BenchmarkHistoryDto(String benchmarkName, String scoreType, Integer timeSeconds, Integer rounds,
                                       Integer reps, BigDecimal load, LocalDate achievedOn) {}
 
+    private record Ctx(SessionItem item, ClassSession session, Wod wod) {}
+
+    private Map<UUID, Ctx> contextFor(List<WodScore> myScores) {
+        Map<UUID, SessionItem> itemById = items.findAll().stream()
+                .collect(Collectors.toMap(SessionItem::getId, i -> i, (a, b) -> a));
+        Map<UUID, ClassSession> sessionById = sessions.findAll().stream()
+                .collect(Collectors.toMap(ClassSession::getId, s -> s, (a, b) -> a));
+        Map<UUID, Wod> wodById = wods.findAll().stream().collect(Collectors.toMap(Wod::getId, w -> w, (a, b) -> a));
+        return myScores.stream().collect(Collectors.toMap(WodScore::getSessionItemId, s -> {
+            SessionItem i = itemById.get(s.getSessionItemId());
+            ClassSession cs = i == null ? null : sessionById.get(i.getSessionId());
+            Wod w = i == null ? null : wodById.get(i.getWodId());
+            return new Ctx(i, cs, w);
+        }, (a, b) -> a));
+    }
+
+    private static LocalDate day(Instant startAt) {
+        return startAt == null ? null : startAt.atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
     @GetMapping("/my-scores")
     @Transactional(readOnly = true)
     public List<MyScoreDto> myScores() {
         UUID mid = scoreService.callerMembershipId();
-        Map<UUID, ProgramSlot> slotById = slots.findAll().stream()
-                .collect(Collectors.toMap(ProgramSlot::getId, s -> s, (a, b) -> a));
-        Map<UUID, Wod> wodById = wods.findAll().stream().collect(Collectors.toMap(Wod::getId, w -> w, (a, b) -> a));
-        Map<UUID, String> trackNames = tracks.findAll().stream()
-                .collect(Collectors.toMap(Track::getId, Track::getName, (a, b) -> a));
-
+        List<WodScore> mine = scores.findByMembershipIdOrderByCreatedAtDesc(mid);
+        Map<UUID, Ctx> ctx = contextFor(mine);
         List<MyScoreDto> out = new ArrayList<>();
-        for (WodScore s : scores.findByMembershipIdOrderByCreatedAtDesc(mid)) {
-            ProgramSlot slot = slotById.get(s.getSlotId());
-            Wod w = slot == null ? null : wodById.get(slot.getWodId());
-            out.add(new MyScoreDto(s.getSlotId(), slot == null ? null : slot.getSlotDate(),
-                    w == null ? null : w.getTitle(),
-                    slot == null ? null : trackNames.get(slot.getTrackId()),
-                    w == null ? "NONE" : w.getScoreType(),
-                    s.isRx(), s.getTimeSeconds(), s.getRounds(), s.getReps(), s.getLoad(), s.isFinished()));
+        for (WodScore s : mine) {
+            Ctx c = ctx.get(s.getSessionItemId());
+            String scoreType = (c == null || c.wod() == null || c.item() == null) ? "NONE"
+                    : SessionItemController.effectiveScoreType(c.item(), c.wod());
+            out.add(new MyScoreDto(s.getSessionItemId(),
+                    c == null || c.session() == null ? null : day(c.session().getStartAt()),
+                    c == null || c.session() == null ? null : c.session().getName(),
+                    c == null || c.wod() == null ? null : c.wod().getTitle(),
+                    scoreType, s.isRx(), s.getTimeSeconds(), s.getRounds(), s.getReps(), s.getLoad(), s.isFinished()));
         }
         return out;
     }
@@ -66,21 +87,19 @@ public class HistoryController {
     @Transactional(readOnly = true)
     public List<BenchmarkHistoryDto> benchmarkHistory() {
         UUID mid = scoreService.callerMembershipId();
-        Map<UUID, ProgramSlot> slotById = slots.findAll().stream()
-                .collect(Collectors.toMap(ProgramSlot::getId, s -> s, (a, b) -> a));
-        Map<UUID, Wod> wodById = wods.findAll().stream().collect(Collectors.toMap(Wod::getId, w -> w, (a, b) -> a));
+        List<WodScore> mine = scores.findByMembershipIdOrderByCreatedAtDesc(mid);
+        Map<UUID, Ctx> ctx = contextFor(mine);
         Map<UUID, String> benchmarkNames = benchmarks.findAll().stream()
                 .collect(Collectors.toMap(BenchmarkTemplate::getId, BenchmarkTemplate::getName, (a, b) -> a));
 
-        // caller's scores whose slot WOD is a cloned benchmark, grouped by benchmark template
         Map<UUID, List<WodScore>> byBenchmark = new java.util.HashMap<>();
         Map<UUID, String> scoreTypeByBenchmark = new java.util.HashMap<>();
-        for (WodScore s : scores.findByMembershipIdOrderByCreatedAtDesc(mid)) {
-            ProgramSlot slot = slotById.get(s.getSlotId());
-            Wod w = slot == null ? null : wodById.get(slot.getWodId());
-            if (w == null || w.getBenchmarkTemplateId() == null) continue;
-            byBenchmark.computeIfAbsent(w.getBenchmarkTemplateId(), k -> new ArrayList<>()).add(s);
-            scoreTypeByBenchmark.put(w.getBenchmarkTemplateId(), w.getScoreType());
+        for (WodScore s : mine) {
+            Ctx c = ctx.get(s.getSessionItemId());
+            if (c == null || c.wod() == null || c.wod().getBenchmarkTemplateId() == null || c.item() == null) continue;
+            UUID bid = c.wod().getBenchmarkTemplateId();
+            byBenchmark.computeIfAbsent(bid, k -> new ArrayList<>()).add(s);
+            scoreTypeByBenchmark.put(bid, SessionItemController.effectiveScoreType(c.item(), c.wod()));
         }
 
         List<BenchmarkHistoryDto> out = new ArrayList<>();
@@ -88,9 +107,10 @@ public class HistoryController {
             String scoreType = scoreTypeByBenchmark.get(e.getKey());
             WodScore b = Leaderboard.best(e.getValue(), scoreType);
             if (b == null) continue;
+            Ctx c = ctx.get(b.getSessionItemId());
             out.add(new BenchmarkHistoryDto(benchmarkNames.getOrDefault(e.getKey(), "—"), scoreType,
                     b.getTimeSeconds(), b.getRounds(), b.getReps(), b.getLoad(),
-                    slotById.get(b.getSlotId()) == null ? null : slotById.get(b.getSlotId()).getSlotDate()));
+                    c == null || c.session() == null ? null : day(c.session().getStartAt())));
         }
         out.sort((a, c) -> a.benchmarkName().compareToIgnoreCase(c.benchmarkName()));
         return out;

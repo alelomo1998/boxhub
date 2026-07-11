@@ -23,6 +23,7 @@ CrossFit box platform. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16. Mul
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.
 - **Numbers are tabular.** Screens are built from shared `bh-*` components; re-implementing a component's markup in a screen is a bug.
 - Type: display = Saira Condensed, body/UI = Archivo, eyebrows = system mono. Embedded as data-URI (CSP blocks font CDNs).
+- **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through impeccable (shape → build → critique ≥28/40, no open P0/P1)**.
 
 ## Process pace (DEFAULT — lightweight)
 Keep the superpowers arc (brainstorm → writing-plans → execute → finish) but execute LIGHT:

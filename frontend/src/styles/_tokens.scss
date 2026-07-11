@@ -49,6 +49,9 @@
   --red: #d5351d;
   --red-glow: rgba(213, 53, 29, 0.16);
   --scrim: rgba(26, 23, 18, 0.4);
+  /* WCAG AA as text on light --ground (dark values fail ~2.5:1 / ~1.9:1 here) */
+  --good: #3e7a3b;
+  --warn: #8a6210;
 }
 
 @media (prefers-color-scheme: light) {

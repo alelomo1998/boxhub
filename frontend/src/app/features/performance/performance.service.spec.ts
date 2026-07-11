@@ -15,16 +15,16 @@ describe('PerformanceService', () => {
   afterEach(() => http.verify());
 
   it('putScore PUTs the slot score with the body', () => {
-    service.putScore('s1', { rx: true, timeSeconds: 183, isPrivate: false }).subscribe();
-    const req = http.expectOne('/api/box/program/s1/score');
+    service.putScore('i1', { rx: true, timeSeconds: 183, isPrivate: false }).subscribe();
+    const req = http.expectOne('/api/box/sessions/items/i1/score');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body.timeSeconds).toBe(183);
     req.flush({});
   });
 
   it('leaderboard GETs the leaderboard URL', () => {
-    service.leaderboard('s1').subscribe();
-    const req = http.expectOne('/api/box/program/s1/leaderboard');
+    service.leaderboard('i1').subscribe();
+    const req = http.expectOne('/api/box/sessions/items/i1/leaderboard');
     expect(req.request.method).toBe('GET');
     req.flush({ scoreType: 'TIME', entries: [] });
   });

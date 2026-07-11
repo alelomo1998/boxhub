@@ -1,6 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+
+export interface AdminStats {
+  activeMembers: number;
+  weekAttendance: { checkins: number; booked: number; capacity: number; fillPct: number };
+  expiringPlans: number;
+}
 import { Role } from '../../core/auth/auth.models';
 
 export interface Member {
@@ -45,4 +51,6 @@ export class AdminService {
   patchSettings(s: Partial<BoxSettings>): Observable<BoxSettings> {
     return this.http.patch<BoxSettings>('/api/box/settings', s);
   }
+
+  adminStats(): Observable<AdminStats> { return this.http.get<AdminStats>('/api/box/admin-stats'); }
 }

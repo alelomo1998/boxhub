@@ -17,10 +17,10 @@ describe('ScoreFormComponent', () => {
 
   function create(scoreType = 'TIME') {
     const fixture = TestBed.createComponent(ScoreFormComponent);
-    fixture.componentInstance.slotId = 's1';
+    fixture.componentInstance.itemId = 'i1';
     fixture.componentInstance.scoreType = scoreType;
     fixture.detectChanges();
-    http.expectOne('/api/box/program/s1/score').flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/box/sessions/items/i1/score').flush(null, { status: 204, statusText: 'No Content' });
     return fixture;
   }
 
@@ -38,7 +38,7 @@ describe('ScoreFormComponent', () => {
     let saved = false;
     c.saved.subscribe(() => (saved = true));
     c.save();
-    const req = http.expectOne('/api/box/program/s1/score');
+    const req = http.expectOne('/api/box/sessions/items/i1/score');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body.timeSeconds).toBe(210);
     req.flush({ id: 'x', slotId: 's1', rx: true, timeSeconds: 210, rounds: null, reps: null,
@@ -52,7 +52,7 @@ describe('ScoreFormComponent', () => {
     const c = fixture.componentInstance;
     c.load.set(120);
     c.save();
-    http.expectOne('/api/box/program/s1/score').flush('boom', { status: 0, statusText: 'Network' });
+    http.expectOne('/api/box/sessions/items/i1/score').flush('boom', { status: 0, statusText: 'Network' });
     expect(c.error()).toContain("Couldn't save");
     expect(c.load()).toBe(120);
     expect(c.pending()).toBeFalse();
