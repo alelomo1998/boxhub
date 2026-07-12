@@ -108,6 +108,7 @@ export class AdminShellPage {
     { link: 'invites', label: 'Invites' },
     { link: 'plans', label: 'Plans' },
     { link: 'movements', label: 'Movements' },
+    { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
   ];
   mobileTabs = [
@@ -119,6 +120,7 @@ export class AdminShellPage {
     { link: 'invites', label: 'Invites' },
     { link: 'plans', label: 'Plans' },
     { link: 'movements', label: 'Movements' },
+    { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
   ];
 }

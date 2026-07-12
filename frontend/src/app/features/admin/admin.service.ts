@@ -22,6 +22,7 @@ export interface Invite { id: string; email: string; role: Role; planId: string 
 export interface CreatedInvite extends Invite { link: string; }
 export interface BoxSettings { id: string; name: string; slug: string; timezone: string; logoUrl: string | null; role: Role; }
 export interface PageResponse<T> { content: T[]; totalElements: number; totalPages: number; }
+export interface TvDeviceDto { id: string; name: string; online: boolean; lastSeenAt: string | null; createdAt: string; }
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
@@ -53,4 +54,13 @@ export class AdminService {
   }
 
   adminStats(): Observable<AdminStats> { return this.http.get<AdminStats>('/api/box/admin-stats'); }
+
+  tvDevices(): Observable<TvDeviceDto[]> { return this.http.get<TvDeviceDto[]>('/api/box/tv'); }
+  claimTv(code: string, name: string): Observable<TvDeviceDto> {
+    return this.http.post<TvDeviceDto>('/api/box/tv/claim', { code, name });
+  }
+  renameTv(id: string, name: string): Observable<TvDeviceDto> {
+    return this.http.patch<TvDeviceDto>(`/api/box/tv/${id}`, { name });
+  }
+  removeTv(id: string): Observable<void> { return this.http.delete<void>(`/api/box/tv/${id}`); }
 }

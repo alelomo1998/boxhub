@@ -54,6 +54,7 @@ export const routes: Routes = [
       { path: 'invites', loadComponent: () => import('./features/admin/invites.page').then(m => m.InvitesPage) },
       { path: 'plans', loadComponent: () => import('./features/admin/plans.page').then(m => m.PlansPage) },
       { path: 'movements', loadComponent: () => import('./features/admin/movements.page').then(m => m.MovementsPage) },
+      { path: 'tvs', loadComponent: () => import('./features/admin/tvs.page').then(m => m.TvsPage) },
       { path: 'settings', loadComponent: () => import('./features/admin/settings.page').then(m => m.SettingsPage) },
     ],
   },
