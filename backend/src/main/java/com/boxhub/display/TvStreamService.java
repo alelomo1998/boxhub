@@ -84,7 +84,9 @@ public class TvStreamService {
             c.emitter().send(SseEmitter.event().name("state").data(json.writeValueAsString(snapshot)));
         } catch (Exception e) {
             connections.remove(deviceId);
-            c.emitter().completeWithError(e);
+            // a concurrent disconnect() may have completed this emitter already; a registry-cleanup
+            // failure must never escape into the request thread that published the event
+            try { c.emitter().completeWithError(e); } catch (Exception ignored) { }
         }
     }
 
