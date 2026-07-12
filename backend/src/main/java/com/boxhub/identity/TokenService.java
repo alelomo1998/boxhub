@@ -50,6 +50,20 @@ public class TokenService {
                 .expiresAt(now.plus(accessTtl));
     }
 
+    /** Long-lived TV device token. Revocation = device REVOKED/deleted, checked on every stream connect. */
+    public String tvToken(java.util.UUID deviceId, java.util.UUID boxId) {
+        Instant now = Instant.now();
+        return encode(JwtClaimsSet.builder()
+                .issuer("boxhub")
+                .subject(deviceId.toString())
+                .claim("scope", "tv")
+                .claim("device_id", deviceId.toString())
+                .claim("box_id", boxId.toString())
+                .issuedAt(now)
+                .expiresAt(now.plus(Duration.ofDays(400))) // pilot tradeoff (spec §3)
+                .build());
+    }
+
     private String encode(JwtClaimsSet claims) {
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

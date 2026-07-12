@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED = Set.of(
-            "/api/auth/login", "/api/auth/register", "/api/auth/refresh");
+            "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/tv/pair");
 
     private final int limit;
     private final Cache<String, AtomicInteger> counters = Caffeine.newBuilder()
