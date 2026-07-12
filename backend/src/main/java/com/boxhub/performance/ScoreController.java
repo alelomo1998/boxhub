@@ -5,6 +5,7 @@ import com.boxhub.programming.SessionItemController;
 import com.boxhub.programming.SessionItemRepository;
 import com.boxhub.programming.WodRepository;
 import jakarta.validation.Valid;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,11 +20,14 @@ public class ScoreController {
     private final ScoreService service;
     private final SessionItemRepository items;
     private final WodRepository wods;
+    private final ApplicationEventPublisher events;
 
-    public ScoreController(ScoreService service, SessionItemRepository items, WodRepository wods) {
+    public ScoreController(ScoreService service, SessionItemRepository items, WodRepository wods,
+                           ApplicationEventPublisher events) {
         this.service = service;
         this.items = items;
         this.wods = wods;
+        this.events = events;
     }
 
     public record ScoreDto(UUID id, UUID itemId, boolean rx, Integer timeSeconds, Integer rounds, Integer reps,
@@ -48,6 +52,7 @@ public class ScoreController {
         WodScore s = service.upsert(itemId, new ScoreService.ScoreInput(
                 req.rx(), req.timeSeconds(), req.rounds(), req.reps(), req.load(),
                 req.finished(), req.notes(), req.isPrivate()));
+        events.publishEvent(new com.boxhub.display.TvStateChanged(com.boxhub.shared.TenantContext.requireBoxId()));
         return toDto(s);
     }
 

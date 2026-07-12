@@ -9,10 +9,12 @@ public class TvAdminController {
 
     private final TvPairingService pairing;
     private final TvDeviceRepository devices;
+    private final TvStreamService stream;
 
-    public TvAdminController(TvPairingService pairing, TvDeviceRepository devices) {
+    public TvAdminController(TvPairingService pairing, TvDeviceRepository devices, TvStreamService stream) {
         this.pairing = pairing;
         this.devices = devices;
+        this.stream = stream;
     }
 
     record ClaimRequest(String code, String name) {}
@@ -53,7 +55,7 @@ public class TvAdminController {
         d.setStatus("REVOKED");
         d.setPairingCode(null);
         devices.save(d);
-        // M6-T5: disconnect emitter here (TvStreamService.disconnect(id))
+        stream.disconnect(id);
     }
 
     /** tv_devices is not @TenantId — ownership is this explicit box_id check. */
