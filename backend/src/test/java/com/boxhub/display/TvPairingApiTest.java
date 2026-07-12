@@ -113,6 +113,29 @@ class TvPairingApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void claimedCodeCannotBeReclaimedByAnotherBox() throws Exception {
+        long n = System.nanoTime();
+        Box a = newBox("tvh-a-" + n);
+        Box b = newBox("tvh-b-" + n);
+        String coachA = boxToken("tvha-" + n + "@t.io", a, "COACH");
+        String coachB = boxToken("tvhb-" + n + "@t.io", b, "COACH");
+        Pair p = pair();
+
+        mvc.perform(post("/api/box/tv/claim").header("Authorization", "Bearer " + coachA)
+                .contentType(APPLICATION_JSON)
+                .content("{\"code\":\"" + p.code() + "\",\"name\":\"Box A TV\"}"))
+                .andExpect(status().isOk());
+
+        // Box B tries to hijack the same code: the device is no longer PENDING -> 404
+        mvc.perform(post("/api/box/tv/claim").header("Authorization", "Bearer " + coachB)
+                .contentType(APPLICATION_JSON)
+                .content("{\"code\":\"" + p.code() + "\",\"name\":\"steal\"}"))
+                .andExpect(status().isNotFound());
+
+        assertThat(devices.findByPairingCode(p.code()).orElseThrow().getBoxId()).isEqualTo(a.getId());
+    }
+
+    @Test
     void claimWithoutAuthDenied() throws Exception {
         Pair p = pair();
         mvc.perform(post("/api/box/tv/claim").contentType(APPLICATION_JSON)
