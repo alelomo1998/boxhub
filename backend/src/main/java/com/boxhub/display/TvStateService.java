@@ -81,37 +81,41 @@ public class TvStateService {
         if (current.getCoachId() != null)
             coach = memberships.findByUserIdAndBoxId(current.getCoachId(), boxId).orElse(null);
 
-        List<SessionItem> sessionItems = items.findBySessionIdOrderBySortOrderAsc(current.getId());
+        // draft programming is never broadcast: no items, no ranked rows (scores can't exist on drafts anyway)
         List<ItemInfo> itemInfos = new ArrayList<>();
-        Map<UUID, Wod> wodById = new HashMap<>();
-        for (SessionItem it : sessionItems) {
-            Wod w = wods.findById(it.getWodId()).orElse(null);
-            if (w == null) continue;
-            wodById.put(it.getId(), w);
-            itemInfos.add(new ItemInfo(w.getWodType(), w.getTitle(), w.getBodyText()));
-        }
-
-        // rail: ranked results from the LAST scoreable item's leaderboard, merged with the roster
         Map<UUID, RailRow> ranked = new LinkedHashMap<>(); // membershipId -> row
-        SessionItem scored = sessionItems.stream()
-                .filter(SessionItem::isScoreable)
-                .reduce((a, b) -> b).orElse(null); // the metcon is conventionally last
-        if (scored != null) {
-            Wod w = wodById.get(scored.getId());
-            String scoreType = SessionItemController.effectiveScoreType(scored, w);
-            List<WodScore> rankedScores = Leaderboard.rank(scores.findBySessionItemId(scored.getId()), scoreType);
-            int r = 1;
-            for (WodScore sc : rankedScores) {
-                Membership m = memberships.findById(sc.getMembershipId()).orElse(null);
-                if (m == null) continue;
-                ranked.put(m.getId(), new RailRow(m.getUser().getName(), m.getAvatarPath(),
-                        "SCORED", r++, format(scoreType, sc), sc.isRx()));
+        if ("PUBLISHED".equals(current.getProgrammingStatus())) {
+            List<SessionItem> sessionItems = items.findBySessionIdOrderBySortOrderAsc(current.getId());
+            Map<UUID, Wod> wodById = new HashMap<>();
+            for (SessionItem it : sessionItems) {
+                Wod w = wods.findById(it.getWodId()).orElse(null);
+                if (w == null) continue;
+                wodById.put(it.getId(), w);
+                itemInfos.add(new ItemInfo(w.getWodType(), w.getTitle(), w.getBodyText()));
+            }
+
+            // rail: ranked results from the LAST scoreable item's leaderboard, merged with the roster
+            SessionItem scored = sessionItems.stream()
+                    .filter(SessionItem::isScoreable)
+                    .reduce((a, b) -> b).orElse(null); // the metcon is conventionally last
+            if (scored != null) {
+                Wod w = wodById.get(scored.getId());
+                String scoreType = SessionItemController.effectiveScoreType(scored, w);
+                List<WodScore> rankedScores = Leaderboard.rank(scores.findBySessionItemId(scored.getId()), scoreType);
+                int r = 1;
+                for (WodScore sc : rankedScores) {
+                    Membership m = memberships.findById(sc.getMembershipId()).orElse(null);
+                    if (m == null) continue;
+                    ranked.put(m.getId(), new RailRow(m.getUser().getName(), m.getAvatarPath(),
+                            "SCORED", r++, format(scoreType, sc), sc.isRx()));
+                }
             }
         }
 
         List<RailRow> rail = new ArrayList<>(ranked.values());
         for (Booking b : bookings.findBySessionId(current.getId())) {
-            if ("WAITLIST".equals(b.getStatus()) || ranked.containsKey(b.getMembershipId())) continue;
+            boolean inClass = "BOOKED".equals(b.getStatus()) || "CHECKED_IN".equals(b.getStatus());
+            if (!inClass || ranked.containsKey(b.getMembershipId())) continue;
             Membership m = memberships.findById(b.getMembershipId()).orElse(null);
             if (m == null) continue;
             rail.add(new RailRow(m.getUser().getName(), m.getAvatarPath(), b.getStatus(), null, null, null));

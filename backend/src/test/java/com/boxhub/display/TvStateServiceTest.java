@@ -97,6 +97,51 @@ class TvStateServiceTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void noShowExcludedFromRail() {
+        long n = System.nanoTime();
+        Box a = newBox("tvs-ns-" + n);
+        actAsBox(a.getId());
+
+        ClassSession s = new ClassSession();
+        s.setName("WOD Class"); s.setStartAt(Instant.now().minusSeconds(600));
+        s.setDurationMin(60); s.setCapacity(12); s.setProgrammingStatus("PUBLISHED");
+        s = sessions.save(s);
+
+        Membership booked = member(a, "tvns1-" + n + "@t.io", "Booked Athlete");
+        Membership noShow = member(a, "tvns2-" + n + "@t.io", "No Show Athlete");
+        Booking b1 = new Booking(); b1.setSessionId(s.getId()); b1.setMembershipId(booked.getId()); b1.setStatus("BOOKED");
+        bookings.save(b1);
+        Booking b2 = new Booking(); b2.setSessionId(s.getId()); b2.setMembershipId(noShow.getId()); b2.setStatus("NO_SHOW");
+        bookings.save(b2);
+
+        TvStateService.TvState st = state.compose(a.getId());
+        assertThat(st.rail()).extracting(TvStateService.RailRow::name).contains("Booked Athlete");
+        assertThat(st.rail()).extracting(TvStateService.RailRow::name).doesNotContain("No Show Athlete");
+    }
+
+    @Test
+    void draftProgrammingHiddenFromTv() {
+        long n = System.nanoTime();
+        Box a = newBox("tvs-draft-" + n);
+        actAsBox(a.getId());
+
+        ClassSession s = new ClassSession();
+        s.setName("WOD Class"); s.setStartAt(Instant.now().minusSeconds(600));
+        s.setDurationMin(60); s.setCapacity(12); s.setProgrammingStatus("DRAFT");
+        s = sessions.save(s);
+
+        Wod fran = new Wod(); fran.setTitle("Fran"); fran.setWodType("FOR_TIME"); fran.setScoreType("TIME");
+        fran.setBodyText("21-15-9"); fran = wods.save(fran);
+        SessionItem it = new SessionItem();
+        it.setSessionId(s.getId()); it.setSortOrder(0); it.setWodId(fran.getId()); it.setScoreable(true);
+        items.save(it);
+
+        TvStateService.TvState st = state.compose(a.getId());
+        assertThat(st.view()).isEqualTo("CLASS");
+        assertThat(st.items()).isEmpty();
+    }
+
+    @Test
     void idleWhenNothingToday() {
         long n = System.nanoTime();
         Box a = newBox("tvs-idle-" + n);
