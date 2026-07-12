@@ -31,8 +31,9 @@ import { AdminService, TvDeviceDto } from './admin.service';
 
       @if (loading()) { <p class="stateline">Loading TVs…</p> }
       @else if (error()) { <p class="stateline err">Couldn't load.
-        <button class="retry" (click)="load()">Try again</button></p> }
+        <bh-button variant="ghost" size="sm" (click)="load()">Try again</bh-button></p> }
       @else {
+        @if (removeError()) { <p class="err" role="alert">{{ removeError() }}</p> }
         <div class="list">
           @for (d of devices(); track d.id) {
             <div class="row" [attr.data-testid]="'tv-' + d.id">
@@ -41,7 +42,7 @@ import { AdminService, TvDeviceDto } from './admin.service';
                 <span class="nm">{{ d.name }}</span>
                 <span class="sub">{{ d.online ? 'online' : (d.lastSeenAt ? ('last seen ' + (d.lastSeenAt | date:'d MMM HH:mm')) : 'never connected') }}</span>
               </div>
-              <button class="quiet" (click)="remove(d)">Remove</button>
+              <bh-button variant="ghost" size="sm" [disabled]="removing() === d.id" (click)="remove(d)">{{ removing() === d.id ? 'Removing…' : 'Remove' }}</bh-button>
             </div>
           } @empty {
             <div class="empty"><p class="e1">No TVs paired.</p>
@@ -57,9 +58,6 @@ import { AdminService, TvDeviceDto } from './admin.service';
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
     .stateline { color: var(--bone-dim); } .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
-    .retry, .quiet { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
-      border: 1px solid var(--hairline); border-radius: var(--r-ctl); font-size: var(--fs-sm); cursor: pointer; }
-    .retry:focus-visible, .quiet:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
 
     .claim { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); }
@@ -72,10 +70,10 @@ import { AdminService, TvDeviceDto } from './admin.service';
     .qlab { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--faint); }
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
-      min-height: var(--tap); padding: 0 12px; color: var(--bone); font-size: var(--fs-body);
+      min-height: var(--tap); padding: 0 var(--sp-3); color: var(--bone); font-size: var(--fs-body);
       box-sizing: border-box; width: 100%; }
     .in.num { width: 130px; text-align: center; font-family: var(--font-display); font-weight: 800;
-      font-size: 20px; font-variant-numeric: tabular-nums; letter-spacing: 0.1em; }
+      font-size: var(--fs-h2); font-variant-numeric: tabular-nums; letter-spacing: 0.1em; }
     .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
 
     .list { display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -102,6 +100,8 @@ export class TvsPage implements OnInit {
   name = signal('');
   claiming = signal(false);
   claimError = signal('');
+  removing = signal<string | null>(null);
+  removeError = signal('');
 
   ngOnInit() { this.load(); }
 
@@ -128,9 +128,10 @@ export class TvsPage implements OnInit {
   }
 
   remove(d: TvDeviceDto) {
+    this.removing.set(d.id); this.removeError.set('');
     this.admin.removeTv(d.id).subscribe({
-      next: () => this.load(),
-      error: () => this.claimError.set("Couldn't remove — try again."),
+      next: () => { this.removing.set(null); this.load(); },
+      error: () => { this.removing.set(null); this.removeError.set(`Couldn't remove ${d.name} — try again.`); },
     });
   }
 }
