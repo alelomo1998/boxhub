@@ -28,9 +28,11 @@ CrossFit box platform. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16. Mul
 ## Communication (binding)
 - **Caveman mode, level `full` (not ultra):** terse prose, drop articles/filler/pleasantries, fragments OK. All technical substance stays. Code, commits, PRs, security warnings written normally. Goal: cut token burn, not clarity.
 
-## Process pace (DEFAULT — lightweight)
-Keep the superpowers arc (brainstorm → writing-plans → execute → finish) but execute LIGHT:
-- **Default = inline execution by the main thread.** Write/Edit the files directly, run tests+build, commit. NO implementer subagent, NO reviewer subagent, NO per-task brief/report files for mechanical, well-specified work (restyles, CRUD from a detailed plan, transcription). Tests + build + targeted greps are the gate.
-- **Spawn a subagent ONLY when:** the work is genuinely parallelizable, high-uncertainty/high-risk (security, tenancy, money, tricky concurrency), or too big to hold in one context. Then one implementer + one review, not a loop.
+## Process pace — orchestrator/executor (binding from M6)
+Keep the superpowers arc (brainstorm → writing-plans → execute → finish). Execution model:
+- **Orchestrator = main session (Fable/Opus).** Owns the plan, dispatches tasks, reviews diffs, runs the gates (tests, build, tenancy greps, impeccable), commits, merges. Executors never self-merge.
+- **Executor = Sonnet subagents** (`Agent` tool with `model: "sonnet"`), one per plan task, each given a self-contained brief: files to touch, exact code from the plan, verification commands.
+- **Escalation:** executors never guess. Blocked / ambiguous / plan-conflicts-with-reality → return the question to the orchestrator instead of improvising; the orchestrator answers (or asks the user) and re-dispatches.
+- Trivial glue (one-line fixes, doc edits, commit mechanics) stays inline with the orchestrator — don't spawn an executor for a rename.
 - Commit in batches (several plan tasks per commit is fine). Track progress in `.superpowers/sdd/progress.md`.
-- This is a correction from M0/M1, which used per-task implement+review+fix subagents — too heavy/slow/expensive for this stage.
+- History: M0/M1 used heavy per-task implement+review+fix loops (too slow); M2–M5.5 ran fully inline (fast but burns the big model on mechanical work). This model is the middle: big model judges, fast model types.
