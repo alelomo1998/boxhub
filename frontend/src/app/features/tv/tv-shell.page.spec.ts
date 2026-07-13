@@ -47,6 +47,7 @@ describe('TvShellPage', () => {
       items: [{ type: 'FOR_TIME', title: 'Fran', bodyText: '21-15-9' }],
       rail: [{ name: 'Fast', avatarPath: null, status: 'SCORED', rank: 1, score: '3:21', rx: true },
              { name: 'Booked', avatarPath: null, status: 'BOOKED', rank: null, score: null, rx: null }],
+      timer: null,
     });
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
@@ -67,7 +68,7 @@ describe('TvShellPage', () => {
       view: 'CLASS', boxName: 'Demo Box', next: null,
       session: { id: 's1', name: 'WOD Class', startAt: new Date().toISOString(), durationMin: 60,
                  coachName: null, coachAvatarPath: null },
-      items: [{ type: 'FOR_TIME', title: 'Fran', bodyText: null }], rail,
+      items: [{ type: 'FOR_TIME', title: 'Fran', bodyText: null }], rail, timer: null,
     });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('.row').length).toBe(cmp.railCap);
@@ -91,13 +92,32 @@ describe('TvShellPage', () => {
     expect(fixture.nativeElement.textContent).toContain('654321');
   });
 
+  it('shows the giant clock and piece caption when a timer is running', () => {
+    localStorage.setItem('boxhub_tv_token', 't');
+    const fixture = TestBed.createComponent(TvShellPage);
+    const cmp = fixture.componentInstance;
+    fixture.detectChanges();
+    cmp.onState({
+      view: 'CLASS', boxName: 'Demo Box', next: null,
+      session: { id: 's1', name: 'WOD Class', startAt: new Date().toISOString(), durationMin: 60,
+                 coachName: 'Coach', coachAvatarPath: null },
+      items: [{ type: 'FOR_TIME', title: 'Fran', bodyText: '21-15-9' }],
+      rail: [{ name: 'Fast', avatarPath: null, status: 'BOOKED', rank: null, score: null, rx: null }],
+      timer: { type: 'AMRAP', totalSeconds: 600, rounds: null, workSeconds: null, restSeconds: null,
+               startAtEpoch: Date.now(), pausedElapsedMs: 0, status: 'RUNNING', pieceTitle: 'Fran', pieceBody: '21-15-9' },
+    } as any);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.tvtimer')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Fran');
+  });
+
   it('IDLE snapshot shows clock and next class', () => {
     localStorage.setItem('boxhub_tv_token', 't');
     const fixture = TestBed.createComponent(TvShellPage);
     fixture.componentInstance.onState({
       view: 'IDLE', boxName: 'Demo Box',
       next: { name: 'Burn It', startAt: new Date(Date.now() + 3600_000).toISOString() },
-      session: null, items: [], rail: [],
+      session: null, items: [], rail: [], timer: null,
     });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Burn It');

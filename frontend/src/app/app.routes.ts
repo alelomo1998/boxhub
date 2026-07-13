@@ -30,6 +30,7 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'classes' },
       { path: 'classes', loadComponent: () => import('./features/coach/classes.page').then(m => m.CoachClassesPage) },
       { path: 'classes/:id/checkin', loadComponent: () => import('./features/coach/checkin.page').then(m => m.CheckinPage) },
+      { path: 'classes/:id/run', loadComponent: () => import('./features/coach/runner.page').then(m => m.RunnerPage) },
       { path: 'classes/:id/build', canDeactivate: [unsavedGuard],
         loadComponent: () => import('./features/coach/instance-builder.page').then(m => m.InstanceBuilderPage) },
       { path: 'types', loadComponent: () => import('./features/programming/types.page').then(m => m.TypesPage) },

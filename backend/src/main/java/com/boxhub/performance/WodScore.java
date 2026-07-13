@@ -26,6 +26,7 @@ public class WodScore {
     @Column(name = "private", nullable = false) private boolean isPrivate = false;
     @Column(name = "created_at", nullable = false) private Instant createdAt = Instant.now();
     @Column(name = "updated_at", nullable = false) private Instant updatedAt = Instant.now();
+    @Column(name = "logged_by") private UUID loggedBy;
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
@@ -52,4 +53,6 @@ public class WodScore {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public UUID getLoggedBy() { return loggedBy; }
+    public void setLoggedBy(UUID loggedBy) { this.loggedBy = loggedBy; }
 }

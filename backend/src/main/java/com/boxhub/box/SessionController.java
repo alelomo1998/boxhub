@@ -99,7 +99,7 @@ public class SessionController {
                 s.getCoachId(), coachName, s.getStatus(), s.getProgrammingStatus(), booked, waitlist, List.of(), null, null);
     }
 
-    record RosterEntry(UUID bookingId, String name, String email, String avatarPath, String status, Integer position) {}
+    record RosterEntry(UUID bookingId, UUID membershipId, String name, String email, String avatarPath, String status, Integer position) {}
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true) // keep session open for lazy User
     @GetMapping("/{id}/roster")
@@ -113,7 +113,7 @@ public class SessionController {
             String name = m != null ? m.getUser().getName() : "";
             String email = m != null ? m.getUser().getEmail() : "";
             String avatar = m != null ? m.getAvatarPath() : null;
-            out.add(new RosterEntry(b.getId(), name, email, avatar, b.getStatus(), b.getPosition()));
+            out.add(new RosterEntry(b.getId(), b.getMembershipId(), name, email, avatar, b.getStatus(), b.getPosition()));
         }
         return out;
     }

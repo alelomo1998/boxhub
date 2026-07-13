@@ -10,7 +10,7 @@ export interface SessionView {
 }
 export interface BookingResult { bookingId: string; status: string; position: number | null; }
 export interface MyBooking { sessionId: string; sessionName: string; startAt: string; status: string; position: number | null; }
-export interface RosterEntry { bookingId: string; name: string; email: string; avatarPath: string | null; status: string; position: number | null; }
+export interface RosterEntry { bookingId: string; membershipId: string; name: string; email: string; avatarPath: string | null; status: string; position: number | null; }
 export interface ClassTemplate {
   id: string; name: string; weekday: number; startTime: string;
   durationMin: number; capacity: number; coachId: string | null; active: boolean;

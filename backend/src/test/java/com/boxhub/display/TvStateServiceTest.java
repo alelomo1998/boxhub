@@ -94,6 +94,7 @@ class TvStateServiceTest extends AbstractIntegrationTest {
                 .filter(r -> r.name().equals("Quiet Athlete")).findFirst().orElseThrow();
         assertThat(quiet.rank()).isNull();
         assertThat(quiet.score()).isNull();
+        assertThat(st.timer()).isNull();
     }
 
     @Test
