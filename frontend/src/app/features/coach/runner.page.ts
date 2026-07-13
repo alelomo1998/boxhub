@@ -36,6 +36,7 @@ type FetchState = 'loading' | 'error' | 'ready';
               <div class="strip" data-testid="roster-strip">
                 @for (a of active(); track a.bookingId) {
                   <button class="chip" [class.in]="a.status === 'CHECKED_IN'" (click)="toggleCheckin(a)"
+                          [attr.aria-pressed]="a.status === 'CHECKED_IN'"
                           [attr.data-testid]="'roster-' + a.bookingId">
                     <bh-avatar [path]="a.avatarPath" [name]="a.name" size="sm" />
                     <span class="chip-nm">{{ a.name }}</span>
@@ -86,24 +87,30 @@ type FetchState = 'loading' | 'error' | 'ready';
                 </div>
               }
 
-              @if (actionError()) { <p class="err" role="alert">{{ actionError() }}</p> }
-              @if (timerFetchError()) { <p class="err" role="alert">Couldn't load the current timer state.</p> }
+              <!-- fixed-height slot so an error never reflows the button row under the coach's thumb -->
+              <div class="errslot" aria-live="polite">
+                @if (actionError()) { <p class="err" role="alert">{{ actionError() }}</p> }
+                @else if (timerFetchError()) { <p class="err" role="alert">Couldn't load the current timer state.</p> }
+              </div>
 
-              <div class="clock" data-testid="clock">
+              <div class="clock" data-testid="clock" [class.on]="timer()?.status === 'RUNNING'"
+                   [class.paused]="timer()?.status === 'PAUSED'">
+                @if (timedPieceTitle(); as pt) { <span class="clock-piece">{{ pt }}</span> }
                 @if (clock(); as c) {
                   <span class="clock-d num">{{ c.display }}</span>
                   @if (c.phase) { <span class="clock-p">{{ c.phase }}</span> }
+                  @if (timer()?.status === 'PAUSED') { <span class="clock-p">paused</span> }
                 } @else { <span class="clock-d num">--:--</span> }
               </div>
 
               <div class="acts">
-                <bh-button size="sm" (click)="arm()">Arm</bh-button>
-                <bh-button size="sm" data-testid="timer-start" [disabled]="!timer()"
+                <bh-button size="sm" variant="ghost" [disabled]="acting()" (click)="arm()">Arm</bh-button>
+                <bh-button size="sm" data-testid="timer-start" [disabled]="!timer() || acting()"
                            (click)="timer()?.status === 'PAUSED' ? resume() : start()">
                   {{ timer()?.status === 'PAUSED' ? 'Resume' : 'Start' }}
                 </bh-button>
-                <bh-button size="sm" variant="ghost" [disabled]="timer()?.status !== 'RUNNING'" (click)="pause()">Pause</bh-button>
-                <bh-button size="sm" variant="ghost" [disabled]="!timer()" (click)="reset()">Reset</bh-button>
+                <bh-button size="sm" variant="ghost" [disabled]="timer()?.status !== 'RUNNING' || acting()" (click)="pause()">Pause</bh-button>
+                <bh-button size="sm" variant="ghost" [disabled]="!timer() || acting()" (click)="reset()">Reset</bh-button>
               </div>
             } @else { <p class="stateline">No scoreable pieces yet — build the class first.</p> }
           }
@@ -161,7 +168,13 @@ type FetchState = 'loading' | 'error' | 'ready';
     .mmss .in { width: 90px; text-align: center; }
     .num { font-variant-numeric: tabular-nums; }
 
-    .clock { display: flex; align-items: baseline; gap: var(--sp-3); }
+    .errslot { min-height: var(--tap); display: flex; align-items: center; }
+    .clock { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3);
+      border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4); }
+    .clock.on { border-color: var(--red); }
+    .clock.paused { border-color: var(--warn); }
+    .clock-piece { flex: 1 1 100%; font-family: var(--font-mono); font-size: var(--fs-meta);
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
     .clock-d { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero); }
     .clock-p { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--faint); text-transform: uppercase; }
     .acts { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
@@ -186,6 +199,7 @@ export class RunnerPage implements OnInit, OnDestroy {
   timer = signal<TimerState | null>(null);
   timerFetchError = signal(false);
   actionError = signal('');
+  acting = signal(false); // a timer control action is in flight
 
   now = signal(Date.now());
   private tickHandle?: ReturnType<typeof setInterval>;
@@ -205,6 +219,11 @@ export class RunnerPage implements OnInit, OnDestroy {
     this.active().map(r => ({ membershipId: r.membershipId, name: r.name, avatarPath: r.avatarPath })));
   scoredItems = computed(() => this.items().filter(i => i.scoreable));
   selectedScoreItem = computed(() => this.scoredItems().find(i => i.id === this.scorePieceId()) ?? null);
+  // the piece the live clock is timing — the coach's own screen must name it, not just the TV
+  timedPieceTitle = computed(() => {
+    const id = this.timer()?.sessionItemId;
+    return id ? (this.items().find(i => i.id === id)?.wod.title ?? null) : null;
+  });
 
   clock = computed<TimerRender | null>(() => {
     const t = this.timer();
@@ -313,10 +332,12 @@ export class RunnerPage implements OnInit, OnDestroy {
   reset() { this.act('RESET'); }
 
   private act(action: string, body: { itemId?: string; spec?: TimerSpec } = {}) {
+    if (this.acting()) return; // one control action in flight at a time — no double-tap race on flaky wifi
     this.actionError.set('');
+    this.acting.set(true);
     this.runner.act(this.sessionId, action, body).subscribe({
-      next: t => this.timer.set(t),
-      error: () => this.actionError.set("Couldn't update the timer — try again."),
+      next: t => { this.timer.set(t); this.acting.set(false); },
+      error: () => { this.actionError.set("Couldn't update the timer — try again."); this.acting.set(false); },
     });
   }
 }
