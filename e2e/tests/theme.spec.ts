@@ -11,9 +11,9 @@ test('app boots dark and login renders on warm ground', async ({ page }) => {
 
 test('brand fonts load (guards the nginx /media/ collision)', async ({ page }) => {
   await page.goto('/auth/login');
-  const ok = await page.evaluate(async () => {
+  // poll: on a cold nginx the woff2 fetch can lag the first paint
+  await expect.poll(() => page.evaluate(async () => {
     await document.fonts.ready;
     return document.fonts.check('800 20px "Saira Condensed"') && document.fonts.check('400 16px "Archivo"');
-  });
-  expect(ok).toBe(true);
+  }), { timeout: 10000 }).toBe(true);
 });

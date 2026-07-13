@@ -1,0 +1,53 @@
+import { test, expect, Page } from '@playwright/test';
+
+async function login(page: Page, email: string) {
+  await page.goto('/auth/login');
+  await page.fill('input[name="email"]', email);
+  await page.fill('input[name="password"]', 'password123');
+  await page.click('button[type="submit"]');
+  await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
+}
+
+test('coach runs a class: arms a timer, logs a score, TV shows the clock', async ({ browser }) => {
+  // TV pairs first
+  const tvCtx = await browser.newContext();
+  const tv = await tvCtx.newPage();
+  await tv.goto('/tv');
+  const codeEl = tv.getByTestId('pair-code');
+  await expect(codeEl).toHaveText(/^\d{6}$/, { timeout: 10000 });
+  const code = (await codeEl.textContent())!.trim();
+
+  const coachCtx = await browser.newContext();
+  const coach = await coachCtx.newPage();
+  await login(coach, 'coach@demo.io');
+
+  // pair through admin (coaches lack /admin/tvs):
+  const adminCtx = await browser.newContext();
+  const admin = await adminCtx.newPage();
+  await login(admin, 'admin@demo.io');
+  await admin.goto('/admin/tvs');
+  await admin.getByTestId('tv-code').fill(code);
+  await admin.getByTestId('tv-name').fill('Runner TV');
+  await admin.getByRole('button', { name: 'Pair' }).click();
+  await expect(admin.locator('.row', { hasText: 'Runner TV' })).toBeVisible();
+
+  // coach opens the runner for today's class, arms an AMRAP, then starts it
+  await coach.goto('/coach/classes');
+  await coach.locator('.list, .empty').first().waitFor();
+  await coach.locator('[data-testid="run-link"]').first().click();
+  await expect(coach.getByTestId('runner')).toBeVisible();
+
+  // arm: pick the first scoreable piece, AMRAP 10:00 (Start is disabled until a timer is armed)
+  await coach.getByLabel('Piece', { exact: true }).selectOption({ index: 1 });
+  await coach.getByLabel('Timer type').selectOption('AMRAP');
+  await coach.getByLabel('Minutes').fill('10');
+  await coach.getByLabel('Seconds').fill('0');
+  await coach.getByRole('button', { name: 'Arm' }).click();
+  await expect(coach.getByTestId('timer-start')).toBeEnabled();
+  await coach.getByTestId('timer-start').click();
+
+  // TV takes over with the giant clock within a couple SSE pushes
+  await expect(tv.locator('.tvtimer')).toBeVisible({ timeout: 15000 });
+
+  await tvCtx.close(); await coachCtx.close(); await adminCtx.close();
+});

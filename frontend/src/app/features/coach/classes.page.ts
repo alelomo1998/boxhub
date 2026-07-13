@@ -16,7 +16,7 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
         <h1 class="title">Classes</h1>
       </header>
 
-      <bh-day-pager [offset]="dayOffset()" [max]="6" (offsetChange)="dayOffset.set($event)" />
+      <bh-day-pager [offset]="dayOffset()" [max]="13" (offsetChange)="dayOffset.set($event)" />
 
       @if (loading()) { <p class="stateline">Loading classes…</p> }
       @else if (error()) {
@@ -112,7 +112,7 @@ export class CoachClassesPage implements OnInit {
     this.loading.set(true);
     this.error.set(false);
     const from = new Date(); from.setHours(0, 0, 0, 0);
-    const to = new Date(Date.now() + 7 * 864e5);
+    const to = new Date(Date.now() + 14 * 864e5); // match the athlete Book window so the coach can reach any upcoming class
     this.booking.listSessions(from.toISOString(), to.toISOString()).subscribe({
       next: s => { this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
       error: () => { this.loading.set(false); this.error.set(true); },
