@@ -109,4 +109,15 @@ class TimerApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/sessions/" + sidA + "/timer").header("Authorization", "Bearer " + coachB))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void crossTenantTimerPostDenied() throws Exception {
+        long n = System.nanoTime();
+        Box a = newBox("tmrxp-a-" + n); Box b = newBox("tmrxp-b-" + n);
+        String coachB = tok("tmrxpb-" + n + "@t.io", b, "COACH");
+        UUID sidA = session(a);
+        mvc.perform(post("/api/box/sessions/" + sidA + "/timer").header("Authorization", "Bearer " + coachB)
+                .contentType(APPLICATION_JSON).content("{\"action\":\"ARM\",\"spec\":{\"type\":\"AMRAP\",\"totalSeconds\":600}}"))
+                .andExpect(status().isNotFound());
+    }
 }

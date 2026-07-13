@@ -78,11 +78,18 @@ public class ScoreService {
                 .filter(m -> TenantContext.requireBoxId().equals(m.getBox().getId()))
                 .orElseThrow(NoSuchElementException::new); // foreign/unknown -> 404
         WodScore s = scores.findBySessionItemIdAndMembershipId(itemId, targetMembershipId).orElseGet(WodScore::new);
+        boolean existing = s.getId() != null;
         s.setSessionItemId(itemId);
         s.setMembershipId(targetMembershipId);
-        s.setRx(in.rx()); s.setTimeSeconds(in.timeSeconds()); s.setRounds(in.rounds()); s.setReps(in.reps());
+        s.setTimeSeconds(in.timeSeconds()); s.setRounds(in.rounds()); s.setReps(in.reps());
         s.setLoad(in.load()); s.setFinished(in.finished() == null || in.finished());
-        s.setNotes(in.notes()); s.setPrivate(in.isPrivate());
+        // Athlete-owned attributes (rx/private/notes): coach only sets these on a brand-new row.
+        // On an existing row, never overwrite what the athlete already set (e.g. don't publicize a private score).
+        if (!existing) {
+            s.setRx(in.rx());
+            s.setPrivate(in.isPrivate());
+            s.setNotes(in.notes());
+        }
         s.setLoggedBy(loggedByMembershipId);
         s.setUpdatedAt(Instant.now());
         return scores.save(s);

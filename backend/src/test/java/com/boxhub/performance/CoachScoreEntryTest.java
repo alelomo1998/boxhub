@@ -90,6 +90,43 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void coachEntryPreservesAthletePrivacy() throws Exception {
+        WodScore self = new WodScore();
+        self.setSessionItemId(item); self.setMembershipId(targetMembership);
+        self.setRx(false); self.setPrivate(true); self.setNotes("scaled band");
+        self.setTimeSeconds(300); self.setFinished(true);
+        actAsBox(memberships.findById(targetMembership).orElseThrow().getBox().getId());
+        scores.save(self);
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(post("/api/box/sessions/items/" + item + "/score/" + targetMembership)
+                .header("Authorization", "Bearer " + coachTok).contentType(APPLICATION_JSON)
+                .content("{\"rx\":true,\"timeSeconds\":201,\"finished\":true,\"isPrivate\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.timeSeconds").value(201));
+
+        WodScore s = scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow();
+        assertThat(s.isPrivate()).isTrue();
+        assertThat(s.isRx()).isFalse();
+        assertThat(s.getNotes()).isEqualTo("scaled band");
+        assertThat(s.getTimeSeconds()).isEqualTo(201);
+        assertThat(s.getLoggedBy()).isNotNull();
+    }
+
+    @Test
+    void coachEntryOnNewRowUsesInput() throws Exception {
+        mvc.perform(post("/api/box/sessions/items/" + item + "/score/" + targetMembership)
+                .header("Authorization", "Bearer " + coachTok).contentType(APPLICATION_JSON)
+                .content("{\"rx\":true,\"timeSeconds\":201,\"finished\":true,\"isPrivate\":false}"))
+                .andExpect(status().isOk());
+
+        WodScore s = scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow();
+        assertThat(s.isRx()).isTrue();
+        assertThat(s.isPrivate()).isFalse();
+        assertThat(s.getLoggedBy()).isNotNull();
+    }
+
     // --- helpers (mirror ScoreControllerTest) ---
     private void actAsBox(UUID boxId) {
         Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256").subject(UUID.randomUUID().toString())
