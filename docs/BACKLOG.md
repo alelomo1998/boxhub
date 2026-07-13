@@ -52,6 +52,14 @@
 - Admin tables on phone are scroll-tables, not cards (shell + dashboard are responsive; deep pages later).
 - Detector false-positive pattern: Angular [src] bindings in @if guards trip `broken-image` — consider repo-level ignore for the rule if the noise annoys.
 
+## Deferred from M7 (runner)
+- Offline IndexedDB score queue — M7 grid is optimistic + per-cell retry (a mid-outage reload loses unsent cells).
+- Timer audio/beeps + last-3 countdown on the TV — M7 is visual only.
+- One coach owns the timer: two coaches on one session race the `class_timers` row (last-write, no lock); `act()` first-ARM is check-then-insert, so concurrent first-ARMs race the unique index → 500 (no DataIntegrityViolation handler anywhere).
+- Coach `upsertFor` could use `MembershipRepository.findByIdAndBoxId` single-query instead of findById+lazy box filter (plan nit).
+- Runner roster chips lack `aria-pressed`; timer initial-GET has no distinct loading vs empty state.
+- TV command (M7.5 — `tv_devices.view`, manual per-device board/leaderboard/timer) and heats/teams remain deferred.
+
 ## Deferred from M6 (TV)
 - TV stream token rides a query param (EventSource can't set headers) — appears in nginx access logs; move to cookie or short-lived stream ticket before real deployments.
 - SSE emitter registry is per-node in-memory (like the rate limiter) — Redis pub/sub when a second node exists.
