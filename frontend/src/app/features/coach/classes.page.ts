@@ -38,6 +38,7 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
               <div class="acts">
                 <a class="act" [routerLink]="['/coach/classes', s.id, 'build']" data-testid="build-link">Build</a>
                 <a class="act" [routerLink]="['/coach/classes', s.id, 'checkin']" data-testid="checkin-link">Check-in</a>
+                <a class="act" [routerLink]="['/coach/classes', s.id, 'run']" data-testid="run-link">Run</a>
               </div>
             </div>
           } @empty {
