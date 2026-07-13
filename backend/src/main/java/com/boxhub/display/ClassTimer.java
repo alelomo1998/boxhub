@@ -13,7 +13,7 @@ public class ClassTimer {
     @TenantId @Column(name = "box_id", nullable = false) private UUID boxId;
     @Column(name = "session_id", nullable = false) private UUID sessionId;
     @Column(name = "session_item_id") private UUID sessionItemId;
-    @Column(name = "spec_json", nullable = false, columnDefinition = "jsonb") private String specJson;
+    @Column(name = "spec_json", nullable = false, columnDefinition = "text") private String specJson;
     @Column(nullable = false) private String status = "PENDING";
     @Column(name = "started_at_epoch") private Long startedAtEpoch;
     @Column(name = "paused_elapsed_ms", nullable = false) private long pausedElapsedMs = 0;
