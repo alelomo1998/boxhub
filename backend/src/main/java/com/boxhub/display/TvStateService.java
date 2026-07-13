@@ -22,13 +22,18 @@ import java.util.*;
 public class TvStateService {
 
     public record TvState(String view, String boxName, NextClass next, SessionInfo session,
-                          List<ItemInfo> items, List<RailRow> rail) {}
+                          List<ItemInfo> items, List<RailRow> rail, TimerInfo timer) {}
     public record NextClass(String name, Instant startAt) {}
     public record SessionInfo(UUID id, String name, Instant startAt, int durationMin,
                               String coachName, String coachAvatarPath) {}
     public record ItemInfo(String type, String title, String bodyText) {}
     public record RailRow(String name, String avatarPath, String status,
                           Integer rank, String score, Boolean rx) {}
+    public record TimerInfo(String type, Integer totalSeconds, Integer rounds, Integer workSeconds,
+                            Integer restSeconds, Long startAtEpoch, long pausedElapsedMs, String status,
+                            String pieceTitle, String pieceBody) {}
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper TIMER_MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
 
     private static final Duration GRACE = Duration.ofMinutes(30);
 
@@ -39,12 +44,14 @@ public class TvStateService {
     private final BookingRepository bookings;
     private final MembershipRepository memberships;
     private final WodScoreRepository scores;
+    private final ClassTimerRepository timers;
 
     public TvStateService(BoxRepository boxes, ClassSessionRepository sessions, SessionItemRepository items,
                           WodRepository wods, BookingRepository bookings, MembershipRepository memberships,
-                          WodScoreRepository scores) {
+                          WodScoreRepository scores, ClassTimerRepository timers) {
         this.boxes = boxes; this.sessions = sessions; this.items = items;
         this.wods = wods; this.bookings = bookings; this.memberships = memberships; this.scores = scores;
+        this.timers = timers;
     }
 
     @Transactional(readOnly = true)
@@ -74,7 +81,7 @@ public class TvStateService {
         if (current == null) {
             NextClass next = upcoming.stream().filter(s -> s.getStartAt().isAfter(now)).findFirst()
                     .map(s -> new NextClass(s.getName(), s.getStartAt())).orElse(null);
-            return new TvState("IDLE", box.getName(), next, null, List.of(), List.of());
+            return new TvState("IDLE", box.getName(), next, null, List.of(), List.of(), null);
         }
 
         Membership coach = null; // coachId on session is a USER id; resolve membership for avatar+name
@@ -121,11 +128,36 @@ public class TvStateService {
             rail.add(new RailRow(m.getUser().getName(), m.getAvatarPath(), b.getStatus(), null, null, null));
         }
 
+        TimerInfo timer = composeTimer(current.getId());
+
         return new TvState("CLASS", box.getName(), null,
                 new SessionInfo(current.getId(), current.getName(), current.getStartAt(), current.getDurationMin(),
                         coach == null ? null : coach.getUser().getName(),
                         coach == null ? null : coach.getAvatarPath()),
-                itemInfos, rail);
+                itemInfos, rail, timer);
+    }
+
+    private TimerInfo composeTimer(UUID sessionId) {
+        ClassTimer t = timers.findBySessionId(sessionId).orElse(null);
+        if (t == null || !("RUNNING".equals(t.getStatus()) || "PAUSED".equals(t.getStatus()))) return null;
+        String pieceTitle = null, pieceBody = null;
+        if (t.getSessionItemId() != null) {
+            SessionItem si = items.findById(t.getSessionItemId()).orElse(null);
+            if (si != null) {
+                Wod w = wods.findById(si.getWodId()).orElse(null);
+                if (w != null) { pieceTitle = w.getTitle(); pieceBody = w.getBodyText(); }
+            }
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode spec = TIMER_MAPPER.readTree(t.getSpecJson());
+            return new TimerInfo(
+                    spec.path("type").asText(null),
+                    spec.has("totalSeconds") ? spec.get("totalSeconds").asInt() : null,
+                    spec.has("rounds") ? spec.get("rounds").asInt() : null,
+                    spec.has("workSeconds") ? spec.get("workSeconds").asInt() : null,
+                    spec.has("restSeconds") ? spec.get("restSeconds").asInt() : null,
+                    t.getStartedAtEpoch(), t.getPausedElapsedMs(), t.getStatus(), pieceTitle, pieceBody);
+        } catch (Exception e) { return null; } // malformed spec never breaks the board
     }
 
     static String format(String scoreType, WodScore s) {
