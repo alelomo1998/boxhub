@@ -17,7 +17,11 @@ const TOKEN_KEY = 'boxhub_tv_token';
           <section class="pairing">
             <span class="eyebrow">{{ 'BoxHub · pair this screen' }}</span>
             <span class="code num" data-testid="pair-code">{{ code() || '……' }}</span>
-            <p class="hint">Enter this code in BoxHub → Admin → TVs</p>
+            @if (pairWaiting()) {
+              <p class="hint">Reaching BoxHub… this screen will show a code in a moment.</p>
+            } @else {
+              <p class="hint">Enter this code in BoxHub → Admin → TVs</p>
+            }
           </section>
         }
         @case ('live') {
@@ -37,7 +41,7 @@ const TOKEN_KEY = 'boxhub_tv_token';
                         <h2 class="p-title">{{ i.title }}</h2>
                         @if (i.bodyText) { <pre class="p-body">{{ i.bodyText }}</pre> }
                       </article>
-                    }
+                    } @empty { <p class="notposted">Programming not posted yet.</p> }
                     @if (s.items.length > 4) { <p class="more">+{{ s.items.length - 4 }} more</p> }
                   </div>
                 </div>
@@ -50,7 +54,7 @@ const TOKEN_KEY = 'boxhub_tv_token';
                     </div>
                   }
                   <div class="people">
-                    @for (r of s.rail; track r.name) {
+                    @for (r of s.rail.slice(0, railCap); track r.name) {
                       <div class="row" [class.win]="r.rank === 1">
                         @if (r.rank !== null) { <span class="rank num">{{ r.rank }}</span> }
                         @else { <span class="rank dot" aria-hidden="true">·</span> }
@@ -59,6 +63,7 @@ const TOKEN_KEY = 'boxhub_tv_token';
                         @if (r.score) { <span class="val num">{{ r.score }}</span> }
                       </div>
                     } @empty { <p class="empty-rail">Nobody booked yet.</p> }
+                    @if (s.rail.length > railCap) { <p class="more">+{{ s.rail.length - railCap }} more in class</p> }
                   </div>
                 </aside>
               </section>
@@ -130,6 +135,8 @@ const TOKEN_KEY = 'boxhub_tv_token';
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .val { font-family: var(--font-display); font-weight: 800; font-size: 2.4vh; }
     .empty-rail { color: var(--faint); font-size: 2vh; }
+    .notposted { font-family: var(--font-display); font-weight: 700; font-size: 3vh;
+      text-transform: uppercase; color: var(--bone-dim); }
 
     .idle { min-height: 100vh; display: flex; flex-direction: column; align-items: center;
       justify-content: center; gap: 2vh; }
@@ -147,10 +154,13 @@ const TOKEN_KEY = 'boxhub_tv_token';
 export class TvShellPage implements OnInit, OnDestroy {
   private tv = inject(TvService);
 
+  readonly railCap = 14; // rows past this clip off a wall screen — show "+N more" instead
+
   mode = signal<'pairing' | 'live'>('pairing');
   code = signal('');
   state = signal<TvState | null>(null);
   reconnecting = signal(false);
+  pairWaiting = signal(false); // backend unreachable during pairing — tell the wall, don't sit blank
   now = signal(new Date());
 
   private secret = '';
@@ -173,14 +183,21 @@ export class TvShellPage implements OnInit, OnDestroy {
   }
 
   private startPairing() {
+    clearInterval(this.pollTimer);
+    this.es?.close();
+    this.es = null;
+    this.state.set(null);
+    this.reconnecting.set(false);
+    this.code.set('');
     this.mode.set('pairing');
     this.tv.pair().subscribe({
       next: p => {
+        this.pairWaiting.set(false);
         this.code.set(p.code);
         this.secret = p.secret;
         this.pollTimer = setInterval(() => this.pollOnce(), 3000);
       },
-      error: () => setTimeout(() => this.startPairing(), 5000), // backend down: retry quietly
+      error: () => { this.pairWaiting.set(true); setTimeout(() => this.startPairing(), 5000); }, // backend down: say so, keep retrying
     });
   }
 
@@ -208,7 +225,17 @@ export class TvShellPage implements OnInit, OnDestroy {
       this.reconnecting.set(false);
       this.onState(JSON.parse(ev.data));
     });
-    this.es.onerror = () => this.reconnecting.set(true); // EventSource retries on its own
+    this.es.onerror = () => {
+      // CLOSED = the browser gave up (revoked device / hard 401); a wall screen must recover on
+      // its own, so drop the dead token and show a fresh pairing code. CONNECTING = transient
+      // wifi blip, EventSource keeps retrying — just flag it.
+      if (this.es?.readyState === EventSource.CLOSED) {
+        localStorage.removeItem(TOKEN_KEY);
+        this.startPairing();
+      } else {
+        this.reconnecting.set(true);
+      }
+    };
   }
 
   onState(s: TvState) { this.state.set(s); }
