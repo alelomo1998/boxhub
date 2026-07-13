@@ -70,6 +70,24 @@ public class ScoreService {
         return scores.save(s);
     }
 
+    /** Coach entry for a target athlete. membershipId is validated to be in the caller's box. loggedBy = coach. */
+    @Transactional
+    public WodScore upsertFor(UUID itemId, UUID targetMembershipId, ScoreInput in, UUID loggedByMembershipId) {
+        loggableItem(itemId);
+        memberships.findById(targetMembershipId)
+                .filter(m -> TenantContext.requireBoxId().equals(m.getBox().getId()))
+                .orElseThrow(NoSuchElementException::new); // foreign/unknown -> 404
+        WodScore s = scores.findBySessionItemIdAndMembershipId(itemId, targetMembershipId).orElseGet(WodScore::new);
+        s.setSessionItemId(itemId);
+        s.setMembershipId(targetMembershipId);
+        s.setRx(in.rx()); s.setTimeSeconds(in.timeSeconds()); s.setRounds(in.rounds()); s.setReps(in.reps());
+        s.setLoad(in.load()); s.setFinished(in.finished() == null || in.finished());
+        s.setNotes(in.notes()); s.setPrivate(in.isPrivate());
+        s.setLoggedBy(loggedByMembershipId);
+        s.setUpdatedAt(Instant.now());
+        return scores.save(s);
+    }
+
     @Transactional(readOnly = true)
     public Optional<WodScore> mine(UUID itemId) {
         items.findById(itemId).orElseThrow(NoSuchElementException::new);
