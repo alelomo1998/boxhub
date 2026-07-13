@@ -6,6 +6,7 @@ import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,14 +29,17 @@ public class SessionController {
     private final MembershipRepository memberships;
     private final UserRepository users;
     private final BookingService bookingService;
+    private final ApplicationEventPublisher events;
 
     public SessionController(ClassSessionRepository sessions, BookingRepository bookings,
-                            MembershipRepository memberships, UserRepository users, BookingService bookingService) {
+                            MembershipRepository memberships, UserRepository users, BookingService bookingService,
+                            ApplicationEventPublisher events) {
         this.sessions = sessions;
         this.bookings = bookings;
         this.memberships = memberships;
         this.users = users;
         this.bookingService = bookingService;
+        this.events = events;
     }
 
     record SessionView(UUID id, String name, Instant startAt, int durationMin, int capacity, UUID coachId,
@@ -121,6 +125,7 @@ public class SessionController {
         RoleGuard.requireStaff();
         sessions.findById(id).orElseThrow(NoSuchElementException::new);
         bookingService.checkIn(req.bookingId());
+        events.publishEvent(new com.boxhub.display.TvStateChanged(TenantContext.requireBoxId()));
     }
 
     @PostMapping("/{id}/uncheck")
@@ -128,6 +133,7 @@ public class SessionController {
         RoleGuard.requireStaff();
         sessions.findById(id).orElseThrow(NoSuchElementException::new);
         bookingService.uncheck(req.bookingId());
+        events.publishEvent(new com.boxhub.display.TvStateChanged(TenantContext.requireBoxId()));
     }
 
     @PostMapping("/{id}/no-show")
@@ -135,5 +141,6 @@ public class SessionController {
         RoleGuard.requireStaff();
         sessions.findById(id).orElseThrow(NoSuchElementException::new);
         bookingService.markNoShow(req.bookingId());
+        events.publishEvent(new com.boxhub.display.TvStateChanged(TenantContext.requireBoxId()));
     }
 }

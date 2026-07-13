@@ -21,6 +21,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh",
                         "/actuator/health").permitAll()
+                .requestMatchers("/api/tv/pair", "/api/tv/pair/poll", "/api/tv/stream").permitAll()
                 .requestMatchers("/api/auth/box-token").authenticated()
                 .requestMatchers("/api/box/**").hasAuthority("SCOPE_box")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/invites/*").permitAll()

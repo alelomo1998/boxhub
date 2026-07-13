@@ -52,6 +52,15 @@
 - Admin tables on phone are scroll-tables, not cards (shell + dashboard are responsive; deep pages later).
 - Detector false-positive pattern: Angular [src] bindings in @if guards trip `broken-image` — consider repo-level ignore for the rule if the noise annoys.
 
+## Deferred from M6 (TV)
+- TV stream token rides a query param (EventSource can't set headers) — appears in nginx access logs; move to cookie or short-lived stream ticket before real deployments.
+- SSE emitter registry is per-node in-memory (like the rate limiter) — Redis pub/sub when a second node exists.
+- TV pairing codes recycle only after device deletion; PENDING rows have no purge job (same family as refresh_tokens/invites purge).
+- TvStreamService: no `scope=="box"`-token-rejected stream test (the `boxTokenIsNotATvToken` test asserts unknown-device instead — inherited from the plan's own test code).
+- Admin TVs page: `renameTv()` service method has no UI hookup yet (list is claim + remove only).
+- e2e cross-contamination surfaced in M6: `programming.spec` republishes a today class, so it now targets "Burn It" to avoid clobbering `tracking.spec`'s Fran session; theme font-load test is retry-flaky on cold nginx. Per-test DB isolation would end this whole family.
+- Per-device views, timers, PR-celebration takeover — M7 class runner.
+
 ## Deferred from M5.5 (fe polish, critique 28/40 — P0 fonts + 3 P1 fixed in-session)
 - Loads unitless product-wide — kg/lb box setting (dupes M4 item; leaderboard hero makes it louder).
 - Logout/theme placement differs per shell (athlete profile sheet vs coach/admin header ⎋); header CSS ~90% duplicated 3× — fold into the bh-shell dedupe item.

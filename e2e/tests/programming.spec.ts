@@ -14,8 +14,11 @@ test('coach fills a class instance from the builder and publishes it', async ({ 
 
   await login(page, 'coach@demo.io');
   await page.goto('/coach/classes');
-  // open the builder of the first class of the week
-  await page.locator('[data-testid="build-link"]').first().click();
+  // build "Burn It", not the first class: today's first class is the WOD Class that
+  // tracking.spec scores against (Fran), and republishing it here would wipe that.
+  const burnRow = page.locator('.row', { hasText: 'Burn It' }).first();
+  await expect(burnRow).toBeVisible();
+  await burnRow.getByTestId('build-link').click();
   await expect(page.getByTestId('piece-stack')).toBeVisible();
 
   // add a piece and publish (works whether the instance was seeded, programmed or empty)
