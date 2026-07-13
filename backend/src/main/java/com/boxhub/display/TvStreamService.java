@@ -51,7 +51,8 @@ public class TvStreamService {
 
     public void disconnect(UUID deviceId) {
         Conn c = connections.remove(deviceId);
-        if (c != null) c.emitter().complete();
+        // may already be completed by a concurrent push() error — a revoke must not 500
+        if (c != null) try { c.emitter().complete(); } catch (Exception ignored) { }
     }
 
     @EventListener
