@@ -11,6 +11,11 @@ export interface TvState {
   items: { type: string; title: string; bodyText: string | null }[];
   rail: { name: string; avatarPath: string | null; status: string;
           rank: number | null; score: string | null; rx: boolean | null }[];
+  timer: {
+    type: string; totalSeconds: number | null; rounds: number | null; workSeconds: number | null;
+    restSeconds: number | null; startAtEpoch: number | null; pausedElapsedMs: number; status: string;
+    pieceTitle: string | null; pieceBody: string | null;
+  } | null;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { TvService, TvState } from './tv.service';
+import { renderTimer } from '../../ui/timer';
 
 const TOKEN_KEY = 'boxhub_tv_token';
 
@@ -34,16 +35,28 @@ const TOKEN_KEY = 'boxhub_tv_token';
                       {{ s.session!.startAt | date:'EEEE HH:mm' }} · {{ s.boxName }}</span>
                     <h1 class="title">{{ s.session!.name }}</h1>
                   </header>
-                  <div class="pieces">
-                    @for (i of s.items.slice(0, 4); track $index) {
-                      <article class="piece">
-                        <span class="p-type">{{ i.type.replace('_', ' ') }}</span>
-                        <h2 class="p-title">{{ i.title }}</h2>
-                        @if (i.bodyText) { <pre class="p-body">{{ i.bodyText }}</pre> }
-                      </article>
-                    } @empty { <p class="notposted">Programming not posted yet.</p> }
-                    @if (s.items.length > 4) { <p class="more">+{{ s.items.length - 4 }} more</p> }
-                  </div>
+                  @if (s.timer; as t) {
+                    @let td = timerDisplay(t);
+                    <div class="tvtimer" [class.urgent]="timerUrgent(t)">
+                      <span class="tt-clock num">{{ td.display }}</span>
+                      @if (td.phase) { <span class="tt-phase">{{ td.phase }}</span> }
+                      <div class="tt-piece">
+                        <h2 class="tt-title">{{ t.pieceTitle }}</h2>
+                        @if (t.pieceBody) { <pre class="tt-body">{{ t.pieceBody }}</pre> }
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="pieces">
+                      @for (i of s.items.slice(0, 4); track $index) {
+                        <article class="piece">
+                          <span class="p-type">{{ i.type.replace('_', ' ') }}</span>
+                          <h2 class="p-title">{{ i.title }}</h2>
+                          @if (i.bodyText) { <pre class="p-body">{{ i.bodyText }}</pre> }
+                        </article>
+                      } @empty { <p class="notposted">Programming not posted yet.</p> }
+                      @if (s.items.length > 4) { <p class="more">+{{ s.items.length - 4 }} more</p> }
+                    </div>
+                  }
                 </div>
                 <aside class="rail">
                   @if (s.session!.coachName) {
@@ -115,6 +128,18 @@ const TOKEN_KEY = 'boxhub_tv_token';
     .p-body { font-family: var(--font-body); font-size: 2.6vh; color: var(--bone-dim);
       white-space: pre-wrap; margin: 0; line-height: 1.4; }
     .more { color: var(--faint); font-size: 2vh; margin: 0; }
+
+    .tvtimer { display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2vh; margin-top: 4vh; text-align: center; }
+    .tt-clock { font-family: var(--font-display); font-weight: 800; font-size: 28vh; line-height: 1; }
+    .tvtimer.urgent .tt-clock { color: var(--red); }
+    .tt-phase { font-family: var(--font-mono); font-size: 2.2vh; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--faint); }
+    .tt-piece { margin-top: 2vh; }
+    .tt-title { font-family: var(--font-display); font-weight: 800; font-size: 4vh;
+      text-transform: uppercase; margin: 0; line-height: 1.05; }
+    .tt-body { font-family: var(--font-body); font-size: 2.2vh; color: var(--bone-dim);
+      white-space: pre-wrap; margin: 0.6vh 0 0; line-height: 1.3; }
 
     .rail { border-left: 1px solid var(--hairline); padding: 4vh 1.5vw; display: flex;
       flex-direction: column; gap: 2.5vh; background: var(--surface); min-width: 0; }
@@ -239,4 +264,20 @@ export class TvShellPage implements OnInit, OnDestroy {
   }
 
   onState(s: TvState) { this.state.set(s); }
+
+  timerDisplay(t: NonNullable<TvState['timer']>) {
+    return renderTimer(
+      { type: t.type, totalSeconds: t.totalSeconds ?? undefined, rounds: t.rounds ?? undefined,
+        workSeconds: t.workSeconds ?? undefined, restSeconds: t.restSeconds ?? undefined },
+      t.startAtEpoch, t.pausedElapsedMs, t.status, this.now().getTime());
+  }
+
+  /** Race red only in the final 10s of an AMRAP/For-Time cap — the one countdown cue on the board. */
+  timerUrgent(t: NonNullable<TvState['timer']>): boolean {
+    if (t.type !== 'AMRAP' && t.type !== 'FOR_TIME') return false;
+    const running = t.status === 'RUNNING' && t.startAtEpoch != null;
+    const elapsed = (t.pausedElapsedMs + (running ? this.now().getTime() - t.startAtEpoch! : 0)) / 1000;
+    const remaining = (t.totalSeconds ?? 0) - elapsed;
+    return remaining > 0 && remaining <= 10;
+  }
 }
