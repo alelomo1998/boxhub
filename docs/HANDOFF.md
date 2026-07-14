@@ -35,9 +35,16 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
-## Roadmap decisions (2026-07-14, this session — DIRECTION for next chat)
-- **Revised order (user-set):** M7.5 TV command → M8 analytics → **self-serve onboarding** → security hardening → M9 pilot. **BUT onboarding is a pilot prerequisite** (M9's accept = "a real box runs on BoxHub 2 weeks" needs a box that can self-register + invite its people) — likely pull onboarding earlier. Resume this discussion; nothing locked.
-- **Onboarding design brainstormed + approved-in-principle (NOT yet spec'd/planned):** self-serve box registration. Current gap = a gym can't create its own box (box-create is SUPERADMIN-only, `POST /api/admin/boxes`); the invite→register→accept chain for coaches/athletes is ALREADY built (M1). Approved shape:
+## Roadmap — SUPERSEDED by the v1 roadmap (2026-07-14)
+**Read `docs/superpowers/specs/2026-07-14-v1-roadmap-design.md`.** It replaces the old M7.5/M8/M9 sketch. Summary:
+the pilot IS the launch (feature-complete v1, bug-fix only — nothing ships "after the pilot"), no deadline.
+Order: **M8 auth+email+SSO → M9 onboarding → M10 memberships & payments → M11 FE rework → M12 TV command console
+(broadcast director, incl. heats/teams) → M13 analytics → M14 marketing site → M15 security hardening →
+M16 production (VPS) → M17 pilot = v1.0.** Locked scope: free for 2–3 months / ~100-box cap; athletes pay boxes via
+**the box's own Stripe keys** (no Connect) + cash/transfer with manual receipt; Google SSO in M8; no Kubernetes.
+Old "M7.5 TV command" is absorbed into M12.
+
+- **Onboarding design brainstormed + approved-in-principle (M9 — NOT yet spec'd/planned):** self-serve box registration. Current gap = a gym can't create its own box (box-create is SUPERADMIN-only, `POST /api/admin/boxes`); the invite→register→accept chain for coaches/athletes is ALREADY built (M1). Approved shape:
   - Box gets a `status` (PENDING/ACTIVE/SUSPENDED; existing → ACTIVE). A runtime **signup-mode** flag (`platform_settings` key/value, seed `APPROVAL`) picks instant-`OPEN` vs `APPROVAL`. Build both, ship in APPROVAL first, flip later.
   - Combined public **"Start your box"** signup (`POST /api/auth/signup-box`, permitAll+rate-limited): registers owner + creates box (`ACTIVE` if OPEN else `PENDING`, slug from boxName) + BOX_ADMIN membership + returns tokens. Existing `/register`+join untouched; existing-user-creates-2nd-box = backlog.
   - **Gating:** PENDING owner can prepare freely (class types/schedule/settings) but invite-create + TV pair/claim 403 until ACTIVE; SUSPENDED → box-token issuance itself 403s (kill switch). Checks on box-token mint + `InviteService.create` + `TvPairingService.claim`.
@@ -83,11 +90,12 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**Resume the roadmap-ordering conversation** (see "Roadmap decisions" above), then build. State when this chat ended: M0–M7 all merged + pushed; M7 = coach live class runner (score grid + server timer + TV timer branch). The nginx no-cache fix is on `main`. **No milestone is in progress.**
+**M8 — auth & accounts (complete).** Roadmap is locked (see the v1 roadmap doc). M8 = real signup, email
+verification, password reset, server-side logout/revocation, token hygiene, rate-limit review, **Google SSO**, and
+the **SMTP/transactional-email** foundation every later milestone needs. Needs its own brainstorm → spec → plan →
+execute. Three v1-blocking gaps it closes, found by reading the code: no password reset anywhere, no email delivery
+at all (invite links are copied by hand), and accounts only exist via DB seed or the invite chain.
 
-Three things are teed up, in the user's rough order but with one open question:
-1. **M7.5 TV command** — user confirmed it's genuinely needed (multi-screen boxes can't run auto-driven-only). Small, cohesive, builds straight on the M6/M7 seams (`tv_devices.view` column + push the chosen view). Likely the concrete next build. Needs: brainstorm → spec → plan → execute (orchestrator/executor per CLAUDE.md).
-2. **Self-serve onboarding** — design already brainstormed + approved-in-principle this session (full decisions in "Roadmap decisions" above). Only needs writing-plans-style spec then plan. **Open question to settle with the user: is this a pilot prerequisite that should jump ahead of M8/security?** (Argued yes — a real pilot box must self-register + invite its people first.)
-3. **M8 analytics** — flagged speculative until real usage exists; probably後 onboarding + a real pilot.
+M0–M7 all merged + pushed. **No milestone is in progress.**
 
 Process reminder: superpowers flow (brainstorm → spec+approval → writing-plans → subagent-driven-development), orchestrator = Fable/Opus, executors = Sonnet, impeccable gate (≥28/40, no P0/P1) per FE surface, tenancy tests on every box endpoint, `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend mvn, conventional commits, merge to main + push when green.
