@@ -13,7 +13,24 @@ Everything a box needs must therefore ship *before* the pilot. There is no "ship
 the rest after." That rule killed several tempting shortcuts during this brainstorm and is the reason the roadmap
 below is long.
 
-There is **no deadline**. Correctness and quality win over speed at every decision point.
+## The second governing decision: no deadline, and it is binding
+
+There is **no deadline, and there never will be one.** No shareholders, no launch date, no one waiting. Time is
+unbounded, and unbounded time means there is no cost to doing it right.
+
+Therefore: **correctness and solidity beat speed at every single decision point, without exception.**
+
+Concretely, this rule forbids the following, and every one of them is a bug even when it "works":
+
+- Choosing a design because it is faster to build than the correct one.
+- Deferring a known-correct fix to a later milestone because it is inconvenient now.
+- Leaving a race, a missing lock, a swallowed error, or an untested branch because it is unlikely to fire.
+- Shipping a screen that is merely acceptable when it should be excellent.
+- Arguing for a shortcut on the grounds of time, effort, or scope. That argument carries no weight here.
+
+The laziness rule (`ponytail`) still applies — it selects the **simplest correct** solution, and simplest-correct is
+frequently also the most solid one. It never selects the *quicker* one over the *right* one. When simplicity and
+correctness genuinely conflict, correctness wins and the extra work gets done.
 
 ## v1 scope decisions (locked)
 
@@ -63,13 +80,22 @@ today's `Plan.weeklyLimit` becomes.
 *Why here:* placed before the FE rework, because the rework must restyle the subscription screens and those screens
 should exist first.
 
-### M11 — Frontend rework
+### M11 — Security hardening
+Everything M8's auth work does not cover: media reads behind auth, TV stream token off the query string, purge jobs
+(refresh tokens, invites, pairing codes), CSP and security headers, dependency scan, the `@TenantId` native-query
+audit, and the payment surface M10 just introduced.
+
+*Why here:* every backend domain now exists (auth, onboarding, payments), so the whole server surface can be hardened
+in one pass. Everything after this milestone is frontend and deployment — none of which should be built on top of an
+un-hardened auth surface.
+
+### M12 — Frontend rework
 Whole-app pass on structure *and* aesthetic: all three shells, every screen, **including the TV board**. The current
 app is over-complicated and not visually pleasing; this is a rework, not a polish pass. Impeccable gate per surface.
 
-*Why before M12:* the command console is built on top of the board. Rework the board first or build it twice.
+*Why before M13:* the command console is built on top of the board. Rework the board first or build it twice.
 
-### M12 — TV command console
+### M13 — TV command console
 The **broadcast director** — the biggest and hardest milestone in v1. The coach commands what the room sees: focus a
 module, run/stop AMRAP, start/stop timer, home, show the class, show the WOD, transitions, animations, per-device
 views, **heats and teams**. Gets a dedicated research phase into what a CrossFit class actually needs before any spec
@@ -77,17 +103,12 @@ is written.
 
 Absorbs the old "M7.5 TV command" idea (per-device `tv_devices.view`), which is a subset of this.
 
-### M13 — Analytics
+### M14 — Analytics
 Box economics (real, now that M10 produces revenue data), engagement, class statistics, coach and athlete insight.
 The admin dashboard shell + 3 KPIs from M5 are the seed.
 
-### M14 — Marketing site
+### M15 — Marketing site
 Public product presentation, pricing, and the funnel into M9's "Start your box" signup.
-
-### M15 — Security hardening
-Everything M8's auth work does not cover: media reads behind auth, TV stream token off the query string, purge jobs
-(refresh tokens, invites, pairing codes), CSP and security headers, dependency scan, the `@TenantId` native-query
-audit.
 
 ### M16 — Production
 Small Linux VPS, Docker Compose prod profile, TLS + domain, secrets management, Postgres backups, health checks, log
@@ -104,6 +125,7 @@ A real box, two weeks, on the feature-complete product. Bug fixing and gap filli
 
 - Auth is the floor: onboarding, payments, and email all stand on it.
 - Onboarding gates everything else — without it, no box can exist without a superadmin doing it by hand.
+- Hardening once the backend is whole (M8–M10) and before any frontend is built on top of it.
 - Payments before the rework, so the rework restyles screens that exist.
 - Board rework before the console that sits on it.
 - Analytics after payments, so it has revenue to chart.

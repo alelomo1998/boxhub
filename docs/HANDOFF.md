@@ -38,8 +38,9 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 ## Roadmap — SUPERSEDED by the v1 roadmap (2026-07-14)
 **Read `docs/superpowers/specs/2026-07-14-v1-roadmap-design.md`.** It replaces the old M7.5/M8/M9 sketch. Summary:
 the pilot IS the launch (feature-complete v1, bug-fix only — nothing ships "after the pilot"), no deadline.
-Order: **M8 auth+email+SSO → M9 onboarding → M10 memberships & payments → M11 FE rework → M12 TV command console
-(broadcast director, incl. heats/teams) → M13 analytics → M14 marketing site → M15 security hardening →
+**No deadline, binding:** correctness and solidity beat speed at every decision point; "faster to build" is never an
+argument. Order: **M8 auth+email+SSO → M9 onboarding → M10 memberships & payments → M11 security hardening →
+M12 FE rework → M13 TV command console (broadcast director, incl. heats/teams) → M14 analytics → M15 marketing site →
 M16 production (VPS) → M17 pilot = v1.0.** Locked scope: free for 2–3 months / ~100-box cap; athletes pay boxes via
 **the box's own Stripe keys** (no Connect) + cash/transfer with manual receipt; Google SSO in M8; no Kubernetes.
 Old "M7.5 TV command" is absorbed into M12.
