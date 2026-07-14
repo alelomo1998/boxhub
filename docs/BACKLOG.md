@@ -98,3 +98,9 @@
 - box-settings partial-patch branches not individually tested (timezone-only, logo-clear).
 - interceptor reselect catchError rethrows outer err not reselect err (intentional — caller sees original 401).
 - e2e cold-start/parallel-isolation flake: login/admin-panel/invite specs fail with --retries=0, pass with configured retries=1 (shared seeded backend, no per-test isolation). Add test isolation or serialize when it bites.
+
+## Deferred from M8 (auth & accounts)
+- 2FA / TOTP for box owners + superadmins (enrol, QR, recovery codes) — real value for accounts holding a gym's member data, not v1.
+- Superadmin auth stays the `BOXHUB_SUPERADMIN_EMAILS` env allowlist (no superadmin account model).
+- Box deletion / box-level data export — BoxHub is the processor, the box is the controller; separate design.
+- Per-session kill (M8 ships revoke-all only; "I lost my phone" is the real case).
