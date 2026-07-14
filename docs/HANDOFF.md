@@ -1,6 +1,6 @@
 # BoxHub — Session Hand-off
 
-**Updated:** 2026-07-11. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-07-14. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. Repo: `~/Desktop/boxhub`, GitHub `alelomo1998/boxhub` (private), CI green on push.
@@ -33,12 +33,25 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 **Tests:** backend **156** (Testcontainers Postgres), frontend **64** Karma specs, e2e **13** Playwright (SERIAL — `workers:1`). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. P2/P3 leftovers in BACKLOG §"Deferred from M7"/"M6"/"M5.5".
 
+- **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
+
+## Roadmap decisions (2026-07-14, this session — DIRECTION for next chat)
+- **Revised order (user-set):** M7.5 TV command → M8 analytics → **self-serve onboarding** → security hardening → M9 pilot. **BUT onboarding is a pilot prerequisite** (M9's accept = "a real box runs on BoxHub 2 weeks" needs a box that can self-register + invite its people) — likely pull onboarding earlier. Resume this discussion; nothing locked.
+- **Onboarding design brainstormed + approved-in-principle (NOT yet spec'd/planned):** self-serve box registration. Current gap = a gym can't create its own box (box-create is SUPERADMIN-only, `POST /api/admin/boxes`); the invite→register→accept chain for coaches/athletes is ALREADY built (M1). Approved shape:
+  - Box gets a `status` (PENDING/ACTIVE/SUSPENDED; existing → ACTIVE). A runtime **signup-mode** flag (`platform_settings` key/value, seed `APPROVAL`) picks instant-`OPEN` vs `APPROVAL`. Build both, ship in APPROVAL first, flip later.
+  - Combined public **"Start your box"** signup (`POST /api/auth/signup-box`, permitAll+rate-limited): registers owner + creates box (`ACTIVE` if OPEN else `PENDING`, slug from boxName) + BOX_ADMIN membership + returns tokens. Existing `/register`+join untouched; existing-user-creates-2nd-box = backlog.
+  - **Gating:** PENDING owner can prepare freely (class types/schedule/settings) but invite-create + TV pair/claim 403 until ACTIVE; SUSPENDED → box-token issuance itself 403s (kill switch). Checks on box-token mint + `InviteService.create` + `TvPairingService.claim`.
+  - **Minimal superadmin console** `/superadmin` (roleGuard SUPERADMIN; superadmin = email in existing `BOXHUB_SUPERADMIN_EMAILS` allowlist): pending-approval queue (approve→ACTIVE/reject), all-boxes list (suspend/reactivate), signup-mode toggle. New superadmin FE surface (none exists — `features/admin` is the BOX_ADMIN shell).
+  - **First-run:** owner lands on admin dashboard; PENDING banner ("set up now, members unlock on approval"); empty states guide create-class-type → schedule → invite. Light, not a wizard.
+  - Next migration is **V11** (V9+V10 applied in M7; note `ls` sorts V10 before V9 lexically). When built, this needs its own spec (brainstorm → writing-plans).
+
 ## What's NOT done (next)
-- **M7.5 TV command** — manual per-device view selection (this TV = board / leaderboard / timer). Seam ready: add a `view` column to `tv_devices`; M7 auto-drives all TVs identically (timer takes over while running).
+- **M7.5 TV command** — manual per-device view selection (this TV = board / leaderboard / timer). Seam ready: add a `view` column to `tv_devices`; M7 auto-drives all TVs identically (timer takes over while running). **User confirmed this is genuinely needed (not polish) — auto-driven-only TVs aren't realistic for a multi-screen box.**
+- **Self-serve onboarding** — see Roadmap decisions above (design ready, needs spec+plan).
 - **Heats/teams** — split the roster into n heats/teams + a team score model; the runner's roster strip is where it slots in (deferred from M7).
-- **M8 full SaaS analytics** — economics, engagement, class stats (admin dashboard shell + 3 KPIs shipped in M5).
-- **M9 hardening & pilot.**
-- **BACKLOG.md** items: box-token refresh already done; open items incl. no server-side logout/revocation, no purge job for expired refresh_tokens/invites, rate-limit is per-node in-memory, member-list N+1, e2e cold-start flake (mitigated by workers:1), and the **@TenantId native-query audit** (see gotchas). VPS never deployed. `TODO` in spec §6: member export + hard delete.
+- **M8 full SaaS analytics** — economics, engagement, class stats (admin dashboard shell + 3 KPIs shipped in M5). Note: speculative before real pilot usage exists.
+- **M9 hardening & pilot.** VPS never deployed (only runs locally).
+- **BACKLOG.md** items: no server-side logout/revocation, no purge job for expired refresh_tokens/invites, rate-limit is per-node in-memory, media reads unauthenticated, TV stream token in query param, member-list N+1, and the **@TenantId native-query audit** (see gotchas). `TODO` in spec §6: member export + hard delete.
 
 ## Architecture
 - **Backend:** modular monolith, package = module boundary under `com.boxhub`: `identity` (users/auth/memberships), `box` (boxes/plans/invites/templates/sessions/bookings), `shared` (tenancy/errors/RoleGuard/rate-limit/seeder). `programming`, `performance`, `display` packages will come with M3–M5.
@@ -70,4 +83,11 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**Frontend IMPROVEMENT review** (user-requested, before M6): not bug fixes — polish/upgrade pass over the M5 surfaces driven by the critique's non-blocking findings. Inputs: `.impeccable/critique/2026-07-11*` snapshot + BACKLOG §"Deferred from M5" + critique's open questions. Candidate improvements (user decides scope): leaderboard as a real hero surface (not a modal); WOD tab fallback for unbooked athletes (tappable today's classes); builder UX (pre-lock skeleton types, keep 9-option select behind "change type"; canDeactivate guard for unsaved pieces); migrate the old-register pages (wod-library/wod-builder/benchmark-library) to design law v2 (--fs-* tokens, states, no alert()); consolidate hand-rolled stat cells into `bh-stat`; `bh-shell` to dedupe the three shells; Types fan-out via forkJoin+"Saved"; sheet dismiss guard when the score form is dirty; swipe on the Book date pager. Use impeccable (shape → build → critique ≥28). After that: **M6 TV** (roadmap: TV→M6, runner→M7, M8 full SaaS analytics, M9 hardening). Run the superpowers flow: brainstorm → spec (approval) → plan → execute lean. Foundations ready: the athlete WOD board (M3) + `GET /program/{slotId}/leaderboard` (M4) are the views the TV renders big; `wod_score` is the live data. M5 adds `/tv` pairing (device code flow, admin device management) + realtime push (WebSocket, reconnect + last-state cache) + server-synced timers. Consider whether the per-node in-memory story (rate-limit, and any WS state) needs Redis for two nodes — currently single-node (BACKLOG). Specs/plans for M3/M4 in `docs/superpowers/specs|plans/2026-07-09-m{3,4}-*`.
+**Resume the roadmap-ordering conversation** (see "Roadmap decisions" above), then build. State when this chat ended: M0–M7 all merged + pushed; M7 = coach live class runner (score grid + server timer + TV timer branch). The nginx no-cache fix is on `main`. **No milestone is in progress.**
+
+Three things are teed up, in the user's rough order but with one open question:
+1. **M7.5 TV command** — user confirmed it's genuinely needed (multi-screen boxes can't run auto-driven-only). Small, cohesive, builds straight on the M6/M7 seams (`tv_devices.view` column + push the chosen view). Likely the concrete next build. Needs: brainstorm → spec → plan → execute (orchestrator/executor per CLAUDE.md).
+2. **Self-serve onboarding** — design already brainstormed + approved-in-principle this session (full decisions in "Roadmap decisions" above). Only needs writing-plans-style spec then plan. **Open question to settle with the user: is this a pilot prerequisite that should jump ahead of M8/security?** (Argued yes — a real pilot box must self-register + invite its people first.)
+3. **M8 analytics** — flagged speculative until real usage exists; probably後 onboarding + a real pilot.
+
+Process reminder: superpowers flow (brainstorm → spec+approval → writing-plans → subagent-driven-development), orchestrator = Fable/Opus, executors = Sonnet, impeccable gate (≥28/40, no P0/P1) per FE surface, tenancy tests on every box endpoint, `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend mvn, conventional commits, merge to main + push when green.
