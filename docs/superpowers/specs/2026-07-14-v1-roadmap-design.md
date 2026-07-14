@@ -1,24 +1,36 @@
-# BoxHub v1 — Road to a feature-complete pilot
+# BoxHub v1 — Road to launch
 
 **Date:** 2026-07-14
 **Status:** Approved (roadmap level). Each milestone below still needs its own brainstorm → spec → plan.
 **Supersedes:** the M8/M9 sketch in `2026-07-07-boxhub-design.md` (M0–M7 in that doc remain the record of what shipped).
 
-## The governing decision
+## The product thesis (everything below follows from this)
 
-**The pilot is not a learning exercise — it is the launch.** A real box runs BoxHub for two weeks on a
-**feature-complete v1**. The pilot exists to find bugs and fill gaps, not to discover which features to build.
+**A box that switches to BoxHub does not switch for the booking.**
 
-Everything a box needs must therefore ship *before* the pilot. There is no "ship the small version, learn, build
-the rest after." That rule killed several tempting shortcuts during this brainstorm and is the reason the roadmap
-below is long.
+Every box already has booking, member management, and some analytics. Those are table stakes: necessary to be
+considered, never the reason to be chosen. What no incumbent gives them is **the room** — the board on the wall and
+the controls in the coach's hand.
 
-## The second governing decision: no deadline, and it is binding
+Therefore:
 
-There is **no deadline, and there never will be one.** No shareholders, no launch date, no one waiting. Time is
-unbounded, and unbounded time means there is no cost to doing it right.
+> **The plumbing must be correct and unremarkable. The room must be extraordinary.**
 
-Therefore: **correctness and solidity beat speed at every single decision point, without exception.**
+The commodity half of the product (booking, memberships, payments, analytics, admin) is built to be *lean and
+flawless* — few features, each one right. The room gets the ambition, the time, and the obsession. It is the sale.
+
+## The governing decisions
+
+**1. The pilot is not a learning exercise — it is the launch.** A real box runs a **feature-complete** BoxHub, board
+included. The pilot finds bugs and fills gaps; it does not discover which features to build. There is no "ship the
+small version, learn, build the rest after."
+
+A pilot without the board would be pitching a box a booking system they already have. So nothing is piloted until the
+room exists.
+
+**2. No deadline, and it is binding.** No shareholders, no launch date, no one waiting. Time is unbounded, and
+unbounded time means there is no cost to doing it right. **Correctness and solidity beat speed at every single
+decision point, without exception.**
 
 Concretely, this rule forbids the following, and every one of them is a bug even when it "works":
 
@@ -32,6 +44,20 @@ The laziness rule (`ponytail`) still applies — it selects the **simplest corre
 frequently also the most solid one. It never selects the *quicker* one over the *right* one. When simplicity and
 correctness genuinely conflict, correctness wins and the extra work gets done.
 
+Note the two rules are not in tension for the commodity half: "lean" constrains *scope*, never *quality*. Fewer
+features, each one correct.
+
+## Structure: two projects and a launch
+
+| | What | Ends at |
+|---|---|---|
+| **Project 1 — The Platform** | The table stakes, done perfectly. Auth, onboarding, payments, hardening, the frontend, analytics. | A flawless, unremarkable platform. |
+| **Project 2 — The Room** | The wedge. Board, director, heats, hardware and sound. Its own roadmap, milestones, and plans. | The reason a box switches. |
+| **Launch** | Production, the marketing site, the pilot. | **v1.0** |
+
+Project 2 gets its own roadmap document when Project 1 is done. It is not scoped here beyond the sketch below, and
+that is deliberate — it deserves a full brainstorm of its own, not a paragraph in someone else's spec.
+
 ## v1 scope decisions (locked)
 
 | Decision | Answer | Why |
@@ -42,13 +68,13 @@ correctness genuinely conflict, correctness wins and the extra work gets done.
 | Stripe Connect? | **No** | BoxHub never touches funds → no KYC, no payouts, no platform-fee plumbing, no money-transmitter exposure. Connect only becomes necessary if BoxHub ever takes a cut of athlete payments, which it does not. |
 | Offline payments? | **Yes** | Cash and bank transfer are how most boxes actually get paid. The box records a confirmation/receipt against the athlete's subscription. |
 | Google SSO? | **Yes, in M8** | A box invites 60 athletes; a password form loses a chunk of them. |
-| Heats / teams? | **Yes, inside M12** | Running heats *is* a broadcast-director command. One design, not two. |
+| Heats / teams? | **Yes — Project 2** | Running heats *is* a broadcast-director command. It belongs to the room, not the platform. |
 | Kubernetes? | **No** | One small Linux VPS, Docker Compose. Overkill has a cost and buys nothing at this size. |
-| Analytics before pilot? | **Yes, M13** | Important to the product; placed late because M10 gives it real revenue data to chart. |
+| Analytics scope | **Lean** | Table stakes. Enough to answer a box owner's real questions, not a BI suite. |
 
-## Gaps found during this brainstorm (not previously on any roadmap)
+## Gaps found by reading the code (not previously on any roadmap)
 
-These came out of reading the code, not the backlog. All three are v1-blocking:
+All three are launch-blocking:
 
 1. **No password reset.** Not anywhere in the app. A box owner who forgets their password today is locked out
    permanently.
@@ -56,7 +82,9 @@ These came out of reading the code, not the backlog. All three are v1-blocking:
    60 times. Onboarding approval, waitlist-promoted, class-cancelled — all silent today.
 3. **No production anything.** Never deployed. No TLS, domain, backups, secrets management, or deploy pipeline.
 
-## The roadmap
+---
+
+# Project 1 — The Platform
 
 ### M8 — Auth & accounts (complete)
 Real signup, email verification, password reset, server-side logout/revocation, session and token hygiene,
@@ -68,68 +96,73 @@ milestone below depends on it.
 ### M9 — Onboarding
 Self-serve **"Start your box"** signup; box `status` (PENDING / ACTIVE / SUSPENDED); runtime signup-mode flag
 (`OPEN` vs `APPROVAL`); the **100-box cap / waitlist**; a minimal **superadmin approval console**; first-run guidance
-for a fresh box. Built on M8's auth. Design already brainstormed and approved in principle (see
-`docs/HANDOFF.md` → "Roadmap decisions"); it now also inherits M8's email and verified-account model.
+for a fresh box. Built on M8's auth. Design already brainstormed and approved in principle (see `docs/HANDOFF.md`);
+it now also inherits M8's email and verified-account model.
 
 ### M10 — Memberships & payments
-The subscription rework. A box **publishes membership plans** (price, period, entitlements) → an athlete
-**subscribes** → the athlete **pays**. Rails: **Stripe** (box's own keys, card) and **offline** (cash / bank
-transfer, recorded by the box with a confirmation + receipt). Entitlements feed the booking engine — this is what
-today's `Plan.weeklyLimit` becomes.
-
-*Why here:* placed before the FE rework, because the rework must restyle the subscription screens and those screens
-should exist first.
+The subscription rework — today's `Plan` is a weekly-booking-limit row and nothing else, and it is confusing. A box
+**publishes membership plans** (price, period, entitlements) → an athlete **subscribes** → the athlete **pays**.
+Rails: **Stripe** (box's own keys, card) and **offline** (cash / bank transfer, recorded by the box with a
+confirmation + receipt). Entitlements feed the booking engine.
 
 ### M11 — Security hardening
 Everything M8's auth work does not cover: media reads behind auth, TV stream token off the query string, purge jobs
 (refresh tokens, invites, pairing codes), CSP and security headers, dependency scan, the `@TenantId` native-query
-audit, and the payment surface M10 just introduced.
+audit, and the payment surface M10 introduces.
 
-*Why here:* every backend domain now exists (auth, onboarding, payments), so the whole server surface can be hardened
-in one pass. Everything after this milestone is frontend and deployment — none of which should be built on top of an
-un-hardened auth surface.
+*Why here:* every backend domain now exists, so the whole server surface hardens in one pass — and nothing gets built
+on top of an un-hardened auth surface.
 
 ### M12 — Frontend rework
-Whole-app pass on structure *and* aesthetic: all three shells, every screen, **including the TV board**. The current
-app is over-complicated and not visually pleasing; this is a rework, not a polish pass. Impeccable gate per surface.
+Whole-app pass on structure *and* aesthetic: the three shells and every screen. The current app is over-complicated
+and not visually pleasing; this is a rework, not a polish pass. Impeccable gate per surface.
 
-*Why before M13:* the command console is built on top of the board. Rework the board first or build it twice.
+**Explicitly excludes the TV board.** Project 2 owns the board top to bottom; restyling it here only to demolish it
+later is building it twice.
 
-### M13 — TV command console
-The **broadcast director** — the biggest and hardest milestone in v1. The coach commands what the room sees: focus a
-module, run/stop AMRAP, start/stop timer, home, show the class, show the WOD, transitions, animations, per-device
-views, **heats and teams**. Gets a dedicated research phase into what a CrossFit class actually needs before any spec
-is written.
+### M13 — Analytics
+Lean and useful: box economics (real, now that M10 produces revenue data), engagement, class statistics. The admin
+dashboard shell + 3 KPIs from M5 are the seed. Table stakes — enough to answer a box owner's actual questions,
+no more.
+
+**Project 1 exits when the platform is flawless and boring.**
+
+---
+
+# Project 2 — The Room
+
+Gets its own roadmap document, brainstormed from scratch when Project 1 lands. Not scoped here. The shape it will
+almost certainly take:
+
+- **Field research (mandatory, non-negotiable).** Watch real classes in real boxes. Sit behind a real coach with a
+  real clock running. The command vocabulary and screen grammar are *observed*, never imagined. Because the pilot now
+  comes after Project 2, this is the only source of truth available — it cannot be skipped.
+- **The board.** The hero surface: legible at 12 meters, in a bright gym, from the back of the room. States for every
+  phase of a class. This is where BoxHub's visual identity is actually decided.
+- **The director.** The coach's control surface: a phone in a sweaty hand. Glanceable, one-thumb, zero-mistake.
+  Latency and reliability outrank features — a command that lands late in front of twenty people is a broken product.
+- **Heats, teams, and the theater.** Live leaderboard, PR moments, the 3-2-1.
+- **The hardware reality.** Fire Sticks and cheap smart-TV browsers, gym wifi that drops, multiple screens that must
+  not drift out of sync, screens that sleep — and **sound**, because a timer nobody can hear over the music is not a
+  timer.
 
 Absorbs the old "M7.5 TV command" idea (per-device `tv_devices.view`), which is a subset of this.
 
-### M14 — Analytics
-Box economics (real, now that M10 produces revenue data), engagement, class statistics, coach and athlete insight.
-The admin dashboard shell + 3 KPIs from M5 are the seed.
+**Sell while building:** a board demo needs no signup, no payments, no onboarding. Show it to box owners during
+Project 2. If it does not make a coach lean forward, that is the cheapest and most important thing you will ever
+learn.
 
-### M15 — Marketing site
-Public product presentation, pricing, and the funnel into M9's "Start your box" signup.
+---
 
-### M16 — Production
-Small Linux VPS, Docker Compose prod profile, TLS + domain, secrets management, Postgres backups, health checks, log
-access, CI deploy on green. First real deployment; expect to fix things it surfaces.
+# Launch
 
-*Why this late:* deliberately deferred by the user. No deadline pressure, so deployment problems get solved when the
-product they serve is finished.
+- **Production.** Small Linux VPS, Docker Compose prod profile, TLS + domain, secrets, Postgres backups, health
+  checks, log access, CI deploy on green. No Kubernetes.
+- **Marketing site.** Product presentation, pricing, and the funnel into the "Start your box" signup. Leads with the
+  room, because the room is the sale.
+- **Pilot.** A real box, two weeks, on the complete product. Bug fixing and gap filling only.
 
-### M17 — Pilot
-A real box, two weeks, on the feature-complete product. Bug fixing and gap filling only.
 **Exit criterion = v1.0.**
-
-## Ordering logic
-
-- Auth is the floor: onboarding, payments, and email all stand on it.
-- Onboarding gates everything else — without it, no box can exist without a superadmin doing it by hand.
-- Hardening once the backend is whole (M8–M10) and before any frontend is built on top of it.
-- Payments before the rework, so the rework restyles screens that exist.
-- Board rework before the console that sits on it.
-- Analytics after payments, so it has revenue to chart.
-- Hardening and production last, immediately before the pilot exposes the product to real humans and real data.
 
 ## Process (unchanged, binding)
 

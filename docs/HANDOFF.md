@@ -36,14 +36,27 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
 ## Roadmap — SUPERSEDED by the v1 roadmap (2026-07-14)
-**Read `docs/superpowers/specs/2026-07-14-v1-roadmap-design.md`.** It replaces the old M7.5/M8/M9 sketch. Summary:
-the pilot IS the launch (feature-complete v1, bug-fix only — nothing ships "after the pilot"), no deadline.
-**No deadline, binding:** correctness and solidity beat speed at every decision point; "faster to build" is never an
-argument. Order: **M8 auth+email+SSO → M9 onboarding → M10 memberships & payments → M11 security hardening →
-M12 FE rework → M13 TV command console (broadcast director, incl. heats/teams) → M14 analytics → M15 marketing site →
-M16 production (VPS) → M17 pilot = v1.0.** Locked scope: free for 2–3 months / ~100-box cap; athletes pay boxes via
-**the box's own Stripe keys** (no Connect) + cash/transfer with manual receipt; Google SSO in M8; no Kubernetes.
-Old "M7.5 TV command" is absorbed into M12.
+**Read `docs/superpowers/specs/2026-07-14-v1-roadmap-design.md`.** It replaces the old M7.5/M8/M9 sketch.
+
+**Product thesis (drives everything):** a box does not switch for the booking — they already have booking. They
+switch for **the room** (the board on the wall + the controls in the coach's hand). So: **plumbing correct and
+unremarkable; the room extraordinary.**
+
+**Structure = two projects + a launch.**
+- **Project 1 — The Platform** (table stakes, lean + flawless): **M8** auth & accounts (email/SMTP, verification,
+  password reset, revocation, **Google SSO**) → **M9** onboarding (self-serve "Start your box", box status,
+  100-box cap, superadmin console) → **M10** memberships & payments → **M11** security hardening → **M12** FE rework
+  (**excludes the TV board — Project 2 owns it**) → **M13** analytics (lean).
+- **Project 2 — The Room** (the wedge; own roadmap doc, brainstormed when P1 lands): field research in real boxes →
+  the board → the director (coach's control surface) → heats/teams/theater → hardware + **sound**. Absorbs the old
+  "M7.5 TV command".
+- **Launch:** production (VPS, no k8s) → marketing site → **pilot** (real box, 2 weeks, complete product,
+  bug-fix only) = **v1.0**.
+
+**Binding rules:** no deadline — correctness and solidity beat speed at every decision point; "faster to build" is
+never an argument. Pilot = the launch, not a learning exercise.
+**Locked scope:** free 2–3 months / ~100-box cap; athletes pay boxes via **the box's own Stripe keys** (no Connect,
+BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in M8; no Kubernetes.
 
 - **Onboarding design brainstormed + approved-in-principle (M9 — NOT yet spec'd/planned):** self-serve box registration. Current gap = a gym can't create its own box (box-create is SUPERADMIN-only, `POST /api/admin/boxes`); the invite→register→accept chain for coaches/athletes is ALREADY built (M1). Approved shape:
   - Box gets a `status` (PENDING/ACTIVE/SUSPENDED; existing → ACTIVE). A runtime **signup-mode** flag (`platform_settings` key/value, seed `APPROVAL`) picks instant-`OPEN` vs `APPROVAL`. Build both, ship in APPROVAL first, flip later.
