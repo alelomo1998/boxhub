@@ -33,6 +33,7 @@ public class RefreshTokenService {
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
         RefreshToken rt = new RefreshToken();
         rt.setUser(user);
+        rt.setFamilyId(java.util.UUID.randomUUID()); // family_id is NOT NULL since V11; a fresh issue starts a new family
         rt.setTokenHash(sha256(token));
         rt.setExpiresAt(Instant.now().plus(refreshTtl));
         tokens.save(rt);
