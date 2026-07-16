@@ -22,6 +22,7 @@ public class RefreshToken {
     @Column(name = "ip") private String ip;
     @Column(name = "last_used_at") private Instant lastUsedAt;
 
+    public UUID getId() { return id; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
     public String getTokenHash() { return tokenHash; }

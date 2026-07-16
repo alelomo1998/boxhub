@@ -32,7 +32,8 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
     private static final java.util.Set<String> PUBLIC_AUTH_PATHS = java.util.Set.of(
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
             "/api/auth/csrf", "/api/auth/verify", "/api/auth/verify/resend",
-            "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/providers");
+            "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/providers",
+            "/api/me/email/confirm");
 
     @Override
     public String resolve(HttpServletRequest request) {
