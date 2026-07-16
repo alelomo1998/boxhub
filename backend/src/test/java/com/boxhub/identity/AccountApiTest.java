@@ -9,7 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,10 +32,14 @@ class AccountApiTest extends AbstractIntegrationTest {
     @Autowired UserRepository users;
     @Autowired AuthService authService;
     @Autowired RefreshTokenService refreshTokens;
+    @Autowired TokenService tokenService;
+    @Autowired AccountService accountService;
+    @Autowired EmailTokenService emailTokens;
     @MockitoBean com.boxhub.shared.Mailer mailer;
 
     User user;
     Cookie at;
+    Cookie rt;
 
     @BeforeEach
     void setup() throws Exception {
@@ -39,10 +49,12 @@ class AccountApiTest extends AbstractIntegrationTest {
         user = authService.register("acct-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Account");
         user.setEmailVerified(true);
         user = users.save(user);
-        at = mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
+        var loginResponse = mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
                         {"email":"%s","password":"correct-horse-battery"}
                         """.formatted(user.getEmail())))
-                .andReturn().getResponse().getCookie("bh_at");
+                .andReturn().getResponse();
+        at = loginResponse.getCookie("bh_at");
+        rt = loginResponse.getCookie("bh_rt");
     }
 
     @Test
@@ -114,5 +126,146 @@ class AccountApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isNoContent());
 
         assertThat(refreshTokens.activeSessions(user.getId())).isEmpty();
+    }
+
+    @Test
+    void sessionsMarkExactlyTheCallersDeviceAsCurrent() throws Exception {
+        refreshTokens.issue(user, "Chrome on Android", "5.5.5.5");
+
+        String body = mvc.perform(get("/api/me/sessions").cookie(at, rt))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        List<Map<String, Object>> sessions = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readValue(body, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        assertThat(sessions).hasSize(2);
+        assertThat(sessions.stream().filter(s -> (boolean) s.get("current")).count()).isEqualTo(1);
+        assertThat(sessions.stream().filter(s -> !(boolean) s.get("current")).count()).isEqualTo(1);
+    }
+
+    @Test
+    void sessionsWithoutARefreshCookieMarkNoRowAsCurrent() throws Exception {
+        // bearer-header caller: no bh_rt cookie to hash, so nothing can be "this device"
+        String bearer = tokenService.userToken(user);
+
+        mvc.perform(get("/api/me/sessions").header("Authorization", "Bearer " + bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].current").value(false));
+    }
+
+    @Test
+    void changePasswordIsDeniedWithoutAuth() throws Exception {
+        mvc.perform(patch("/api/me/password").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"currentPassword":"correct-horse-battery","newPassword":"a-brand-new-secret"}
+                        """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void startEmailChangeIsDeniedWithoutAuth() throws Exception {
+        mvc.perform(post("/api/me/email").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"password":"correct-horse-battery","newEmail":"someone-else@t.io"}
+                        """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void sessionsIsDeniedWithoutAuth() throws Exception {
+        mvc.perform(get("/api/me/sessions"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void confirmEmailChangeIsReachableWithoutAuth() throws Exception {
+        // permitAll by design — clicked from an inbox, possibly with no session on that device.
+        // A bogus token must fail on its own terms (400/410), never with 401.
+        mvc.perform(post("/api/me/email/confirm").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"token":"not-a-real-token"}
+                        """))
+                .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotEqualTo(401));
+    }
+
+    @Test
+    void concurrentEmailChangeToTheSameAddressOneWinsTheOtherGetsConflictNever500() throws Exception {
+        // Two different users both confirm an email change to the SAME new address at the
+        // same instant against real Postgres. Both pass the pre-check (the address belongs
+        // to no one yet), then race the unique constraint on users.email. The loser must
+        // land on 409 EMAIL_TAKEN, never an unhandled DataIntegrityViolationException (500).
+        // Looped with fresh users/address each iteration — timing-dependent, a single shot
+        // can miss the interleaving (same rationale as GoogleLinkTest's equivalent race test).
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            for (int i = 0; i < 5; i++) {
+                User a = authService.register("race-a-" + System.nanoTime() + "@t.io", "correct-horse-battery", "A");
+                a.setEmailVerified(true);
+                a = users.save(a);
+                User b = authService.register("race-b-" + System.nanoTime() + "@t.io", "correct-horse-battery", "B");
+                b.setEmailVerified(true);
+                b = users.save(b);
+
+                String target = "race-target-" + System.nanoTime() + "@t.io";
+                String tokenA = emailTokens.issue(a, EmailTokenService.EMAIL_CHANGE, target, EmailTokenService.CHANGE_TTL);
+                String tokenB = emailTokens.issue(b, EmailTokenService.EMAIL_CHANGE, target, EmailTokenService.CHANGE_TTL);
+
+                CyclicBarrier barrier = new CyclicBarrier(2);
+                Callable<Object> attemptA = () -> {
+                    barrier.await();
+                    try { return accountService.completeEmailChange(tokenA); }
+                    catch (Exception e) { return e; }
+                };
+                Callable<Object> attemptB = () -> {
+                    barrier.await();
+                    try { return accountService.completeEmailChange(tokenB); }
+                    catch (Exception e) { return e; }
+                };
+
+                List<Future<Object>> futures = List.of(pool.submit(attemptA), pool.submit(attemptB));
+                List<Object> results = futures.stream().map(f -> {
+                    try { return f.get(); } catch (Exception e) { throw new RuntimeException(e); }
+                }).toList();
+
+                long successes = results.stream().filter(r -> r instanceof User).count();
+                long conflicts = results.stream()
+                        .filter(r -> r instanceof org.springframework.web.server.ResponseStatusException rse
+                                && rse.getStatusCode().value() == 409)
+                        .count();
+                long unexpected = results.size() - successes - conflicts;
+
+                assertThat(unexpected)
+                        .withFailMessage("expected only a User (winner) or 409 CONFLICT (loser), got: %s", results)
+                        .isZero();
+                assertThat(successes).isEqualTo(1);
+                assertThat(conflicts).isEqualTo(1);
+                assertThat(users.findByEmail(target)).isPresent();
+            }
+        } finally {
+            pool.shutdown();
+        }
+    }
+
+    @Test
+    void passwordlessUserCannotChangePasswordOrEmail() throws Exception {
+        User googleOnly = new User();
+        googleOnly.setEmail("google-only-" + System.nanoTime() + "@t.io");
+        googleOnly.setPasswordHash(null);
+        googleOnly.setName("Google Only");
+        googleOnly.setEmailVerified(true);
+        googleOnly = users.save(googleOnly);
+        String bearer = tokenService.userToken(googleOnly);
+
+        mvc.perform(patch("/api/me/password").with(csrf()).header("Authorization", "Bearer " + bearer)
+                        .contentType(APPLICATION_JSON).content("""
+                        {"currentPassword":"anything","newPassword":"a-brand-new-secret"}
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("NO_PASSWORD_SET"));
+
+        mvc.perform(post("/api/me/email").with(csrf()).header("Authorization", "Bearer " + bearer)
+                        .contentType(APPLICATION_JSON).content("""
+                        {"password":"anything","newEmail":"new-address@t.io"}
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("NO_PASSWORD_SET"));
     }
 }

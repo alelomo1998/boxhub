@@ -1,6 +1,7 @@
 package com.boxhub.identity;
 
 import com.boxhub.shared.Mailer;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,7 +34,7 @@ public class AccountService {
         this.mailer = mailer;
     }
 
-    public record SessionDto(UUID id, String device, String ip, Instant lastSeen) {}
+    public record SessionDto(UUID id, String device, String ip, Instant lastSeen, boolean current) {}
 
     @Transactional
     public User changePassword(UUID userId, String current, String next) {
@@ -71,13 +72,31 @@ public class AccountService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "EMAIL_TAKEN"); // taken while the link sat in an inbox
         u.setEmail(t.getNewEmail());
         u.setEmailVerified(true);
-        return users.save(u);
+        try {
+            // saveAndFlush so a unique-constraint hit surfaces HERE, inside this try, rather
+            // than being deferred to commit (past that point we can no longer catch it) —
+            // same precedent as AuthService.register / GoogleLinkService. The pre-check above
+            // is just the fast path with a clean error; this is the real backstop for the
+            // remaining race (another change to the same address landing between the check
+            // and the write).
+            return users.saveAndFlush(u);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "EMAIL_TAKEN");
+        }
     }
 
+    /**
+     * rawRefreshToken is the caller's own bh_rt cookie value (null for bearer-header callers).
+     * Hashing it and comparing to each session's stored hash tells the sessions screen which
+     * row is "this device" without ever exposing a token — the hash comparison never needs,
+     * and never reveals, the raw value of anyone else's token.
+     */
     @Transactional(readOnly = true)
-    public List<SessionDto> sessions(UUID userId) {
+    public List<SessionDto> sessions(UUID userId, String rawRefreshToken) {
+        String callerHash = rawRefreshToken == null ? null : RefreshTokenService.sha256(rawRefreshToken);
         return refreshTokens.activeSessions(userId).stream()
-                .map(t -> new SessionDto(t.getId(), t.getUserAgent(), t.getIp(), t.getLastUsedAt()))
+                .map(t -> new SessionDto(t.getId(), t.getUserAgent(), t.getIp(), t.getLastUsedAt(),
+                        callerHash != null && callerHash.equals(t.getTokenHash())))
                 .toList();
     }
 

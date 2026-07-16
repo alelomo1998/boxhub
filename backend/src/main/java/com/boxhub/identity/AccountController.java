@@ -1,5 +1,6 @@
 package com.boxhub.identity;
 
+import com.boxhub.shared.CookieBearerTokenResolver;
 import com.boxhub.shared.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -67,7 +68,8 @@ public class AccountController {
     }
 
     @GetMapping("/sessions")
-    public List<AccountService.SessionDto> sessions() {
-        return accounts.sessions(TenantContext.userId());
+    public List<AccountService.SessionDto> sessions(HttpServletRequest http) {
+        String rawRefreshToken = CookieBearerTokenResolver.cookie(http, CookieService.RT);
+        return accounts.sessions(TenantContext.userId(), rawRefreshToken);
     }
 }
