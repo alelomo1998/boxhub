@@ -25,18 +25,20 @@ public class AuthController {
     private final MembershipRepository membershipRepo;
     private final UserRepository userRepo;
     private final CookieService cookies;
+    private final EmailTokenService emailTokens;
 
     public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens,
-                          MembershipRepository membershipRepo, UserRepository userRepo, CookieService cookies) {
+                          MembershipRepository membershipRepo, UserRepository userRepo, CookieService cookies,
+                          EmailTokenService emailTokens) {
         this.authService = authService;
         this.tokenService = tokenService;
         this.refreshTokens = refreshTokens;
         this.membershipRepo = membershipRepo;
         this.userRepo = userRepo;
         this.cookies = cookies;
+        this.emailTokens = emailTokens;
     }
 
-    // register endpoint is rewritten again in Task 5 (email verification) — validation left as-is.
     record RegisterRequest(@NotBlank @Email String email,
                            @NotBlank @Size(min = 8, max = 100) String password,
                            @NotBlank @Size(max = 100) String name) {}
@@ -44,6 +46,8 @@ public class AuthController {
     public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role) {}
     public record SessionResponse(List<MembershipDto> memberships) {}
     record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
+    record TokenRequest(@NotBlank String token) {}
+    record EmailRequest(@NotBlank @Email String email) {}
 
     /**
      * Hands the client an XSRF-TOKEN cookie before it does anything else.
@@ -70,6 +74,24 @@ public class AuthController {
     public ResponseEntity<SessionResponse> login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
         User u = authService.login(req.email(), req.password());
         return withSession(u, http, HttpStatus.OK);
+    }
+
+    @PostMapping("/verify")
+    public ResponseEntity<SessionResponse> verify(@Valid @RequestBody TokenRequest req, HttpServletRequest http) {
+        EmailToken t = emailTokens.consume(req.token(), EmailTokenService.VERIFY);
+        User u = t.getUser();
+        u.setEmailVerified(true);
+        userRepo.save(u);
+        return withSession(u, http, HttpStatus.OK); // clicking the link logs them straight in
+    }
+
+    /** Always 202: a 404 here would confirm whether an address is registered. */
+    @PostMapping("/verify/resend")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resendVerification(@Valid @RequestBody EmailRequest req) {
+        userRepo.findByEmail(req.email().toLowerCase().trim())
+                .filter(u -> !u.isEmailVerified())
+                .ifPresent(authService::sendVerification);
     }
 
     @PostMapping("/refresh")

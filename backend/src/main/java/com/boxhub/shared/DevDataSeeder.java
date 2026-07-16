@@ -51,13 +51,14 @@ public class DevDataSeeder implements CommandLineRunner {
     private final LiftEntryRepository liftEntries;
     private final AnnouncementRepository announcements;
     private final BookingRepository bookings;
+    private final UserRepository userRepo;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
                          ClassTemplateRepository templates, ClassSessionRepository sessions,
                          SessionGenerator sessionGenerator, TemplatePieceRepository skeletons,
                          SessionItemRepository items, WodRepository wods, MovementRepository movements,
                          WodScoreRepository wodScores, LiftEntryRepository liftEntries,
-                         AnnouncementRepository announcements, BookingRepository bookings) {
+                         AnnouncementRepository announcements, BookingRepository bookings, UserRepository userRepo) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
@@ -72,6 +73,7 @@ public class DevDataSeeder implements CommandLineRunner {
         this.liftEntries = liftEntries;
         this.announcements = announcements;
         this.bookings = bookings;
+        this.userRepo = userRepo;
     }
 
     @Override
@@ -153,6 +155,8 @@ public class DevDataSeeder implements CommandLineRunner {
 
     private User seed(Box box, String email, String name, String role) {
         User u = authService.register(email, "password123", name);
+        u.setEmailVerified(true); // demo logins must work without clicking a verify link
+        userRepo.save(u);
         Membership m = new Membership();
         m.setUser(u);
         m.setBox(box);

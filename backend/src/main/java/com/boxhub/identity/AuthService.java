@@ -1,9 +1,15 @@
 package com.boxhub.identity;
 
-import com.boxhub.shared.DuplicateEmailException;
+import com.boxhub.shared.Mailer;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class AuthService {
@@ -11,41 +17,93 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final MembershipRepository memberships;
+    private final EmailTokenService emailTokens;
+    private final Mailer mailer;
+    private final PasswordPolicy passwordPolicy;
+    private final LoginThrottleService throttle;
     private final String timingEqualizerHash;
 
-    public AuthService(UserRepository users, PasswordEncoder passwordEncoder,
-                       MembershipRepository memberships) {
+    public AuthService(UserRepository users, PasswordEncoder passwordEncoder, MembershipRepository memberships,
+                       EmailTokenService emailTokens, Mailer mailer, PasswordPolicy passwordPolicy,
+                       LoginThrottleService throttle) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.memberships = memberships;
+        this.emailTokens = emailTokens;
+        this.mailer = mailer;
+        this.passwordPolicy = passwordPolicy;
+        this.throttle = throttle;
         this.timingEqualizerHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
     }
 
+    /**
+     * Always succeeds from the caller's point of view — returning 409 on a taken address
+     * would turn registration into an account-enumeration oracle. If the address is taken,
+     * the REAL owner is told someone tried, and the impostor's input is discarded.
+     */
     @Transactional
     public User register(String email, String rawPassword, String name) {
-        String normalizedEmail = email.toLowerCase().trim();
-        if (users.findByEmail(normalizedEmail).isPresent()) throw new DuplicateEmailException();
+        passwordPolicy.check(rawPassword);
+        String normalized = email.toLowerCase().trim();
+
+        Optional<User> existing = users.findByEmail(normalized);
+        if (existing.isPresent()) {
+            User owner = existing.get();
+            mailer.send(owner.getEmail(), "Someone tried to sign up with your email",
+                    "register-attempt", Map.of("name", owner.getName()));
+            return owner; // caller only echoes id/email/name; no session is minted by register
+        }
+
         User u = new User();
-        u.setEmail(normalizedEmail);
+        u.setEmail(normalized);
         u.setPasswordHash(passwordEncoder.encode(rawPassword));
         u.setName(name);
+        u.setEmailVerified(false);
         try {
-            return users.saveAndFlush(u);
+            u = users.saveAndFlush(u);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // concurrent register with same email lost the race to the unique index
-            throw new DuplicateEmailException();
+            // lost the race to the unique index — same answer as above, no enumeration
+            User owner = users.findByEmail(normalized).orElseThrow();
+            mailer.send(owner.getEmail(), "Someone tried to sign up with your email",
+                    "register-attempt", Map.of("name", owner.getName()));
+            return owner;
         }
+        sendVerification(u);
+        return u;
     }
 
-    @Transactional(readOnly = true)
+    public void sendVerification(User u) {
+        String token = emailTokens.issue(u, EmailTokenService.VERIFY, null, EmailTokenService.VERIFY_TTL);
+        mailer.send(u.getEmail(), "Verify your email", "verify",
+                Map.of("name", u.getName(), "link", mailer.link("/verify?token=" + token)));
+    }
+
+    /**
+     * Credentials FIRST, verification second. Reversing the order would let anyone learn
+     * whether an address is registered by typing it with a junk password.
+     */
+    @Transactional
     public User login(String email, String rawPassword) {
-        var maybeUser = users.findByEmail(email.toLowerCase().trim());
-        // Always run one bcrypt comparison so unknown-email and wrong-password take equal time
+        String normalized = email.toLowerCase().trim();
+        var maybeUser = users.findByEmail(normalized);
+
+        maybeUser.ifPresent(throttle::assertNotThrottled);
+
+        // one bcrypt comparison either way, so unknown-email and wrong-password take equal time
         String hash = maybeUser.map(User::getPasswordHash).orElse(timingEqualizerHash);
+        if (hash == null) hash = timingEqualizerHash; // Google-only account: no password to match
         boolean matches = passwordEncoder.matches(rawPassword, hash);
-        if (maybeUser.isEmpty() || !matches)
-            throw new org.springframework.security.authentication.BadCredentialsException("Bad credentials");
-        return maybeUser.get();
+
+        if (maybeUser.isEmpty() || maybeUser.get().getPasswordHash() == null || !matches) {
+            maybeUser.ifPresent(throttle::recordFailure);
+            throw new BadCredentialsException("Bad credentials");
+        }
+
+        User u = maybeUser.get();
+        throttle.recordSuccess(u);
+        if (!u.isEmailVerified())
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED");
+        return u;
     }
 
     @Transactional(readOnly = true)
