@@ -6,6 +6,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -71,19 +79,43 @@ class GoogleLinkTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void resolveIsIdempotentForTheSameNewUserCalledTwice() {
-        // Pins the DataIntegrityViolationException recovery path in GoogleLinkService.resolve():
-        // a double-click sends two resolve() calls for the same brand-new user. Sequential calls
-        // can't reproduce the actual unique-constraint race (that needs real concurrency, not
-        // deterministic in a unit test) but they exercise the same postcondition the recovery
-        // path guarantees — one user, one identity row, no matter how many times it's called.
-        String s = sub();
-        String e = email();
-        User first = google.resolve(s, e, true, "Double Click");
-        User second = google.resolve(s, e, true, "Double Click");
+    void concurrentResolveForTheSameNewUserBothWinNoOneErrors() throws Exception {
+        // Real double-click: two threads call resolve() for the same brand-new subject/email
+        // at the same instant, against real Postgres. Both pass the "not known yet" check,
+        // then race the unique constraint. The loser must recover, not bounce to /login?error.
+        // Looped with fresh subject/email each iteration because the race is timing-dependent —
+        // a single shot can miss it depending on how the barrier release interleaves with the
+        // two connections' commits.
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            for (int i = 0; i < 5; i++) {
+                String s = sub();
+                String e = email();
+                CyclicBarrier barrier = new CyclicBarrier(2);
 
-        assertThat(second.getId()).isEqualTo(first.getId());
-        assertThat(identities.findByUserId(first.getId())).hasSize(1);
+                Callable<User> attempt = () -> {
+                    barrier.await();
+                    return google.resolve(s, e, true, "Double Click");
+                };
+
+                List<Future<User>> futures = List.of(pool.submit(attempt), pool.submit(attempt));
+                List<User> results = futures.stream().map(f -> {
+                    try {
+                        return f.get();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }).collect(Collectors.toList());
+
+                User first = results.get(0);
+                User second = results.get(1);
+                assertThat(second.getId()).isEqualTo(first.getId());
+                assertThat(identities.findByUserId(first.getId())).hasSize(1);
+                assertThat(users.findByEmail(e)).isPresent();
+            }
+        } finally {
+            pool.shutdown();
+        }
     }
 
     @Test
