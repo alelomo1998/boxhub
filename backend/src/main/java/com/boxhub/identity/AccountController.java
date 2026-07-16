@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/me")
 public class AccountController {
@@ -62,5 +64,20 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmEmailChange(@Valid @RequestBody TokenRequest req) {
         accounts.completeEmailChange(req.token());
+    }
+
+    @GetMapping("/export")
+    public Map<String, Object> export() {
+        return accounts.export(TenantContext.userId());
+    }
+
+    /** Anonymize, then clear the cookies — they now point at a person who no longer exists. */
+    @DeleteMapping
+    public ResponseEntity<Void> delete() {
+        accounts.anonymize(TenantContext.userId());
+        ResponseEntity.BodyBuilder b = ResponseEntity.status(HttpStatus.NO_CONTENT);
+        for (org.springframework.http.ResponseCookie c : cookies.clearAll())
+            b.header(HttpHeaders.SET_COOKIE, c.toString());
+        return b.build();
     }
 }

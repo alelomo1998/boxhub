@@ -32,6 +32,17 @@ public class MediaStorage {
         this.root = Path.of(mediaDir);
     }
 
+    /** Removes the stored file; silent no-op if the path is null or already gone (idempotent). */
+    public void delete(String path) {
+        if (path == null) return;
+        String relative = path.startsWith("/media/") ? path.substring("/media/".length()) : path;
+        try {
+            Files.deleteIfExists(root.resolve(relative));
+        } catch (IOException e) {
+            // best-effort cleanup — the DB row losing its avatarPath is what actually matters
+        }
+    }
+
     /** Validates and stores the file; returns the public path ("/media/{box}/{uuid}.{ext}"). */
     public String store(UUID boxId, MultipartFile file) {
         if (file == null || file.isEmpty())

@@ -65,8 +65,7 @@ public class MemberController {
         boolean losesAdmin = "BOX_ADMIN".equals(m.getRole()) && "ACTIVE".equals(m.getStatus())
                 && ((req.role() != null && !"BOX_ADMIN".equals(req.role()))
                  || (req.status() != null && !"ACTIVE".equals(req.status())));
-        if (losesAdmin && memberships.countByBoxIdAndRoleAndStatus(boxId, "BOX_ADMIN", "ACTIVE") <= 1)
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot remove the last active admin");
+        if (losesAdmin) RoleGuard.assertNotLastAdmin(memberships, boxId);
 
         if (req.role() != null) m.setRole(req.role());
         if (req.status() != null) m.setStatus(req.status());
