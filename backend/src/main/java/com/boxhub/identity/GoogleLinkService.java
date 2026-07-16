@@ -1,5 +1,6 @@
 package com.boxhub.identity;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,19 @@ public class GoogleLinkService {
         Optional<AuthIdentity> known = identities.findByProviderAndProviderSubject(PROVIDER, subject);
         if (known.isPresent()) return known.get().getUser();
 
+        try {
+            return createOrLink(subject, normalized, name);
+        } catch (DataIntegrityViolationException e) {
+            // Same precedent as AuthService.register: a double-click fires two concurrent
+            // resolve() calls for the same new user. Both pass the "not known yet" check above,
+            // then race users.email or auth_identity(provider, provider_subject) — one wins the
+            // unique constraint, the other lands here. Recover by re-fetching what the winner
+            // created instead of failing the loser's request.
+            return recoverFromLinkRace(subject, normalized);
+        }
+    }
+
+    private User createOrLink(String subject, String normalized, String name) {
         Optional<User> local = users.findByEmail(normalized);
 
         // 2. No local account → create one: verified, passwordless.
@@ -66,12 +80,26 @@ public class GoogleLinkService {
         return u;
     }
 
+    private User recoverFromLinkRace(String subject, String normalized) {
+        return identities.findByProviderAndProviderSubject(PROVIDER, subject)
+                .map(AuthIdentity::getUser)
+                .orElseGet(() -> {
+                    User winner = users.findByEmail(normalized).orElseThrow();
+                    if (identities.findByProviderAndProviderSubject(PROVIDER, subject).isEmpty())
+                        link(winner, subject, normalized);
+                    return winner;
+                });
+    }
+
     private void link(User user, String subject, String email) {
         AuthIdentity id = new AuthIdentity();
         id.setUser(user);
         id.setProvider(PROVIDER);
         id.setProviderSubject(subject);
         id.setEmail(email);
-        identities.save(id);
+        // Flushed (not just saved) so a unique(provider, provider_subject) collision surfaces
+        // here, inside the try/catch above, rather than at transaction-commit time — by then
+        // control has already left resolve() and the exception can no longer be recovered from.
+        identities.saveAndFlush(id);
     }
 }

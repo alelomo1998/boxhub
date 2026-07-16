@@ -2,8 +2,10 @@ package com.boxhub.shared;
 
 import com.boxhub.identity.*;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -17,6 +19,7 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Google SSO gets its own filter chain. oauth2Login stores the authorization request in a
@@ -31,16 +34,24 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
  * OAuth2ClientAutoConfiguration treats any bound sub-property under that prefix as "a client is
  * configured" and eagerly validates it, throwing IllegalStateException when the id is blank —
  * which is exactly the "unconfigured" default this whole class exists to support. Building the
- * registration ourselves, gated by the same @ConditionalOnProperty, sidesteps that entirely.
+ * registration ourselves, gated by the same condition as the class, sidesteps that entirely.
  *
  * Gated on the raw BOXHUB_GOOGLE_CLIENT_ID env var, not a YAML property with a ${VAR:} empty
  * default: @ConditionalOnProperty without havingValue matches on any non-null value, including
  * "" — so a property that always resolves (even to blank) never turns the condition off. An
  * unset env var is the one property source that reads back as genuinely absent (null).
+ *
+ * @ConditionalOnExpression + StringUtils.hasText (not @ConditionalOnProperty) for the same
+ * "" reason one level down: an operator exporting BOXHUB_GOOGLE_CLIENT_ID="" as a placeholder
+ * (unset-but-declared) makes the env var itself present-but-blank. @ConditionalOnProperty would
+ * still flip the chain on, and ClientRegistration.Builder's hasText(clientId) assertion would
+ * then crash boot. hasText() on the resolved value is blank-safe for both "unset" and "".
  */
 @Configuration
-@ConditionalOnProperty("BOXHUB_GOOGLE_CLIENT_ID")
+@ConditionalOnExpression("T(org.springframework.util.StringUtils).hasText('${BOXHUB_GOOGLE_CLIENT_ID:}')")
 public class OAuth2SecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(OAuth2SecurityConfig.class);
 
     @Bean
     ClientRegistrationRepository clientRegistrationRepository(
@@ -69,18 +80,36 @@ public class OAuth2SecurityConfig {
     AuthenticationSuccessHandler googleSuccessHandler(GoogleLinkService google, TokenService tokens,
                                                       RefreshTokenService refreshTokens, CookieService cookies) {
         return (request, response, authentication) -> {
-            OAuth2User principal = (OAuth2User) authentication.getPrincipal();
+            // This handler runs inside the security filter chain, ahead of the DispatcherServlet —
+            // an exception thrown here never reaches @RestControllerAdvice, it hits ErrorPageFilter,
+            // which hardcodes a whitelabel 500. Catch and redirect instead of letting anything escape.
+            try {
+                OAuth2User principal = (OAuth2User) authentication.getPrincipal();
 
-            User user = google.resolve(
-                    principal.getAttribute("sub"),
-                    principal.getAttribute("email"),
-                    Boolean.TRUE.equals(principal.getAttribute("email_verified")),
-                    principal.getAttribute("name"));
+                User user = google.resolve(
+                        principal.getAttribute("sub"),
+                        principal.getAttribute("email"),
+                        Boolean.TRUE.equals(principal.getAttribute("email_verified")),
+                        principal.getAttribute("name"));
 
-            String refresh = refreshTokens.issue(user, request.getHeader(HttpHeaders.USER_AGENT), clientIp(request));
-            response.addHeader(HttpHeaders.SET_COOKIE, cookies.access(tokens.userToken(user)).toString());
-            response.addHeader(HttpHeaders.SET_COOKIE, cookies.refresh(refresh).toString());
-            response.sendRedirect("/");
+                String refresh = refreshTokens.issue(user, request.getHeader(HttpHeaders.USER_AGENT), clientIp(request));
+                response.addHeader(HttpHeaders.SET_COOKIE, cookies.access(tokens.userToken(user)).toString());
+                response.addHeader(HttpHeaders.SET_COOKIE, cookies.refresh(refresh).toString());
+                // Fresh session never inherits a box context — same rule as AuthController.withSession,
+                // otherwise user B signing in on a shared device inherits user A's bh_bt.
+                response.addHeader(HttpHeaders.SET_COOKIE, cookies.clearBox().toString());
+                response.sendRedirect("/");
+            } catch (ResponseStatusException e) {
+                if ("GOOGLE_EMAIL_UNVERIFIED".equals(e.getReason())) {
+                    response.sendRedirect("/login?error=google_email_unverified");
+                } else {
+                    log.error("Google sign-in failed", e);
+                    response.sendRedirect("/login?error=google");
+                }
+            } catch (Exception e) {
+                log.error("Google sign-in failed", e);
+                response.sendRedirect("/login?error=google");
+            }
         };
     }
 

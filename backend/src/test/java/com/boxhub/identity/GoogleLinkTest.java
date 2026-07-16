@@ -71,6 +71,22 @@ class GoogleLinkTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void resolveIsIdempotentForTheSameNewUserCalledTwice() {
+        // Pins the DataIntegrityViolationException recovery path in GoogleLinkService.resolve():
+        // a double-click sends two resolve() calls for the same brand-new user. Sequential calls
+        // can't reproduce the actual unique-constraint race (that needs real concurrency, not
+        // deterministic in a unit test) but they exercise the same postcondition the recovery
+        // path guarantees — one user, one identity row, no matter how many times it's called.
+        String s = sub();
+        String e = email();
+        User first = google.resolve(s, e, true, "Double Click");
+        User second = google.resolve(s, e, true, "Double Click");
+
+        assertThat(second.getId()).isEqualTo(first.getId());
+        assertThat(identities.findByUserId(first.getId())).hasSize(1);
+    }
+
+    @Test
     void googleMustVouchForTheAddress() {
         assertThatThrownBy(() -> google.resolve(sub(), email(), false, "Unvouched"))
                 .isInstanceOf(ResponseStatusException.class)
