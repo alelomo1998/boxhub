@@ -53,19 +53,22 @@ public class AuthController {
                 .map(m -> new MembershipDto(m.getBox().getId(), m.getBox().getName(),
                         m.getBox().getSlug(), m.getRole()))
                 .toList();
-        return new TokenPairResponse(tokenService.userToken(u), refreshTokens.issue(u), mems);
+        // M8 T2: mechanical bridge, T3 rewrites this controller
+        return new TokenPairResponse(tokenService.userToken(u), refreshTokens.issue(u, null, null), mems);
     }
 
     record RefreshRequest(@NotBlank String refreshToken) {}
 
     @PostMapping("/refresh")
     public TokenPairResponse refresh(@Valid @RequestBody RefreshRequest req) {
-        User u = refreshTokens.consume(req.refreshToken());
+        // M8 T2: mechanical bridge, T3 rewrites this controller
+        var rotated = refreshTokens.rotate(req.refreshToken(), null, null);
+        User u = rotated.user();
         var mems = authService.membershipsOf(u).stream()
                 .map(m -> new MembershipDto(m.getBox().getId(), m.getBox().getName(),
                         m.getBox().getSlug(), m.getRole()))
                 .toList();
-        return new TokenPairResponse(tokenService.userToken(u), refreshTokens.issue(u), mems);
+        return new TokenPairResponse(tokenService.userToken(u), rotated.rawToken(), mems);
     }
 
     record BoxTokenRequest(@jakarta.validation.constraints.NotNull UUID boxId) {}

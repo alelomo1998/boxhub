@@ -21,7 +21,8 @@ class RefreshTest extends AbstractIntegrationTest {
     @Test
     void refreshRotatesToken() throws Exception {
         User u = authService.register("rot-" + System.nanoTime() + "@t.io", "password123", "Rot");
-        String raw = refreshTokens.issue(u);
+        // M8 T2: mechanical bridge, T3 rewrites this controller/test
+        String raw = refreshTokens.issue(u, null, null);
 
         String body = mvc.perform(post("/api/auth/refresh").contentType(APPLICATION_JSON)
                         .content("{\"refreshToken\":\"" + raw + "\"}"))
