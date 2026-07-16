@@ -97,7 +97,10 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     private static String extractEmail(String body) {
         try {
-            return new ObjectMapper().readTree(body).path("email").asText(null);
+            String email = new ObjectMapper().readTree(body).path("email").asText(null);
+            // normalize: downstream (User lookup) does the same; buckets must match
+            // or Foo@x.com / foo@x.com split into separate limiter buckets — a free bypass.
+            return email == null ? null : email.toLowerCase().trim();
         } catch (Exception e) {
             return null;
         }

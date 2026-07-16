@@ -62,7 +62,8 @@ public class PasswordPolicy {
     private static String sha1(String value) {
         try {
             return HexFormat.of().withUpperCase()
-                    .formatHex(MessageDigest.getInstance("SHA-1").digest(value.getBytes()));
+                    .formatHex(MessageDigest.getInstance("SHA-1").digest(
+                            value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
