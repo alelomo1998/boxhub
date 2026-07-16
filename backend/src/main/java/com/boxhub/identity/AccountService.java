@@ -125,11 +125,27 @@ public class AccountService {
      * Every identifying field is destroyed; the membership, scores, bookings and lifts stay.
      * Once the row can no longer identify a person it is outside GDPR entirely — and last
      * year's leaderboard still adds up.
+     *
+     * This method must NEVER call users.delete() on this row. memberships.user_id cascades
+     * ON DELETE (V2__box_core.sql), and bookings/scores/lifts cascade off memberships — so
+     * deleting the user would silently drag the box's whole class history down with it. Scrub
+     * in place instead.
+     *
+     * password is optional: null/blank for a passwordless (Google-only) caller, who has
+     * nothing to verify and must not be locked out of their own right to erasure — there is
+     * no cheap step-up for them short of a full OAuth re-consent redirect, an accepted
+     * residual risk. A password-holding caller MUST supply the correct one; this is the only
+     * irreversible endpoint in the API and deserves at least as strong a gate as changePassword.
      */
     @Transactional
-    public void anonymize(UUID userId) {
+    public void anonymize(UUID userId, String password) {
         User u = users.findById(userId).orElseThrow();
-        if (u.getEmail().endsWith(DELETED_DOMAIN)) return; // already gone; idempotent
+        if (u.getAnonymizedAt() != null) return; // already gone; idempotent — explicit state, not inferred from the email
+
+        if (u.getPasswordHash() != null) {
+            if (password == null || !encoder.matches(password, u.getPasswordHash()))
+                throw new BadCredentialsException("Bad credentials");
+        }
 
         List<Membership> mems = memberships.findByUserIdWithBox(userId);
         mems.stream()
@@ -142,6 +158,7 @@ public class AccountService {
         u.setEmailVerified(false);
         u.setFailedAttempts(0);
         u.setThrottledUntil(null);
+        u.setAnonymizedAt(Instant.now());
         users.save(u);
 
         identities.deleteByUserId(userId);

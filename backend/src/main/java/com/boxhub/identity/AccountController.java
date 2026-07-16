@@ -34,6 +34,8 @@ public class AccountController {
                                  @NotBlank @Size(min = 10, max = 100) String newPassword) {}
     record EmailChangeRequest(@NotBlank String password, @NotBlank @Email String newEmail) {}
     record TokenRequest(@NotBlank String token) {}
+    /** password is optional — a passwordless (Google-only) account has nothing to verify. */
+    record DeleteRequest(String password) {}
 
     /**
      * A password change is how you evict someone who is already inside, so it revokes every
@@ -71,10 +73,14 @@ public class AccountController {
         return accounts.export(TenantContext.userId());
     }
 
-    /** Anonymize, then clear the cookies — they now point at a person who no longer exists. */
+    /**
+     * Anonymize, then clear the cookies — they now point at a person who no longer exists.
+     * Body is optional (required = false) so a bodyless DELETE still binds; a passwordless
+     * (Google-only) caller sends none and req is null.
+     */
     @DeleteMapping
-    public ResponseEntity<Void> delete() {
-        accounts.anonymize(TenantContext.userId());
+    public ResponseEntity<Void> delete(@RequestBody(required = false) DeleteRequest req) {
+        accounts.anonymize(TenantContext.userId(), req == null ? null : req.password());
         ResponseEntity.BodyBuilder b = ResponseEntity.status(HttpStatus.NO_CONTENT);
         for (org.springframework.http.ResponseCookie c : cookies.clearAll())
             b.header(HttpHeaders.SET_COOKIE, c.toString());
