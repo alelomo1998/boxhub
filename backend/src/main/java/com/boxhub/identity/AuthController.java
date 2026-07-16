@@ -66,8 +66,11 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest req) {
-        User u = authService.register(req.email(), req.password(), req.name());
-        return new UserResponse(u.getId(), u.getEmail(), u.getName());
+        authService.register(req.email(), req.password(), req.name());
+        // Body must be built from the request only, never the returned entity: on a taken
+        // address register() returns the REAL owner, and echoing it would leak their id/name —
+        // an enumeration oracle. Normalize the same way the service does so both branches match.
+        return new UserResponse(UUID.randomUUID(), req.email().toLowerCase().trim(), req.name());
     }
 
     @PostMapping("/login")

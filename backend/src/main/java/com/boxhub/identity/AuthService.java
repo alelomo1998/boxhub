@@ -46,17 +46,21 @@ public class AuthService {
         passwordPolicy.check(rawPassword);
         String normalized = email.toLowerCase().trim();
 
+        // Paid unconditionally, before the existence check: bcrypt is ~60-100ms, so if only
+        // the fresh-address branch paid it, response timing alone would out an existing address.
+        String hash = passwordEncoder.encode(rawPassword);
+
         Optional<User> existing = users.findByEmail(normalized);
         if (existing.isPresent()) {
             User owner = existing.get();
             mailer.send(owner.getEmail(), "Someone tried to sign up with your email",
                     "register-attempt", Map.of("name", owner.getName()));
-            return owner; // caller only echoes id/email/name; no session is minted by register
+            return owner; // caller builds its response from the request, not this entity
         }
 
         User u = new User();
         u.setEmail(normalized);
-        u.setPasswordHash(passwordEncoder.encode(rawPassword));
+        u.setPasswordHash(hash);
         u.setName(name);
         u.setEmailVerified(false);
         try {

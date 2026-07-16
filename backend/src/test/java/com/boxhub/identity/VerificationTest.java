@@ -128,6 +128,49 @@ class VerificationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void registerEchoesOnlyWhatWasSubmitted() throws Exception {
+        User existing = authService.register("taken2-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Owner");
+
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"email":"%s","password":"another-password-xx","name":"Sentinel Name"}
+                        """.formatted(existing.getEmail())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Sentinel Name"))
+                .andExpect(jsonPath("$.email").value(existing.getEmail()))
+                .andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(existing.getId().toString())));
+    }
+
+    @Test
+    void freshAndCollisionRegistrationResponsesHaveTheSameShape() throws Exception {
+        User existing = authService.register("taken3-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Owner");
+        String freshEmail = "fresh-" + System.nanoTime() + "@t.io";
+
+        var freshBody = mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"email":"%s","password":"another-password-xx","name":"Fresh Athlete"}
+                        """.formatted(freshEmail)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Fresh Athlete"))
+                .andExpect(jsonPath("$.email").value(freshEmail))
+                .andReturn().getResponse().getContentAsString();
+
+        var takenBody = mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"email":"%s","password":"another-password-xx","name":"Impostor"}
+                        """.formatted(existing.getEmail())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(fieldNames(freshBody)).isEqualTo(fieldNames(takenBody));
+    }
+
+    /** Field-name set of a JSON object body, for shape comparisons that ignore values. */
+    private static java.util.Set<String> fieldNames(String json) throws Exception {
+        var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+        java.util.Set<String> names = new java.util.TreeSet<>();
+        node.fieldNames().forEachRemaining(names::add);
+        return names;
+    }
+
+    @Test
     void resendAlwaysReturns202EvenForAnUnknownAddress() throws Exception {
         mvc.perform(post("/api/auth/verify/resend").with(csrf()).contentType(APPLICATION_JSON).content("""
                         {"email":"nobody-%d@t.io"}
