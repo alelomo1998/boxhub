@@ -97,6 +97,22 @@ public class AuthController {
                 .ifPresent(authService::sendVerification);
     }
 
+    record ResetRequest(@NotBlank String token, @NotBlank @Size(min = 10, max = 100) String password) {}
+
+    /** Always 202. A 404 would confirm whether the address is registered. */
+    @PostMapping("/password/forgot")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void forgot(@Valid @RequestBody EmailRequest req) {
+        authService.startReset(req.email());
+    }
+
+    @PostMapping("/password/reset")
+    public ResponseEntity<SessionResponse> reset(@Valid @RequestBody ResetRequest req, HttpServletRequest http) {
+        User u = authService.completeReset(req.token(), req.password());
+        refreshTokens.revokeAllFor(u.getId());
+        return withSession(u, http, HttpStatus.OK); // then hand them a fresh, clean session
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<SessionResponse> refresh(HttpServletRequest http) {
         String raw = com.boxhub.shared.CookieBearerTokenResolver.cookie(http, CookieService.RT);

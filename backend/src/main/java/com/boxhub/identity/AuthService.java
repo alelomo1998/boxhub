@@ -114,4 +114,30 @@ public class AuthService {
     public java.util.List<Membership> membershipsOf(User user) {
         return memberships.findByUserIdWithBox(user.getId());
     }
+
+    /** Silent for unknown addresses — the caller always answers 202 regardless. */
+    @Transactional
+    public void startReset(String email) {
+        users.findByEmail(email.toLowerCase().trim()).ifPresent(u -> {
+            String token = emailTokens.issue(u, EmailTokenService.RESET, null, EmailTokenService.RESET_TTL);
+            mailer.send(u.getEmail(), "Reset your password", "reset",
+                    Map.of("name", u.getName(), "link", mailer.link("/reset?token=" + token)));
+        });
+    }
+
+    /**
+     * Reset is what a compromised user reaches for, so it revokes every session.
+     * It also verifies the address: clicking a link in the inbox proves the inbox.
+     * This is likewise how a Google-only user acquires a password.
+     */
+    @Transactional
+    public User completeReset(String rawToken, String newPassword) {
+        passwordPolicy.check(newPassword);
+        EmailToken t = emailTokens.consume(rawToken, EmailTokenService.RESET);
+        User u = t.getUser();
+        u.setPasswordHash(passwordEncoder.encode(newPassword));
+        u.setEmailVerified(true);
+        throttle.recordSuccess(u); // clear any backoff — they have proven they own the inbox
+        return users.save(u);
+    }
 }
