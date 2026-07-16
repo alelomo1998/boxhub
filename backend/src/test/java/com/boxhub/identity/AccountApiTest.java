@@ -305,4 +305,70 @@ class AccountApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("NO_PASSWORD_SET"));
     }
+
+    /**
+     * The riskiest binding detail in AccountController#delete: a truly bodyless DELETE (no
+     * JSON, no content-type) must bind @RequestBody(required = false) DeleteRequest to null and
+     * reach the 401 "bad credentials" path — not blow up in Spring's message conversion with a
+     * 400 HttpMessageNotReadableException first. Proven at the HTTP layer, not by direct method
+     * call.
+     */
+    @Test
+    void deletingWithoutABodyIs401ForAPasswordUser() throws Exception {
+        mvc.perform(delete("/api/me").with(csrf()).cookie(at))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deletingWithTheWrongPasswordIs401() throws Exception {
+        mvc.perform(delete("/api/me").with(csrf()).cookie(at).contentType(APPLICATION_JSON).content("""
+                        {"password":"not-the-password"}
+                        """))
+                .andExpect(status().isUnauthorized());
+
+        User stillHere = users.findById(user.getId()).orElseThrow();
+        assertThat(stillHere.getName()).isEqualTo("Account");
+        assertThat(stillHere.getAnonymizedAt()).isNull();
+    }
+
+    @Test
+    void deletingWithTheCorrectPasswordSucceedsAndClearsCookies() throws Exception {
+        var response = mvc.perform(delete("/api/me").with(csrf()).cookie(at).contentType(APPLICATION_JSON).content("""
+                        {"password":"correct-horse-battery"}
+                        """))
+                .andExpect(status().isNoContent())
+                .andReturn().getResponse();
+
+        // The endpoint clears the cookies — they now point at a person who no longer exists.
+        for (String name : List.of("bh_at", "bh_rt", "bh_bt")) {
+            String setCookie = response.getHeaders(org.springframework.http.HttpHeaders.SET_COOKIE).stream()
+                    .filter(h -> h.startsWith(name + "="))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("no " + name + " Set-Cookie header on delete response"));
+            assertThat(setCookie).containsIgnoringCase("Max-Age=0");
+        }
+
+        User gone = users.findById(user.getId()).orElseThrow();
+        assertThat(gone.getName()).isEqualTo("Deleted athlete");
+        assertThat(gone.getAnonymizedAt()).isNotNull();
+    }
+
+    @Test
+    void aGoogleOnlyUserCanDeleteWithoutAPassword() throws Exception {
+        User googleOnly = new User();
+        googleOnly.setEmail("google-only-" + System.nanoTime() + "@t.io");
+        googleOnly.setPasswordHash(null);
+        googleOnly.setName("Google Only");
+        googleOnly.setEmailVerified(true);
+        googleOnly = users.save(googleOnly);
+        String bearer = tokenService.userToken(googleOnly);
+
+        // bearer-header requests skip CSRF by design — no .with(csrf()) needed here.
+        mvc.perform(delete("/api/me").header("Authorization", "Bearer " + bearer))
+                .andExpect(status().isNoContent());
+
+        User gone = users.findById(googleOnly.getId()).orElseThrow();
+        assertThat(gone.getName()).isEqualTo("Deleted athlete");
+        assertThat(gone.getAnonymizedAt()).isNotNull();
+    }
 }
