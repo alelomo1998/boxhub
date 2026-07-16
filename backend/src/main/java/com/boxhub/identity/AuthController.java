@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -26,10 +27,12 @@ public class AuthController {
     private final UserRepository userRepo;
     private final CookieService cookies;
     private final EmailTokenService emailTokens;
+    private final boolean googleConfigured;
 
     public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens,
                           MembershipRepository membershipRepo, UserRepository userRepo, CookieService cookies,
-                          EmailTokenService emailTokens) {
+                          EmailTokenService emailTokens,
+                          @Value("${BOXHUB_GOOGLE_CLIENT_ID:}") String googleClientId) {
         this.authService = authService;
         this.tokenService = tokenService;
         this.refreshTokens = refreshTokens;
@@ -37,6 +40,7 @@ public class AuthController {
         this.userRepo = userRepo;
         this.cookies = cookies;
         this.emailTokens = emailTokens;
+        this.googleConfigured = !googleClientId.isBlank();
     }
 
     record RegisterRequest(@NotBlank @Email String email,
@@ -48,6 +52,7 @@ public class AuthController {
     record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
     record TokenRequest(@NotBlank String token) {}
     record EmailRequest(@NotBlank @Email String email) {}
+    record ProvidersResponse(boolean google) {}
 
     /**
      * Hands the client an XSRF-TOKEN cookie before it does anything else.
@@ -61,6 +66,12 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void csrf(org.springframework.security.web.csrf.CsrfToken token) {
         token.getToken();
+    }
+
+    /** Tells the frontend whether to render the Google button — no secrets, just a flag. */
+    @GetMapping("/providers")
+    public ProvidersResponse providers() {
+        return new ProvidersResponse(googleConfigured);
     }
 
     @PostMapping("/register")

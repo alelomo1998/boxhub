@@ -2,6 +2,7 @@ package com.boxhub.shared;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -15,6 +16,7 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
+    @Order(2)
     SecurityFilterChain filterChain(HttpSecurity http, CookieBearerTokenResolver bearerTokenResolver)
             throws Exception {
         // Cookie-authenticated writes need CSRF. Bearer-header writes cannot be forged
@@ -50,7 +52,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh",
                         "/api/auth/csrf", "/api/auth/verify", "/api/auth/verify/resend",
                         "/api/auth/password/forgot", "/api/auth/password/reset",
-                        "/api/auth/logout", "/actuator/health").permitAll()
+                        "/api/auth/logout", "/api/auth/providers", "/actuator/health").permitAll()
                 .requestMatchers("/api/tv/pair", "/api/tv/pair/poll", "/api/tv/stream").permitAll()
                 .requestMatchers("/api/auth/box-token", "/api/auth/logout-all").authenticated()
                 .requestMatchers("/api/me/**").authenticated()
