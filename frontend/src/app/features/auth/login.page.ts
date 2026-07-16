@@ -49,11 +49,12 @@ export class LoginPage {
   submit() {
     this.error.set('');
     this.auth.login(this.email, this.password).subscribe({
-      next: res => {
+      next: session => {
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
         if (returnUrl) { this.router.navigateByUrl(returnUrl); return; }
-        if (res.memberships.length === 1) {
-          const m = res.memberships[0];
+        const memberships = session?.memberships ?? [];
+        if (memberships.length === 1) {
+          const m = memberships[0];
           this.auth.selectBox(m.boxId).subscribe(() => this.router.navigateByUrl(redirectForRole(m.role)));
         } else {
           this.router.navigateByUrl('/auth/boxes');

@@ -61,7 +61,7 @@ export class JoinPage implements OnInit {
   private router = inject(Router);
   token = inject(ActivatedRoute).snapshot.paramMap.get('token')!;
 
-  loggedIn = this.auth.hasUserToken();
+  loggedIn = this.auth.hasSession();
   name = '';
   email = '';
   password = '';

@@ -1,7 +1,9 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { AuthService } from './auth.service';
+
+const NO_CONTENT = { status: 204, statusText: 'No Content' };
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -18,94 +20,91 @@ describe('AuthService', () => {
 
   afterEach(() => http.verify());
 
-  it('login stores tokens and memberships', () => {
-    service.login('a@b.io', 'correct-horse-battery').subscribe();
-    const req = http.expectOne('/api/auth/login');
-    expect(req.request.method).toBe('POST');
-    req.flush({
-      accessToken: 'AT',
-      refreshToken: 'RT',
+  it('bootstrap sets the session from /api/me', fakeAsync(() => {
+    service.bootstrap();
+    http.expectOne('/api/auth/csrf').flush(null, NO_CONTENT);
+    tick();
+    http.expectOne('/api/me').flush({
+      id: 'u1', email: 'a@b.io', name: 'Ann',
       memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
     });
-    expect(localStorage.getItem('bh_user_token')).toBe('AT');
-    expect(localStorage.getItem('bh_refresh_token')).toBe('RT');
-    expect(service.memberships().length).toBe(1);
-  });
+    tick();
 
-  it('selectBox stores box token and active box', () => {
-    service.login('a@b.io', 'correct-horse-battery').subscribe();
+    expect(service.session()?.email).toBe('a@b.io');
+    expect(service.hasSession()).toBeTrue();
+  }));
+
+  it('bootstrap on a 401 leaves the session null and does not throw', fakeAsync(() => {
+    service.bootstrap();
+    http.expectOne('/api/auth/csrf').flush(null, NO_CONTENT);
+    tick();
+    http.expectOne('/api/me').flush('unauthenticated', { status: 401, statusText: 'Unauthorized' });
+    tick();
+
+    expect(service.session()).toBeNull();
+    expect(service.hasSession()).toBeFalse();
+  }));
+
+  it('login re-bootstraps and resolves the post-bootstrap session', fakeAsync(() => {
+    let result: unknown;
+    service.login('a@b.io', 'correct-horse-battery').subscribe(session => (result = session));
+
     http.expectOne('/api/auth/login').flush({
-      accessToken: 'AT', refreshToken: 'RT',
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+    });
+    http.expectOne('/api/auth/csrf').flush(null, NO_CONTENT);
+    tick();
+    http.expectOne('/api/me').flush({
+      id: 'u1', email: 'a@b.io', name: 'Ann',
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+    });
+    tick();
+
+    // the value the subscriber sees must already be post-bootstrap, not stale
+    expect((result as { email: string } | null)?.email).toBe('a@b.io');
+    expect(service.session()?.email).toBe('a@b.io');
+  }));
+
+  it('selectBox stores the active box', () => {
+    service.session.set({
+      id: 'u1', email: 'a@b.io', name: 'Ann',
       memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'COACH' }],
     });
+
     service.selectBox('1').subscribe();
-    http.expectOne('/api/auth/box-token').flush({ accessToken: 'BOX-AT' });
-    expect(localStorage.getItem('bh_box_token')).toBe('BOX-AT');
+    http.expectOne('/api/auth/box-token').flush(null, NO_CONTENT);
+
+    expect(service.activeBox()?.boxId).toBe('1');
     expect(service.activeBox()?.role).toBe('COACH');
-  });
-
-  it('refresh then selectBox chain renews box token (interceptor contract)', () => {
-    // login + select box to establish active box state
-    service.login('a@b.io', 'correct-horse-battery').subscribe();
-    http.expectOne('/api/auth/login').flush({
-      accessToken: 'AT', refreshToken: 'RT',
-      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
-    });
-    service.selectBox('1').subscribe();
-    http.expectOne('/api/auth/box-token').flush({ accessToken: 'BOX-AT-1' });
-
-    // refresh rotates user token; a follow-up selectBox must be possible and update the box token
-    service.refresh().subscribe();
-    http.expectOne('/api/auth/refresh').flush({
-      accessToken: 'AT-2', refreshToken: 'RT-2',
-      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
-    });
-    service.selectBox('1').subscribe();
-    http.expectOne('/api/auth/box-token').flush({ accessToken: 'BOX-AT-2' });
-    expect(localStorage.getItem('bh_box_token')).toBe('BOX-AT-2');
-  });
-
-  it('refresh updates memberships signal', () => {
-    service.refresh; // type presence
-    localStorage.setItem('bh_refresh_token', 'RT');
-    service.refresh().subscribe(ok => expect(ok).toBeTrue());
-    http.expectOne('/api/auth/refresh').flush({
-      accessToken: 'AT2', refreshToken: 'RT2',
-      memberships: [{ boxId: '9', boxName: 'New', boxSlug: 'new', role: 'ATHLETE' }],
-    });
-    expect(service.memberships().length).toBe(1);
-    expect(service.memberships()[0].boxId).toBe('9');
+    expect(JSON.parse(localStorage.getItem('bh_active_box')!).boxId).toBe('1');
   });
 
   it('logout clears everything', () => {
-    localStorage.setItem('bh_user_token', 'x');
-    service.logout();
-    expect(localStorage.getItem('bh_user_token')).toBeNull();
+    service.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [] });
+    service.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
+    localStorage.setItem('bh_active_box', '{"boxId":"1"}');
+
+    service.logout().subscribe();
+    http.expectOne('/api/auth/logout').flush(null, NO_CONTENT);
+
+    expect(service.session()).toBeNull();
     expect(service.activeBox()).toBeNull();
+    expect(localStorage.getItem('bh_active_box')).toBeNull();
   });
-});
 
-describe('AuthService (corrupt localStorage)', () => {
-  let http: HttpTestingController;
+  it('restoreActiveBox drops a saved box the user is no longer a member of', fakeAsync(() => {
+    localStorage.setItem('bh_active_box', JSON.stringify({ boxId: 'gone', boxName: 'Old', role: 'ATHLETE' }));
 
-  beforeEach(() => {
-    localStorage.setItem('bh_memberships', '{not-json');
-    localStorage.setItem('bh_active_box', '<garbage>');
-    TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+    service.bootstrap();
+    http.expectOne('/api/auth/csrf').flush(null, NO_CONTENT);
+    tick();
+    http.expectOne('/api/me').flush({
+      id: 'u1', email: 'a@b.io', name: 'Ann',
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
     });
-  });
+    tick();
 
-  afterEach(() => {
-    http = TestBed.inject(HttpTestingController);
-    http.verify();
-    localStorage.clear();
-  });
-
-  it('survives corrupt localStorage values', () => {
-    const service = TestBed.inject(AuthService);
-    expect(service.memberships()).toEqual([]);
     expect(service.activeBox()).toBeNull();
-    expect(localStorage.getItem('bh_memberships')).toBeNull();
-  });
+    expect(localStorage.getItem('bh_active_box')).toBeNull();
+  }));
 });

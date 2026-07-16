@@ -7,12 +7,6 @@ export interface MembershipDto {
   role: Role;
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  memberships: MembershipDto[];
-}
-
 export interface ActiveBox {
   boxId: string;
   boxName: string;

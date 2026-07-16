@@ -78,5 +78,5 @@ export class CoachShellPage {
     { link: 'types', label: 'Types', glyph: '⌘' },
   ];
 
-  logout() { this.auth.logout(); this.router.navigate(['/auth/login']); }
+  logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
 }

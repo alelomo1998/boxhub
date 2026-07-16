@@ -99,7 +99,7 @@ export class AdminShellPage {
   boxName = this.auth.activeBox()?.boxName || 'BoxHub';
   moreOpen = signal(false);
 
-  logout() { this.auth.logout(); this.router.navigate(['/auth/login']); }
+  logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
 
   nav = [
     { link: 'dashboard', label: 'Dashboard' },

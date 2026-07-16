@@ -1,57 +1,56 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, tap, of, catchError } from 'rxjs';
-import { ActiveBox, LoginResponse, MembershipDto, Role } from './auth.models';
+import { Observable, catchError, firstValueFrom, from, map, of, switchMap, tap } from 'rxjs';
+import { ActiveBox, MembershipDto, Role } from './auth.models';
 
-const K = {
-  user: 'bh_user_token',
-  refresh: 'bh_refresh_token',
-  box: 'bh_box_token',
-  activeBox: 'bh_active_box',
-  memberships: 'bh_memberships',
-} as const;
+const ACTIVE_BOX = 'bh_active_box';
 
-function safeParse<T>(key: string, fallback: T): T {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? JSON.stringify(fallback));
-  } catch {
-    localStorage.removeItem(key); // corrupt value: drop it rather than brick bootstrap
-    return fallback;
-  }
+export interface Session {
+  id: string;
+  email: string;
+  name: string;
+  memberships: MembershipDto[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
 
-  readonly memberships = signal<MembershipDto[]>(safeParse<MembershipDto[]>(K.memberships, []));
-  readonly activeBox = signal<ActiveBox | null>(safeParse<ActiveBox | null>(K.activeBox, null));
+  /** Null = anonymous. Tokens live in httpOnly cookies and are invisible to JS by design. */
+  readonly session = signal<Session | null>(null);
+  readonly activeBox = signal<ActiveBox | null>(null);
+  readonly memberships = computed(() => this.session()?.memberships ?? []);
 
-  bearerToken(): string | null {
-    return localStorage.getItem(K.box) ?? localStorage.getItem(K.user);
+  /**
+   * Called once at app start (provideAppInitializer). Fetches the XSRF cookie, then asks who
+   * we are. A 401 simply means anonymous — it is not an error.
+   */
+  async bootstrap(): Promise<void> {
+    await firstValueFrom(this.http.get('/api/auth/csrf', { observe: 'response' })).catch(() => null);
+    const me = await firstValueFrom(
+      this.http.get<Session>('/api/me').pipe(catchError(() => of(null))),
+    );
+    this.session.set(me);
+    if (me) this.restoreActiveBox(me.memberships);
+    else this.clearActiveBox();
   }
 
-  login(email: string, password: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>('/api/auth/login', { email, password }).pipe(
-      tap(res => {
-        localStorage.setItem(K.user, res.accessToken);
-        localStorage.setItem(K.refresh, res.refreshToken);
-        localStorage.setItem(K.memberships, JSON.stringify(res.memberships));
-        localStorage.removeItem(K.box);
-        localStorage.removeItem(K.activeBox);
-        this.memberships.set(res.memberships);
-        this.activeBox.set(null);
-      }),
+  login(email: string, password: string): Observable<Session | null> {
+    return this.http.post<{ memberships: MembershipDto[] }>('/api/auth/login', { email, password }).pipe(
+      tap(() => this.clearActiveBox()),
+      // the login response carries memberships, but /api/me is the single source of truth —
+      // re-bootstrap and wait for it (a bare `tap(async ...)` would not wait, so switchMap here).
+      switchMap(() => from(this.bootstrap())),
+      map(() => this.session()),
     );
   }
 
   selectBox(boxId: string): Observable<void> {
     const m = this.memberships().find(x => x.boxId === boxId);
-    return this.http.post<{ accessToken: string }>('/api/auth/box-token', { boxId }).pipe(
-      tap(res => {
-        localStorage.setItem(K.box, res.accessToken);
-        const active: ActiveBox = { boxId, boxName: m?.boxName ?? '', role: m?.role ?? 'ATHLETE' };
-        localStorage.setItem(K.activeBox, JSON.stringify(active));
+    return this.http.post<void>('/api/auth/box-token', { boxId }).pipe(
+      tap(() => {
+        const active: ActiveBox = { boxId, boxName: m?.boxName ?? '', role: (m?.role ?? 'ATHLETE') as Role };
+        localStorage.setItem(ACTIVE_BOX, JSON.stringify(active));
         this.activeBox.set(active);
       }),
       map(() => void 0),
@@ -59,15 +58,7 @@ export class AuthService {
   }
 
   refresh(): Observable<boolean> {
-    const rt = localStorage.getItem(K.refresh);
-    if (!rt) return of(false);
-    return this.http.post<LoginResponse>('/api/auth/refresh', { refreshToken: rt }).pipe(
-      tap(res => {
-        localStorage.setItem(K.user, res.accessToken);
-        localStorage.setItem(K.refresh, res.refreshToken);
-        localStorage.setItem(K.memberships, JSON.stringify(res.memberships));
-        this.memberships.set(res.memberships);
-      }),
+    return this.http.post('/api/auth/refresh', {}).pipe(
       map(() => true),
       catchError(() => of(false)),
     );
@@ -85,13 +76,42 @@ export class AuthService {
     return this.http.post<MembershipDto>(`/api/invites/${token}/accept`, {});
   }
 
-  hasUserToken(): boolean {
-    return localStorage.getItem(K.user) !== null;
+  logout(): Observable<void> {
+    return this.http.post<void>('/api/auth/logout', {}).pipe(
+      catchError(() => of(void 0)), // a failed logout still clears the client
+      tap(() => this.clear()),
+      map(() => void 0),
+    );
   }
 
-  logout(): void {
-    Object.values(K).forEach(k => localStorage.removeItem(k));
-    this.memberships.set([]);
+  logoutEverywhere(): Observable<void> {
+    return this.http.post<void>('/api/auth/logout-all', {}).pipe(tap(() => this.clear()), map(() => void 0));
+  }
+
+  hasSession(): boolean {
+    return this.session() !== null;
+  }
+
+  private clear(): void {
+    this.session.set(null);
+    this.clearActiveBox();
+  }
+
+  private clearActiveBox(): void {
     this.activeBox.set(null);
+    localStorage.removeItem(ACTIVE_BOX);
+  }
+
+  /** The active box id survives a reload; the membership behind it is re-validated here. */
+  private restoreActiveBox(memberships: MembershipDto[]): void {
+    const raw = localStorage.getItem(ACTIVE_BOX);
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw) as ActiveBox;
+      if (memberships.some(m => m.boxId === saved.boxId)) this.activeBox.set(saved);
+      else localStorage.removeItem(ACTIVE_BOX); // membership gone: drop it
+    } catch {
+      localStorage.removeItem(ACTIVE_BOX);
+    }
   }
 }

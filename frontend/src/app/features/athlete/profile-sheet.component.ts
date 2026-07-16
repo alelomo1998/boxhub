@@ -112,7 +112,6 @@ export class ProfileSheetComponent implements OnInit {
   }
 
   logout() {
-    this.auth.logout();
-    this.router.navigate(['/auth/login']);
+    this.auth.logout().subscribe(() => this.router.navigate(['/auth/login']));
   }
 }
