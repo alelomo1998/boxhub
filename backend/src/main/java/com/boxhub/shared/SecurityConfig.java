@@ -54,7 +54,7 @@ public class SecurityConfig {
                         "/api/auth/password/forgot", "/api/auth/password/reset",
                         "/api/auth/logout", "/api/auth/providers", "/actuator/health").permitAll()
                 .requestMatchers("/api/tv/pair", "/api/tv/pair/poll", "/api/tv/stream").permitAll()
-                .requestMatchers("/api/auth/box-token", "/api/auth/logout-all").authenticated()
+                .requestMatchers("/api/auth/box-token", "/api/auth/logout-all", "/api/auth/sessions").authenticated()
                 .requestMatchers("/api/me/email/confirm").permitAll()
                 .requestMatchers("/api/me/**").authenticated()
                 .requestMatchers("/api/box/**").hasAuthority("SCOPE_box")

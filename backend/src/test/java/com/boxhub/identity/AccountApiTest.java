@@ -118,7 +118,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     void sessionsListTheDevicesAndLogOutEverywhereKillsThem() throws Exception {
         refreshTokens.issue(user, "Chrome on Android", "5.5.5.5");
 
-        mvc.perform(get("/api/me/sessions").cookie(at))
+        mvc.perform(get("/api/auth/sessions").cookie(at))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
 
@@ -132,7 +132,7 @@ class AccountApiTest extends AbstractIntegrationTest {
     void sessionsMarkExactlyTheCallersDeviceAsCurrent() throws Exception {
         refreshTokens.issue(user, "Chrome on Android", "5.5.5.5");
 
-        String body = mvc.perform(get("/api/me/sessions").cookie(at, rt))
+        String body = mvc.perform(get("/api/auth/sessions").cookie(at, rt))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
@@ -148,10 +148,47 @@ class AccountApiTest extends AbstractIntegrationTest {
         // bearer-header caller: no bh_rt cookie to hash, so nothing can be "this device"
         String bearer = tokenService.userToken(user);
 
-        mvc.perform(get("/api/me/sessions").header("Authorization", "Bearer " + bearer))
+        mvc.perform(get("/api/auth/sessions").header("Authorization", "Bearer " + bearer))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].current").value(false));
+    }
+
+    /**
+     * MockMvc's .cookie(...) attaches cookies to the mock request unconditionally — it does not
+     * enforce RFC 6265 Path matching the way a real browser does. That blind spot is exactly how
+     * the original bug (sessions endpoint under /api/me, bh_rt scoped to /api/auth — a real
+     * browser never sends bh_rt there, so "current" was false on every row, forever) sailed
+     * through every MockMvc-based assertion above. This test pins the actual contract: it reads
+     * the real Set-Cookie header for bh_rt from a login response, parses its Path attribute, and
+     * asserts the sessions endpoint URI is actually reachable under that path per RFC 6265
+     * path-matching rules (equal, or a `/`-bounded prefix) — not just "the test happened to pass".
+     */
+    @Test
+    void theRefreshCookiePathActuallyReachesTheSessionsEndpoint() throws Exception {
+        String setCookie = mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"email":"%s","password":"correct-horse-battery"}
+                        """.formatted(user.getEmail())))
+                .andReturn().getResponse().getHeaders(org.springframework.http.HttpHeaders.SET_COOKIE)
+                .stream().filter(h -> h.startsWith("bh_rt=")).findFirst()
+                .orElseThrow(() -> new AssertionError("no bh_rt Set-Cookie header on login response"));
+
+        String cookiePath = java.util.Arrays.stream(setCookie.split(";"))
+                .map(String::trim)
+                .filter(attr -> attr.regionMatches(true, 0, "Path=", 0, 5))
+                .map(attr -> attr.substring(5))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("bh_rt cookie has no Path attribute: " + setCookie));
+
+        String sessionsPath = "/api/auth/sessions";
+        boolean pathMatches = sessionsPath.equals(cookiePath)
+                || (sessionsPath.startsWith(cookiePath)
+                    && (cookiePath.endsWith("/") || sessionsPath.charAt(cookiePath.length()) == '/'));
+
+        assertThat(pathMatches)
+                .withFailMessage("bh_rt cookie Path=%s does not reach %s per RFC 6265 path matching — " +
+                        "a real browser would never send it there", cookiePath, sessionsPath)
+                .isTrue();
     }
 
     @Test
@@ -172,7 +209,7 @@ class AccountApiTest extends AbstractIntegrationTest {
 
     @Test
     void sessionsIsDeniedWithoutAuth() throws Exception {
-        mvc.perform(get("/api/me/sessions"))
+        mvc.perform(get("/api/auth/sessions"))
                 .andExpect(status().isUnauthorized());
     }
 

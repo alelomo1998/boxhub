@@ -1,5 +1,7 @@
 package com.boxhub.identity;
 
+import com.boxhub.shared.CookieBearerTokenResolver;
+import com.boxhub.shared.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -27,11 +29,12 @@ public class AuthController {
     private final UserRepository userRepo;
     private final CookieService cookies;
     private final EmailTokenService emailTokens;
+    private final AccountService accounts;
     private final boolean googleConfigured;
 
     public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens,
                           MembershipRepository membershipRepo, UserRepository userRepo, CookieService cookies,
-                          EmailTokenService emailTokens,
+                          EmailTokenService emailTokens, AccountService accounts,
                           @Value("${BOXHUB_GOOGLE_CLIENT_ID:}") String googleClientId) {
         this.authService = authService;
         this.tokenService = tokenService;
@@ -40,6 +43,7 @@ public class AuthController {
         this.userRepo = userRepo;
         this.cookies = cookies;
         this.emailTokens = emailTokens;
+        this.accounts = accounts;
         this.googleConfigured = !googleClientId.isBlank();
     }
 
@@ -147,6 +151,17 @@ public class AuthController {
     public ResponseEntity<Void> logoutAll() {
         refreshTokens.revokeAllFor(com.boxhub.shared.TenantContext.userId());
         return clearedCookies().build();
+    }
+
+    /**
+     * Lives under /api/auth, not /api/me: bh_rt is Path-scoped to /api/auth (CookieService,
+     * deliberately narrow), and marking the caller's own device as "current" needs that
+     * cookie. Moving the endpoint here is cheaper than widening the refresh token's reach.
+     */
+    @GetMapping("/sessions")
+    public List<AccountService.SessionDto> sessions(HttpServletRequest http) {
+        String rawRefreshToken = CookieBearerTokenResolver.cookie(http, CookieService.RT);
+        return accounts.sessions(TenantContext.userId(), rawRefreshToken);
     }
 
     record BoxTokenRequest(@jakarta.validation.constraints.NotNull UUID boxId) {}

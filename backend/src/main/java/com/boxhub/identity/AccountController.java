@@ -1,6 +1,5 @@
 package com.boxhub.identity;
 
-import com.boxhub.shared.CookieBearerTokenResolver;
 import com.boxhub.shared.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -11,8 +10,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/me")
@@ -65,11 +62,5 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmEmailChange(@Valid @RequestBody TokenRequest req) {
         accounts.completeEmailChange(req.token());
-    }
-
-    @GetMapping("/sessions")
-    public List<AccountService.SessionDto> sessions(HttpServletRequest http) {
-        String rawRefreshToken = CookieBearerTokenResolver.cookie(http, CookieService.RT);
-        return accounts.sessions(TenantContext.userId(), rawRefreshToken);
     }
 }
