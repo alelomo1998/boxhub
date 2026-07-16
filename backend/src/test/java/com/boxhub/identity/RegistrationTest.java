@@ -3,6 +3,7 @@ package com.boxhub.identity;
 import com.boxhub.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -15,7 +16,7 @@ class RegistrationTest extends AbstractIntegrationTest {
 
     @Test
     void registerCreatesUser() throws Exception {
-        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content("""
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
                 {"email":"reg1@test.io","password":"password123","name":"Reg One"}
                 """))
                 .andExpect(status().isCreated())
@@ -28,15 +29,15 @@ class RegistrationTest extends AbstractIntegrationTest {
         String body = """
                 {"email":"dup@test.io","password":"password123","name":"Dup"}
                 """;
-        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content(body))
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());
-        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content(body))
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content(body))
                 .andExpect(status().isConflict());
     }
 
     @Test
     void shortPasswordIs400() throws Exception {
-        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content("""
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
                 {"email":"weak@test.io","password":"short","name":"Weak"}
                 """))
                 .andExpect(status().isBadRequest());
@@ -44,11 +45,11 @@ class RegistrationTest extends AbstractIntegrationTest {
 
     @Test
     void caseVariantDuplicateEmailIs409() throws Exception {
-        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content("""
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
                 {"email":"CaseDup@test.io","password":"password123","name":"Case Dup"}
                 """))
                 .andExpect(status().isCreated());
-        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content("""
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
                 {"email":"casedup@test.io","password":"password123","name":"Case Dup 2"}
                 """))
                 .andExpect(status().isConflict());

@@ -1,13 +1,14 @@
 package com.boxhub.identity;
 
 import com.boxhub.AbstractIntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -15,31 +16,33 @@ class RefreshTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired AuthService authService;
-    @Autowired RefreshTokenService refreshTokens;
-    @Autowired ObjectMapper om;
+    @Autowired UserRepository users;
 
     @Test
     void refreshRotatesToken() throws Exception {
         User u = authService.register("rot-" + System.nanoTime() + "@t.io", "password123", "Rot");
-        // M8 T2: mechanical bridge, T3 rewrites this controller/test
-        String raw = refreshTokens.issue(u, null, null);
+        u.setEmailVerified(true);
+        users.save(u);
 
-        String body = mvc.perform(post("/api/auth/refresh").contentType(APPLICATION_JSON)
-                        .content("{\"refreshToken\":\"" + raw + "\"}"))
+        MvcResult loginResult = mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON)
+                        .content("{\"email\":\"" + u.getEmail() + "\",\"password\":\"password123\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn();
+        Cookie rt = loginResult.getResponse().getCookie("bh_rt");
 
-        // old token is dead (rotation)
-        mvc.perform(post("/api/auth/refresh").contentType(APPLICATION_JSON)
-                        .content("{\"refreshToken\":\"" + raw + "\"}"))
-                .andExpect(status().isUnauthorized());
+        MvcResult res = mvc.perform(post("/api/auth/refresh").with(csrf()).cookie(rt))
+                .andExpect(status().isOk())
+                .andExpect(cookie().exists("bh_at"))
+                .andExpect(cookie().exists("bh_rt"))
+                .andReturn();
 
-        // new token works
-        JsonNode json = om.readTree(body);
-        mvc.perform(post("/api/auth/refresh").contentType(APPLICATION_JSON)
-                        .content("{\"refreshToken\":\"" + json.get("refreshToken").asText() + "\"}"))
+        // new token works (checked BEFORE the replay below, which revokes the whole family)
+        Cookie newRt = res.getResponse().getCookie("bh_rt");
+        mvc.perform(post("/api/auth/refresh").with(csrf()).cookie(newRt))
                 .andExpect(status().isOk());
+
+        // old token is dead (rotation): replaying it is reuse detection -> 401
+        mvc.perform(post("/api/auth/refresh").with(csrf()).cookie(rt))
+                .andExpect(status().isUnauthorized());
     }
 }

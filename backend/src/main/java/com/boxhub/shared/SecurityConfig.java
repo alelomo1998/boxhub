@@ -15,22 +15,50 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(c -> c.disable())
+    SecurityFilterChain filterChain(HttpSecurity http, CookieBearerTokenResolver bearerTokenResolver)
+            throws Exception {
+        // Cookie-authenticated writes need CSRF. Bearer-header writes cannot be forged
+        // cross-site, so they do not — which is what keeps the pre-M8 tests green.
+        org.springframework.security.web.util.matcher.RequestMatcher csrfRequired = req ->
+                !SAFE_METHODS.contains(req.getMethod()) && req.getHeader("Authorization") == null;
+
+        http.csrf(c -> c
+                .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler())
+                .requireCsrfProtectionMatcher(csrfRequired)
+                // oauth2ResourceServer() rewrites the CSRF matcher to exempt any request whose
+                // bearer token resolves — with our cookie-aware resolver that would exempt
+                // cookie-authenticated requests too, defeating CSRF entirely. Re-assert our
+                // matcher on the built filter, after that composition has happened.
+                .withObjectPostProcessor(new org.springframework.security.config.ObjectPostProcessor<org.springframework.security.web.csrf.CsrfFilter>() {
+                    @Override
+                    public <O extends org.springframework.security.web.csrf.CsrfFilter> O postProcess(O filter) {
+                        filter.setRequireCsrfProtectionMatcher(csrfRequired);
+                        return filter;
+                    }
+                }))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh",
-                        "/actuator/health").permitAll()
+                        "/api/auth/csrf", "/api/auth/verify", "/api/auth/verify/resend",
+                        "/api/auth/password/forgot", "/api/auth/password/reset",
+                        "/api/auth/logout", "/actuator/health").permitAll()
                 .requestMatchers("/api/tv/pair", "/api/tv/pair/poll", "/api/tv/stream").permitAll()
-                .requestMatchers("/api/auth/box-token").authenticated()
+                .requestMatchers("/api/auth/box-token", "/api/auth/logout-all").authenticated()
+                .requestMatchers("/api/me/**").authenticated()
                 .requestMatchers("/api/box/**").hasAuthority("SCOPE_box")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/invites/*").permitAll()
                 .requestMatchers("/api/invites/*/accept").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("SUPERADMIN")
                 .anyRequest().authenticated())
-            .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtAuthConverter())));
+            .oauth2ResourceServer(o -> o
+                .bearerTokenResolver(bearerTokenResolver)
+                .jwt(j -> j.jwtAuthenticationConverter(jwtAuthConverter())));
         return http.build();
     }
+
+    private static final java.util.Set<String> SAFE_METHODS =
+            java.util.Set.of("GET", "HEAD", "OPTIONS", "TRACE");
 
     private org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthConverter() {
         var conv = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();

@@ -76,7 +76,8 @@ class MediaApiTest extends AbstractIntegrationTest {
     @Test
     void unauthenticatedIsDenied() throws Exception {
         mvc.perform(multipart("/api/box/media")
-                        .file(new MockMultipartFile("file", "a.png", "image/png", png())))
+                        .file(new MockMultipartFile("file", "a.png", "image/png", png()))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isUnauthorized());
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -40,7 +41,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
     record Pair(String code, String secret) {}
 
     private Pair pair() throws Exception {
-        MvcResult r = mvc.perform(post("/api/tv/pair")).andExpect(status().isOk()).andReturn();
+        MvcResult r = mvc.perform(post("/api/tv/pair").with(csrf())).andExpect(status().isOk()).andReturn();
         var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.getResponse().getContentAsString());
         return new Pair(json.get("code").asText(), json.get("secret").asText());
     }
@@ -54,7 +55,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
         assertThat(p.code()).hasSize(6);
 
         // pending: 202, no token yet
-        mvc.perform(post("/api/tv/pair/poll").contentType(APPLICATION_JSON)
+        mvc.perform(post("/api/tv/pair/poll").with(csrf()).contentType(APPLICATION_JSON)
                 .content("{\"code\":\"" + p.code() + "\",\"secret\":\"" + p.secret() + "\"}"))
                 .andExpect(status().isAccepted());
 
@@ -66,7 +67,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.name").value("Rig wall left"));
 
         // poll now returns a tv-scoped token bound to box A
-        MvcResult r = mvc.perform(post("/api/tv/pair/poll").contentType(APPLICATION_JSON)
+        MvcResult r = mvc.perform(post("/api/tv/pair/poll").with(csrf()).contentType(APPLICATION_JSON)
                 .content("{\"code\":\"" + p.code() + "\",\"secret\":\"" + p.secret() + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty()).andReturn();
@@ -81,7 +82,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
     @Test
     void wrongSecretRejected() throws Exception {
         Pair p = pair();
-        mvc.perform(post("/api/tv/pair/poll").contentType(APPLICATION_JSON)
+        mvc.perform(post("/api/tv/pair/poll").with(csrf()).contentType(APPLICATION_JSON)
                 .content("{\"code\":\"" + p.code() + "\",\"secret\":\"nope\"}"))
                 .andExpect(status().isNotFound());
     }
@@ -95,7 +96,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
         org.springframework.test.util.ReflectionTestUtils.setField(d, "createdAt",
                 java.time.Instant.now().minus(java.time.Duration.ofMinutes(11)));
         devices.save(d);
-        mvc.perform(post("/api/tv/pair/poll").contentType(APPLICATION_JSON)
+        mvc.perform(post("/api/tv/pair/poll").with(csrf()).contentType(APPLICATION_JSON)
                 .content("{\"code\":\"" + p.code() + "\",\"secret\":\"" + p.secret() + "\"}"))
                 .andExpect(status().isGone());
     }
@@ -138,7 +139,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
     @Test
     void claimWithoutAuthDenied() throws Exception {
         Pair p = pair();
-        mvc.perform(post("/api/box/tv/claim").contentType(APPLICATION_JSON)
+        mvc.perform(post("/api/box/tv/claim").with(csrf()).contentType(APPLICATION_JSON)
                 .content("{\"code\":\"" + p.code() + "\",\"name\":\"x\"}"))
                 .andExpect(status().isUnauthorized());
     }

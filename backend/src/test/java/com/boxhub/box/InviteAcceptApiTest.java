@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -93,7 +94,7 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
     @Test
     void acceptWithoutAuthIs401() throws Exception {
         String token = createInviteLink("anon@t.io", "ATHLETE");
-        mvc.perform(post("/api/invites/" + token + "/accept"))
+        mvc.perform(post("/api/invites/" + token + "/accept").with(csrf()))
                 .andExpect(status().isUnauthorized());
     }
 

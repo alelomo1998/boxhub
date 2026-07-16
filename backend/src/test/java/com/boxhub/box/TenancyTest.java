@@ -69,8 +69,9 @@ class TenancyTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/auth/box-token").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + userToken)
                         .content("{\"boxId\":\"" + boxA.getId() + "\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().exists("bh_bt"))
+                .andExpect(cookie().httpOnly("bh_bt", true));
     }
 
     @Test
