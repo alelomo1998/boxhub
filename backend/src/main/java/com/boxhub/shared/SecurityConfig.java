@@ -19,8 +19,12 @@ public class SecurityConfig {
             throws Exception {
         // Cookie-authenticated writes need CSRF. Bearer-header writes cannot be forged
         // cross-site, so they do not — which is what keeps the pre-M8 tests green.
+        // TV_PAIRING_PATHS are unauthenticated device endpoints (TVs/Fire Sticks polling for a
+        // token) that cannot do the csrf-cookie dance and carry no session cookie to forge —
+        // CSRF is meaningless there, so they're excluded outright.
         org.springframework.security.web.util.matcher.RequestMatcher csrfRequired = req ->
-                !SAFE_METHODS.contains(req.getMethod()) && req.getHeader("Authorization") == null;
+                !SAFE_METHODS.contains(req.getMethod()) && req.getHeader("Authorization") == null
+                        && !TV_PAIRING_PATHS.contains(req.getRequestURI());
 
         http.csrf(c -> c
                 .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
@@ -30,6 +34,10 @@ public class SecurityConfig {
                 // bearer token resolves — with our cookie-aware resolver that would exempt
                 // cookie-authenticated requests too, defeating CSRF entirely. Re-assert our
                 // matcher on the built filter, after that composition has happened.
+                // Verified against Spring Security 6.4.2: CsrfConfigurer.configure() composes
+                // And[matcher, Not[BearerTokenRequestMatcher]] and object post-processors run
+                // after that composition — re-verify this on any Spring Security upgrade.
+                // Covered by aCookieRequestWithoutCsrfIsRejected + theRealCsrfRoundTripWorksWithoutTestBypass.
                 .withObjectPostProcessor(new org.springframework.security.config.ObjectPostProcessor<org.springframework.security.web.csrf.CsrfFilter>() {
                     @Override
                     public <O extends org.springframework.security.web.csrf.CsrfFilter> O postProcess(O filter) {
@@ -59,6 +67,9 @@ public class SecurityConfig {
 
     private static final java.util.Set<String> SAFE_METHODS =
             java.util.Set.of("GET", "HEAD", "OPTIONS", "TRACE");
+
+    private static final java.util.Set<String> TV_PAIRING_PATHS =
+            java.util.Set.of("/api/tv/pair", "/api/tv/pair/poll");
 
     private org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthConverter() {
         var conv = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();

@@ -45,10 +45,19 @@ public class AuthController {
     public record SessionResponse(List<MembershipDto> memberships) {}
     record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
 
-    /** Hands the client an XSRF-TOKEN cookie before it does anything else. */
+    /**
+     * Hands the client an XSRF-TOKEN cookie before it does anything else.
+     *
+     * Spring Security 6's CSRF token is deferred: CookieCsrfTokenRepository only writes the
+     * Set-Cookie when CsrfToken.getToken() is actually called. An empty handler body never
+     * touches it, so the cookie never went out. Injecting the token and calling getToken()
+     * forces it.
+     */
     @GetMapping("/csrf")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void csrf() {}
+    public void csrf(org.springframework.security.web.csrf.CsrfToken token) {
+        token.getToken();
+    }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)

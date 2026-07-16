@@ -23,10 +23,23 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
 
     private final DefaultBearerTokenResolver header = new DefaultBearerTokenResolver();
 
+    // expired-cookie-must-not-block: BearerTokenAuthenticationFilter authenticates whatever
+    // resolve() returns BEFORE authorization runs, so a stale/expired bh_at cookie would 401
+    // these permitAll endpoints — e.g. a browser holding an expired access cookie could not
+    // even log back in. None of these endpoints need a principal derived from a cookie: login/
+    // register/verify/password-reset are anonymous by nature, and refresh/logout/csrf read the
+    // refresh cookie (or nothing) directly rather than relying on resolved-bearer auth.
+    private static final java.util.Set<String> PUBLIC_AUTH_PATHS = java.util.Set.of(
+            "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
+            "/api/auth/csrf", "/api/auth/verify", "/api/auth/verify/resend",
+            "/api/auth/password/forgot", "/api/auth/password/reset");
+
     @Override
     public String resolve(HttpServletRequest request) {
         String fromHeader = header.resolve(request);
         if (fromHeader != null) return fromHeader;
+
+        if (PUBLIC_AUTH_PATHS.contains(request.getRequestURI())) return null;
 
         String box = cookie(request, CookieService.BT);
         String user = cookie(request, CookieService.AT);
