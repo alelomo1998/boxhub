@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{mail/layout :: html}">
+<th:block th:fragment="content">
+  <p th:text="'Hi ' + ${name} + ','">Hi,</p>
+  <p>Reset your password to get back into your BoxHub account.</p>
+  <p style="padding:16px 0;">
+    <a th:href="${link}" style="background:#D7263D;color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;display:inline-block;font-weight:600;">Reset your password</a>
+  </p>
+  <p style="color:#8A8078;font-size:13px;">This link expires in 1 hour.</p>
+</th:block>
+</html>

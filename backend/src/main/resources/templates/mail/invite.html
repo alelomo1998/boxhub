@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{mail/layout :: html}">
+<th:block th:fragment="content">
+  <p th:text="${boxName} + ' invited you to join them on BoxHub.'">Box invited you to join them on BoxHub.</p>
+  <p style="padding:16px 0;">
+    <a th:href="${link}" style="background:#D7263D;color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;display:inline-block;font-weight:600;">Accept invite</a>
+  </p>
+</th:block>
+</html>

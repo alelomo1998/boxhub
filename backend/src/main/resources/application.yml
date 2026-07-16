@@ -11,11 +11,22 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  mail:
+    host: ${BOXHUB_SMTP_HOST:localhost}
+    port: ${BOXHUB_SMTP_PORT:1025}
+    username: ${BOXHUB_SMTP_USER:}
+    password: ${BOXHUB_SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${BOXHUB_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${BOXHUB_SMTP_TLS:false}
 management:
   endpoints:
     web:
       exposure:
         include: health
+  health:
+    mail:
+      enabled: false
 boxhub:
   jwt:
     secret: ${BOXHUB_JWT_SECRET:dev-only-secret-must-be-at-least-32-bytes!}
@@ -26,3 +37,6 @@ boxhub:
   superadmin-emails: ${BOXHUB_SUPERADMIN_EMAILS:}
   auth-rate-limit: ${BOXHUB_AUTH_RATE_LIMIT:10}
   media-dir: ${BOXHUB_MEDIA_DIR:./media}
+  app-url: ${BOXHUB_APP_URL:http://localhost}
+  mail:
+    from: ${BOXHUB_MAIL_FROM:BoxHub <no-reply@boxhub.local>}
