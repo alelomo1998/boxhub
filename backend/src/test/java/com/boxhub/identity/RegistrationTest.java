@@ -30,7 +30,7 @@ class RegistrationTest extends AbstractIntegrationTest {
     @Test
     void registerCreatesUser() throws Exception {
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
-                {"email":"reg1@test.io","password":"password123","name":"Reg One"}
+                {"email":"reg1@test.io","password":"correct-horse-battery","name":"Reg One"}
                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("reg1@test.io"))
@@ -40,7 +40,7 @@ class RegistrationTest extends AbstractIntegrationTest {
     @Test
     void duplicateEmailReturns201AndWarnsTheRealOwnerInsteadOfLeakingViaA409() throws Exception {
         String body = """
-                {"email":"dup@test.io","password":"password123","name":"Dup"}
+                {"email":"dup@test.io","password":"correct-horse-battery","name":"Dup"}
                 """;
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());
@@ -63,11 +63,11 @@ class RegistrationTest extends AbstractIntegrationTest {
     @Test
     void caseVariantDuplicateEmailAlsoReturns201NotConflict() throws Exception {
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
-                {"email":"CaseDup@test.io","password":"password123","name":"Case Dup"}
+                {"email":"CaseDup@test.io","password":"correct-horse-battery","name":"Case Dup"}
                 """))
                 .andExpect(status().isCreated());
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
-                {"email":"casedup@test.io","password":"password123","name":"Case Dup 2"}
+                {"email":"casedup@test.io","password":"correct-horse-battery","name":"Case Dup 2"}
                 """))
                 .andExpect(status().isCreated());
 

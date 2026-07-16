@@ -46,7 +46,7 @@ class PlanApiTest extends AbstractIntegrationTest {
     }
 
     private String boxToken(String email, Box box, String role) {
-        User u = authService.register(email, "password123", email);
+        User u = authService.register(email, "correct-horse-battery", email);
         Membership m = new Membership();
         m.setUser(u);
         m.setBox(box);

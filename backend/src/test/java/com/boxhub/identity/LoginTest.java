@@ -25,7 +25,7 @@ class LoginTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setup() {
-        user = authService.register("login-" + System.nanoTime() + "@t.io", "password123", "Log In");
+        user = authService.register("login-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Log In");
         user.setEmailVerified(true);
         users.save(user);
         Box b = new Box();
@@ -43,7 +43,7 @@ class LoginTest extends AbstractIntegrationTest {
     @Test
     void loginReturnsTokensAndMemberships() throws Exception {
         mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
-                {"email":"%s","password":"password123"}
+                {"email":"%s","password":"correct-horse-battery"}
                 """.formatted(user.getEmail())))
                 .andExpect(status().isOk())
                 .andExpect(cookie().exists("bh_at"))
@@ -63,7 +63,7 @@ class LoginTest extends AbstractIntegrationTest {
     @Test
     void unknownEmailIs401() throws Exception {
         mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
-                {"email":"nobody-here@t.io","password":"password123"}
+                {"email":"nobody-here@t.io","password":"correct-horse-battery"}
                 """))
                 .andExpect(status().isUnauthorized());
     }

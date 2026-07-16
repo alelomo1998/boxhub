@@ -90,7 +90,7 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 6. **e2e is serial** (`e2e/playwright.config.ts` workers:1) + retries:1 — it shares one seeded backend; parallel caused flake. **The "cold-start flake" was actually the auth rate limit:** the serial suite fires >10 logins/min from one IP, tripping the strict prod default of 10 → 429 cascade. Fixed in M3 by `BOXHUB_AUTH_RATE_LIMIT=200` in the dev/e2e compose backend env (prod overrides strict). If you add more logging-in specs, this is why.
 
 ## How to run / test
-- Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io`, password `password123`. Fresh volume seeds Demo Box + a weekly schedule.
+- Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io`, password `boxhub-demo-2026`. Fresh volume seeds Demo Box + a weekly schedule.
 - Backend: `cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Frontend: `cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npm run build`. E2E: stack up, then `cd e2e && npx playwright test`.
 - Flyway only for schema (V1/V2/V3 applied; next is V4). Never edit an applied migration.
 

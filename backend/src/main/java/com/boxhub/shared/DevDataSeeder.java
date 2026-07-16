@@ -154,7 +154,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private User seed(Box box, String email, String name, String role) {
-        User u = authService.register(email, "password123", name);
+        User u = authService.register(email, "boxhub-demo-2026", name);
         u.setEmailVerified(true); // demo logins must work without clicking a verify link
         userRepo.save(u);
         Membership m = new Membership();

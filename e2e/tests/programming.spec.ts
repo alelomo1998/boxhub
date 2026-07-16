@@ -3,7 +3,7 @@ import { test, expect, Page } from '@playwright/test';
 async function login(page: Page, email: string) {
   await page.goto('/auth/login');
   await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', 'password123');
+  await page.fill('input[name="password"]', 'boxhub-demo-2026');
   await page.click('button[type="submit"]');
   await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
 }

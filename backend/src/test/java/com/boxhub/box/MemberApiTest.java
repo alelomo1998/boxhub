@@ -42,11 +42,11 @@ class MemberApiTest extends AbstractIntegrationTest {
         boxA.setTimezone("Europe/Rome");
         boxes.save(boxA);
 
-        User admin = authService.register("madm-" + n + "@t.io", "password123", "Mem Admin");
+        User admin = authService.register("madm-" + n + "@t.io", "correct-horse-battery", "Mem Admin");
         adminMembership = member(admin, "BOX_ADMIN", null);
         adminToken = tokenService.boxToken(admin, adminMembership);
 
-        athleteUser = authService.register("math-" + n + "@t.io", "password123", "Searchable Athlete");
+        athleteUser = authService.register("math-" + n + "@t.io", "correct-horse-battery", "Searchable Athlete");
         athleteMembership = member(athleteUser, "ATHLETE", LocalDate.now().plusDays(5)); // expiring soon
     }
 
@@ -128,7 +128,7 @@ class MemberApiTest extends AbstractIntegrationTest {
         boxB.setSlug("mem-b-" + n);
         boxB.setTimezone("Europe/Rome");
         boxes.save(boxB);
-        User otherAdmin = authService.register("madm2-" + n + "@t.io", "password123", "Other Adm");
+        User otherAdmin = authService.register("madm2-" + n + "@t.io", "correct-horse-battery", "Other Adm");
         Membership om2 = new Membership();
         om2.setUser(otherAdmin);
         om2.setBox(boxB);

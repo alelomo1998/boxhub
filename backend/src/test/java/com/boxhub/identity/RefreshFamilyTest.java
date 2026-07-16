@@ -15,7 +15,7 @@ class RefreshFamilyTest extends AbstractIntegrationTest {
     @Autowired AuthService authService;
 
     private User user() {
-        return authService.register("fam-" + System.nanoTime() + "@t.io", "password1234", "Fam");
+        return authService.register("fam-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Fam");
     }
 
     @Test

@@ -33,12 +33,12 @@ class BoxSettingsTest extends AbstractIntegrationTest {
         b.setSlug("set-" + n);
         b.setTimezone("Europe/Rome");
         boxes.save(b);
-        User admin = authService.register("sadm-" + n + "@t.io", "password123", "SAdm");
+        User admin = authService.register("sadm-" + n + "@t.io", "correct-horse-battery", "SAdm");
         Membership ma = new Membership();
         ma.setUser(admin); ma.setBox(b); ma.setRole("BOX_ADMIN");
         memberships.save(ma);
         adminToken = tokenService.boxToken(admin, ma);
-        User ath = authService.register("sath-" + n + "@t.io", "password123", "SAth");
+        User ath = authService.register("sath-" + n + "@t.io", "correct-horse-battery", "SAth");
         Membership mt = new Membership();
         mt.setUser(ath); mt.setBox(b); mt.setRole("ATHLETE");
         memberships.save(mt);

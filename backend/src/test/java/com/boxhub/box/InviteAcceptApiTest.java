@@ -40,7 +40,7 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
         box.setSlug("acc-" + n);
         box.setTimezone("Europe/Rome");
         boxes.save(box);
-        User admin = authService.register("aadm-" + n + "@t.io", "password123", "Adm");
+        User admin = authService.register("aadm-" + n + "@t.io", "correct-horse-battery", "Adm");
         Membership m = new Membership();
         m.setUser(admin);
         m.setBox(box);
@@ -76,7 +76,7 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
     void acceptCreatesMembershipAndBurnsInvite() throws Exception {
         long n = System.nanoTime();
         String token = createInviteLink("joiner-" + n + "@t.io", "ATHLETE");
-        User joiner = authService.register("joiner-" + n + "@t.io", "password123", "Joiner");
+        User joiner = authService.register("joiner-" + n + "@t.io", "correct-horse-battery", "Joiner");
         String userToken = tokenService.userToken(joiner);
 
         mvc.perform(post("/api/invites/" + token + "/accept")
@@ -102,7 +102,7 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
     void existingMemberAcceptIs409() throws Exception {
         long n = System.nanoTime();
         String token = createInviteLink("dupm-" + n + "@t.io", "ATHLETE");
-        User joiner = authService.register("dupm-" + n + "@t.io", "password123", "Dup");
+        User joiner = authService.register("dupm-" + n + "@t.io", "correct-horse-battery", "Dup");
         Membership existing = new Membership();
         existing.setUser(joiner);
         existing.setBox(box);
@@ -126,7 +126,7 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
         otherBox.setSlug("other-" + n);
         otherBox.setTimezone("Europe/Rome");
         boxes.save(otherBox);
-        User joiner = authService.register("cross-" + n + "@t.io", "password123", "Cross Joiner");
+        User joiner = authService.register("cross-" + n + "@t.io", "correct-horse-battery", "Cross Joiner");
         Membership om = new Membership();
         om.setUser(joiner);
         om.setBox(otherBox);

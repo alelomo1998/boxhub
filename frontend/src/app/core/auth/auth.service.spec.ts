@@ -19,7 +19,7 @@ describe('AuthService', () => {
   afterEach(() => http.verify());
 
   it('login stores tokens and memberships', () => {
-    service.login('a@b.io', 'password123').subscribe();
+    service.login('a@b.io', 'correct-horse-battery').subscribe();
     const req = http.expectOne('/api/auth/login');
     expect(req.request.method).toBe('POST');
     req.flush({
@@ -33,7 +33,7 @@ describe('AuthService', () => {
   });
 
   it('selectBox stores box token and active box', () => {
-    service.login('a@b.io', 'password123').subscribe();
+    service.login('a@b.io', 'correct-horse-battery').subscribe();
     http.expectOne('/api/auth/login').flush({
       accessToken: 'AT', refreshToken: 'RT',
       memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'COACH' }],
@@ -46,7 +46,7 @@ describe('AuthService', () => {
 
   it('refresh then selectBox chain renews box token (interceptor contract)', () => {
     // login + select box to establish active box state
-    service.login('a@b.io', 'password123').subscribe();
+    service.login('a@b.io', 'correct-horse-battery').subscribe();
     http.expectOne('/api/auth/login').flush({
       accessToken: 'AT', refreshToken: 'RT',
       memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],

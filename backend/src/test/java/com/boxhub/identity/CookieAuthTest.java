@@ -40,7 +40,7 @@ class CookieAuthTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setup() {
-        user = authService.register("cookie-" + System.nanoTime() + "@t.io", "password1234", "Cookie");
+        user = authService.register("cookie-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Cookie");
         user.setEmailVerified(true);
         users.save(user);
 
@@ -75,7 +75,7 @@ class CookieAuthTest extends AbstractIntegrationTest {
 
     private MvcResult login() throws Exception {
         return mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
-                        {"email":"%s","password":"password1234"}
+                        {"email":"%s","password":"correct-horse-battery"}
                         """.formatted(user.getEmail())))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -187,7 +187,7 @@ class CookieAuthTest extends AbstractIntegrationTest {
         // the stale cookie must not shadow the anonymous /login endpoint.
         mvc.perform(post("/api/auth/login").with(csrf()).cookie(expiredAccessCookie())
                         .contentType(APPLICATION_JSON).content("""
-                        {"email":"%s","password":"password1234"}
+                        {"email":"%s","password":"correct-horse-battery"}
                         """.formatted(user.getEmail())))
                 .andExpect(status().isOk());
     }
@@ -211,7 +211,7 @@ class CookieAuthTest extends AbstractIntegrationTest {
 
         mvc.perform(post("/api/auth/login").cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())
                         .contentType(APPLICATION_JSON).content("""
-                        {"email":"%s","password":"password1234"}
+                        {"email":"%s","password":"correct-horse-battery"}
                         """.formatted(user.getEmail())))
                 .andExpect(status().isOk())
                 .andExpect(cookie().exists("bh_at"));

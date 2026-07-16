@@ -47,7 +47,7 @@ class TvStateServiceTest extends AbstractIntegrationTest {
     }
 
     private Membership member(Box box, String email, String name) {
-        User u = authService.register(email, "password123", name);
+        User u = authService.register(email, "correct-horse-battery", name);
         Membership m = new Membership(); m.setUser(u); m.setBox(box); m.setRole("ATHLETE");
         return memberships.save(m);
     }

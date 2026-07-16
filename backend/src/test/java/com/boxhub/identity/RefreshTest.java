@@ -20,12 +20,12 @@ class RefreshTest extends AbstractIntegrationTest {
 
     @Test
     void refreshRotatesToken() throws Exception {
-        User u = authService.register("rot-" + System.nanoTime() + "@t.io", "password123", "Rot");
+        User u = authService.register("rot-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Rot");
         u.setEmailVerified(true);
         users.save(u);
 
         MvcResult loginResult = mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON)
-                        .content("{\"email\":\"" + u.getEmail() + "\",\"password\":\"password123\"}"))
+                        .content("{\"email\":\"" + u.getEmail() + "\",\"password\":\"correct-horse-battery\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie rt = loginResult.getResponse().getCookie("bh_rt");

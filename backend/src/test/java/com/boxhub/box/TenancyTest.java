@@ -31,7 +31,7 @@ class TenancyTest extends AbstractIntegrationTest {
     @BeforeEach
     void setup() {
         long n = System.nanoTime();
-        alice = authService.register("alice-" + n + "@t.io", "password123", "Alice");
+        alice = authService.register("alice-" + n + "@t.io", "correct-horse-battery", "Alice");
         boxA = newBox("Box A " + n, "box-a-" + n);
         boxB = newBox("Box B " + n, "box-b-" + n);
         aliceInA = new Membership();
