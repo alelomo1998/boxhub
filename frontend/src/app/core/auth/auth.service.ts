@@ -92,7 +92,8 @@ export class AuthService {
     return this.session() !== null;
   }
 
-  private clear(): void {
+  /** Nulls session + activeBox and drops the localStorage key — the one legit way to go anonymous. */
+  clear(): void {
     this.session.set(null);
     this.clearActiveBox();
   }
