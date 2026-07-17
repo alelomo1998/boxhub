@@ -51,4 +51,18 @@ describe('LoginPage', () => {
 
     expect(fixture.componentInstance.error()).toBe('Google sign-in failed — try again.');
   });
+
+  it('a resend that 429s shows an error instead of failing silently', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const cmp = fixture.componentInstance;
+    cmp.email = 'a@b.io';
+    cmp.resend();
+    http.expectOne('/api/auth/verify/resend').flush({ detail: 'RATE_LIMITED' }, { status: 429, statusText: 'Too Many Requests' });
+
+    expect(cmp.resendPending()).toBeFalse();
+    expect(cmp.resendError()).toBe('Could not resend — try again.');
+  });
 });

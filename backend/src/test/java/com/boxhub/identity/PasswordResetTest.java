@@ -47,6 +47,7 @@ class PasswordResetTest extends AbstractIntegrationTest {
         ArgumentCaptor<Map<String, Object>> vars = ArgumentCaptor.forClass(Map.class);
         verify(mailer).send(any(), any(), eq("reset"), vars.capture());
         String link = (String) vars.getValue().get("link");
+        assertThat(link).contains("/auth/reset?token=");
         return link.substring(link.indexOf("token=") + 6);
     }
 
@@ -107,6 +108,7 @@ class PasswordResetTest extends AbstractIntegrationTest {
         ArgumentCaptor<Map<String, Object>> vars = ArgumentCaptor.forClass(Map.class);
         verify(mailer).send(any(), any(), eq("reset"), vars.capture());
         String link = (String) vars.getValue().get("link");
+        assertThat(link).contains("/auth/reset?token=");
         String token = link.substring(link.indexOf("token=") + 6);
 
         mvc.perform(post("/api/auth/password/reset").with(csrf()).contentType(APPLICATION_JSON).content("""

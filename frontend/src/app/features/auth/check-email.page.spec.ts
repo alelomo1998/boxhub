@@ -42,4 +42,17 @@ describe('CheckEmailPage', () => {
     tick(1_000); // crosses the 60s mark
     expect(cmp.disabled()).toBeFalse();
   }));
+
+  it('clears the resend cooldown timer on destroy (no leaked timer)', fakeAsync(() => {
+    const fixture = setup();
+    const cmp = fixture.componentInstance;
+
+    cmp.resend();
+    http.expectOne('/api/auth/verify/resend').flush(null, { status: 202, statusText: 'Accepted' });
+    expect(cmp.disabled()).toBeTrue();
+
+    // Destroying before the 60s cooldown elapses must clear the timer — otherwise fakeAsync
+    // fails this test with "N timer(s) still in the queue" when the zone flushes.
+    fixture.destroy();
+  }));
 });

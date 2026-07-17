@@ -55,7 +55,7 @@ public class InviteAdminController {
         Box box = boxes.findById(TenantContext.requireBoxId()).orElseThrow(NoSuchElementException::new);
         mailer.send(i.getEmail(), box.getName() + " invited you to BoxHub", "invite",
                 Map.of("boxName", box.getName(), "role", i.getRole(),
-                        "link", mailer.link("/join?token=" + created.rawToken())));
+                        "link", mailer.link("/join/" + created.rawToken())));
         return new CreatedInviteResponse(i.getId(), i.getEmail(), i.getRole(), i.getPlanId(),
                 i.getExpiresAt(), "/join/" + created.rawToken());
     }

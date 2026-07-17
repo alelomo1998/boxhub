@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -28,6 +28,7 @@ type Status = 'pending' | 'expired' | 'error';
               <input class="bh-input" type="email" required name="resendEmail"
                      [(ngModel)]="resendEmail" data-testid="verify-resend-email" /></label>
             @if (resent()) { <p class="ok" data-testid="verify-resent">Sent again.</p> }
+            @if (resendError()) { <p class="err" data-testid="verify-resend-error">{{ resendError() }}</p> }
             <bh-button [disabled]="disabled() || resendPending()" (click)="resend()" data-testid="verify-resend">
               {{ resendPending() ? 'Sending…' : 'Resend verification email' }}
             </bh-button>
@@ -55,15 +56,17 @@ type Status = 'pending' | 'expired' | 'error';
     .alt { font-size: var(--fs-sm); margin: 0; }
   `],
 })
-export class VerifyPage implements OnInit {
+export class VerifyPage implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private cooldownTimer?: ReturnType<typeof setTimeout>;
 
   status = signal<Status>('pending');
   resendEmail = '';
   resent = signal(false);
   resendPending = signal(false);
+  resendError = signal('');
   disabled = signal(false);
 
   ngOnInit() {
@@ -76,16 +79,24 @@ export class VerifyPage implements OnInit {
     });
   }
 
+  ngOnDestroy() {
+    clearTimeout(this.cooldownTimer);
+  }
+
   resend() {
+    this.resendError.set('');
     this.resendPending.set(true);
     this.auth.resendVerification(this.resendEmail).subscribe({
       next: () => {
         this.resendPending.set(false);
         this.resent.set(true);
         this.disabled.set(true);
-        setTimeout(() => this.disabled.set(false), RESEND_COOLDOWN_MS);
+        this.cooldownTimer = setTimeout(() => this.disabled.set(false), RESEND_COOLDOWN_MS);
       },
-      error: () => this.resendPending.set(false),
+      error: () => {
+        this.resendPending.set(false);
+        this.resendError.set('Could not resend — try again.');
+      },
     });
   }
 }

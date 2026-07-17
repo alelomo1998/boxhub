@@ -79,7 +79,7 @@ public class AuthService {
     public void sendVerification(User u) {
         String token = emailTokens.issue(u, EmailTokenService.VERIFY, null, EmailTokenService.VERIFY_TTL);
         mailer.send(u.getEmail(), "Verify your email", "verify",
-                Map.of("name", u.getName(), "link", mailer.link("/verify?token=" + token)));
+                Map.of("name", u.getName(), "link", mailer.link("/auth/verify?token=" + token)));
     }
 
     /**
@@ -121,7 +121,7 @@ public class AuthService {
         users.findByEmail(email.toLowerCase().trim()).ifPresent(u -> {
             String token = emailTokens.issue(u, EmailTokenService.RESET, null, EmailTokenService.RESET_TTL);
             mailer.send(u.getEmail(), "Reset your password", "reset",
-                    Map.of("name", u.getName(), "link", mailer.link("/reset?token=" + token)));
+                    Map.of("name", u.getName(), "link", mailer.link("/auth/reset?token=" + token)));
         });
     }
 

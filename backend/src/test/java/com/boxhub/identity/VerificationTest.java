@@ -44,11 +44,13 @@ class VerificationTest extends AbstractIntegrationTest {
         return email;
     }
 
-    /** Pulls the raw token out of the link the Mailer was asked to send. */
+    /** Pulls the raw token out of the link the Mailer was asked to send, asserting the link
+     *  points at the real /auth/verify route (not a bare, dead path). */
     private String tokenFromMail(String template) {
         ArgumentCaptor<Map<String, Object>> vars = ArgumentCaptor.forClass(Map.class);
         verify(mailer).send(any(), any(), eq(template), vars.capture());
         String link = (String) vars.getValue().get("link");
+        assertThat(link).contains("/auth/verify?token=");
         return link.substring(link.indexOf("token=") + 6);
     }
 

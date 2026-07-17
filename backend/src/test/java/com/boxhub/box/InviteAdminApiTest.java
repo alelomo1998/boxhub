@@ -95,18 +95,22 @@ class InviteAdminApiTest extends AbstractIntegrationTest {
     void creatingAnInviteEmailsTheLinkToTheInvitee() throws Exception {
         String invitee = "invitee-" + System.nanoTime() + "@t.io";
 
-        mvc.perform(post("/api/box/invites").header("Authorization", "Bearer " + adminToken)
+        String body = mvc.perform(post("/api/box/invites").header("Authorization", "Bearer " + adminToken)
                         .contentType(APPLICATION_JSON).content("""
                         {"email":"%s","role":"ATHLETE"}
                         """.formatted(invitee)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        // the response body's link is known-correct ("/join/" + rawToken, a path param) —
+        // the mailed link must point at that same path, not a dead "?token=" query string.
+        String responseLink = om.readTree(body).get("link").asText();
 
         org.mockito.ArgumentCaptor<java.util.Map<String, Object>> vars =
                 org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
         verify(mailer).send(org.mockito.ArgumentMatchers.eq(invitee), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq("invite"), vars.capture());
 
-        assertThat((String) vars.getValue().get("link")).contains("/join?token=");
+        assertThat((String) vars.getValue().get("link")).contains(responseLink);
         assertThat((String) vars.getValue().get("boxName")).isNotBlank();
     }
 

@@ -24,6 +24,7 @@ import { ButtonComponent } from '../../ui/button.component';
                      (click)="resend()" data-testid="login-resend">
             {{ resendPending() ? 'Sending…' : 'Resend verification email' }}
           </bh-button>
+          @if (resendError()) { <p class="error" data-testid="login-resend-error">{{ resendError() }}</p> }
         }
         <bh-button type="submit" [disabled]="pending()">{{ pending() ? 'Logging in…' : 'Log in' }}</bh-button>
         @if (showGoogle()) {
@@ -64,6 +65,7 @@ export class LoginPage implements OnInit {
   pending = signal(false);
   unverified = signal(false);
   resendPending = signal(false);
+  resendError = signal('');
   showGoogle = signal(false);
 
   ngOnInit() {
@@ -107,13 +109,17 @@ export class LoginPage implements OnInit {
   }
 
   resend() {
+    this.resendError.set('');
     this.resendPending.set(true);
     this.auth.resendVerification(this.email).subscribe({
       next: () => {
         this.resendPending.set(false);
         this.router.navigate(['/auth/check-email'], { queryParams: { email: this.email } });
       },
-      error: () => this.resendPending.set(false),
+      error: () => {
+        this.resendPending.set(false);
+        this.resendError.set('Could not resend — try again.');
+      },
     });
   }
 }
