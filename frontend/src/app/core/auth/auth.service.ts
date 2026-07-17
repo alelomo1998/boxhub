@@ -12,6 +12,14 @@ export interface Session {
   memberships: MembershipDto[];
 }
 
+export interface AccountSession {
+  id: string;
+  device: string;
+  ip: string;
+  lastSeen: string;
+  current: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
@@ -114,6 +122,35 @@ export class AuthService {
 
   logoutEverywhere(): Observable<void> {
     return this.http.post<void>('/api/auth/logout-all', {}).pipe(tap(() => this.clear()), map(() => void 0));
+  }
+
+  /** Cookies rotate server-side on success; nothing to sync locally. */
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.patch<void>('/api/me/password', { currentPassword, newPassword });
+  }
+
+  /** 202 — lands only once the new address confirms via confirmEmailChange. */
+  startEmailChange(password: string, newEmail: string): Observable<void> {
+    return this.http.post<void>('/api/me/email', { password, newEmail });
+  }
+
+  /** permitAll on the backend — the link is clicked from an inbox, possibly on a device with no session. */
+  confirmEmailChange(token: string): Observable<void> {
+    return this.http.post<void>('/api/me/email/confirm', { token });
+  }
+
+  /** Lives under /api/auth (not /api/me) — bh_rt is Path-scoped there. */
+  sessions(): Observable<AccountSession[]> {
+    return this.http.get<AccountSession[]>('/api/auth/sessions');
+  }
+
+  exportData(): Observable<Record<string, unknown>> {
+    return this.http.get<Record<string, unknown>>('/api/me/export');
+  }
+
+  /** password is omitted for a passwordless (Google-only) account — nothing to verify. */
+  deleteAccount(password?: string): Observable<void> {
+    return this.http.delete<void>('/api/me', password ? { body: { password } } : {});
   }
 
   hasSession(): boolean {

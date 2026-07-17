@@ -19,6 +19,7 @@ import { AuthService } from '../../core/auth/auth.service';
         </nav>
         <div class="acts">
           <button class="iconbtn" (click)="theme.toggle()" aria-label="Toggle theme">◐</button>
+          <a class="iconbtn" routerLink="/account/security" aria-label="Security" title="Security" data-testid="coach-security-link">⚙</a>
           <button class="iconbtn" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
         </div>
       </header>
@@ -54,7 +55,8 @@ import { AuthService } from '../../core/auth/auth.service';
     .hitem:hover:not(.active) { color: var(--bone); }
     .hitem:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
     .acts { display: flex; gap: 2px; margin-left: auto; }
-    .iconbtn { min-width: var(--tap); min-height: var(--tap); font-size: 16px; color: var(--faint);
+    .iconbtn { min-width: var(--tap); min-height: var(--tap); display: inline-flex; align-items: center;
+      justify-content: center; font-size: 16px; color: var(--faint); text-decoration: none;
       background: transparent; border: none; border-radius: var(--r-full); cursor: pointer; }
     .iconbtn:hover { color: var(--bone); }
     .iconbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }

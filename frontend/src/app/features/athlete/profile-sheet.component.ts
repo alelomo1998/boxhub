@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output, inject, signal, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -11,7 +11,7 @@ import { HomeService, Profile } from './home.service';
 @Component({
   selector: 'bh-profile-sheet',
   standalone: true,
-  imports: [AvatarComponent, ButtonComponent],
+  imports: [AvatarComponent, ButtonComponent, RouterLink],
   template: `
     @switch (state()) {
       @case ('loading') { <p class="stateline">Loading profile…</p> }
@@ -43,6 +43,12 @@ import { HomeService, Profile } from './home.service';
             <span aria-hidden="true">◐</span>
           </button>
 
+          <a class="row asbtn" routerLink="/account/security" data-testid="profile-security-link">
+            <span class="rl">Security</span>
+            <span class="rh">Password, email, sessions</span>
+            <span aria-hidden="true">›</span>
+          </a>
+
           <div class="actions">
             <bh-button variant="ghost" class="full" (click)="logout()">Log out</bh-button>
           </div>
@@ -64,7 +70,7 @@ import { HomeService, Profile } from './home.service';
       align-items: center; column-gap: var(--sp-3); min-height: var(--tap); padding: var(--sp-2) 0;
       border-top: 1px solid var(--hairline); cursor: pointer; }
     .asbtn { background: none; border-left: none; border-right: none; border-bottom: none;
-      width: 100%; text-align: left; color: var(--bone); font: inherit; }
+      width: 100%; text-align: left; color: var(--bone); font: inherit; text-decoration: none; }
     .rl { grid-area: l; font-weight: 600; font-size: var(--fs-body); }
     .rh { grid-area: h; color: var(--faint); font-size: var(--fs-sm); }
     .row input { grid-area: c; width: 22px; height: 22px; accent-color: var(--red); }
