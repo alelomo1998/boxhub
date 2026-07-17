@@ -187,8 +187,11 @@ class AccountDeletionTest extends AbstractIntegrationTest {
         User u = athleteInABox();
         String oldEmail = u.getEmail();
 
+        // A wrong password in the request body is a field-validation failure, not a dead
+        // session — 422 WRONG_PASSWORD, never 401 (see AccountService.anonymize).
         assertThatThrownBy(() -> accounts.anonymize(u.getId(), "not-the-password"))
-                .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("WRONG_PASSWORD");
 
         User after = users.findById(u.getId()).orElseThrow();
         assertThat(after.getEmail()).isEqualTo(oldEmail);
@@ -201,7 +204,8 @@ class AccountDeletionTest extends AbstractIntegrationTest {
         String oldEmail = u.getEmail();
 
         assertThatThrownBy(() -> accounts.anonymize(u.getId(), null))
-                .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("WRONG_PASSWORD");
 
         User after = users.findById(u.getId()).orElseThrow();
         assertThat(after.getEmail()).isEqualTo(oldEmail);

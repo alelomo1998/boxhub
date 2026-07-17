@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 
 type Status = 'pending' | 'done' | 'expired' | 'error';
@@ -14,7 +14,7 @@ type Status = 'pending' | 'done' | 'expired' | 'error';
 @Component({
   selector: 'bh-email-confirm',
   standalone: true,
-  imports: [],
+  imports: [RouterLink],
   template: `
     <main class="auth">
       <div class="card">
@@ -28,7 +28,7 @@ type Status = 'pending' | 'done' | 'expired' | 'error';
             <p class="muted" data-testid="email-confirm-done">
               Your email address has been updated. You can now sign in with the new address.
             </p>
-            <p class="alt"><a href="/auth/login">Go to login</a></p>
+            <p class="alt"><a routerLink="/auth/login">Go to login</a></p>
           }
           @case ('expired') {
             <p class="t-eyebrow">Link expired</p>

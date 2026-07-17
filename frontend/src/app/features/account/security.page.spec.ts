@@ -47,6 +47,29 @@ describe('SecurityPage', () => {
     expect(cmp.emailGoogleOnly()).toBeTrue();
   });
 
+  it('shows "Current password is wrong" on a 422 WRONG_PASSWORD from a password change', () => {
+    const fixture = setup();
+    const cmp = fixture.componentInstance;
+    cmp.currentPassword = 'not-it';
+    cmp.newPassword = 'a-new-password-1';
+    cmp.changePassword();
+    http.expectOne('/api/me/password').flush({ detail: 'WRONG_PASSWORD' }, { status: 422, statusText: 'Unprocessable Entity' });
+
+    expect(cmp.passwordError()).toBe('Current password is wrong.');
+    expect(cmp.passwordGoogleOnly()).toBeFalse();
+  });
+
+  it('shows "Current password is wrong" on a 422 WRONG_PASSWORD from an email change', () => {
+    const fixture = setup();
+    const cmp = fixture.componentInstance;
+    cmp.newEmail = 'new@box.io';
+    cmp.emailPassword = 'not-it';
+    cmp.changeEmail();
+    http.expectOne('/api/me/email').flush({ detail: 'WRONG_PASSWORD' }, { status: 422, statusText: 'Unprocessable Entity' });
+
+    expect(cmp.emailFormError()).toBe('Current password is wrong.');
+  });
+
   it('shows an inline field error on 409 EMAIL_TAKEN, with the input preserved', () => {
     const fixture = setup();
     const cmp = fixture.componentInstance;
@@ -97,7 +120,7 @@ describe('SecurityPage', () => {
     expect(cmp.canDelete()).toBeTrue();
   });
 
-  it('reveals the password field on a 401 (no password sent yet) and resends with it once gated', () => {
+  it('reveals the password field on a 422 WRONG_PASSWORD (no password sent yet) and resends with it once gated', () => {
     const fixture = setup();
     const cmp = fixture.componentInstance;
     cmp.openDelete();
@@ -105,9 +128,10 @@ describe('SecurityPage', () => {
     cmp.submitDelete();
     const req1 = http.expectOne('/api/me');
     expect(req1.request.body).toBeNull();
-    req1.flush({ detail: 'Bad credentials' }, { status: 401, statusText: 'Unauthorized' });
+    req1.flush({ detail: 'WRONG_PASSWORD' }, { status: 422, statusText: 'Unprocessable Entity' });
 
     expect(cmp.deleteNeedsPassword()).toBeTrue();
+    expect(cmp.deleteError()).toBe('Enter your password to confirm.');
     expect(cmp.canDelete()).toBeFalse(); // still gated — no password typed yet
 
     cmp.deletePassword = 'secret123';
@@ -117,6 +141,22 @@ describe('SecurityPage', () => {
     expect(req2.request.body).toEqual({ password: 'secret123' });
     req2.flush(null, { status: 204, statusText: 'No Content' });
     http.expectOne('/api/auth/logout').flush(null, { status: 204, statusText: 'No Content' });
+  });
+
+  it('tells the user the password is wrong on a second failed attempt, not to re-enter it', () => {
+    const fixture = setup();
+    const cmp = fixture.componentInstance;
+    cmp.openDelete();
+    cmp.deleteConfirmText = 'DELETE';
+    cmp.submitDelete();
+    http.expectOne('/api/me').flush({ detail: 'WRONG_PASSWORD' }, { status: 422, statusText: 'Unprocessable Entity' });
+    expect(cmp.deleteError()).toBe('Enter your password to confirm.');
+
+    cmp.deletePassword = 'still-wrong';
+    cmp.submitDelete();
+    http.expectOne('/api/me').flush({ detail: 'WRONG_PASSWORD' }, { status: 422, statusText: 'Unprocessable Entity' });
+
+    expect(cmp.deleteError()).toBe('That password is wrong.');
   });
 
   it('shows the box name on a 409 LAST_ADMIN', () => {

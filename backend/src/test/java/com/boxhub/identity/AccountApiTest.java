@@ -74,10 +74,13 @@ class AccountApiTest extends AbstractIntegrationTest {
 
     @Test
     void changingThePasswordRequiresTheCurrentOne() throws Exception {
+        // Wrong body password is a field-validation failure, not a dead session — 422, never 401
+        // (401 would be indistinguishable from an expired access token to the client).
         mvc.perform(patch("/api/me/password").with(csrf()).cookie(at).contentType(APPLICATION_JSON).content("""
                         {"currentPassword":"not-the-password","newPassword":"a-brand-new-secret"}
                         """))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("WRONG_PASSWORD"));
     }
 
     @Test
@@ -309,22 +312,24 @@ class AccountApiTest extends AbstractIntegrationTest {
     /**
      * The riskiest binding detail in AccountController#delete: a truly bodyless DELETE (no
      * JSON, no content-type) must bind @RequestBody(required = false) DeleteRequest to null and
-     * reach the 401 "bad credentials" path — not blow up in Spring's message conversion with a
+     * reach the 422 "wrong password" path — not blow up in Spring's message conversion with a
      * 400 HttpMessageNotReadableException first. Proven at the HTTP layer, not by direct method
      * call.
      */
     @Test
-    void deletingWithoutABodyIs401ForAPasswordUser() throws Exception {
+    void deletingWithoutABodyIs422ForAPasswordUser() throws Exception {
         mvc.perform(delete("/api/me").with(csrf()).cookie(at))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("WRONG_PASSWORD"));
     }
 
     @Test
-    void deletingWithTheWrongPasswordIs401() throws Exception {
+    void deletingWithTheWrongPasswordIs422() throws Exception {
         mvc.perform(delete("/api/me").with(csrf()).cookie(at).contentType(APPLICATION_JSON).content("""
                         {"password":"not-the-password"}
                         """))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("WRONG_PASSWORD"));
 
         User stillHere = users.findById(user.getId()).orElseThrow();
         assertThat(stillHere.getName()).isEqualTo("Account");

@@ -79,6 +79,19 @@ describe('authInterceptor', () => {
     expect(auth.session()).toBeNull();
   });
 
+  it('refreshes and retries a 401 from GET /api/me — a wrong body password is 422, never 401, so any 401 here is a dead session', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
+
+    let result: unknown;
+    http.get('/api/me').subscribe(r => (result = r));
+
+    httpMock.expectOne('/api/me').flush('unauthorized', UNAUTHORIZED);
+    httpMock.expectOne('/api/auth/refresh').flush(null, NO_CONTENT);
+    httpMock.expectOne('/api/me').flush({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
+
+    expect(result).toEqual({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
+  });
+
   it('clears session, activeBox, and localStorage when the refresh itself fails', () => {
     auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
     auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });

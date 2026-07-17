@@ -6,7 +6,6 @@ import com.boxhub.shared.MediaStorage;
 import com.boxhub.shared.RoleGuard;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -143,8 +142,10 @@ public class AccountService {
         if (u.getAnonymizedAt() != null) return; // already gone; idempotent — explicit state, not inferred from the email
 
         if (u.getPasswordHash() != null) {
+            // A wrong password here is a field-validation failure, NOT a dead session — 401 would make
+            // it indistinguishable from an expired access token and force the client to guess by URL.
             if (password == null || !encoder.matches(password, u.getPasswordHash()))
-                throw new BadCredentialsException("Bad credentials");
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "WRONG_PASSWORD");
         }
 
         List<Membership> mems = memberships.findByUserIdWithBox(userId);
@@ -200,7 +201,9 @@ public class AccountService {
     private void requirePassword(User u, String raw) {
         if (u.getPasswordHash() == null)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "NO_PASSWORD_SET");
+        // A wrong password here is a field-validation failure, NOT a dead session — 401 would make
+        // it indistinguishable from an expired access token and force the client to guess by URL.
         if (!encoder.matches(raw, u.getPasswordHash()))
-            throw new BadCredentialsException("Bad credentials");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "WRONG_PASSWORD");
     }
 }

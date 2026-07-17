@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe, Location } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService, AccountSession } from '../../core/auth/auth.service';
 import { passwordErrorMessage } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
@@ -19,7 +19,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
 @Component({
   selector: 'bh-security',
   standalone: true,
-  imports: [FormsModule, DatePipe, ButtonComponent, SheetComponent, PillComponent],
+  imports: [FormsModule, DatePipe, RouterLink, ButtonComponent, SheetComponent, PillComponent],
   template: `
     <main class="page">
       <button class="back" type="button" (click)="back()">← Back</button>
@@ -30,7 +30,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
         @if (passwordGoogleOnly()) {
           <p class="muted" data-testid="password-google-only">
             You sign in with Google. To add a password, use
-            <a href="/auth/forgot" data-testid="password-forgot-link">Forgot password</a>.
+            <a routerLink="/auth/forgot" data-testid="password-forgot-link">Forgot password</a>.
           </p>
         } @else {
           <form (ngSubmit)="changePassword()" data-testid="password-form">
@@ -56,7 +56,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
         @if (emailGoogleOnly()) {
           <p class="muted" data-testid="email-google-only">
             You sign in with Google. To add a password, use
-            <a href="/auth/forgot" data-testid="email-forgot-link">Forgot password</a>.
+            <a routerLink="/auth/forgot" data-testid="email-forgot-link">Forgot password</a>.
           </p>
         } @else {
           <form (ngSubmit)="changeEmail()" data-testid="email-form">
@@ -212,9 +212,9 @@ export class SecurityPage implements OnInit {
   exportPending = signal(false);
   exportError = signal('');
 
-  // Delete — send no password first; a 401 back from the server means "this account has a
-  // password and it wasn't supplied (or was wrong)", so we reveal the field and let the user
-  // retry. A Google-only account never sees the field because it never gets that 401.
+  // Delete — send no password first; a 422 WRONG_PASSWORD back from the server means "this
+  // account has a password and it wasn't supplied (or was wrong)", so we reveal the field and
+  // let the user retry. A Google-only account never sees the field because it never gets that 422.
   deleteOpen = signal(false);
   deleteConfirmText = '';
   deletePassword = '';
@@ -253,7 +253,7 @@ export class SecurityPage implements OnInit {
       error: (e: HttpErrorResponse) => {
         this.passwordPending.set(false);
         if (e.status === 409 && e.error?.detail === 'NO_PASSWORD_SET') { this.passwordGoogleOnly.set(true); return; }
-        if (e.status === 401) { this.passwordError.set('Current password is wrong.'); return; }
+        if (e.status === 422 && e.error?.detail === 'WRONG_PASSWORD') { this.passwordError.set('Current password is wrong.'); return; }
         const msg = passwordErrorMessage(e.error?.detail);
         this.passwordError.set(msg ?? 'Something went wrong — try again.');
       },
@@ -278,7 +278,7 @@ export class SecurityPage implements OnInit {
         this.emailPending.set(false);
         if (e.status === 409 && e.error?.detail === 'EMAIL_TAKEN') { this.emailFieldError.set('That address is already in use.'); return; }
         if (e.status === 409 && e.error?.detail === 'NO_PASSWORD_SET') { this.emailGoogleOnly.set(true); return; }
-        if (e.status === 401) { this.emailFormError.set('Current password is wrong.'); return; }
+        if (e.status === 422 && e.error?.detail === 'WRONG_PASSWORD') { this.emailFormError.set('Current password is wrong.'); return; }
         this.emailFormError.set('Something went wrong — try again.');
       },
     });
@@ -339,9 +339,11 @@ export class SecurityPage implements OnInit {
       },
       error: (e: HttpErrorResponse) => {
         this.deletePending.set(false);
-        if (e.status === 401) {
+        if (e.status === 422 && e.error?.detail === 'WRONG_PASSWORD') {
+          // Second+ attempt already had the field visible and the user typed something — tell
+          // them it was wrong, not to do the thing they just did.
+          this.deleteError.set(this.deleteNeedsPassword() ? 'That password is wrong.' : 'Enter your password to confirm.');
           this.deleteNeedsPassword.set(true);
-          this.deleteError.set('Enter your password to confirm.');
           return;
         }
         if (e.status === 409 && e.error?.detail === 'LAST_ADMIN') {
