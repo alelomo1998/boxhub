@@ -1,5 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { redirectForRole } from '../../core/auth/auth.models';
@@ -18,7 +19,17 @@ import { ButtonComponent } from '../../ui/button.component';
         <label class="f"><span>PASSWORD</span>
           <input name="password" type="password" [(ngModel)]="password" required /></label>
         @if (error()) { <p class="error" data-testid="login-error">{{ error() }}</p> }
-        <bh-button type="submit">Log in</bh-button>
+        @if (unverified()) {
+          <bh-button type="button" variant="ghost" size="sm" [disabled]="resendPending()"
+                     (click)="resend()" data-testid="login-resend">
+            {{ resendPending() ? 'Sending…' : 'Resend verification email' }}
+          </bh-button>
+        }
+        <bh-button type="submit" [disabled]="pending()">{{ pending() ? 'Logging in…' : 'Log in' }}</bh-button>
+        @if (showGoogle()) {
+          <a class="google" href="/oauth2/authorization/google" data-testid="login-google">Continue with Google</a>
+        }
+        <p class="alt"><a href="/auth/forgot">Forgot password?</a> · <a href="/auth/signup">Create a box account</a></p>
       </form>
     </main>
   `,
@@ -36,20 +47,42 @@ import { ButtonComponent } from '../../ui/button.component';
       padding: 11px 13px; color: var(--bone); font-family: var(--font-body); font-size: 15px; }
     .f input:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
     .error { color: var(--red); font-size: 13px; margin: 0; }
+    .alt { font-size: var(--fs-sm); margin: 0; }
+    .google { display: flex; align-items: center; justify-content: center; min-height: var(--tap);
+      border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);
+      font-family: var(--font-body); font-weight: 700; font-size: var(--fs-sm); text-decoration: none; }
+    .google:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
   `],
 })
-export class LoginPage {
+export class LoginPage implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   email = '';
   password = '';
   error = signal('');
+  pending = signal(false);
+  unverified = signal(false);
+  resendPending = signal(false);
+  showGoogle = signal(false);
+
+  ngOnInit() {
+    // Google button is opt-in per environment — a failed lookup just keeps it hidden.
+    this.auth.providers().subscribe({ next: p => this.showGoogle.set(p.google), error: () => {} });
+
+    // Google OAuth redirects back here on failure with one of these two codes.
+    const oauthError = this.route.snapshot.queryParamMap.get('error');
+    if (oauthError === 'google_email_unverified') this.error.set("That Google account's email isn't verified.");
+    else if (oauthError === 'google') this.error.set('Google sign-in failed — try again.');
+  }
 
   submit() {
     this.error.set('');
+    this.unverified.set(false);
+    this.pending.set(true);
     this.auth.login(this.email, this.password).subscribe({
       next: session => {
+        this.pending.set(false);
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
         if (returnUrl) { this.router.navigateByUrl(returnUrl); return; }
         const memberships = session?.memberships ?? [];
@@ -60,7 +93,27 @@ export class LoginPage {
           this.router.navigateByUrl('/auth/boxes');
         }
       },
-      error: () => this.error.set('Invalid email or password'),
+      error: (e: HttpErrorResponse) => {
+        this.pending.set(false);
+        if (e.status === 403 && e.error?.detail === 'EMAIL_NOT_VERIFIED') {
+          this.unverified.set(true);
+          this.error.set('Verify your email to sign in');
+          return;
+        }
+        if (e.status === 429) { this.error.set('Too many attempts — try again later.'); return; }
+        this.error.set('Invalid email or password');
+      },
+    });
+  }
+
+  resend() {
+    this.resendPending.set(true);
+    this.auth.resendVerification(this.email).subscribe({
+      next: () => {
+        this.resendPending.set(false);
+        this.router.navigate(['/auth/check-email'], { queryParams: { email: this.email } });
+      },
+      error: () => this.resendPending.set(false),
     });
   }
 }

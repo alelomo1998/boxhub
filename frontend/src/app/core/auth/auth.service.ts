@@ -68,6 +68,34 @@ export class AuthService {
     return this.http.post('/api/auth/register', { email, password, name });
   }
 
+  providers(): Observable<{ google: boolean }> {
+    return this.http.get<{ google: boolean }>('/api/auth/providers');
+  }
+
+  /** Verify sets session cookies same as login — bootstrap and hand back the resolved session. */
+  verifyEmail(token: string): Observable<Session | null> {
+    return this.http.post('/api/auth/verify', { token }).pipe(
+      switchMap(() => from(this.bootstrap())),
+      map(() => this.session()),
+    );
+  }
+
+  resendVerification(email: string): Observable<void> {
+    return this.http.post<void>('/api/auth/verify/resend', { email }).pipe(map(() => void 0));
+  }
+
+  forgotPassword(email: string): Observable<void> {
+    return this.http.post<void>('/api/auth/password/forgot', { email }).pipe(map(() => void 0));
+  }
+
+  /** Reset sets session cookies same as login — bootstrap and hand back the resolved session. */
+  resetPassword(token: string, password: string): Observable<Session | null> {
+    return this.http.post('/api/auth/password/reset', { token, password }).pipe(
+      switchMap(() => from(this.bootstrap())),
+      map(() => this.session()),
+    );
+  }
+
   previewInvite(token: string): Observable<{ boxName: string; boxSlug: string; role: Role; email: string; planName: string | null }> {
     return this.http.get<{ boxName: string; boxSlug: string; role: Role; email: string; planName: string | null }>(`/api/invites/${token}`);
   }
