@@ -104,3 +104,11 @@
 - Superadmin auth stays the `BOXHUB_SUPERADMIN_EMAILS` env allowlist (no superadmin account model).
 - Box deletion / box-level data export — BoxHub is the processor, the box is the controller; separate design.
 - Per-session kill (M8 ships revoke-all only; "I lost my phone" is the real case).
+- Mail templates duplicate the `#D7263D` accent hex across 4 files — centralize if a second brand ever appears.
+- `@Async` Mailer uses Spring's default unbounded task executor — fine at pilot mail volume; bound the queue before any bulk/broadcast email feature.
+- No "your password was changed" notice email to the old address (standard account-security practice).
+- Google concurrency test can't self-verify the double-click race actually fired (relies on incidental scheduling); `recoverFromLinkRace`'s `link()` is unguarded under triple-concurrency (self-heals on retry).
+- The auth interceptor's `catchError` also routes a genuine non-token failure of a refresh-retried request into the logout path (pre-M8 quirk, preserved).
+- `runner`/`tv` e2e specs are not idempotent (fixed-name TV devices accumulate) — pass only on a fresh stack; per-test DB isolation would end this whole family.
+- `register` timing: the not-proven-by-invite path pays a synchronous `EmailTokenService.issue()` DB round-trip the invite path skips — theoretical only (attacker must already hold the 256-bit token to take the fast path).
+- **Re-verify the CSRF matcher + `securityContext` repository wiring on any Spring Security upgrade** — both M8 fixes are coupled to 6.4.2 filter-chain internals.

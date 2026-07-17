@@ -87,6 +87,9 @@ public class AuthService {
                     "register-attempt", Map.of("name", owner.getName()));
             return owner;
         }
+        // The not-proven path pays a synchronous EmailTokenService.issue() DB round-trip here that
+        // the invite path skips — a theoretical timing differential, unexploitable because taking
+        // the fast path requires already holding the 256-bit token (i.e. already knowing the answer).
         if (!provenByInvite) sendVerification(u);
         return u;
     }
