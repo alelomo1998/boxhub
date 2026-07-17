@@ -1,0 +1,49 @@
+{
+  "enabledPlugins": {
+    "ecc@ecc": true,
+    "ui-ux-pro-max@filippo-skills": true,
+    "andrej-karpathy-skills@karpathy-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "ecc": {
+      "source": {
+        "source": "github",
+        "repo": "affaan-m/ecc"
+      }
+    },
+    "filippo-skills": {
+      "source": {
+        "source": "github",
+        "repo": "filippolmt/skills"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "multica-ai/andrej-karpathy-skills"
+      }
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/alessandrolomonaco/.local/bin/graphify hook-guard search"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/alessandrolomonaco/.local/bin/graphify hook-guard read"
+          }
+        ]
+      }
+    ]
+  }
+}
