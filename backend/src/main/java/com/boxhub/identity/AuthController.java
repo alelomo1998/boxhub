@@ -48,7 +48,7 @@ public class AuthController {
     }
 
     record RegisterRequest(@NotBlank @Email String email,
-                           @NotBlank @Size(min = 8, max = 100) String password,
+                           @NotBlank @Size(min = 10, max = 100) String password,
                            @NotBlank @Size(max = 100) String name,
                            String inviteToken) {}
     record UserResponse(UUID id, String email, String name) {}

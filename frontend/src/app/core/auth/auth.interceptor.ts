@@ -16,7 +16,15 @@ import { AuthService, SILENT_401 } from './auth.service';
  * detail WRONG_PASSWORD, never a 401 — see AccountService.requirePassword/anonymize. So any
  * 401 on /api/me/** is unambiguously a dead session, same as everywhere else, and belongs in
  * the normal refresh-and-retry path below.
+ *
+ * /api/auth/** is excluded from refresh — a 401 there is a lifecycle failure (bad credentials,
+ * dead refresh cookie), and refresh/box-token would recurse. But two authenticated data
+ * endpoints live under /api/auth ONLY because bh_rt is Path=/api/auth (sessions) — they are not
+ * loop-prone and MUST refresh like any other authenticated call, else "sign out everywhere"
+ * silently no-ops on the first click after the 15m access token expires.
  */
+const REFRESHABLE_AUTH = new Set(['/api/auth/sessions', '/api/auth/logout-all']);
+
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -25,7 +33,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(withCreds).pipe(
     catchError((err: HttpErrorResponse) => {
-      const skipRetry = req.url.startsWith('/api/auth/');
+      const path = req.url.split('?')[0];
+      const skipRetry = path.startsWith('/api/auth/') && !REFRESHABLE_AUTH.has(path);
       if (err.status !== 401 || skipRetry) return throwError(() => err);
 
       return auth.refresh().pipe(

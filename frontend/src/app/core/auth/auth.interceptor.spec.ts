@@ -92,6 +92,32 @@ describe('authInterceptor', () => {
     expect(result).toEqual({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
   });
 
+  it('refreshes and retries a 401 from GET /api/auth/sessions — it lives under /api/auth only because bh_rt is Path=/api/auth, but it is authenticated and must not be treated as a non-refreshable lifecycle call', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
+
+    let result: unknown;
+    http.get('/api/auth/sessions').subscribe(r => (result = r));
+
+    httpMock.expectOne('/api/auth/sessions').flush('unauthorized', UNAUTHORIZED);
+    httpMock.expectOne('/api/auth/refresh').flush(null, NO_CONTENT);
+    httpMock.expectOne('/api/auth/sessions').flush([{ id: 's1', device: 'x', ip: '1.2.3.4', lastSeen: null, current: true }]);
+
+    expect(result).toEqual([{ id: 's1', device: 'x', ip: '1.2.3.4', lastSeen: null, current: true }]);
+  });
+
+  it('does NOT refresh a 401 from /api/auth/refresh or /api/auth/box-token — those would recurse', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
+
+    let error: unknown;
+    http.post('/api/auth/box-token', { boxId: '1' }).subscribe({ error: e => (error = e) });
+
+    httpMock.expectOne('/api/auth/box-token').flush('unauthorized', UNAUTHORIZED);
+    // no second /api/auth/refresh request — the exclusion holds for loop-prone endpoints
+    httpMock.expectNone('/api/auth/refresh');
+
+    expect(error).toBeTruthy();
+  });
+
   it('clears session, activeBox, and localStorage when the refresh itself fails', () => {
     auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [membership] });
     auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
