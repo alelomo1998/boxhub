@@ -31,7 +31,7 @@ class TenancyTest extends AbstractIntegrationTest {
     @BeforeEach
     void setup() {
         long n = System.nanoTime();
-        alice = authService.register("alice-" + n + "@t.io", "password123", "Alice");
+        alice = authService.register("alice-" + n + "@t.io", "correct-horse-battery", "Alice");
         boxA = newBox("Box A " + n, "box-a-" + n);
         boxB = newBox("Box B " + n, "box-b-" + n);
         aliceInA = new Membership();
@@ -69,8 +69,9 @@ class TenancyTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/auth/box-token").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + userToken)
                         .content("{\"boxId\":\"" + boxA.getId() + "\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().exists("bh_bt"))
+                .andExpect(cookie().httpOnly("bh_bt", true));
     }
 
     @Test

@@ -15,6 +15,7 @@ import { SheetComponent } from '../../ui/sheet.component';
         <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }}</span></div>
         <span class="area">Admin</span>
         <button class="theme" (click)="theme.toggle()" aria-label="Toggle theme">◐</button>
+        <a class="theme" routerLink="/account/security" aria-label="Security" title="Security" data-testid="admin-security-link">⚙</a>
         <button class="theme" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
       </header>
 
@@ -62,7 +63,8 @@ import { SheetComponent } from '../../ui/sheet.component';
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .area { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); flex: 1; }
-    .theme { min-width: var(--tap); min-height: var(--tap); font-size: 16px; color: var(--faint);
+    .theme { min-width: var(--tap); min-height: var(--tap); display: inline-flex; align-items: center;
+      justify-content: center; font-size: 16px; color: var(--faint); text-decoration: none;
       background: transparent; border: none; border-radius: var(--edge); cursor: pointer; }
     .theme:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
 
@@ -99,7 +101,7 @@ export class AdminShellPage {
   boxName = this.auth.activeBox()?.boxName || 'BoxHub';
   moreOpen = signal(false);
 
-  logout() { this.auth.logout(); this.router.navigate(['/auth/login']); }
+  logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
 
   nav = [
     { link: 'dashboard', label: 'Dashboard' },
@@ -122,5 +124,6 @@ export class AdminShellPage {
     { link: 'movements', label: 'Movements' },
     { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
+    { link: '/account/security', label: 'Security' },
   ];
 }

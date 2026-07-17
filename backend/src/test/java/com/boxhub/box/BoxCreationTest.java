@@ -30,7 +30,7 @@ class BoxCreationTest extends AbstractIntegrationTest {
 
     private User root() {
         try {
-            return authService.register("root@boxhub.io", "password123", "Root");
+            return authService.register("root@boxhub.io", "correct-horse-battery", "Root");
         } catch (Exception e) {
             return userRepository.findByEmail("root@boxhub.io").orElseThrow();
         }
@@ -39,8 +39,8 @@ class BoxCreationTest extends AbstractIntegrationTest {
     @Test
     void superadminCreatesBox_normalUserDenied() throws Exception {
         long n = System.nanoTime();
-        User root = authService.register("root@boxhub.io", "password123", "Root");
-        User pleb = authService.register("pleb-" + n + "@t.io", "password123", "Pleb");
+        User root = authService.register("root@boxhub.io", "correct-horse-battery", "Root");
+        User pleb = authService.register("pleb-" + n + "@t.io", "correct-horse-battery", "Pleb");
 
         mvc.perform(post("/api/admin/boxes").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + tokenService.userToken(pleb))

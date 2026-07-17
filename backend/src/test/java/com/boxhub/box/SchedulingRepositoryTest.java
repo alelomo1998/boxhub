@@ -72,7 +72,7 @@ class SchedulingRepositoryTest extends AbstractIntegrationTest {
         new org.springframework.transaction.support.TransactionTemplate(txManager)
                 .executeWithoutResult(x -> assertThat(sessions.findWithLockById(sid)).isPresent());
 
-        com.boxhub.identity.User u = authService.register("sch-" + n + "@t.io", "password123", "Ath");
+        com.boxhub.identity.User u = authService.register("sch-" + n + "@t.io", "correct-horse-battery", "Ath");
         com.boxhub.box.Box box = boxes.findById(boxId).orElseThrow();
         com.boxhub.identity.Membership m = new com.boxhub.identity.Membership();
         m.setUser(u);

@@ -1,5 +1,6 @@
 package com.boxhub.box;
 
+import com.boxhub.identity.InviteOwnershipProof;
 import com.boxhub.identity.RefreshTokenService;
 import com.boxhub.shared.TenantContext;
 import org.springframework.stereotype.Service;
@@ -12,7 +13,7 @@ import java.util.Base64;
 import java.util.UUID;
 
 @Service
-public class InviteService {
+public class InviteService implements InviteOwnershipProof {
 
     static final Duration INVITE_TTL = Duration.ofDays(14);
 
@@ -51,5 +52,23 @@ public class InviteService {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.GONE, "Invite expired or already used");
         return inv;
+    }
+
+    /**
+     * True only when the token hashes to an unaccepted, unexpired invite mailed to exactly
+     * this email. Never throws — a bad/foreign/expired token just means no proof, registration
+     * proceeds unverified as normal. Native lookup (findByTokenHash) so the @TenantId filter
+     * on Invite doesn't silently scope this tenant-less call to nothing.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean provesOwnershipOf(String rawToken, String email) {
+        if (rawToken == null || rawToken.isBlank() || email == null) return false;
+        String normalized = email.toLowerCase().trim();
+        return invites.findByTokenHash(RefreshTokenService.sha256(rawToken))
+                .filter(inv -> inv.getAcceptedAt() == null)
+                .filter(inv -> inv.getExpiresAt().isAfter(Instant.now()))
+                .filter(inv -> inv.getEmail().equals(normalized))
+                .isPresent();
     }
 }

@@ -11,16 +11,45 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  mail:
+    host: ${BOXHUB_SMTP_HOST:localhost}
+    port: ${BOXHUB_SMTP_PORT:1025}
+    username: ${BOXHUB_SMTP_USER:}
+    password: ${BOXHUB_SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${BOXHUB_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${BOXHUB_SMTP_TLS:false}
 management:
   endpoints:
     web:
       exposure:
         include: health
+  health:
+    mail:
+      enabled: false
 boxhub:
   jwt:
     secret: ${BOXHUB_JWT_SECRET:dev-only-secret-must-be-at-least-32-bytes!}
     access-ttl: 15m
     refresh-ttl: 30d
+  cookie:
+    secure: ${BOXHUB_COOKIE_SECURE:false}
   superadmin-emails: ${BOXHUB_SUPERADMIN_EMAILS:}
   auth-rate-limit: ${BOXHUB_AUTH_RATE_LIMIT:10}
   media-dir: ${BOXHUB_MEDIA_DIR:./media}
+  app-url: ${BOXHUB_APP_URL:http://localhost}
+  mail:
+    from: ${BOXHUB_MAIL_FROM:BoxHub <no-reply@boxhub.local>}
+# Deviation from the M8 plan: no spring.security.oauth2.client.registration.* block, and no
+# boxhub.google.* block either — OAuth2SecurityConfig reads BOXHUB_GOOGLE_CLIENT_ID and
+# BOXHUB_GOOGLE_CLIENT_SECRET directly as env vars (@ConditionalOnProperty + @Value). Two
+# real Spring Boot gotchas forced this: (1) Boot's OAuth2ClientAutoConfiguration treats ANY
+# bound sub-property under spring.security.oauth2.client.registration.* as "a client is
+# configured" and eagerly builds+validates a ClientRegistration, throwing
+# IllegalStateException("Client id ... must not be empty") at startup whenever the id is
+# blank — crashing every dev/CI/test run. (2) @ConditionalOnProperty("some.key") without
+# havingValue matches on ANY non-null value, including "" — so a YAML property given an
+# empty-string default via ${VAR:} (e.g. boxhub.google.client-id: ${BOXHUB_GOOGLE_CLIENT_ID:})
+# always resolves to "" and the conditional NEVER turns off. Binding directly to the raw env
+# var (present only when actually exported) is the only property source where "unset" reads
+# back as null, which is what makes the conditional actually conditional.

@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class RefreshTokenService {
@@ -26,27 +28,71 @@ public class RefreshTokenService {
         this.refreshTtl = refreshTtl;
     }
 
+    public record Rotated(User user, String rawToken) {}
+
+    /** A fresh login: a brand-new family. */
     @Transactional
-    public String issue(User user) {
-        byte[] raw = new byte[32];
-        random.nextBytes(raw);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
-        RefreshToken rt = new RefreshToken();
-        rt.setUser(user);
-        rt.setTokenHash(sha256(token));
-        rt.setExpiresAt(Instant.now().plus(refreshTtl));
-        tokens.save(rt);
-        return token;
+    public String issue(User user, String userAgent, String ip) {
+        return mint(user, UUID.randomUUID(), userAgent, ip);
+    }
+
+    /**
+     * Rotate within the family. A token that was already consumed is evidence of theft:
+     * whoever replayed it is not the only holder, so the entire family dies and both the
+     * thief and the victim must re-authenticate.
+     */
+    // noRollbackFor: the reuse-detected branch calls revokeFamily() then throws
+    // BadCredentialsException on purpose — the throw must not undo the revocation.
+    @Transactional(noRollbackFor = BadCredentialsException.class)
+    public Rotated rotate(String rawToken, String userAgent, String ip) {
+        RefreshToken rt = tokens.findByTokenHash(sha256(rawToken))
+                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
+
+        if (rt.getConsumedAt() != null) {
+            tokens.revokeFamily(rt.getFamilyId(), Instant.now());
+            throw new BadCredentialsException("Refresh token reuse detected");
+        }
+        if (rt.getRevokedAt() != null) throw new BadCredentialsException("Revoked refresh token");
+        if (rt.getExpiresAt().isBefore(Instant.now())) throw new BadCredentialsException("Expired refresh token");
+
+        Instant now = Instant.now();
+        rt.setConsumedAt(now);
+        rt.setLastUsedAt(now);
+        User user = rt.getUser(); // EAGER: needed outside this transaction for token minting
+        return new Rotated(user, mint(user, rt.getFamilyId(), userAgent, ip));
     }
 
     @Transactional
-    public User consume(String rawToken) {
-        RefreshToken rt = tokens.findByTokenHash(sha256(rawToken))
-                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
-        if (rt.getExpiresAt().isBefore(Instant.now()))
-            throw new BadCredentialsException("Expired refresh token");
-        tokens.delete(rt);
-        return rt.getUser();
+    public void revokeFamilyOf(String rawToken) {
+        tokens.findByTokenHash(sha256(rawToken))
+                .ifPresent(rt -> tokens.revokeFamily(rt.getFamilyId(), Instant.now()));
+    }
+
+    @Transactional
+    public void revokeAllFor(UUID userId) {
+        tokens.revokeAllForUser(userId, Instant.now());
+    }
+
+    @Transactional(readOnly = true)
+    public List<RefreshToken> activeSessions(UUID userId) {
+        return tokens.findActiveByUser(userId, Instant.now());
+    }
+
+    private String mint(User user, UUID familyId, String userAgent, String ip) {
+        byte[] raw = new byte[32];
+        random.nextBytes(raw);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
+        Instant now = Instant.now();
+        RefreshToken rt = new RefreshToken();
+        rt.setUser(user);
+        rt.setFamilyId(familyId);
+        rt.setTokenHash(sha256(token));
+        rt.setExpiresAt(now.plus(refreshTtl));
+        rt.setUserAgent(userAgent);
+        rt.setIp(ip);
+        rt.setLastUsedAt(now);
+        tokens.save(rt);
+        return token;
     }
 
     public static String sha256(String value) {

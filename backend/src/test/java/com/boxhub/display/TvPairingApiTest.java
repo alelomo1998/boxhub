@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -31,7 +32,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
     }
 
     private String boxToken(String email, Box box, String role) {
-        User u = authService.register(email, "password123", email);
+        User u = authService.register(email, "correct-horse-battery", email);
         Membership m = new Membership(); m.setUser(u); m.setBox(box); m.setRole(role);
         memberships.save(m);
         return tokenService.boxToken(u, m);
@@ -40,6 +41,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
     record Pair(String code, String secret) {}
 
     private Pair pair() throws Exception {
+        // no csrf(): /api/tv/pair is an unauthenticated device endpoint, exempted from CSRF.
         MvcResult r = mvc.perform(post("/api/tv/pair")).andExpect(status().isOk()).andReturn();
         var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.getResponse().getContentAsString());
         return new Pair(json.get("code").asText(), json.get("secret").asText());
@@ -138,7 +140,7 @@ class TvPairingApiTest extends AbstractIntegrationTest {
     @Test
     void claimWithoutAuthDenied() throws Exception {
         Pair p = pair();
-        mvc.perform(post("/api/box/tv/claim").contentType(APPLICATION_JSON)
+        mvc.perform(post("/api/box/tv/claim").with(csrf()).contentType(APPLICATION_JSON)
                 .content("{\"code\":\"" + p.code() + "\",\"name\":\"x\"}"))
                 .andExpect(status().isUnauthorized());
     }

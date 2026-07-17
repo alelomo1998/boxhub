@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -15,7 +16,7 @@ class ErrorContractTest extends AbstractIntegrationTest {
 
     @Test
     void validationErrorsListFields() throws Exception {
-        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON).content("""
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
                 {"email":"not-an-email","password":"short","name":""}
                 """))
                 .andExpect(status().isBadRequest())

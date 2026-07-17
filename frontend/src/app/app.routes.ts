@@ -5,6 +5,14 @@ import { unsavedGuard } from './core/unsaved.guard';
 export const routes: Routes = [
   { path: 'auth/login', loadComponent: () => import('./features/auth/login.page').then(m => m.LoginPage) },
   { path: 'auth/boxes', loadComponent: () => import('./features/auth/box-picker.page').then(m => m.BoxPickerPage) },
+  { path: 'auth/signup', loadComponent: () => import('./features/auth/signup.page').then(m => m.SignupPage) },
+  { path: 'auth/check-email', loadComponent: () => import('./features/auth/check-email.page').then(m => m.CheckEmailPage) },
+  { path: 'auth/verify', loadComponent: () => import('./features/auth/verify.page').then(m => m.VerifyPage) },
+  { path: 'auth/forgot', loadComponent: () => import('./features/auth/forgot.page').then(m => m.ForgotPage) },
+  { path: 'auth/reset', loadComponent: () => import('./features/auth/reset.page').then(m => m.ResetPage) },
+  { path: 'account/security', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
+    loadComponent: () => import('./features/account/security.page').then(m => m.SecurityPage) },
+  { path: 'account/email', loadComponent: () => import('./features/account/email-confirm.page').then(m => m.EmailConfirmPage) },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/athlete/athlete-shell.page').then(m => m.AthleteShellPage),

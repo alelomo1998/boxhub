@@ -78,7 +78,7 @@ class SessionApiTest extends AbstractIntegrationTest {
 
     record TokMem(String token, UUID membershipId) {}
     private TokMem token(String email, Box box, String role) {
-        User u = authService.register(email, "password123", email);
+        User u = authService.register(email, "correct-horse-battery", email);
         Membership m = new Membership();
         m.setUser(u); m.setBox(box); m.setRole(role);
         UUID mid = memberships.save(m).getId();

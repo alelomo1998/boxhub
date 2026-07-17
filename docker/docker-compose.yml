@@ -15,6 +15,14 @@ services:
       timeout: 3s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8025:8025"   # web UI — open http://localhost:8025 to read dev mail
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
   backend:
     build:
       context: ..
@@ -29,6 +37,9 @@ services:
       # 1-min window. Prod overrides this with a strict value; keep the default relaxed here.
       BOXHUB_AUTH_RATE_LIMIT: ${BOXHUB_AUTH_RATE_LIMIT:-200}
       BOXHUB_MEDIA_DIR: /data/media
+      BOXHUB_SMTP_HOST: mailpit
+      BOXHUB_SMTP_PORT: "1025"
+      BOXHUB_APP_URL: ${BOXHUB_APP_URL:-http://localhost}
     volumes:
       - media:/data/media
     depends_on:

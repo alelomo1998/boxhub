@@ -136,12 +136,12 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
     }
     private Box newBox(String s) { Box x = new Box(); x.setName(s); x.setSlug(s); x.setTimezone("Europe/Rome"); return boxes.save(x); }
     private String tok(String e, Box box, String role) {
-        User u = authService.register(e, "password123", e);
+        User u = authService.register(e, "correct-horse-battery", e);
         Membership m = new Membership(); m.setUser(u); m.setBox(box); m.setRole(role); memberships.save(m);
         return tokenService.boxToken(u, m);
     }
     private Membership member(Box box, String e) {
-        User u = authService.register(e, "password123", e);
+        User u = authService.register(e, "correct-horse-battery", e);
         Membership m = new Membership(); m.setUser(u); m.setBox(box); m.setRole("ATHLETE"); return memberships.save(m);
     }
     private UUID session(String prog) {

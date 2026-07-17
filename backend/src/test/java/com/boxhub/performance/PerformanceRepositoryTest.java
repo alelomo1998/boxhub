@@ -77,7 +77,7 @@ class PerformanceRepositoryTest extends AbstractIntegrationTest {
         item.setSessionId(s.getId()); item.setWodId(w.getId()); item.setSortOrder(0); item.setScoreable(true);
         items.save(item);
 
-        User u = authService.register("perf-" + n + "@t.io", "password123", "Ath");
+        User u = authService.register("perf-" + n + "@t.io", "correct-horse-battery", "Ath");
         Membership m = new Membership();
         m.setUser(u); m.setBox(boxes.findById(boxId).orElseThrow()); m.setRole("ATHLETE");
         UUID mid = memberships.save(m).getId();

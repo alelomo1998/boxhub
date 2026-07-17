@@ -54,7 +54,7 @@ class BookingEngineTest extends AbstractIntegrationTest {
 
     private UUID newMembership(UUID boxId, UUID planId) {
         long n = System.nanoTime();
-        User u = authService.register("bk-" + n + "-" + Math.random() + "@t.io", "password123", "Athlete");
+        User u = authService.register("bk-" + n + "-" + Math.random() + "@t.io", "correct-horse-battery", "Athlete");
         Box box = boxes.findById(boxId).orElseThrow();
         Membership m = new Membership();
         m.setUser(u);

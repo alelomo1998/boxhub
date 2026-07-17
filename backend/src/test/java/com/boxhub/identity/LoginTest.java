@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -18,12 +19,15 @@ class LoginTest extends AbstractIntegrationTest {
     @Autowired AuthService authService;
     @Autowired BoxRepository boxes;
     @Autowired MembershipRepository memberships;
+    @Autowired UserRepository users;
 
     User user;
 
     @BeforeEach
     void setup() {
-        user = authService.register("login-" + System.nanoTime() + "@t.io", "password123", "Log In");
+        user = authService.register("login-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Log In");
+        user.setEmailVerified(true);
+        users.save(user);
         Box b = new Box();
         b.setName("Login Box");
         b.setSlug("login-box-" + System.nanoTime());
@@ -38,19 +42,19 @@ class LoginTest extends AbstractIntegrationTest {
 
     @Test
     void loginReturnsTokensAndMemberships() throws Exception {
-        mvc.perform(post("/api/auth/login").contentType(APPLICATION_JSON).content("""
-                {"email":"%s","password":"password123"}
+        mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
+                {"email":"%s","password":"correct-horse-battery"}
                 """.formatted(user.getEmail())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(cookie().exists("bh_at"))
+                .andExpect(cookie().httpOnly("bh_at", true))
                 .andExpect(jsonPath("$.memberships[0].boxName").value("Login Box"))
                 .andExpect(jsonPath("$.memberships[0].role").value("ATHLETE"));
     }
 
     @Test
     void wrongPasswordIs401() throws Exception {
-        mvc.perform(post("/api/auth/login").contentType(APPLICATION_JSON).content("""
+        mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
                 {"email":"%s","password":"wrong-password"}
                 """.formatted(user.getEmail())))
                 .andExpect(status().isUnauthorized());
@@ -58,8 +62,8 @@ class LoginTest extends AbstractIntegrationTest {
 
     @Test
     void unknownEmailIs401() throws Exception {
-        mvc.perform(post("/api/auth/login").contentType(APPLICATION_JSON).content("""
-                {"email":"nobody-here@t.io","password":"password123"}
+        mvc.perform(post("/api/auth/login").with(csrf()).contentType(APPLICATION_JSON).content("""
+                {"email":"nobody-here@t.io","password":"correct-horse-battery"}
                 """))
                 .andExpect(status().isUnauthorized());
     }

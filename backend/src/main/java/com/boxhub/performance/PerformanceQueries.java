@@ -1,5 +1,7 @@
 package com.boxhub.performance;
 
+import com.boxhub.box.Booking;
+import com.boxhub.box.BookingRepository;
 import com.boxhub.box.ClassSession;
 import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.programming.*;
@@ -26,11 +28,12 @@ public class PerformanceQueries {
     private final BenchmarkTemplateRepository benchmarks;
     private final LiftEntryRepository lifts;
     private final MovementRepository movements;
+    private final BookingRepository bookings;
 
     public PerformanceQueries(WodScoreRepository scores, SessionItemRepository items,
                               ClassSessionRepository sessions, WodRepository wods,
                               BenchmarkTemplateRepository benchmarks, LiftEntryRepository lifts,
-                              MovementRepository movements) {
+                              MovementRepository movements, BookingRepository bookings) {
         this.scores = scores;
         this.items = items;
         this.sessions = sessions;
@@ -38,6 +41,7 @@ public class PerformanceQueries {
         this.benchmarks = benchmarks;
         this.lifts = lifts;
         this.movements = movements;
+        this.bookings = bookings;
     }
 
     public record BenchmarkBest(String benchmarkName, String scoreType, Integer timeSeconds, Integer rounds,
@@ -110,5 +114,56 @@ public class PerformanceQueries {
     private static String isoWeek(LocalDate d) {
         var wf = java.time.temporal.WeekFields.ISO;
         return d.get(wf.weekBasedYear()) + "-" + d.get(wf.weekOfWeekBasedYear());
+    }
+
+    // --- GDPR export: raw dumps across every membership the user ever held, no scoring math ---
+
+    public List<Map<String, Object>> bookingsOf(List<UUID> membershipIds) {
+        return membershipIds.stream()
+                .flatMap(id -> bookings.findByMembershipId(id).stream())
+                .map(PerformanceQueries::bookingDump)
+                .toList();
+    }
+
+    public List<Map<String, Object>> scoresOf(List<UUID> membershipIds) {
+        return membershipIds.stream()
+                .flatMap(id -> scores.findByMembershipIdOrderByCreatedAtDesc(id).stream())
+                .map(PerformanceQueries::scoreDump)
+                .toList();
+    }
+
+    public List<Map<String, Object>> liftsOf(List<UUID> membershipIds) {
+        return membershipIds.stream()
+                .flatMap(id -> lifts.findByMembershipIdOrderByPerformedOnDesc(id).stream())
+                .map(PerformanceQueries::liftDump)
+                .toList();
+    }
+
+    private static Map<String, Object> bookingDump(Booking b) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("sessionId", b.getSessionId());
+        m.put("status", b.getStatus());
+        m.put("bookedAt", b.getBookedAt());
+        return m;
+    }
+
+    private static Map<String, Object> scoreDump(WodScore s) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("rx", s.isRx());
+        m.put("timeSeconds", s.getTimeSeconds());
+        m.put("rounds", s.getRounds());
+        m.put("reps", s.getReps());
+        m.put("load", s.getLoad());
+        m.put("createdAt", s.getCreatedAt());
+        return m;
+    }
+
+    private static Map<String, Object> liftDump(LiftEntry l) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("movementId", l.getMovementId());
+        m.put("load", l.getLoad());
+        m.put("reps", l.getReps());
+        m.put("performedOn", l.getPerformedOn());
+        return m;
     }
 }

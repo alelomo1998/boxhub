@@ -35,7 +35,7 @@ class MediaApiTest extends AbstractIntegrationTest {
         Box a = new Box();
         a.setName("Media " + n); a.setSlug("md-" + n); a.setTimezone("Europe/Rome");
         boxes.save(a);
-        User u = authService.register("md-" + n + "@t.io", "password123", "Ath");
+        User u = authService.register("md-" + n + "@t.io", "correct-horse-battery", "Ath");
         Membership m = new Membership(); m.setUser(u); m.setBox(a); m.setRole("ATHLETE");
         memberships.save(m);
         athlete = tokenService.boxToken(u, m);
@@ -76,7 +76,8 @@ class MediaApiTest extends AbstractIntegrationTest {
     @Test
     void unauthenticatedIsDenied() throws Exception {
         mvc.perform(multipart("/api/box/media")
-                        .file(new MockMultipartFile("file", "a.png", "image/png", png())))
+                        .file(new MockMultipartFile("file", "a.png", "image/png", png()))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isUnauthorized());
     }
 }
