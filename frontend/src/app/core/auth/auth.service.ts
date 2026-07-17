@@ -82,8 +82,8 @@ export class AuthService {
     );
   }
 
-  register(email: string, password: string, name: string): Observable<unknown> {
-    return this.http.post('/api/auth/register', { email, password, name });
+  register(email: string, password: string, name: string, inviteToken?: string): Observable<unknown> {
+    return this.http.post('/api/auth/register', { email, password, name, inviteToken });
   }
 
   providers(): Observable<{ google: boolean }> {

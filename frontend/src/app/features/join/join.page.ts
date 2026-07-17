@@ -85,7 +85,7 @@ export class JoinPage implements OnInit {
 
   registerAndJoin() {
     this.error.set('');
-    this.auth.register(this.email, this.password, this.name).pipe(
+    this.auth.register(this.email, this.password, this.name, this.token).pipe(
       switchMap(() => this.auth.login(this.email, this.password)),
       switchMap(() => this.auth.acceptInvite(this.token)),
       switchMap(m => this.auth.refresh().pipe(switchMap(() => this.auth.selectBox(m.boxId)), map(() => m.role))),

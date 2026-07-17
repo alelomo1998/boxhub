@@ -21,11 +21,12 @@ public class AuthService {
     private final Mailer mailer;
     private final PasswordPolicy passwordPolicy;
     private final LoginThrottleService throttle;
+    private final InviteOwnershipProof inviteProof;
     private final String timingEqualizerHash;
 
     public AuthService(UserRepository users, PasswordEncoder passwordEncoder, MembershipRepository memberships,
                        EmailTokenService emailTokens, Mailer mailer, PasswordPolicy passwordPolicy,
-                       LoginThrottleService throttle) {
+                       LoginThrottleService throttle, InviteOwnershipProof inviteProof) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.memberships = memberships;
@@ -33,16 +34,28 @@ public class AuthService {
         this.mailer = mailer;
         this.passwordPolicy = passwordPolicy;
         this.throttle = throttle;
+        this.inviteProof = inviteProof;
         this.timingEqualizerHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
+    }
+
+    /** No invite in play — same as {@link #register(String, String, String, String)} with a null token. */
+    @Transactional
+    public User register(String email, String rawPassword, String name) {
+        return register(email, rawPassword, name, null);
     }
 
     /**
      * Always succeeds from the caller's point of view — returning 409 on a taken address
      * would turn registration into an account-enumeration oracle. If the address is taken,
      * the REAL owner is told someone tried, and the impostor's input is discarded.
+     *
+     * {@code inviteToken}: a valid, unexpired invite mailed to THIS SAME address is proof the
+     * registrant reads that inbox — the same proof the verification email exists to obtain
+     * (see {@link #completeReset}). A missing/foreign/expired/garbage token just means no
+     * proof was offered; it never fails registration and never leaks whether it was valid.
      */
     @Transactional
-    public User register(String email, String rawPassword, String name) {
+    public User register(String email, String rawPassword, String name, String inviteToken) {
         passwordPolicy.check(rawPassword);
         String normalized = email.toLowerCase().trim();
 
@@ -58,11 +71,13 @@ public class AuthService {
             return owner; // caller builds its response from the request, not this entity
         }
 
+        boolean provenByInvite = inviteToken != null && inviteProof.provesOwnershipOf(inviteToken, normalized);
+
         User u = new User();
         u.setEmail(normalized);
         u.setPasswordHash(hash);
         u.setName(name);
-        u.setEmailVerified(false);
+        u.setEmailVerified(provenByInvite);
         try {
             u = users.saveAndFlush(u);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
@@ -72,7 +87,7 @@ public class AuthService {
                     "register-attempt", Map.of("name", owner.getName()));
             return owner;
         }
-        sendVerification(u);
+        if (!provenByInvite) sendVerification(u);
         return u;
     }
 

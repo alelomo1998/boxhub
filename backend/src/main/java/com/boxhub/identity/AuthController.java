@@ -49,7 +49,8 @@ public class AuthController {
 
     record RegisterRequest(@NotBlank @Email String email,
                            @NotBlank @Size(min = 8, max = 100) String password,
-                           @NotBlank @Size(max = 100) String name) {}
+                           @NotBlank @Size(max = 100) String name,
+                           String inviteToken) {}
     record UserResponse(UUID id, String email, String name) {}
     public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role) {}
     public record SessionResponse(List<MembershipDto> memberships) {}
@@ -81,7 +82,7 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest req) {
-        authService.register(req.email(), req.password(), req.name());
+        authService.register(req.email(), req.password(), req.name(), req.inviteToken());
         // Body must be built from the request only, never the returned entity: on a taken
         // address register() returns the REAL owner, and echoing it would leak their id/name —
         // an enumeration oracle. Normalize the same way the service does so both branches match.
