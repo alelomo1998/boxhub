@@ -26,7 +26,9 @@ test('full invite flow: create -> join -> visible in members', async ({ page, co
   await expect(joinPage.locator('h1')).toContainText('Join');
   await joinPage.fill('[data-testid="join-name"]', 'E2E Joiner');
   await joinPage.fill('[data-testid="join-password"]', 'boxhub-demo-2026');
-  await joinPage.click('[data-testid="join-register"]');
+  // bh-button's testid is on the host, which is wider than the real <button> inside — a
+  // click on the host centre misses it entirely. Target the inner native button.
+  await joinPage.click('[data-testid="join-register"] button');
   await expect(joinPage).toHaveURL(/\/athlete/);
   await invitee.close();
 

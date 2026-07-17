@@ -216,4 +216,34 @@ class CookieAuthTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(cookie().exists("bh_at"));
     }
+
+    @Test
+    void csrfCookieSurvivesAnAuthenticatedRequest() throws Exception {
+        // Regression: SessionManagementFilter used to re-run the SessionAuthenticationStrategy
+        // on every stateless request, and CsrfAuthenticationStrategy deleted the XSRF-TOKEN
+        // cookie each time. Login worked, then the next cookie-authenticated write 401'd —
+        // in the browser that meant no one could get past the box picker.
+        // No .with(csrf()) anywhere — that bypass swaps the filter's token repository, which is
+        // exactly the machinery under test. This is the real browser flow.
+        Cookie xsrf = mvc.perform(get("/api/auth/csrf")).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        assertThat(xsrf).isNotNull();
+
+        Cookie at = mvc.perform(post("/api/auth/login").cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())
+                        .contentType(APPLICATION_JSON).content("""
+                        {"email":"%s","password":"correct-horse-battery"}
+                        """.formatted(user.getEmail())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getCookie("bh_at");
+
+        // An authenticated GET must not clear the token the client is holding.
+        MvcResult me = mvc.perform(get("/api/me").cookie(at, xsrf)).andExpect(status().isOk()).andReturn();
+        Cookie afterMe = me.getResponse().getCookie("XSRF-TOKEN");
+        assertThat(afterMe == null || afterMe.getMaxAge() != 0)
+                .as("GET /api/me must not expire the XSRF-TOKEN cookie")
+                .isTrue();
+
+        // and the token still works for a real cookie-authenticated write
+        mvc.perform(post("/api/auth/logout").cookie(at, xsrf).header("X-XSRF-TOKEN", xsrf.getValue()))
+                .andExpect(status().isNoContent());
+    }
 }

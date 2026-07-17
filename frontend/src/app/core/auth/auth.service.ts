@@ -1,9 +1,18 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpContextToken } from '@angular/common/http';
 import { Observable, catchError, firstValueFrom, from, map, of, switchMap, tap } from 'rxjs';
 import { ActiveBox, MembershipDto, Role } from './auth.models';
 
 const ACTIVE_BOX = 'bh_active_box';
+
+/**
+ * Bootstrap's GET /api/me runs on every page load, including anonymous public pages
+ * (signup, forgot, verify, join) — a 401 there just means "not logged in," not "session died
+ * mid-use." Set on that one request so the interceptor still tries a refresh (a valid refresh
+ * cookie should silently restore the session) but skips the forced navigate to /auth/login,
+ * which would otherwise boot an anonymous visitor off the very page they're trying to reach.
+ */
+export const SILENT_401 = new HttpContextToken<boolean>(() => false);
 
 export interface Session {
   id: string;
@@ -36,7 +45,8 @@ export class AuthService {
   async bootstrap(): Promise<void> {
     await firstValueFrom(this.http.get('/api/auth/csrf', { observe: 'response' })).catch(() => null);
     const me = await firstValueFrom(
-      this.http.get<Session>('/api/me').pipe(catchError(() => of(null))),
+      this.http.get<Session>('/api/me', { context: new HttpContext().set(SILENT_401, true) })
+        .pipe(catchError(() => of(null))),
     );
     this.session.set(me);
     if (me) this.restoreActiveBox(me.memberships);

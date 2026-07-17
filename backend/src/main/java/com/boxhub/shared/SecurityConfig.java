@@ -47,6 +47,26 @@ public class SecurityConfig {
                         return filter;
                     }
                 }))
+            // Must be set explicitly, and must be the SAME repository BearerTokenAuthenticationFilter
+            // saves into (its default is RequestAttributeSecurityContextRepository).
+            //
+            // Asking for STATELESS is itself what adds SessionManagementFilter to the chain
+            // (SessionManagementConfigurer: sessionCreationPolicy populates
+            // propertiesThatRequireImplicitAuthentication, so the filter is no longer skipped).
+            // Left to its own devices, that configurer then hands the filter a
+            // NullSecurityContextRepository, whose containsContext() is always false — so the
+            // filter reads "authenticated during THIS request" on EVERY request and re-runs the
+            // SessionAuthenticationStrategy composite each time. CsrfAuthenticationStrategy is in
+            // that composite: it deletes the XSRF-TOKEN cookie and queues a deferred replacement
+            // that nothing resolves, so only the delete reaches the browser. The client is left
+            // with no token and the next cookie-authenticated write 401s — i.e. login succeeds,
+            // then POST /api/auth/box-token fails and no one can enter the app.
+            //
+            // Pointing the filter at the repository the bearer filter actually wrote to makes
+            // containsContext() true, so the strategy correctly runs on real authentication only.
+            // Covered by csrfCookieSurvivesAnAuthenticatedRequest.
+            .securityContext(c -> c.securityContextRepository(
+                    new org.springframework.security.web.context.RequestAttributeSecurityContextRepository()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh",

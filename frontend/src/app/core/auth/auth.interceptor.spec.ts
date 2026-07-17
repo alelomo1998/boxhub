@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpClient, HttpContext, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { authInterceptor } from './auth.interceptor';
-import { AuthService } from './auth.service';
+import { AuthService, SILENT_401 } from './auth.service';
 
 const UNAUTHORIZED = { status: 401, statusText: 'Unauthorized' };
 const NO_CONTENT = { status: 204, statusText: 'No Content' };
@@ -107,5 +107,24 @@ describe('authInterceptor', () => {
     expect(auth.session()).toBeNull();
     expect(auth.activeBox()).toBeNull();
     expect(localStorage.getItem('bh_active_box')).toBeNull();
+  });
+
+  it('a SILENT_401 request clears the session but does not bounce to /auth/login', () => {
+    // bootstrap()'s GET /api/me runs on public pages too (signup, forgot, verify, join). A 401
+    // there just means "anonymous" — redirecting would boot the visitor off the page they asked
+    // for. The refresh is still attempted; only the navigate is suppressed.
+    const router = TestBed.inject(Router);
+    const navigate = spyOn(router, 'navigate');
+
+    let error: unknown;
+    http.get('/api/me', { context: new HttpContext().set(SILENT_401, true) })
+      .subscribe({ error: e => (error = e) });
+
+    httpMock.expectOne('/api/me').flush('unauthorized', UNAUTHORIZED);
+    httpMock.expectOne('/api/auth/refresh').flush('unauthorized', UNAUTHORIZED);
+
+    expect(error).toBeTruthy();
+    expect(auth.session()).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

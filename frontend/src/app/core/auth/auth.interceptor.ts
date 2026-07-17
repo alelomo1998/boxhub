@@ -2,7 +2,7 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, of, switchMap, throwError } from 'rxjs';
-import { AuthService } from './auth.service';
+import { AuthService, SILENT_401 } from './auth.service';
 
 /**
  * Cookies attach themselves, so there is no bearer token to add. The interceptor's only
@@ -32,7 +32,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         switchMap(ok => {
           if (!ok) {
             auth.clear();
-            router.navigate(['/auth/login']);
+            if (!req.context.get(SILENT_401)) router.navigate(['/auth/login']);
             return throwError(() => err);
           }
           const box = auth.activeBox();
@@ -44,7 +44,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
               // ORIGINAL 401 (`err`), not the reselect error: the caller cares that its
               // request failed, not why the recovery attempt failed.
               auth.clear();
-              router.navigate(['/auth/login']);
+              if (!req.context.get(SILENT_401)) router.navigate(['/auth/login']);
               return throwError(() => err);
             }),
           );
