@@ -13,6 +13,8 @@ public class Box {
     @Column(name = "logo_url") private String logoUrl;
     @Column(name = "cancel_cutoff_min", nullable = false) private int cancelCutoffMin = 120;
     @Column(name = "booking_horizon_weeks", nullable = false) private int bookingHorizonWeeks = 2;
+    @Column(nullable = false) private String status = "ACTIVE";
+    @Column(name = "created_at", insertable = false, updatable = false) private java.time.Instant createdAt;
 
     public UUID getId() { return id; }
     public String getName() { return name; }
@@ -27,4 +29,7 @@ public class Box {
     public void setCancelCutoffMin(int cancelCutoffMin) { this.cancelCutoffMin = cancelCutoffMin; }
     public int getBookingHorizonWeeks() { return bookingHorizonWeeks; }
     public void setBookingHorizonWeeks(int bookingHorizonWeeks) { this.bookingHorizonWeeks = bookingHorizonWeeks; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public java.time.Instant getCreatedAt() { return createdAt; }
 }
