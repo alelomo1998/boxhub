@@ -112,3 +112,10 @@
 - `runner`/`tv` e2e specs are not idempotent (fixed-name TV devices accumulate) — pass only on a fresh stack; per-test DB isolation would end this whole family.
 - `register` timing: the not-proven-by-invite path pays a synchronous `EmailTokenService.issue()` DB round-trip the invite path skips — theoretical only (attacker must already hold the 256-bit token to take the fast path).
 - **Re-verify the CSRF matcher + `securityContext` repository wiring on any Spring Security upgrade** — both M8 fixes are coupled to 6.4.2 filter-chain internals.
+
+## Deferred from M9 (onboarding)
+- Existing logged-in user creates a second box ("Start your box" while authenticated).
+- Slug rename + freeing slugs of REJECTED boxes.
+- Waitlist auto-notify when capacity opens (capture-only in M9; contact is manual).
+- Superadmin audit log (who approved/suspended what, when).
+- Approval SLA / reminder emails for boxes sitting in the pending queue.
