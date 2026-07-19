@@ -25,8 +25,8 @@ describe('AuthService', () => {
     http.expectOne('/api/auth/csrf').flush(null, NO_CONTENT);
     tick();
     http.expectOne('/api/me').flush({
-      id: 'u1', email: 'a@b.io', name: 'Ann',
-      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+      id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE', boxStatus: 'ACTIVE' }],
     });
     tick();
 
@@ -50,13 +50,13 @@ describe('AuthService', () => {
     service.login('a@b.io', 'correct-horse-battery').subscribe(session => (result = session));
 
     http.expectOne('/api/auth/login').flush({
-      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE', boxStatus: 'ACTIVE' }],
     });
     http.expectOne('/api/auth/csrf').flush(null, NO_CONTENT);
     tick();
     http.expectOne('/api/me').flush({
-      id: 'u1', email: 'a@b.io', name: 'Ann',
-      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+      id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE', boxStatus: 'ACTIVE' }],
     });
     tick();
 
@@ -67,8 +67,8 @@ describe('AuthService', () => {
 
   it('selectBox stores the active box', () => {
     service.session.set({
-      id: 'u1', email: 'a@b.io', name: 'Ann',
-      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'COACH' }],
+      id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'COACH', boxStatus: 'ACTIVE' }],
     });
 
     service.selectBox('1').subscribe();
@@ -80,7 +80,7 @@ describe('AuthService', () => {
   });
 
   it('logout clears everything', () => {
-    service.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [] });
+    service.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [] });
     service.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
     localStorage.setItem('bh_active_box', '{"boxId":"1"}');
 
@@ -99,8 +99,8 @@ describe('AuthService', () => {
     http.expectOne('/api/auth/csrf').flush(null, NO_CONTENT);
     tick();
     http.expectOne('/api/me').flush({
-      id: 'u1', email: 'a@b.io', name: 'Ann',
-      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' }],
+      id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE', boxStatus: 'ACTIVE' }],
     });
     tick();
 

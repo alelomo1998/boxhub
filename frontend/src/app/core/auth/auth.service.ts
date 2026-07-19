@@ -19,6 +19,7 @@ export interface Session {
   email: string;
   name: string;
   memberships: MembershipDto[];
+  superadmin: boolean;
 }
 
 export interface AccountSession {
@@ -85,6 +86,17 @@ export class AuthService {
   register(email: string, password: string, name: string, inviteToken?: string): Observable<unknown> {
     return this.http.post('/api/auth/register', { email, password, name, inviteToken });
   }
+
+  startBox(boxName: string, name: string, email: string, password: string) {
+    return this.http.post<{ full?: boolean; email?: string }>('/api/auth/signup-box',
+      { boxName, name, email, password }, { observe: 'response' });
+  }
+
+  joinWaitlist(email: string, boxName: string) {
+    return this.http.post<void>('/api/auth/waitlist', { email, boxName });
+  }
+
+  signupMode() { return this.http.get<{ open: boolean }>('/api/auth/signup-mode'); }
 
   providers(): Observable<{ google: boolean }> {
     return this.http.get<{ google: boolean }>('/api/auth/providers');

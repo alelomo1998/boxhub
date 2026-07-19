@@ -31,6 +31,7 @@ import { ButtonComponent } from '../../ui/button.component';
           <a class="google" href="/oauth2/authorization/google" data-testid="login-google">Continue with Google</a>
         }
         <p class="alt"><a href="/auth/forgot">Forgot password?</a> · <a href="/auth/signup">Create a box account</a></p>
+        <p class="alt">Own a gym? <a href="/auth/start">Start your box</a></p>
       </form>
     </main>
   `,
