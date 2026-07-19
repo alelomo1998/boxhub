@@ -105,14 +105,31 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**M10 — memberships & payments.** Roadmap is locked (see the v1 roadmap doc). Today's `Plan` is just a
-weekly-booking-limit row; M10 is the real subscription rework — a box **publishes membership plans** (price,
-period, entitlements) → an athlete **subscribes** → the athlete **pays**, via **Stripe** (the box's own keys, no
-Connect, BoxHub never touches funds) or **offline** (cash/transfer, recorded by the box with a receipt).
-Entitlements feed the booking engine. Needs its own spec → plan → execute. Next Flyway is **V14**.
+**M10 — memberships & payments. Spec + plan written and approved; ready to EXECUTE (subagent-driven).**
+- **Spec:** `docs/superpowers/specs/2026-07-19-m10-memberships-payments-design.md`
+- **Plan:** `docs/superpowers/plans/2026-07-19-m10-memberships-payments.md` — **8 tasks**, Flyway **V14**.
 
-**M9 is complete** — spec `docs/superpowers/specs/2026-07-18-m9-onboarding-design.md`, plan
-`docs/superpowers/plans/2026-07-18-m9-onboarding.md`, task→SHA ledger in `.superpowers/sdd/progress.md`.
-M0–M9 all merged + pushed. **No milestone is in progress.**
+M10 makes `subscription` a first-class entity between a membership and a plan; `Membership.planId` is dropped and the
+booking engine reads the active subscription for its entitlement check. Plans carry a **list price**; each
+subscription carries the **agreed price** (so a box negotiates/discounts per athlete) + an optional note. Payments
+record any method — **STRIPE** (the one *automated, optional* rail via the box's own restricted key, AES-GCM
+encrypted at rest, signature-verified idempotent webhook) plus admin-recorded **CASH/TRANSFER/CARD/OTHER** at the
+amount actually collected. Lapse blocks *new* bookings but keeps booked classes; a nightly job expires + mails.
+Existing members are **grandfathered** into no-expiry active subscriptions so nobody loses booking on deploy day.
 
-Process reminder: superpowers flow (brainstorm → spec+approval → writing-plans → subagent-driven-development), orchestrator = Fable/Opus, executors = Sonnet, impeccable gate (≥28/40, no P0/P1) per FE surface, tenancy tests on every box endpoint, `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend mvn, conventional commits, merge to main + push when green.
+**Load-bearing risks the plan already pre-adjudicates (don't re-litigate):** the grandfather migration (T1 —
+every membership must still book after V14, `MigrationGrandfatherTest` pins it); the Stripe webhook is tenant-less on
+a `@TenantId` domain, so resolve the box from `metadata.boxId` and do all @TenantId work inside `runAsBox(...)`
+(TvStreamService pattern) with a native `findByStripeSessionId` (gotcha #1); the webhook needs CSRF exemption
+(`/api/stripe/webhook` into the M8 `csrfRequired` exempt set, like `/api/tv/pair`); money is **integer cents**
+everywhere, `€xx.xx` only at the FE edge. **Stripe is severable** — if T5 gets hairy, T1–T4+T6 (admin rail) + T7
+minus the Subscribe button are a complete shippable membership system; land that and fast-follow Stripe with no
+rework.
+
+**M9 is complete** — spec `.../2026-07-18-m9-onboarding-design.md`, plan `.../2026-07-18-m9-onboarding.md`, task→SHA
+ledger in `.superpowers/sdd/progress.md`. **M0–M9 all merged + pushed.** No milestone in progress.
+
+Process reminder: superpowers flow (brainstorm → spec+approval → writing-plans → subagent-driven-development),
+orchestrator = Fable/Opus, executors = Sonnet, impeccable gate (≥28/40, no P0/P1) per FE surface, tenancy tests on
+every box endpoint, `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend mvn, `graphify query` before exploring,
+conventional commits, merge to main + push when green.
