@@ -72,7 +72,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh",
                         "/api/auth/csrf", "/api/auth/verify", "/api/auth/verify/resend",
                         "/api/auth/password/forgot", "/api/auth/password/reset",
-                        "/api/auth/logout", "/api/auth/providers", "/actuator/health").permitAll()
+                        "/api/auth/logout", "/api/auth/providers", "/actuator/health",
+                        "/api/auth/signup-box", "/api/auth/waitlist", "/api/auth/signup-mode").permitAll()
                 .requestMatchers("/api/tv/pair", "/api/tv/pair/poll", "/api/tv/stream").permitAll()
                 .requestMatchers("/api/auth/box-token", "/api/auth/logout-all", "/api/auth/sessions").authenticated()
                 .requestMatchers("/api/me/email/confirm").permitAll()

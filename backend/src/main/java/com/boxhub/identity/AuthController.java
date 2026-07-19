@@ -30,11 +30,13 @@ public class AuthController {
     private final CookieService cookies;
     private final EmailTokenService emailTokens;
     private final AccountService accounts;
+    private final com.boxhub.box.BoxSignupService boxSignup;
     private final boolean googleConfigured;
 
     public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens,
                           MembershipRepository membershipRepo, UserRepository userRepo, CookieService cookies,
                           EmailTokenService emailTokens, AccountService accounts,
+                          com.boxhub.box.BoxSignupService boxSignup,
                           @Value("${BOXHUB_GOOGLE_CLIENT_ID:}") String googleClientId) {
         this.authService = authService;
         this.tokenService = tokenService;
@@ -44,6 +46,7 @@ public class AuthController {
         this.cookies = cookies;
         this.emailTokens = emailTokens;
         this.accounts = accounts;
+        this.boxSignup = boxSignup;
         this.googleConfigured = !googleClientId.isBlank();
     }
 
@@ -87,6 +90,35 @@ public class AuthController {
         // address register() returns the REAL owner, and echoing it would leak their id/name —
         // an enumeration oracle. Normalize the same way the service does so both branches match.
         return new UserResponse(UUID.randomUUID(), req.email().toLowerCase().trim(), req.name());
+    }
+
+    record SignupBoxRequest(@NotBlank @Size(max = 80) String boxName,
+                            @NotBlank @Size(max = 100) String name,
+                            @NotBlank @Email String email,
+                            @NotBlank @Size(min = 10, max = 100) String password) {}
+    record SignupBoxResponse(String email, String name) {}
+    record FullResponse(boolean full) {}
+    record WaitlistRequest(@NotBlank @Email String email, @NotBlank @Size(max = 80) String boxName) {}
+    record SignupModeResponse(boolean open) {}
+
+    @PostMapping("/signup-box")
+    public ResponseEntity<?> signupBox(@Valid @RequestBody SignupBoxRequest req) {
+        var outcome = boxSignup.signup(req.boxName(), req.name(), req.email(), req.password());
+        if (outcome.full()) return ResponseEntity.ok(new FullResponse(true));
+        // Body from the request only — echoing anything persisted is an enumeration oracle (M8 T5).
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new SignupBoxResponse(req.email().toLowerCase().trim(), req.name()));
+    }
+
+    @PostMapping("/waitlist")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void waitlist(@Valid @RequestBody WaitlistRequest req) {
+        boxSignup.joinWaitlist(req.email(), req.boxName());
+    }
+
+    @GetMapping("/signup-mode")
+    public SignupModeResponse signupMode() {
+        return new SignupModeResponse(boxSignup.acceptingSignups());
     }
 
     @PostMapping("/login")
