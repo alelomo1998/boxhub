@@ -4,6 +4,7 @@ import { DatePipe } from '@angular/common';
 import { AdminService, Invite, Plan } from './admin.service';
 import { Role } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'bh-admin-invites',
@@ -12,18 +13,26 @@ import { ButtonComponent } from '../../ui/button.component';
   template: `
     <section class="bh-section">
       <h2 class="t-h2">Invites</h2>
-      <form class="row" (ngSubmit)="create()">
-        <input class="bh-input" name="email" type="email" required placeholder="member@email.com"
-               [(ngModel)]="email" data-testid="invite-email" />
-        <select class="bh-select" name="role" [(ngModel)]="role" data-testid="invite-role">
-          <option>ATHLETE</option><option>COACH</option><option>BOX_ADMIN</option>
-        </select>
-        <select class="bh-select" name="planId" [(ngModel)]="planId">
-          <option [ngValue]="null">No plan</option>
-          @for (p of plans(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
-        </select>
-        <bh-button type="submit" size="sm" data-testid="invite-create">Create invite</bh-button>
-      </form>
+
+      @if (pending()) {
+        <div class="pending-card" data-testid="invites-pending">
+          <p>Available once your box is approved.</p>
+        </div>
+      } @else {
+        <form class="row" (ngSubmit)="create()">
+          <input class="bh-input" name="email" type="email" required placeholder="member@email.com"
+                 [(ngModel)]="email" data-testid="invite-email" />
+          <select class="bh-select" name="role" [(ngModel)]="role" data-testid="invite-role">
+            <option>ATHLETE</option><option>COACH</option><option>BOX_ADMIN</option>
+          </select>
+          <select class="bh-select" name="planId" [(ngModel)]="planId">
+            <option [ngValue]="null">No plan</option>
+            @for (p of plans(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
+          </select>
+          <bh-button type="submit" size="sm" data-testid="invite-create">Create invite</bh-button>
+        </form>
+        @if (createError()) { <p class="err" role="alert">{{ createError() }}</p> }
+      }
 
       @if (lastLink()) {
         <div class="linkbox">
@@ -58,10 +67,14 @@ import { ButtonComponent } from '../../ui/button.component';
     .who b { font-weight: 600; }
     .who .meta { color: var(--faint); font-size: 12px; font-family: var(--font-mono); margin-left: 8px; }
     .empty { color: var(--bone-dim); font-size: 14px; }
+    .pending-card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-2);
+      padding: var(--sp-4); color: var(--bone-dim); font-size: var(--fs-sm); }
+    .err { color: var(--red); font-size: var(--fs-sm); }
   `],
 })
 export class InvitesPage implements OnInit {
   private admin = inject(AdminService);
+  private auth = inject(AuthService);
   email = '';
   role: Role = 'ATHLETE';
   planId: string | null = null;
@@ -69,6 +82,9 @@ export class InvitesPage implements OnInit {
   readonly plans = signal<Plan[]>([]);
   readonly lastLink = signal('');
   readonly copied = signal(false);
+  readonly createError = signal('');
+
+  pending() { return this.auth.activeBoxStatus() === 'PENDING'; }
 
   ngOnInit() {
     this.admin.listPlans().subscribe(p => this.plans.set(p));
@@ -79,12 +95,22 @@ export class InvitesPage implements OnInit {
 
   create() {
     if (!this.email) return;
+    this.createError.set('');
     this.admin.createInvite({ email: this.email, role: this.role, planId: this.planId ?? undefined })
-      .subscribe(inv => {
-        this.lastLink.set(location.origin + inv.link);
-        this.copied.set(false);
-        this.email = '';
-        this.load();
+      .subscribe({
+        next: inv => {
+          this.lastLink.set(location.origin + inv.link);
+          this.copied.set(false);
+          this.email = '';
+          this.load();
+        },
+        error: e => {
+          // belt and braces: the form is hidden once PENDING, but status can flip mid-session —
+          // a request already in flight can still land a 403 BOX_PENDING.
+          this.createError.set(e.status === 403 && e.error?.detail === 'BOX_PENDING'
+            ? "Available once your box is approved."
+            : "Couldn't create invite — try again.");
+        },
       });
   }
 

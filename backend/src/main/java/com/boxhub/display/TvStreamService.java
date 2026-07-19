@@ -55,6 +55,11 @@ public class TvStreamService {
         if (c != null) try { c.emitter().complete(); } catch (Exception ignored) { }
     }
 
+    /** Suspend kills the room now, not at next reconnect. */
+    public void disconnectBox(UUID boxId) {
+        connections.forEach((id, c) -> { if (c.boxId().equals(boxId)) disconnect(id); });
+    }
+
     @EventListener
     public void onChange(TvStateChanged ev) { pushBox(ev.boxId()); }
 

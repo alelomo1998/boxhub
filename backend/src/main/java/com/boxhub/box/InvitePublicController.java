@@ -81,6 +81,6 @@ public class InvitePublicController {
         } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Already a member of this box");
         }
-        return new AuthController.MembershipDto(box.getId(), box.getName(), box.getSlug(), m.getRole());
+        return new AuthController.MembershipDto(box.getId(), box.getName(), box.getSlug(), m.getRole(), box.getStatus());
     }
 }

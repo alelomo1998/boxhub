@@ -48,11 +48,12 @@ public class InviteAdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedInviteResponse create(@Valid @RequestBody CreateInviteRequest req) {
         RoleGuard.requireBoxAdmin();
+        Box box = boxes.findById(TenantContext.requireBoxId()).orElseThrow(NoSuchElementException::new);
+        BoxStatusGuard.requireActive(box);
         if (req.planId() != null && plans.findById(req.planId()).isEmpty())
             throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown plan");
         var created = inviteService.create(req.email(), req.role(), req.planId());
         Invite i = created.invite();
-        Box box = boxes.findById(TenantContext.requireBoxId()).orElseThrow(NoSuchElementException::new);
         mailer.send(i.getEmail(), box.getName() + " invited you to BoxHub", "invite",
                 Map.of("boxName", box.getName(), "role", i.getRole(),
                         "link", mailer.link("/join/" + created.rawToken())));

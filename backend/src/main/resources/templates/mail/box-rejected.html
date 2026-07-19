@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{mail/layout :: html}">
+<th:block th:fragment="content">
+  <p th:text="'We can&apos;t onboard ' + ${boxName} + ' right now.'">We can't onboard your box right now.</p>
+  <p>After review, we're not able to bring your box onto BoxHub at this time. Reply to this email if you have questions.</p>
+</th:block>
+</html>

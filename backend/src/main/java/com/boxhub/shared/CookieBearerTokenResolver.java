@@ -33,7 +33,8 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
             "/api/auth/csrf", "/api/auth/verify", "/api/auth/verify/resend",
             "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/providers",
-            "/api/me/email/confirm");
+            "/api/me/email/confirm",
+            "/api/auth/signup-box", "/api/auth/waitlist", "/api/auth/signup-mode");
 
     @Override
     public String resolve(HttpServletRequest request) {

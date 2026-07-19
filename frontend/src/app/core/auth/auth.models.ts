@@ -5,6 +5,7 @@ export interface MembershipDto {
   boxName: string;
   boxSlug: string;
   role: Role;
+  boxStatus: string;
 }
 
 export interface ActiveBox {

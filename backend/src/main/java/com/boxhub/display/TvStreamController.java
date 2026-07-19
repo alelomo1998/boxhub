@@ -1,5 +1,7 @@
 package com.boxhub.display;
 
+import com.boxhub.box.BoxRepository;
+import com.boxhub.box.BoxStatusGuard;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -16,11 +18,14 @@ public class TvStreamController {
 
     private final JwtDecoder jwtDecoder;
     private final TvDeviceRepository devices;
+    private final BoxRepository boxes;
     private final TvStreamService stream;
 
-    public TvStreamController(JwtDecoder jwtDecoder, TvDeviceRepository devices, TvStreamService stream) {
+    public TvStreamController(JwtDecoder jwtDecoder, TvDeviceRepository devices, BoxRepository boxes,
+                               TvStreamService stream) {
         this.jwtDecoder = jwtDecoder;
         this.devices = devices;
+        this.boxes = boxes;
         this.stream = stream;
     }
 
@@ -35,6 +40,7 @@ public class TvStreamController {
         TvDevice device = devices.findById(UUID.fromString(jwt.getClaimAsString("device_id")))
                 .filter(d -> "ACTIVE".equals(d.getStatus()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        BoxStatusGuard.requireReachable(boxes.findById(device.getBoxId()).orElseThrow());
         response.setHeader("X-Accel-Buffering", "no");
         return stream.connect(device);
     }

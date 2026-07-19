@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
@@ -14,6 +14,7 @@ import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
         @if (auth.memberships().length === 0) {
           <p class="empty">No memberships yet — ask your box admin for an invite.</p>
         }
+        @if (error()) { <p class="error" data-testid="box-picker-error">{{ error() }}</p> }
         <div class="list">
           @for (m of auth.memberships(); track m.boxId) {
             <button class="box" (click)="pick(m)" [attr.data-testid]="'box-' + m.boxSlug">
@@ -31,6 +32,7 @@ import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
       border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-3); }
     .title { font-size: 40px; margin: 0 0 var(--sp-4); }
     .empty { color: var(--bone-dim); font-size: 14px; }
+    .error { color: var(--red); font-size: 13px; margin: 0; }
     .list { display: flex; flex-direction: column; gap: var(--sp-2); }
     .box { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3);
       background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
@@ -44,8 +46,14 @@ import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
 export class BoxPickerPage {
   auth = inject(AuthService);
   private router = inject(Router);
+  error = signal('');
 
   pick(m: MembershipDto) {
-    this.auth.selectBox(m.boxId).subscribe(() => this.router.navigateByUrl(redirectForRole(m.role)));
+    this.error.set('');
+    this.auth.selectBox(m.boxId).subscribe({
+      next: () => this.router.navigateByUrl(redirectForRole(m.role)),
+      // box-token mint 403s a SUSPENDED/REJECTED box (M9) — surface it instead of doing nothing.
+      error: () => this.error.set('This box is unavailable — contact your box for help.'),
+    });
   }
 }

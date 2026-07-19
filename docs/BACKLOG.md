@@ -119,3 +119,7 @@
 - Waitlist auto-notify when capacity opens (capture-only in M9; contact is manual).
 - Superadmin audit log (who approved/suspended what, when).
 - Approval SLA / reminder emails for boxes sitting in the pending queue.
+- Superadmin console per-row action buttons share one `queueActionId`/`boxesActionId` signal each — only one row's action is reflected in the disabled state at a time, so two rows clicked back-to-back both fire real HTTP requests with only one showing pending (internal tool, not a correctness bug — flagged by the T5 review, not fixed since the brief didn't ask for concurrent multi-row optimistic UI).
+- OPEN-mode signup cap is soft/racy (check-then-act before the tx — concurrent OPEN signups can overshoot maxBoxes by the concurrency degree); APPROVAL-mode cap is hard (atomic in-tx recheck in BoxLifecycleTx.approve). Accepted at single-node/pilot scale; tighten if OPEN mode + real concurrency ever matters.
+- verify.page post-verify does not auto-select a box even with a single membership (pre-existing M8); the M9 e2e routes through /auth/boxes to work around it.
+- Superadmin console per-row action-pending is a single scalar signal — clicking approve on row A then reject on row B before A resolves re-enables A mid-flight (duplicate-submit window on an internal tool).

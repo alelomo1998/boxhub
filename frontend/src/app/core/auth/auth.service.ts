@@ -19,6 +19,7 @@ export interface Session {
   email: string;
   name: string;
   memberships: MembershipDto[];
+  superadmin: boolean;
 }
 
 export interface AccountSession {
@@ -37,6 +38,13 @@ export class AuthService {
   readonly session = signal<Session | null>(null);
   readonly activeBox = signal<ActiveBox | null>(null);
   readonly memberships = computed(() => this.session()?.memberships ?? []);
+
+  /** boxStatus of the active box's membership — null with no active box (T6: pending first-run gating). */
+  activeBoxStatus(): string | null {
+    const boxId = this.activeBox()?.boxId;
+    if (!boxId) return null;
+    return this.memberships().find(m => m.boxId === boxId)?.boxStatus ?? null;
+  }
 
   /**
    * Called once at app start (provideAppInitializer). Fetches the XSRF cookie, then asks who
@@ -85,6 +93,17 @@ export class AuthService {
   register(email: string, password: string, name: string, inviteToken?: string): Observable<unknown> {
     return this.http.post('/api/auth/register', { email, password, name, inviteToken });
   }
+
+  startBox(boxName: string, name: string, email: string, password: string) {
+    return this.http.post<{ full?: boolean; email?: string }>('/api/auth/signup-box',
+      { boxName, name, email, password }, { observe: 'response' });
+  }
+
+  joinWaitlist(email: string, boxName: string) {
+    return this.http.post<void>('/api/auth/waitlist', { email, boxName });
+  }
+
+  signupMode() { return this.http.get<{ open: boolean }>('/api/auth/signup-mode'); }
 
   providers(): Observable<{ google: boolean }> {
     return this.http.get<{ google: boolean }>('/api/auth/providers');

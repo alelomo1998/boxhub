@@ -1,5 +1,7 @@
 package com.boxhub.display;
 
+import com.boxhub.box.BoxRepository;
+import com.boxhub.box.BoxStatusGuard;
 import com.boxhub.identity.RefreshTokenService;
 import com.boxhub.identity.TokenService;
 import com.boxhub.shared.TenantContext;
@@ -13,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class TvPairingService {
@@ -21,11 +24,13 @@ public class TvPairingService {
 
     private final TvDeviceRepository devices;
     private final TokenService tokens;
+    private final BoxRepository boxes;
     private final SecureRandom random = new SecureRandom();
 
-    public TvPairingService(TvDeviceRepository devices, TokenService tokens) {
+    public TvPairingService(TvDeviceRepository devices, TokenService tokens, BoxRepository boxes) {
         this.devices = devices;
         this.tokens = tokens;
+        this.boxes = boxes;
     }
 
     public record Created(String code, String secret) {}
@@ -66,7 +71,9 @@ public class TvPairingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UNKNOWN_CODE"));
         if (d.getCreatedAt().plus(CODE_TTL).isBefore(Instant.now()))
             throw new ResponseStatusException(HttpStatus.GONE, "CODE_EXPIRED");
-        d.setBoxId(TenantContext.requireBoxId());
+        UUID boxId = TenantContext.requireBoxId();
+        BoxStatusGuard.requireActive(boxes.findById(boxId).orElseThrow());
+        d.setBoxId(boxId);
         d.setName(name);
         d.setStatus("ACTIVE");
         // keep pairing_code so the TV's in-flight poll can still find the row; poll returns the token.

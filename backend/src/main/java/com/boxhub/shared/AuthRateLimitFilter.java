@@ -32,7 +32,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     private static final Set<String> LIMITED = Set.of(
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/tv/pair",
             "/api/auth/verify", "/api/auth/verify/resend", "/api/auth/password/forgot",
-            "/api/auth/password/reset");
+            "/api/auth/password/reset", "/api/auth/signup-box", "/api/auth/waitlist");
 
     private static final Set<String> EMAIL_LIMITED = Set.of(
             "/api/auth/verify/resend", "/api/auth/password/forgot");

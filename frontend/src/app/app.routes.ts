@@ -1,11 +1,15 @@
 import { Routes } from '@angular/router';
 import { roleGuard } from './core/auth/role.guard';
+import { superadminGuard } from './core/auth/superadmin.guard';
 import { unsavedGuard } from './core/unsaved.guard';
 
 export const routes: Routes = [
   { path: 'auth/login', loadComponent: () => import('./features/auth/login.page').then(m => m.LoginPage) },
   { path: 'auth/boxes', loadComponent: () => import('./features/auth/box-picker.page').then(m => m.BoxPickerPage) },
   { path: 'auth/signup', loadComponent: () => import('./features/auth/signup.page').then(m => m.SignupPage) },
+  { path: 'auth/start', loadComponent: () => import('./features/auth/start-box.page').then(m => m.StartBoxPage) },
+  { path: 'superadmin', canActivate: [superadminGuard],
+    loadComponent: () => import('./features/superadmin/console.page').then(m => m.ConsolePage) },
   { path: 'auth/check-email', loadComponent: () => import('./features/auth/check-email.page').then(m => m.CheckEmailPage) },
   { path: 'auth/verify', loadComponent: () => import('./features/auth/verify.page').then(m => m.VerifyPage) },
   { path: 'auth/forgot', loadComponent: () => import('./features/auth/forgot.page').then(m => m.ForgotPage) },

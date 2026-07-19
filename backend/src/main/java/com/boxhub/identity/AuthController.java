@@ -27,23 +27,29 @@ public class AuthController {
     private final RefreshTokenService refreshTokens;
     private final MembershipRepository membershipRepo;
     private final UserRepository userRepo;
+    private final com.boxhub.box.BoxRepository boxRepo;
     private final CookieService cookies;
     private final EmailTokenService emailTokens;
     private final AccountService accounts;
+    private final com.boxhub.box.BoxSignupService boxSignup;
     private final boolean googleConfigured;
 
     public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens,
-                          MembershipRepository membershipRepo, UserRepository userRepo, CookieService cookies,
+                          MembershipRepository membershipRepo, UserRepository userRepo,
+                          com.boxhub.box.BoxRepository boxRepo, CookieService cookies,
                           EmailTokenService emailTokens, AccountService accounts,
+                          com.boxhub.box.BoxSignupService boxSignup,
                           @Value("${BOXHUB_GOOGLE_CLIENT_ID:}") String googleClientId) {
         this.authService = authService;
         this.tokenService = tokenService;
         this.refreshTokens = refreshTokens;
         this.membershipRepo = membershipRepo;
         this.userRepo = userRepo;
+        this.boxRepo = boxRepo;
         this.cookies = cookies;
         this.emailTokens = emailTokens;
         this.accounts = accounts;
+        this.boxSignup = boxSignup;
         this.googleConfigured = !googleClientId.isBlank();
     }
 
@@ -52,7 +58,7 @@ public class AuthController {
                            @NotBlank @Size(max = 100) String name,
                            String inviteToken) {}
     record UserResponse(UUID id, String email, String name) {}
-    public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role) {}
+    public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role, String boxStatus) {}
     public record SessionResponse(List<MembershipDto> memberships) {}
     record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
     record TokenRequest(@NotBlank String token) {}
@@ -87,6 +93,35 @@ public class AuthController {
         // address register() returns the REAL owner, and echoing it would leak their id/name —
         // an enumeration oracle. Normalize the same way the service does so both branches match.
         return new UserResponse(UUID.randomUUID(), req.email().toLowerCase().trim(), req.name());
+    }
+
+    record SignupBoxRequest(@NotBlank @Size(max = 80) String boxName,
+                            @NotBlank @Size(max = 100) String name,
+                            @NotBlank @Email String email,
+                            @NotBlank @Size(min = 10, max = 100) String password) {}
+    record SignupBoxResponse(String email, String name) {}
+    record FullResponse(boolean full) {}
+    record WaitlistRequest(@NotBlank @Email String email, @NotBlank @Size(max = 80) String boxName) {}
+    record SignupModeResponse(boolean open) {}
+
+    @PostMapping("/signup-box")
+    public ResponseEntity<?> signupBox(@Valid @RequestBody SignupBoxRequest req) {
+        var outcome = boxSignup.signup(req.boxName(), req.name(), req.email(), req.password());
+        if (outcome.full()) return ResponseEntity.ok(new FullResponse(true));
+        // Body from the request only — echoing anything persisted is an enumeration oracle (M8 T5).
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new SignupBoxResponse(req.email().toLowerCase().trim(), req.name()));
+    }
+
+    @PostMapping("/waitlist")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void waitlist(@Valid @RequestBody WaitlistRequest req) {
+        boxSignup.joinWaitlist(req.email(), req.boxName());
+    }
+
+    @GetMapping("/signup-mode")
+    public SignupModeResponse signupMode() {
+        return new SignupModeResponse(boxSignup.acceptingSignups());
     }
 
     @PostMapping("/login")
@@ -173,6 +208,8 @@ public class AuthController {
         Membership m = membershipRepo.findByUserIdAndBoxId(userId, req.boxId())
                 .filter(mem -> "ACTIVE".equals(mem.getStatus()))
                 .orElseThrow(() -> new AccessDeniedException("No active membership in this box"));
+        com.boxhub.box.Box box = boxRepo.findById(req.boxId()).orElseThrow();
+        com.boxhub.box.BoxStatusGuard.requireReachable(box); // kill switch: SUSPENDED/REJECTED never mint
         User u = userRepo.findById(userId).orElseThrow();
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, cookies.box(tokenService.boxToken(u, m)).toString())
@@ -197,7 +234,7 @@ public class AuthController {
     private List<MembershipDto> membershipsOf(User u) {
         return authService.membershipsOf(u).stream()
                 .map(m -> new MembershipDto(m.getBox().getId(), m.getBox().getName(),
-                        m.getBox().getSlug(), m.getRole()))
+                        m.getBox().getSlug(), m.getRole(), m.getBox().getStatus()))
                 .toList();
     }
 

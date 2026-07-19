@@ -31,6 +31,7 @@ import { ButtonComponent } from '../../ui/button.component';
           <a class="google" href="/oauth2/authorization/google" data-testid="login-google">Continue with Google</a>
         }
         <p class="alt"><a href="/auth/forgot">Forgot password?</a> · <a href="/auth/signup">Create a box account</a></p>
+        <p class="alt">Own a gym? <a href="/auth/start">Start your box</a></p>
       </form>
     </main>
   `,
@@ -90,7 +91,12 @@ export class LoginPage implements OnInit {
         const memberships = session?.memberships ?? [];
         if (memberships.length === 1) {
           const m = memberships[0];
-          this.auth.selectBox(m.boxId).subscribe(() => this.router.navigateByUrl(redirectForRole(m.role)));
+          this.auth.selectBox(m.boxId).subscribe({
+            next: () => this.router.navigateByUrl(redirectForRole(m.role)),
+            // box-token mint 403s a SUSPENDED/REJECTED box (M9). Without this arm the user who
+            // just typed correct credentials would sit on the form with no feedback.
+            error: () => this.error.set('This box is unavailable — contact your box for help.'),
+          });
         } else {
           this.router.navigateByUrl('/auth/boxes');
         }
