@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, flushMicrotasks } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
@@ -51,6 +51,31 @@ describe('LoginPage', () => {
 
     expect(fixture.componentInstance.error()).toBe('Google sign-in failed — try again.');
   });
+
+  it('a single-membership login into a SUSPENDED box surfaces a message instead of stalling', fakeAsync(() => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const cmp = fixture.componentInstance;
+    cmp.email = 'a@b.io'; cmp.password = 'correct-horse-battery';
+    cmp.submit();
+    // login() re-bootstraps (csrf then /api/me, sequential awaits); the page reads memberships
+    // from that session, so drain the microtasks between each flushed request.
+    http.expectOne('/api/auth/login').flush({ memberships: [] });
+    flushMicrotasks();
+    http.expectOne('/api/auth/csrf').flush(null, { status: 204, statusText: 'No Content' });
+    flushMicrotasks();
+    http.expectOne('/api/me').flush(
+      { id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+        memberships: [{ boxId: 'b1', boxName: 'Gone Gym', boxSlug: 'gone', role: 'BOX_ADMIN', boxStatus: 'SUSPENDED' }] });
+    flushMicrotasks();
+    // box-token mint 403s a suspended box — the error arm must fire, not leave a blank form.
+    http.expectOne('/api/auth/box-token').flush({ detail: 'BOX_SUSPENDED' }, { status: 403, statusText: 'Forbidden' });
+    flushMicrotasks();
+
+    expect(cmp.error()).toContain('unavailable');
+  }));
 
   it('a resend that 429s shows an error instead of failing silently', () => {
     const fixture = setup();
