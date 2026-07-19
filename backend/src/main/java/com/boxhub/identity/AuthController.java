@@ -27,6 +27,7 @@ public class AuthController {
     private final RefreshTokenService refreshTokens;
     private final MembershipRepository membershipRepo;
     private final UserRepository userRepo;
+    private final com.boxhub.box.BoxRepository boxRepo;
     private final CookieService cookies;
     private final EmailTokenService emailTokens;
     private final AccountService accounts;
@@ -34,7 +35,8 @@ public class AuthController {
     private final boolean googleConfigured;
 
     public AuthController(AuthService authService, TokenService tokenService, RefreshTokenService refreshTokens,
-                          MembershipRepository membershipRepo, UserRepository userRepo, CookieService cookies,
+                          MembershipRepository membershipRepo, UserRepository userRepo,
+                          com.boxhub.box.BoxRepository boxRepo, CookieService cookies,
                           EmailTokenService emailTokens, AccountService accounts,
                           com.boxhub.box.BoxSignupService boxSignup,
                           @Value("${BOXHUB_GOOGLE_CLIENT_ID:}") String googleClientId) {
@@ -43,6 +45,7 @@ public class AuthController {
         this.refreshTokens = refreshTokens;
         this.membershipRepo = membershipRepo;
         this.userRepo = userRepo;
+        this.boxRepo = boxRepo;
         this.cookies = cookies;
         this.emailTokens = emailTokens;
         this.accounts = accounts;
@@ -205,6 +208,8 @@ public class AuthController {
         Membership m = membershipRepo.findByUserIdAndBoxId(userId, req.boxId())
                 .filter(mem -> "ACTIVE".equals(mem.getStatus()))
                 .orElseThrow(() -> new AccessDeniedException("No active membership in this box"));
+        com.boxhub.box.Box box = boxRepo.findById(req.boxId()).orElseThrow();
+        com.boxhub.box.BoxStatusGuard.requireReachable(box); // kill switch: SUSPENDED/REJECTED never mint
         User u = userRepo.findById(userId).orElseThrow();
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, cookies.box(tokenService.boxToken(u, m)).toString())
