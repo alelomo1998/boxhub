@@ -55,6 +55,22 @@ describe('DashboardPage', () => {
     expect(fixture.nativeElement.textContent).not.toContain('unlocks on approval');
   });
 
+  it('ACTIVE box whose class-templates fetch errors: guide still renders with an error + retry', () => {
+    const fixture = setup('ACTIVE');
+    http.expectOne('/api/box/class-templates').flush('boom', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    const cmp = fixture.componentInstance;
+    expect(cmp.showSetupGuide()).toBeTrue();
+    expect(cmp.setupState()).toBe('error');
+    const guide = fixture.nativeElement.querySelector('[data-testid="setup-guide"]');
+    expect(guide).not.toBeNull();
+    expect(guide.textContent).toContain("Couldn't load setup status.");
+    const retry = guide.querySelector('button.retry');
+    expect(retry).not.toBeNull();
+    expect(retry.textContent).toContain('Try again');
+  });
+
   it('ACTIVE box with existing class templates: setup guide is absent', () => {
     const fixture = setup('ACTIVE');
     http.expectOne('/api/box/class-templates').flush([

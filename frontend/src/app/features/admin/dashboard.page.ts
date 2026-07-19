@@ -168,7 +168,7 @@ export class DashboardPage implements OnInit {
   showSetupGuide = computed(() => {
     const status = this.boxStatus();
     if (status === 'PENDING') return true;
-    if (status === 'ACTIVE') return this.setupState() === 'ready' && this.templates().length === 0;
+    if (status === 'ACTIVE') return this.setupState() !== 'ready' || this.templates().length === 0;
     return false;
   });
 
