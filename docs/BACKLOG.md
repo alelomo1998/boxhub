@@ -119,3 +119,4 @@
 - Waitlist auto-notify when capacity opens (capture-only in M9; contact is manual).
 - Superadmin audit log (who approved/suspended what, when).
 - Approval SLA / reminder emails for boxes sitting in the pending queue.
+- Superadmin console per-row action buttons share one `queueActionId`/`boxesActionId` signal each — only one row's action is reflected in the disabled state at a time, so two rows clicked back-to-back both fire real HTTP requests with only one showing pending (internal tool, not a correctness bug — flagged by the T5 review, not fixed since the brief didn't ask for concurrent multi-row optimistic UI).

@@ -1,6 +1,6 @@
 # BoxHub — Session Hand-off
 
-**Updated:** 2026-07-14. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-07-19. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. Repo: `~/Desktop/boxhub`, GitHub `alelomo1998/boxhub` (private), CI green on push.
@@ -33,7 +33,9 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 - **M8 auth & accounts (2026-07-17, branch `m8-auth-accounts`)** — accounts are real now: verified, recoverable, revocable, un-stealable. Flyway **V11** (`users.email_verified`/backoff cols + nullable `password_hash`; `auth_identity`; `email_token`; `refresh_tokens` families) + **V12** (`users.anonymized_at`). **Tokens moved to httpOnly cookies** (`bh_at`/`bh_bt`/`bh_rt`) behind a custom `CookieBearerTokenResolver` (header first, cookies second — so the 159 pre-M8 header tests and the TV token stand untouched); **CSRF** via `CookieCsrfTokenRepository` (a cookie-authed write needs `X-XSRF-TOKEN`; bearer-header requests are exempt). **Refresh families + reuse detection** — a replayed consumed token revokes the whole family; nightly purge job. **Email verification**: login checks the password FIRST, only then answers `EMAIL_NOT_VERIFIED`, so it is not an enumeration oracle; `register` always returns 201 (a taken address mails the real owner instead) and the 201 body is built from the request only. **Password reset** verifies the email + revokes every session. **Per-account exponential backoff** (never a hard lock), **per-email** limits on forgot/resend, **HIBP** breached-password check (min 10, fails open). **Google SSO** — a 4-branch linking policy that closes the pre-registration takeover (an unverified local account loses its password to Google); the whole OAuth chain is conditional on a client id, so dev/CI need no secrets, and it lives in its own `@Order(1)` filter chain because oauth2Login needs a session. **Account management**: change password (revokes other sessions), change email (confirmed at the NEW address), sessions list + log-out-everywhere at **`GET /api/auth/sessions`** (under `/api/auth` because `bh_rt` is `Path=/api/auth`). **GDPR**: `GET /api/me/export` + anonymizing `DELETE /api/me` (scrubs the person, keeps the box's history; explicit `anonymized_at` state; re-auth with the password when one exists). **Invites are actually emailed** now (T11), and an invite proves the inbox — registering through a valid invite for that address lands verified. **SMTP + Thymeleaf + Mailpit** foundation. FE: tokens leave `localStorage` (AuthService is a session mirror bootstrapping from `/api/me`); 6 new auth screens (signup/check-email/verify/forgot/reset + Google) and the account **security** panel. e2e journey signs up and follows the verify link out of a real Mailpit inbox.
 
-**Tests:** backend **243** (Testcontainers Postgres), frontend **109** Karma specs, e2e **19** Playwright (SERIAL — `workers:1`). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. P2/P3 leftovers in BACKLOG §"Deferred from M8"/"M7"/"M6"/"M5.5".
+- **M9 onboarding (2026-07-19, branch `m9-onboarding`)** — a box no longer needs a superadmin to exist. Flyway **V13** (`boxes.status` PENDING/ACTIVE/SUSPENDED/REJECTED + `owner_email`; `platform_settings` key/value seeded `signup_mode=APPROVAL`/`max_boxes=100`; `waitlist`). **`POST /api/auth/signup-box`** (permitAll, rate-limited) registers the owner + box + BOX_ADMIN membership as one atomic unit — same `RegisterTx`/`BoxSignupTx` proxied-unit pattern M8 needed for the aborted-tx trap, now with a bounded 3-attempt taken-vs-slug retry that gives up with a 503 `SIGNUP_RETRY` rather than looping forever; OPEN activates instantly, APPROVAL/at-cap parks the box PENDING or the signup on the waitlist. **Status gating**: a PENDING box preps freely (class types, schedule, settings) but box-token mint, invite-create, and TV pair/claim 403 `BOX_PENDING`; SUSPENDED 403s box-token mint itself (kill switch) and disconnects any live TV stream — side effects strictly post-commit, same house rule M9-T4's review enforced on M8's mail. **Superadmin console** `/superadmin` (guarded on the session's `superadmin` flag, still the `BOXHUB_SUPERADMIN_EMAILS` allowlist; new dev user `super@demo.io`, no box): pending queue (approve → ACTIVE + `box-approved` mail, reject → REJECTED + `box-rejected` mail), all-boxes suspend/reactivate, waitlist view, signup-mode/max-boxes settings (validate-then-write — no half-applied flip). **FE**: public `/auth/start` (open form or waitlist form, mode resolved live from `signupMode()`), admin-shell PENDING banner + dashboard setup guide (step 3 locked until ACTIVE), invites/TVs pages swap to a locked card under `BOX_PENDING`. e2e (`onboarding.spec.ts`) drives the whole loop through a real Mailpit inbox: signup → verify → PENDING banner + locked invites → superadmin approves from the pending queue → approval mail lands → owner signs back in → invites unlock → invite mail lands.
+
+**Tests:** backend **281** (Testcontainers Postgres), frontend **140** Karma specs, e2e **24** Playwright (SERIAL — `workers:1`). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. P2/P3 leftovers in BACKLOG §"Deferred from M9"/"M8"/"M7"/"M6"/"M5.5".
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
@@ -60,17 +62,10 @@ never an argument. Pilot = the launch, not a learning exercise.
 **Locked scope:** free 2–3 months / ~100-box cap; athletes pay boxes via **the box's own Stripe keys** (no Connect,
 BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in M8; no Kubernetes.
 
-- **Onboarding design brainstormed + approved-in-principle (M9 — NOT yet spec'd/planned):** self-serve box registration. Current gap = a gym can't create its own box (box-create is SUPERADMIN-only, `POST /api/admin/boxes`); the invite→register→accept chain for coaches/athletes is ALREADY built (M1). Approved shape:
-  - Box gets a `status` (PENDING/ACTIVE/SUSPENDED; existing → ACTIVE). A runtime **signup-mode** flag (`platform_settings` key/value, seed `APPROVAL`) picks instant-`OPEN` vs `APPROVAL`. Build both, ship in APPROVAL first, flip later.
-  - Combined public **"Start your box"** signup (`POST /api/auth/signup-box`, permitAll+rate-limited): registers owner + creates box (`ACTIVE` if OPEN else `PENDING`, slug from boxName) + BOX_ADMIN membership + returns tokens. Existing `/register`+join untouched; existing-user-creates-2nd-box = backlog.
-  - **Gating:** PENDING owner can prepare freely (class types/schedule/settings) but invite-create + TV pair/claim 403 until ACTIVE; SUSPENDED → box-token issuance itself 403s (kill switch). Checks on box-token mint + `InviteService.create` + `TvPairingService.claim`.
-  - **Minimal superadmin console** `/superadmin` (roleGuard SUPERADMIN; superadmin = email in existing `BOXHUB_SUPERADMIN_EMAILS` allowlist): pending-approval queue (approve→ACTIVE/reject), all-boxes list (suspend/reactivate), signup-mode toggle. New superadmin FE surface (none exists — `features/admin` is the BOX_ADMIN shell).
-  - **First-run:** owner lands on admin dashboard; PENDING banner ("set up now, members unlock on approval"); empty states guide create-class-type → schedule → invite. Light, not a wizard.
-  - Next migration is **V11** (V9+V10 applied in M7; note `ls` sorts V10 before V9 lexically). When built, this needs its own spec (brainstorm → writing-plans).
+- **Onboarding (M9) is complete** — spec `docs/superpowers/specs/2026-07-18-m9-onboarding-design.md`, plan `docs/superpowers/plans/2026-07-18-m9-onboarding.md`. See the Status section above for what shipped.
 
 ## What's NOT done (next)
 - **M7.5 TV command** — manual per-device view selection (this TV = board / leaderboard / timer). Seam ready: add a `view` column to `tv_devices`; M7 auto-drives all TVs identically (timer takes over while running). **User confirmed this is genuinely needed (not polish) — auto-driven-only TVs aren't realistic for a multi-screen box.**
-- **Self-serve onboarding** — see Roadmap decisions above (design ready, needs spec+plan).
 - **Heats/teams** — split the roster into n heats/teams + a team score model; the runner's roster strip is where it slots in (deferred from M7).
 - **M8 full SaaS analytics** — economics, engagement, class stats (admin dashboard shell + 3 KPIs shipped in M5). Note: speculative before real pilot usage exists.
 - **M9 hardening & pilot.** VPS never deployed (only runs locally).
@@ -95,10 +90,10 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 9. **Every emailed link must match a real Angular route (M8).** Three shipped dead because the backend built bare paths (`/verify?token=`) while the routes are namespaced `/auth/*`, and `/join` is a `:token` path param not a query. `e2e/tests/auth.spec.ts` follows the real link out of Mailpit — that is what catches this class of bug; MockMvc/Karma cannot.
 
 ## How to run / test
-- Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io`, password `boxhub-demo-2026`. Fresh volume seeds Demo Box + a weekly schedule. **Mailpit** (dev/e2e mail) at http://localhost:8025.
+- Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io` / `super@demo.io` (superadmin, no box), password `boxhub-demo-2026`. Fresh volume seeds Demo Box + a weekly schedule. **Mailpit** (dev/e2e mail) at http://localhost:8025.
 - Backend: `cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Frontend: `cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npm run build`. E2E: stack up, then `cd e2e && npx playwright test`.
 - **`docker compose -f docker/docker-compose.yml down -v` is MANDATORY before an e2e run after a seeder or demo-password change** — the seeder self-skips when the demo box already exists, so a stale Postgres volume silently keeps the old data (cost real debugging time when the M8 demo password changed). Also: `runner`/`tv` specs are not idempotent (fixed-name TV devices accumulate) — they need a fresh stack.
-- Flyway only for schema (V1–V12 applied; **next is V13**). Never edit an applied migration.
+- Flyway only for schema (V1–V13 applied; **next is V14**). Never edit an applied migration.
 
 ## RULES — maintain these (from CLAUDE.md + user feedback)
 - **Milestone lock:** work only the active milestone; out-of-scope ideas → `docs/BACKLOG.md`, don't build them.
@@ -110,14 +105,14 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**M9 — onboarding.** Roadmap is locked (see the v1 roadmap doc). M9 = self-serve **"Start your box"** signup, box
-`status` (PENDING/ACTIVE/SUSPENDED), a runtime signup-mode flag, the **~100-box cap / waitlist**, a minimal
-**superadmin approval console**, and light first-run guidance — built on M8's verified-account + email foundation.
-Design was brainstormed + approved-in-principle in the roadmap session; it needs its own spec → plan → execute.
-Next Flyway is **V13**.
+**M10 — memberships & payments.** Roadmap is locked (see the v1 roadmap doc). Today's `Plan` is just a
+weekly-booking-limit row; M10 is the real subscription rework — a box **publishes membership plans** (price,
+period, entitlements) → an athlete **subscribes** → the athlete **pays**, via **Stripe** (the box's own keys, no
+Connect, BoxHub never touches funds) or **offline** (cash/transfer, recorded by the box with a receipt).
+Entitlements feed the booking engine. Needs its own spec → plan → execute. Next Flyway is **V14**.
 
-**M8 is complete** — spec `docs/superpowers/specs/2026-07-14-m8-auth-accounts-design.md`, plan
-`docs/superpowers/plans/2026-07-14-m8-auth-accounts.md`, task→SHA ledger in `.superpowers/sdd/progress.md`.
-M0–M8 all merged + pushed. **No milestone is in progress.**
+**M9 is complete** — spec `docs/superpowers/specs/2026-07-18-m9-onboarding-design.md`, plan
+`docs/superpowers/plans/2026-07-18-m9-onboarding.md`, task→SHA ledger in `.superpowers/sdd/progress.md`.
+M0–M9 all merged + pushed. **No milestone is in progress.**
 
 Process reminder: superpowers flow (brainstorm → spec+approval → writing-plans → subagent-driven-development), orchestrator = Fable/Opus, executors = Sonnet, impeccable gate (≥28/40, no P0/P1) per FE surface, tenancy tests on every box endpoint, `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend mvn, conventional commits, merge to main + push when green.
