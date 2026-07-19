@@ -123,3 +123,11 @@
 - OPEN-mode signup cap is soft/racy (check-then-act before the tx — concurrent OPEN signups can overshoot maxBoxes by the concurrency degree); APPROVAL-mode cap is hard (atomic in-tx recheck in BoxLifecycleTx.approve). Accepted at single-node/pilot scale; tighten if OPEN mode + real concurrency ever matters.
 - verify.page post-verify does not auto-select a box even with a single membership (pre-existing M8); the M9 e2e routes through /auth/boxes to work around it.
 - Superadmin console per-row action-pending is a single scalar signal — clicking approve on row A then reject on row B before A resolves re-enables A mid-flight (duplicate-submit window on an internal tool).
+## Deferred from M10 (memberships & payments)
+- Stripe recurring / auto-renew subscriptions (v1 is Checkout one-payment-per-period, manual renewal driven by the lapse email).
+- Class-packs / credit punch-cards (N-session decrementing buckets) — v1 entitlements are UNLIMITED or WEEKLY_LIMIT only.
+- Reusable named per-user discount catalog (a "20% student" rule that auto-reapplies on renewal) — v1 stores the agreed price per subscription.
+- PDF receipts — v1 receipt is a printable HTML page.
+- Proration / plan-change mid-period; refunds; grace-period window on lapse; pending-confirmation offline handshake.
+- Stripe Connect (OAuth, no stored keys) — revisit post-v1 if BoxHub ever takes a cut.
+- Online per-user discounts / Stripe coupons — self-serve Checkout charges list price only in v1.
