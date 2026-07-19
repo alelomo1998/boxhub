@@ -107,4 +107,20 @@ describe('AuthService', () => {
     expect(service.activeBox()).toBeNull();
     expect(localStorage.getItem('bh_active_box')).toBeNull();
   }));
+
+  it('activeBoxStatus reads the active box membership boxStatus', () => {
+    service.session.set({
+      id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+      memberships: [{ boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'BOX_ADMIN', boxStatus: 'PENDING' }],
+    });
+    service.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'BOX_ADMIN' });
+
+    expect(service.activeBoxStatus()).toBe('PENDING');
+  });
+
+  it('activeBoxStatus is null with no active box', () => {
+    service.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [] });
+
+    expect(service.activeBoxStatus()).toBeNull();
+  });
 });

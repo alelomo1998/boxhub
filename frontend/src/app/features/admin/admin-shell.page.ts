@@ -25,7 +25,14 @@ import { SheetComponent } from '../../ui/sheet.component';
         }
       </nav>
 
-      <main class="content"><router-outlet /></main>
+      <main class="content">
+        @if (auth.activeBoxStatus() === 'PENDING') {
+          <div class="pending-banner" role="status" data-testid="pending-banner">
+            <strong>Waiting for approval</strong> — set up your box now; invites and TVs unlock when it's approved.
+          </div>
+        }
+        <router-outlet />
+      </main>
 
       <nav class="bh-dock" aria-label="Admin">
         @for (i of mobileTabs; track i.link) {
@@ -78,6 +85,10 @@ import { SheetComponent } from '../../ui/sheet.component';
     .content { grid-area: content; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     .tabs { display: none; }
 
+    .pending-banner { background: var(--surface-2); border: 1px solid var(--warn); border-radius: var(--r-card);
+      padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4); color: var(--bone); font-size: var(--fs-sm); }
+    .pending-banner strong { color: var(--warn); }
+
     .more { display: flex; flex-direction: column; }
     .m-item { display: flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-2);
       color: var(--bone); text-decoration: none; border-bottom: 1px solid var(--hairline);
@@ -96,7 +107,7 @@ import { SheetComponent } from '../../ui/sheet.component';
 })
 export class AdminShellPage {
   theme = inject(ThemeService);
-  private auth = inject(AuthService);
+  auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || 'BoxHub';
   moreOpen = signal(false);

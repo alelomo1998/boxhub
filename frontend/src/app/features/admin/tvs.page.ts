@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent } from '../../ui/button.component';
 import { AdminService, TvDeviceDto } from './admin.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 /** Pair and manage the box's TVs. */
 @Component({
@@ -15,19 +16,25 @@ import { AdminService, TvDeviceDto } from './admin.service';
         <div><span class="eyebrow">Screens</span><h1 class="title">TVs</h1></div>
       </div>
 
-      <div class="claim">
-        <h2 class="ch">Pair a TV</h2>
-        <p class="hint">Open <strong>boxhub/tv</strong> on the TV's browser, then enter the code it shows.</p>
-        <form class="cform" (ngSubmit)="claim()">
-          <label class="qf"><span class="qlab">Code</span>
-            <input class="in num" [(ngModel)]="code" name="code" inputmode="numeric" maxlength="6"
-                   placeholder="123456" data-testid="tv-code" /></label>
-          <label class="qf grow"><span class="qlab">Name</span>
-            <input class="in" [(ngModel)]="name" name="name" placeholder="Rig wall left" data-testid="tv-name" /></label>
-          <bh-button type="submit" [disabled]="claiming()">{{ claiming() ? 'Pairing…' : 'Pair' }}</bh-button>
-        </form>
-        @if (claimError()) { <p class="err" role="alert">{{ claimError() }}</p> }
-      </div>
+      @if (pending()) {
+        <div class="pending-card" data-testid="tvs-pending">
+          <p>Available once your box is approved.</p>
+        </div>
+      } @else {
+        <div class="claim">
+          <h2 class="ch">Pair a TV</h2>
+          <p class="hint">Open <strong>boxhub/tv</strong> on the TV's browser, then enter the code it shows.</p>
+          <form class="cform" (ngSubmit)="claim()">
+            <label class="qf"><span class="qlab">Code</span>
+              <input class="in num" [(ngModel)]="code" name="code" inputmode="numeric" maxlength="6"
+                     placeholder="123456" data-testid="tv-code" /></label>
+            <label class="qf grow"><span class="qlab">Name</span>
+              <input class="in" [(ngModel)]="name" name="name" placeholder="Rig wall left" data-testid="tv-name" /></label>
+            <bh-button type="submit" [disabled]="claiming()">{{ claiming() ? 'Pairing…' : 'Pair' }}</bh-button>
+          </form>
+          @if (claimError()) { <p class="err" role="alert">{{ claimError() }}</p> }
+        </div>
+      }
 
       @if (loading()) { <p class="stateline">Loading TVs…</p> }
       @else if (error()) { <p class="stateline err">Couldn't load.
@@ -88,10 +95,13 @@ import { AdminService, TvDeviceDto } from './admin.service';
     .e1 { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
       text-transform: uppercase; color: var(--bone-dim); margin: 0 0 var(--sp-2); }
     .e2 { color: var(--faint); margin: 0; }
+    .pending-card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-2);
+      padding: var(--sp-4); color: var(--bone-dim); font-size: var(--fs-sm); margin-bottom: var(--sp-4); }
   `],
 })
 export class TvsPage implements OnInit {
   private admin = inject(AdminService);
+  private auth = inject(AuthService);
 
   devices = signal<TvDeviceDto[]>([]);
   loading = signal(true);
@@ -102,6 +112,8 @@ export class TvsPage implements OnInit {
   claimError = signal('');
   removing = signal<string | null>(null);
   removeError = signal('');
+
+  pending() { return this.auth.activeBoxStatus() === 'PENDING'; }
 
   ngOnInit() { this.load(); }
 
@@ -121,8 +133,12 @@ export class TvsPage implements OnInit {
       next: () => { this.claiming.set(false); this.code.set(''); this.name.set(''); this.load(); },
       error: (e) => {
         this.claiming.set(false);
-        this.claimError.set(e.status === 410 ? 'That code expired — the TV shows a fresh one.'
-            : "That code doesn't match a waiting TV — check the screen.");
+        // belt and braces: the form is hidden once PENDING, but status can flip mid-session —
+        // a request already in flight can still land a 403 BOX_PENDING.
+        this.claimError.set(
+          e.status === 403 && e.error?.detail === 'BOX_PENDING' ? 'Available once your box is approved.'
+          : e.status === 410 ? 'That code expired — the TV shows a fresh one.'
+          : "That code doesn't match a waiting TV — check the screen.");
       },
     });
   }

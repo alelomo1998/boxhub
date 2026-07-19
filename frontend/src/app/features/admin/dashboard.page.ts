@@ -1,6 +1,8 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AdminService, AdminStats } from './admin.service';
+import { AuthService } from '../../core/auth/auth.service';
+import { BookingService, ClassTemplate } from '../booking/booking.service';
 
 /** Admin dashboard: headline KPIs + shortcuts. Full analytics is milestone M8. */
 @Component({
@@ -13,6 +15,43 @@ import { AdminService, AdminStats } from './admin.service';
         <span class="eyebrow">This week</span>
         <h1 class="title">Dashboard</h1>
       </header>
+
+      @if (showSetupGuide()) {
+        <div class="setup" data-testid="setup-guide">
+          <h2 class="sh">Get set up</h2>
+          @switch (setupState()) {
+            @case ('loading') { <p class="stateline">Checking your setup…</p> }
+            @case ('error') {
+              <p class="stateline err">Couldn't load setup status.
+                <button class="retry" (click)="loadTemplates()">Try again</button></p>
+            }
+            @default {
+              <ol class="steps">
+                <li class="step" [class.done]="step1Done()">
+                  <span class="dot" aria-hidden="true">{{ step1Done() ? '✓' : '1' }}</span>
+                  <span class="s-body">
+                    <a routerLink="/admin/schedule">Create a class type</a>
+                  </span>
+                </li>
+                <li class="step" [class.done]="step2Done()">
+                  <span class="dot" aria-hidden="true">{{ step2Done() ? '✓' : '2' }}</span>
+                  <span class="s-body">
+                    <a routerLink="/admin/schedule">Check your weekly schedule</a>
+                  </span>
+                </li>
+                <li class="step" [class.locked]="!boxActive()">
+                  <span class="dot" aria-hidden="true">{{ boxActive() ? '3' : '🔒' }}</span>
+                  @if (boxActive()) {
+                    <span class="s-body"><a routerLink="/admin/invites">Invite your members</a></span>
+                  } @else {
+                    <span class="s-body">Invite your members <span class="lock-note">unlocks on approval</span></span>
+                  }
+                </li>
+              </ol>
+            }
+          }
+        </div>
+      }
 
       @switch (state()) {
         @case ('loading') { <p class="stateline">Loading numbers…</p> }
@@ -87,15 +126,64 @@ import { AdminService, AdminStats } from './admin.service';
     .cut:hover { background: var(--surface-2); }
     .cut:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
     .note { margin-top: var(--sp-6); color: var(--faint); font-size: var(--fs-sm); }
+
+    .setup { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
+      padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-5); }
+    .setup .sh { margin: 0 0 var(--sp-3); }
+    .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+    .step { display: flex; align-items: center; gap: var(--sp-3); }
+    .dot { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-full);
+      border: 1px solid var(--hairline); color: var(--faint); font-size: var(--fs-meta); flex-shrink: 0; }
+    .step.done .dot { background: var(--good); border-color: var(--good); color: var(--on-red); }
+    .s-body { font-size: var(--fs-sm); color: var(--bone); }
+    .s-body a { color: var(--bone); }
+    .step.locked .s-body { color: var(--faint); }
+    .lock-note { color: var(--faint); font-size: var(--fs-meta); font-family: var(--font-mono);
+      text-transform: uppercase; margin-left: var(--sp-2); }
   `],
 })
 export class DashboardPage implements OnInit {
   private admin = inject(AdminService);
+  private auth = inject(AuthService);
+  private booking = inject(BookingService);
 
   stats = signal<AdminStats | null>(null);
   state = signal<'loading' | 'error' | 'ready'>('loading');
 
-  ngOnInit() { this.load(); }
+  templates = signal<ClassTemplate[]>([]);
+  setupState = signal<'loading' | 'error' | 'ready'>('loading');
+
+  boxStatus = computed(() => this.auth.activeBoxStatus());
+  boxActive = computed(() => this.boxStatus() === 'ACTIVE');
+
+  // step1/step2 both read GET /api/box/class-templates (BookingService.listTemplates — the same
+  // call the Types page uses, see types.page.ts). Each ClassTemplate row already carries its own
+  // weekday + startTime (there's no separate nested "slots" collection on this endpoint), so
+  // "has weekly slots" reduces to the same non-empty check as "class type exists" today. Kept as
+  // two distinct booleans (rather than one reused everywhere) so the steps stay independently
+  // correct if slots ever move to their own field.
+  step1Done = computed(() => this.templates().length > 0);
+  step2Done = computed(() => this.templates().some(t => t.weekday !== undefined && !!t.startTime));
+
+  showSetupGuide = computed(() => {
+    const status = this.boxStatus();
+    if (status === 'PENDING') return true;
+    if (status === 'ACTIVE') return this.setupState() === 'ready' && this.templates().length === 0;
+    return false;
+  });
+
+  ngOnInit() {
+    this.load();
+    this.loadTemplates();
+  }
+
+  loadTemplates() {
+    this.setupState.set('loading');
+    this.booking.listTemplates().subscribe({
+      next: ts => { this.templates.set(ts); this.setupState.set('ready'); },
+      error: () => this.setupState.set('error'),
+    });
+  }
 
   load() {
     this.state.set('loading');

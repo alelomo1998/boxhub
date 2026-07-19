@@ -39,6 +39,13 @@ export class AuthService {
   readonly activeBox = signal<ActiveBox | null>(null);
   readonly memberships = computed(() => this.session()?.memberships ?? []);
 
+  /** boxStatus of the active box's membership — null with no active box (T6: pending first-run gating). */
+  activeBoxStatus(): string | null {
+    const boxId = this.activeBox()?.boxId;
+    if (!boxId) return null;
+    return this.memberships().find(m => m.boxId === boxId)?.boxStatus ?? null;
+  }
+
   /**
    * Called once at app start (provideAppInitializer). Fetches the XSRF cookie, then asks who
    * we are. A 401 simply means anonymous — it is not an error.
