@@ -78,6 +78,7 @@ public class DevDataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        seedSuperadmin();
         if (boxes.findAll().stream().anyMatch(b -> "demo".equals(b.getSlug()))) return;
         Box demo = new Box();
         demo.setName("Demo Box");
@@ -107,6 +108,14 @@ public class DevDataSeeder implements CommandLineRunner {
         photoUserIds.add(coach2.getId());
         for (User a : athletes) photoUserIds.add(a.getId());
         seedImages(demo, photoUserIds.toArray(UUID[]::new));
+    }
+
+    /** Superadmin has no box membership — matches boxhub.superadmin-emails in docker-compose.yml. */
+    private void seedSuperadmin() {
+        if (userRepo.findByEmail("super@demo.io").isPresent()) return;
+        User su = authService.register("super@demo.io", "boxhub-demo-2026", "Super Admin");
+        su.setEmailVerified(true);
+        userRepo.save(su);
     }
 
     /** Generated placeholder images so photo-driven screens render on a fresh box. */

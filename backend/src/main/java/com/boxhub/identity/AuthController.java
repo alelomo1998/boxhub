@@ -58,7 +58,7 @@ public class AuthController {
                            @NotBlank @Size(max = 100) String name,
                            String inviteToken) {}
     record UserResponse(UUID id, String email, String name) {}
-    public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role) {}
+    public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role, String boxStatus) {}
     public record SessionResponse(List<MembershipDto> memberships) {}
     record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
     record TokenRequest(@NotBlank String token) {}
@@ -234,7 +234,7 @@ public class AuthController {
     private List<MembershipDto> membershipsOf(User u) {
         return authService.membershipsOf(u).stream()
                 .map(m -> new MembershipDto(m.getBox().getId(), m.getBox().getName(),
-                        m.getBox().getSlug(), m.getRole()))
+                        m.getBox().getSlug(), m.getRole(), m.getBox().getStatus()))
                 .toList();
     }
 

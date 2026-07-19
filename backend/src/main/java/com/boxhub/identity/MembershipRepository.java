@@ -29,4 +29,7 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
 
     @Query("select m from Membership m join fetch m.user where m.id = :id and m.box.id = :boxId")
     Optional<Membership> findByIdAndBoxId(@Param("id") UUID id, @Param("boxId") UUID boxId);
+
+    // Membership is not @TenantId — derived query safe tenant-agnostically.
+    Optional<Membership> findFirstByBoxIdAndRole(UUID boxId, String role);
 }
