@@ -127,6 +127,9 @@ class SuperadminBoxApiTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + rootToken()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("CAP_REACHED"));
+
+        // the cap check's exception must roll back the status flip it saw inside the same tx
+        assertThat(boxes.findById(box.getId()).orElseThrow().getStatus()).isEqualTo("PENDING");
     }
 
     // ---- reject ----
@@ -260,6 +263,21 @@ class SuperadminBoxApiTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + rootToken())
                         .content("{\"maxBoxes\":-1}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void settingsPatchBadMaxBoxesRejectsWholePayloadLeavingSignupModeUnchanged() throws Exception {
+        // signupMode is valid and maxBoxes is not — must not flip signupMode before the
+        // maxBoxes validation fails; both fields validate before either write happens
+        mvc.perform(patch("/api/admin/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + rootToken())
+                        .content("{\"signupMode\":\"OPEN\",\"maxBoxes\":-1}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(get("/api/admin/settings")
+                        .header("Authorization", "Bearer " + rootToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.signupMode").value("APPROVAL"));
     }
 
     // ---- role-denied / unauthenticated ----

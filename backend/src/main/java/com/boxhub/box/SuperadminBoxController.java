@@ -3,7 +3,6 @@ package com.boxhub.box;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.shared.Mailer;
 import com.boxhub.shared.PlatformSettings;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -24,16 +23,19 @@ public class SuperadminBoxController {
     private final PlatformSettings settings;
     private final Mailer mailer;
     private final com.boxhub.display.TvStreamService tvStream;
+    private final BoxLifecycleTx lifecycleTx;
 
     public SuperadminBoxController(BoxRepository boxes, MembershipRepository memberships,
                                    BoxWaitlistRepository waitlist, PlatformSettings settings,
-                                   Mailer mailer, com.boxhub.display.TvStreamService tvStream) {
+                                   Mailer mailer, com.boxhub.display.TvStreamService tvStream,
+                                   BoxLifecycleTx lifecycleTx) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.waitlist = waitlist;
         this.settings = settings;
         this.mailer = mailer;
         this.tvStream = tvStream;
+        this.lifecycleTx = lifecycleTx;
     }
 
     record BoxRow(UUID id, String name, String slug, String status, Instant createdAt, String ownerEmail) {}
@@ -51,41 +53,33 @@ public class SuperadminBoxController {
     }
 
     @PostMapping("/boxes/{id}/approve")
-    @Transactional
     public BoxRow approve(@PathVariable UUID id) {
-        Box b = transition(id, "PENDING", "ACTIVE");
-        if (boxes.countByStatus("ACTIVE") > settings.maxBoxes()) {
-            // count includes the row we just flipped inside this tx — roll back via exception
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "CAP_REACHED");
-        }
-        String owner = ownerEmail(id);
-        if (owner != null) mailer.send(owner, "Your box is live on BoxHub", "box-approved",
-                Map.of("boxName", b.getName(), "link", mailer.link("/auth/login")));
-        return row(b);
+        BoxLifecycleTx.TransitionResult r = lifecycleTx.approve(id);
+        // mail after the transition committed — never from inside the open tx
+        if (r.ownerEmail() != null) mailer.send(r.ownerEmail(), "Your box is live on BoxHub", "box-approved",
+                Map.of("boxName", r.box().getName(), "link", mailer.link("/auth/login")));
+        return toRow(r);
     }
 
     @PostMapping("/boxes/{id}/reject")
-    @Transactional
     public BoxRow reject(@PathVariable UUID id) {
-        Box b = transition(id, "PENDING", "REJECTED");
-        String owner = ownerEmail(id);
-        if (owner != null) mailer.send(owner, "About your BoxHub application", "box-rejected",
-                Map.of("boxName", b.getName()));
-        return row(b);
+        BoxLifecycleTx.TransitionResult r = lifecycleTx.reject(id);
+        if (r.ownerEmail() != null) mailer.send(r.ownerEmail(), "About your BoxHub application", "box-rejected",
+                Map.of("boxName", r.box().getName()));
+        return toRow(r);
     }
 
     @PostMapping("/boxes/{id}/suspend")
-    @Transactional
     public BoxRow suspend(@PathVariable UUID id) {
-        Box b = transition(id, "ACTIVE", "SUSPENDED");
-        tvStream.disconnectBox(id); // the box's TVs go dark now, not at next reconnect
-        return row(b);
+        BoxLifecycleTx.TransitionResult r = lifecycleTx.suspend(id);
+        // after commit — the box's TVs go dark now, not at next reconnect
+        tvStream.disconnectBox(id);
+        return toRow(r);
     }
 
     @PostMapping("/boxes/{id}/reactivate")
-    @Transactional
     public BoxRow reactivate(@PathVariable UUID id) {
-        return row(transition(id, "SUSPENDED", "ACTIVE"));
+        return toRow(lifecycleTx.reactivate(id));
     }
 
     @GetMapping("/waitlist")
@@ -100,31 +94,21 @@ public class SuperadminBoxController {
     }
 
     @PatchMapping("/settings")
-    public SettingsDto patchSettings(@Valid @RequestBody SettingsPatch req) {
-        if (req.signupMode() != null) {
-            if (!List.of("OPEN", "APPROVAL", "CLOSED").contains(req.signupMode()))
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "BAD_SIGNUP_MODE");
-            settings.set(PlatformSettings.SIGNUP_MODE, req.signupMode());
-        }
-        if (req.maxBoxes() != null) {
-            if (req.maxBoxes() < 0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "BAD_MAX_BOXES");
-            settings.set(PlatformSettings.MAX_BOXES, String.valueOf(req.maxBoxes()));
-        }
+    public SettingsDto patchSettings(@RequestBody SettingsPatch req) {
+        // validate BOTH fields before writing EITHER — a bad payload must not half-apply
+        if (req.signupMode() != null && !List.of("OPEN", "APPROVAL", "CLOSED").contains(req.signupMode()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "BAD_SIGNUP_MODE");
+        if (req.maxBoxes() != null && req.maxBoxes() < 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "BAD_MAX_BOXES");
+
+        if (req.signupMode() != null) settings.set(PlatformSettings.SIGNUP_MODE, req.signupMode());
+        if (req.maxBoxes() != null) settings.set(PlatformSettings.MAX_BOXES, String.valueOf(req.maxBoxes()));
         return settings();
     }
 
-    private Box transition(UUID id, String from, String to) {
-        Box b = boxes.findById(id).orElseThrow(java.util.NoSuchElementException::new);
-        if (!from.equals(b.getStatus()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "BAD_STATE");
-        b.setStatus(to);
-        return boxes.save(b);
-    }
-
-    private BoxRow row(Box b) {
-        return new BoxRow(b.getId(), b.getName(), b.getSlug(), b.getStatus(), b.getCreatedAt(),
-                ownerEmail(b.getId()));
+    private BoxRow toRow(BoxLifecycleTx.TransitionResult r) {
+        Box b = r.box();
+        return new BoxRow(b.getId(), b.getName(), b.getSlug(), b.getStatus(), b.getCreatedAt(), r.ownerEmail());
     }
 
     // ponytail: Membership.id is a random UUID (no created-at column), so "earliest" BOX_ADMIN
