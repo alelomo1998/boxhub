@@ -67,23 +67,31 @@ public class BoxSignupService {
         String boxStatus = "OPEN".equals(settings.signupMode()) ? "ACTIVE" : "PENDING";
 
         User owner;
-        try {
-            owner = tx.createOwnerAndBox(boxName.trim(), uniqueSlug(boxName), name, normalized, hash, boxStatus);
-        } catch (DataIntegrityViolationException e) {
-            // createOwnerAndBox's transaction already rolled back cleanly (see BoxSignupTx
-            // javadoc) — everything from here runs in fresh transactions. Two different unique
-            // constraints share that one atomic unit (users.email and boxes.slug), and the
-            // exception alone doesn't say which fired, so a definitive re-read does: if the
-            // email now resolves, a user already owns it (this attempt lost, or a concurrent one
-            // won) — recover as taken-email, no box, same as AuthService.register's own race.
-            // If it doesn't, the box slug was the collision instead; retry once with the next
-            // available suffix, now that the loser of THAT race is visible to uniqueSlug().
-            Optional<User> existing = users.findByEmail(normalized);
-            if (existing.isPresent()) {
-                authService.notifyTakenEmailAttempt(existing.get());
-                return new SignupOutcome(false);
+        for (int attempt = 1; ; attempt++) {
+            try {
+                owner = tx.createOwnerAndBox(boxName.trim(), uniqueSlug(boxName), name, normalized, hash, boxStatus);
+                break;
+            } catch (DataIntegrityViolationException e) {
+                // createOwnerAndBox's transaction already rolled back cleanly (see BoxSignupTx
+                // javadoc) — everything from here runs in fresh transactions. Two different unique
+                // constraints share that one atomic unit (users.email and boxes.slug), and the
+                // exception alone doesn't say which fired, so a definitive re-read does: if the
+                // email now resolves, a user already owns it (this attempt lost, or a concurrent
+                // one won) — recover as taken-email, no box, same as AuthService.register's race.
+                // Otherwise the box slug collided; loop and recompute against the now-committed
+                // winner. Bounded: each retry recomputes from committed rows, so a repeat
+                // collision needs yet another racer landing the same slug inside the window —
+                // after three of those, answer an honest transient 503 instead of an unhandled
+                // 500 (and never an unbounded loop on a public endpoint).
+                Optional<User> existing = users.findByEmail(normalized);
+                if (existing.isPresent()) {
+                    authService.notifyTakenEmailAttempt(existing.get());
+                    return new SignupOutcome(false);
+                }
+                if (attempt >= 3)
+                    throw new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "SIGNUP_RETRY");
             }
-            owner = tx.createOwnerAndBox(boxName.trim(), uniqueSlug(boxName), name, normalized, hash, boxStatus);
         }
 
         authService.sendVerification(owner);
