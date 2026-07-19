@@ -22,11 +22,12 @@ public class AuthService {
     private final PasswordPolicy passwordPolicy;
     private final LoginThrottleService throttle;
     private final InviteOwnershipProof inviteProof;
+    private final RegisterTx registerTx;
     private final String timingEqualizerHash;
 
     public AuthService(UserRepository users, PasswordEncoder passwordEncoder, MembershipRepository memberships,
                        EmailTokenService emailTokens, Mailer mailer, PasswordPolicy passwordPolicy,
-                       LoginThrottleService throttle, InviteOwnershipProof inviteProof) {
+                       LoginThrottleService throttle, InviteOwnershipProof inviteProof, RegisterTx registerTx) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.memberships = memberships;
@@ -35,11 +36,11 @@ public class AuthService {
         this.passwordPolicy = passwordPolicy;
         this.throttle = throttle;
         this.inviteProof = inviteProof;
+        this.registerTx = registerTx;
         this.timingEqualizerHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
     }
 
     /** No invite in play — same as {@link #register(String, String, String, String)} with a null token. */
-    @Transactional
     public User register(String email, String rawPassword, String name) {
         return register(email, rawPassword, name, null);
     }
@@ -53,8 +54,12 @@ public class AuthService {
      * registrant reads that inbox — the same proof the verification email exists to obtain
      * (see {@link #completeReset}). A missing/foreign/expired/garbage token just means no
      * proof was offered; it never fails registration and never leaks whether it was valid.
+     *
+     * <p>Deliberately NOT {@code @Transactional} — see {@link RegisterTx}'s javadoc. The
+     * concurrent-duplicate recovery below re-fetches the winner's row in a transaction separate
+     * from the failed insert, which only happens if this method has no ambient transaction of
+     * its own for {@code registerTx.insertUser}'s proxy call to join.
      */
-    @Transactional
     public User register(String email, String rawPassword, String name, String inviteToken) {
         passwordPolicy.check(rawPassword);
         String normalized = email.toLowerCase().trim();
@@ -66,25 +71,21 @@ public class AuthService {
         Optional<User> existing = users.findByEmail(normalized);
         if (existing.isPresent()) {
             User owner = existing.get();
-            mailer.send(owner.getEmail(), "Someone tried to sign up with your email",
-                    "register-attempt", Map.of("name", owner.getName()));
+            notifyTakenEmailAttempt(owner);
             return owner; // caller builds its response from the request, not this entity
         }
 
         boolean provenByInvite = inviteToken != null && inviteProof.provesOwnershipOf(inviteToken, normalized);
 
-        User u = new User();
-        u.setEmail(normalized);
-        u.setPasswordHash(hash);
-        u.setName(name);
-        u.setEmailVerified(provenByInvite);
+        User u;
         try {
-            u = users.saveAndFlush(u);
+            u = registerTx.insertUser(normalized, hash, name, provenByInvite);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // lost the race to the unique index — same answer as above, no enumeration
-            User owner = users.findByEmail(normalized).orElseThrow();
-            mailer.send(owner.getEmail(), "Someone tried to sign up with your email",
-                    "register-attempt", Map.of("name", owner.getName()));
+            // Lost the race to the unique index — same answer as above, no enumeration. Recovers
+            // in a FRESH transaction (see RegisterTx javadoc): insertUser's own transaction
+            // already rolled back cleanly, so this re-read can't run inside it.
+            User owner = registerTx.recoverExistingOwner(normalized);
+            notifyTakenEmailAttempt(owner);
             return owner;
         }
         // The not-proven path pays a synchronous EmailTokenService.issue() DB round-trip here that
@@ -92,6 +93,17 @@ public class AuthService {
         // the fast path requires already holding the 256-bit token (i.e. already knowing the answer).
         if (!provenByInvite) sendVerification(u);
         return u;
+    }
+
+    /**
+     * Anti-enumeration: the REAL owner is told someone tried their address, never the caller.
+     * Public so {@code BoxSignupService} can reuse the exact same notice on its own taken-email
+     * recovery path (its atomic insert shares this same unique constraint — see
+     * {@code BoxSignupTx}'s javadoc) instead of re-deriving the copy.
+     */
+    public void notifyTakenEmailAttempt(User owner) {
+        mailer.send(owner.getEmail(), "Someone tried to sign up with your email",
+                "register-attempt", Map.of("name", owner.getName()));
     }
 
     public void sendVerification(User u) {

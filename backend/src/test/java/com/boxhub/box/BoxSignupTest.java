@@ -11,6 +11,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -28,6 +35,7 @@ class BoxSignupTest extends AbstractIntegrationTest {
     @Autowired MembershipRepository memberships;
     @Autowired PlatformSettings settings;
     @Autowired BoxWaitlistRepository waitlist;
+    @Autowired BoxSignupService boxSignup;
     @MockitoBean com.boxhub.shared.Mailer mailer;
 
     @BeforeEach
@@ -127,6 +135,44 @@ class BoxSignupTest extends AbstractIntegrationTest {
                 .andExpect(status().isAccepted());
         assertThat(waitlist.findAllByOrderByCreatedAtAsc().stream()
                 .filter(w -> w.getEmail().equals(email))).hasSize(1);
+    }
+
+    @Test
+    void concurrentWaitlistJoinForTheSameEmailBothSucceedExactlyOneRowExists() throws Exception {
+        // Real double-submit: two threads call joinWaitlist() for the same email at the same
+        // instant, against real Postgres. One wins the unique(email) constraint; the loser must
+        // still return normally (waitlist contract is ALWAYS 202), not blow up with
+        // UnexpectedRollbackException from a rollback-only transaction. Looped with a fresh email
+        // each iteration because the race is timing-dependent.
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            for (int i = 0; i < 5; i++) {
+                String email = "race-" + System.nanoTime() + "@t.io";
+                CyclicBarrier barrier = new CyclicBarrier(2);
+
+                Callable<Void> attempt = () -> {
+                    barrier.await();
+                    boxSignup.joinWaitlist(email, "Race Gym");
+                    return null;
+                };
+
+                List<Future<Void>> futures = List.of(pool.submit(attempt), pool.submit(attempt));
+                // .get() rethrows any exception the call raised — this is the assertion that
+                // neither thread saw the 500 (UnexpectedRollbackException / JpaSystemException).
+                futures.forEach(f -> {
+                    try {
+                        f.get();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+
+                assertThat(waitlist.findAllByOrderByCreatedAtAsc().stream()
+                        .filter(w -> w.getEmail().equals(email))).hasSize(1);
+            }
+        } finally {
+            pool.shutdown();
+        }
     }
 
     @Test
