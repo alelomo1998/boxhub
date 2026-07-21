@@ -120,6 +120,8 @@ export class AdminShellPage {
     { link: 'schedule', label: 'Schedule' },
     { link: 'invites', label: 'Invites' },
     { link: 'plans', label: 'Plans' },
+    { link: 'subscriptions', label: 'Payments' },
+    { link: 'stripe', label: 'Stripe' },
     { link: 'movements', label: 'Movements' },
     { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
@@ -132,6 +134,8 @@ export class AdminShellPage {
   moreLinks = [
     { link: 'invites', label: 'Invites' },
     { link: 'plans', label: 'Plans' },
+    { link: 'subscriptions', label: 'Payments' },
+    { link: 'stripe', label: 'Stripe' },
     { link: 'movements', label: 'Movements' },
     { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },

@@ -35,11 +35,13 @@ public class HomeController {
     private final PerformanceQueries queries;
     private final LiftEntryRepository lifts;
     private final MovementRepository movements;
+    private final SubscriptionService subscriptions;
 
     public HomeController(BookingRepository bookings, ClassSessionRepository sessions,
                           ClassTemplateRepository templates, MembershipRepository memberships,
                           AnnouncementRepository announcements, PerformanceQueries queries,
-                          LiftEntryRepository lifts, MovementRepository movements) {
+                          LiftEntryRepository lifts, MovementRepository movements,
+                          SubscriptionService subscriptions) {
         this.bookings = bookings;
         this.sessions = sessions;
         this.templates = templates;
@@ -48,6 +50,7 @@ public class HomeController {
         this.queries = queries;
         this.lifts = lifts;
         this.movements = movements;
+        this.subscriptions = subscriptions;
     }
 
     public record Participant(String name, String avatarPath) {}
@@ -75,8 +78,13 @@ public class HomeController {
         Instant weekEnd = LocalDate.now(zone).with(DayOfWeek.MONDAY).plusWeeks(1).atStartOfDay(zone).toInstant();
         long checkins = bookings.countInWeek(me.getId(), weekStart, weekEnd);
 
-        Long planDaysLeft = me.getExpiresAt() == null ? null
-                : java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), me.getExpiresAt());
+        // M10: sourced from the active Subscription's currentPeriodEnd, not the dead
+        // Membership.expiresAt column — nothing writes that any more (recordPeriod, invite accept,
+        // the webhook and the lapse job all write Subscription.currentPeriodEnd instead). A
+        // grandfathered subscription (null end) is never expiring.
+        Instant subEnd = subscriptions.activeFor(me.getId()).map(Subscription::getCurrentPeriodEnd).orElse(null);
+        Long planDaysLeft = subEnd == null ? null
+                : java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), subEnd.atZone(zone).toLocalDate());
 
         LastPr lastPr = lifts.findByMembershipIdOrderByPerformedOnDesc(me.getId()).stream()
                 .filter(LiftEntry::isPr).findFirst()

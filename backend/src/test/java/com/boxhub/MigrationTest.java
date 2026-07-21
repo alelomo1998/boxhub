@@ -21,12 +21,18 @@ class MigrationTest extends AbstractIntegrationTest {
 
     @Test
     void v2AddedColumns() {
+        // memberships.plan_id (also added in V2) was dropped by V14 once subscriptions took over
+        // plan attachment; logo_url is still current.
         Integer count = jdbc.queryForObject("""
                 select count(*) from information_schema.columns
-                where (table_name = 'memberships' and column_name = 'plan_id')
-                   or (table_name = 'boxes' and column_name = 'logo_url')
+                where table_name = 'boxes' and column_name = 'logo_url'
                 """, Integer.class);
-        assertThat(count).isEqualTo(2);
+        assertThat(count).isEqualTo(1);
+        Integer gone = jdbc.queryForObject("""
+                select count(*) from information_schema.columns
+                where table_name = 'memberships' and column_name = 'plan_id'
+                """, Integer.class);
+        assertThat(gone).isZero();
     }
 
     @Test

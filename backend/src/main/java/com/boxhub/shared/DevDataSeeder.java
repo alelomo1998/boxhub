@@ -10,7 +10,12 @@ import com.boxhub.box.ClassSession;
 import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.box.ClassTemplate;
 import com.boxhub.box.ClassTemplateRepository;
+import com.boxhub.box.Plan;
+import com.boxhub.box.PlanRepository;
 import com.boxhub.box.SessionGenerator;
+import com.boxhub.box.Subscription;
+import com.boxhub.box.SubscriptionRepository;
+import com.boxhub.box.SubscriptionService;
 import com.boxhub.identity.*;
 import com.boxhub.performance.LiftEntry;
 import com.boxhub.performance.LiftEntryRepository;
@@ -52,13 +57,17 @@ public class DevDataSeeder implements CommandLineRunner {
     private final AnnouncementRepository announcements;
     private final BookingRepository bookings;
     private final UserRepository userRepo;
+    private final PlanRepository plans;
+    private final SubscriptionRepository subscriptions;
+    private final SubscriptionService subscriptionService;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
                          ClassTemplateRepository templates, ClassSessionRepository sessions,
                          SessionGenerator sessionGenerator, TemplatePieceRepository skeletons,
                          SessionItemRepository items, WodRepository wods, MovementRepository movements,
                          WodScoreRepository wodScores, LiftEntryRepository liftEntries,
-                         AnnouncementRepository announcements, BookingRepository bookings, UserRepository userRepo) {
+                         AnnouncementRepository announcements, BookingRepository bookings, UserRepository userRepo,
+                         PlanRepository plans, SubscriptionRepository subscriptions, SubscriptionService subscriptionService) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
@@ -74,6 +83,9 @@ public class DevDataSeeder implements CommandLineRunner {
         this.announcements = announcements;
         this.bookings = bookings;
         this.userRepo = userRepo;
+        this.plans = plans;
+        this.subscriptions = subscriptions;
+        this.subscriptionService = subscriptionService;
     }
 
     @Override
@@ -85,7 +97,7 @@ public class DevDataSeeder implements CommandLineRunner {
         demo.setSlug("demo");
         demo.setTimezone("Europe/Rome");
         boxes.save(demo);
-        seed(demo, "admin@demo.io", "Demo Admin", "BOX_ADMIN");
+        User admin = seed(demo, "admin@demo.io", "Demo Admin", "BOX_ADMIN");
         User coach = seed(demo, "coach@demo.io", "Demo Coach", "COACH");
         User coach2 = seed(demo, "coach2@demo.io", "Jordan Blake", "COACH");
         User athlete = seed(demo, "athlete@demo.io", "Demo Athlete", "ATHLETE");
@@ -100,6 +112,7 @@ public class DevDataSeeder implements CommandLineRunner {
 
         seedClassesAndProgramming(demo, coach.getId(), coach2.getId());
         seedScoresAndLifts(demo, athlete.getId(), athlete2.getId(), athlete3.getId());
+        seedPlansAndSubscriptions(demo, List.of(admin, coach, coach2), athletes);
         seedBookings(demo, athletes);
         seedAnnouncement(demo, coach.getId());
 
@@ -260,6 +273,60 @@ public class DevDataSeeder implements CommandLineRunner {
                         lift(mA, bs.getId(), "120.0", d0.plusWeeks(6), true);
                     });
         });
+    }
+
+    /**
+     * M10: priced plans + a mix of ACTIVE subscriptions so every seeded PERSON can actually book
+     * (BookingService.entitlementBlocked 409s NO_ACTIVE_SUBSCRIPTION otherwise) — not just athletes:
+     * the e902bd9 fix covered the 8 athletes but left admin/coaches unable to book the demo classes
+     * they're seeded into. Mix mirrors a real roster: mostly the unlimited plan at list price, some
+     * negotiated discount (priceNote), some on the weekly-limit plan, and the LAST roster member
+     * grandfathered (null currentPeriodEnd, still ACTIVE per SubscriptionService.activeFor) — cycled
+     * by index rather than hard-indexed athletes.get(7), so a trimmed roster can't throw at startup.
+     */
+    private void seedPlansAndSubscriptions(Box box, List<User> staff, List<User> athletes) {
+        runAsBox(box.getId(), () -> {
+            Plan unlimited = plan("Unlimited Monthly", 30, null, 8900, "eur", "UNLIMITED");
+            Plan weekly = plan("3x Weekly", 30, 3, 5900, "eur", "WEEKLY_LIMIT");
+
+            List<User> roster = new java.util.ArrayList<>(staff);
+            roster.addAll(athletes);
+            if (roster.isEmpty()) return;
+
+            // everyone but the last roster member cycles through the list/weekly/discount mix
+            for (int i = 0; i < roster.size() - 1; i++) {
+                UUID membershipId = membershipId(roster.get(i).getId(), box.getId());
+                switch (i % 4) {
+                    case 2 -> subscriptionService.recordPeriod(membershipId, weekly.getId(), weekly.getPriceCents(), null);
+                    case 3 -> subscriptionService.recordPeriod(membershipId, unlimited.getId(), 7000, "Founding member rate");
+                    default -> subscriptionService.recordPeriod(membershipId, unlimited.getId(), unlimited.getPriceCents(), null);
+                }
+            }
+
+            // grandfathered: ACTIVE with no period end (predates M10 pricing) — hand-rolled since
+            // recordPeriod always sets a currentPeriodEnd from the plan's duration. Always the LAST
+            // roster member, so it never collides with the loop above (one ACTIVE sub per membership).
+            UUID lastMembershipId = membershipId(roster.get(roster.size() - 1).getId(), box.getId());
+            Subscription grandfathered = new Subscription();
+            grandfathered.setMembershipId(lastMembershipId);
+            grandfathered.setPlanId(unlimited.getId());
+            grandfathered.setStatus("ACTIVE");
+            grandfathered.setPriceCents(unlimited.getPriceCents());
+            grandfathered.setPriceNote("Grandfathered — legacy pricing");
+            grandfathered.setCurrentPeriodEnd(null);
+            subscriptions.save(grandfathered);
+        });
+    }
+
+    private Plan plan(String name, int durationDays, Integer weeklyClassLimit, int priceCents, String currency, String entitlement) {
+        Plan p = new Plan();
+        p.setName(name);
+        p.setDurationDays(durationDays);
+        p.setWeeklyClassLimit(weeklyClassLimit);
+        p.setPriceCents(priceCents);
+        p.setCurrency(currency);
+        p.setEntitlement(entitlement);
+        return plans.save(p);
     }
 
     /** Books athletes onto the coming week's sessions so schedule/roster/check-in screens have real rosters. */

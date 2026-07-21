@@ -23,10 +23,15 @@ public class SecurityConfig {
         // cross-site, so they do not — which is what keeps the pre-M8 tests green.
         // TV_PAIRING_PATHS are unauthenticated device endpoints (TVs/Fire Sticks polling for a
         // token) that cannot do the csrf-cookie dance and carry no session cookie to forge —
-        // CSRF is meaningless there, so they're excluded outright.
+        // CSRF is meaningless there, so they're excluded outright. /api/stripe/webhook is the
+        // same shape: an external server-to-server POST from Stripe, no Authorization header,
+        // no browser cookie to forge — CSRF doesn't apply, and Stripe cannot perform the
+        // csrf-cookie dance. Its own security boundary is the Stripe-Signature check (see
+        // StripeWebhookController), not CSRF.
         org.springframework.security.web.util.matcher.RequestMatcher csrfRequired = req ->
                 !SAFE_METHODS.contains(req.getMethod()) && req.getHeader("Authorization") == null
-                        && !TV_PAIRING_PATHS.contains(req.getRequestURI());
+                        && !TV_PAIRING_PATHS.contains(req.getRequestURI())
+                        && !CSRF_EXEMPT_PATHS.contains(req.getRequestURI());
 
         http.csrf(c -> c
                 .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
@@ -75,6 +80,7 @@ public class SecurityConfig {
                         "/api/auth/logout", "/api/auth/providers", "/actuator/health",
                         "/api/auth/signup-box", "/api/auth/waitlist", "/api/auth/signup-mode").permitAll()
                 .requestMatchers("/api/tv/pair", "/api/tv/pair/poll", "/api/tv/stream").permitAll()
+                .requestMatchers("/api/stripe/webhook").permitAll()
                 .requestMatchers("/api/auth/box-token", "/api/auth/logout-all", "/api/auth/sessions").authenticated()
                 .requestMatchers("/api/me/email/confirm").permitAll()
                 .requestMatchers("/api/me/**").authenticated()
@@ -94,6 +100,9 @@ public class SecurityConfig {
 
     private static final java.util.Set<String> TV_PAIRING_PATHS =
             java.util.Set.of("/api/tv/pair", "/api/tv/pair/poll");
+
+    private static final java.util.Set<String> CSRF_EXEMPT_PATHS =
+            java.util.Set.of("/api/stripe/webhook");
 
     private org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthConverter() {
         var conv = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();

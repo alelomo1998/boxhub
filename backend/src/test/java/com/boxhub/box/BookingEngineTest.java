@@ -27,6 +27,7 @@ class BookingEngineTest extends AbstractIntegrationTest {
     @Autowired ClassSessionRepository sessions;
     @Autowired BookingRepository bookings;
     @Autowired PlanRepository plans;
+    @Autowired SubscriptionService subscriptionService;
     @Autowired AuthService authService;
     @Autowired MembershipRepository memberships;
     @Autowired BookingService bookingService;
@@ -52,6 +53,9 @@ class BookingEngineTest extends AbstractIntegrationTest {
                 .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
     }
 
+    // M10 T4: booking now requires an active Subscription (Membership.planId is gone). A null
+    // planId here means "this test doesn't care about entitlement" -> give it a default
+    // UNLIMITED plan/subscription so booking is unblocked, same as before the gate existed.
     private UUID newMembership(UUID boxId, UUID planId) {
         long n = System.nanoTime();
         User u = authService.register("bk-" + n + "-" + Math.random() + "@t.io", "correct-horse-battery", "Athlete");
@@ -60,8 +64,10 @@ class BookingEngineTest extends AbstractIntegrationTest {
         m.setUser(u);
         m.setBox(box);
         m.setRole("ATHLETE");
-        m.setPlanId(planId);
-        return memberships.save(m).getId();
+        UUID membershipId = memberships.save(m).getId();
+        UUID effectivePlanId = planId != null ? planId : newPlan(null);
+        subscriptionService.recordPeriod(membershipId, effectivePlanId, 0, "test");
+        return membershipId;
     }
 
     private UUID newSession(int capacity, Instant startAt) {
@@ -75,9 +81,10 @@ class BookingEngineTest extends AbstractIntegrationTest {
 
     private UUID newPlan(Integer weeklyLimit) {
         Plan p = new Plan();
-        p.setName("Plan");
+        p.setName("Plan " + System.nanoTime() + "-" + Math.random());
         p.setDurationDays(30);
         p.setWeeklyClassLimit(weeklyLimit);
+        p.setEntitlement(weeklyLimit != null ? "WEEKLY_LIMIT" : "UNLIMITED");
         return plans.save(p).getId();
     }
 

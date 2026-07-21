@@ -26,6 +26,7 @@ export const routes: Routes = [
       { path: 'book', loadComponent: () => import('./features/athlete/book.page').then(m => m.BookPage) },
       { path: 'wod', loadComponent: () => import('./features/athlete/wod.page').then(m => m.WodPage) },
       { path: 'progress', loadComponent: () => import('./features/athlete/progress.page').then(m => m.ProgressPage) },
+      { path: 'membership', loadComponent: () => import('./features/athlete/membership.page').then(m => m.MembershipPage) },
       { path: 'board/:itemId', loadComponent: () => import('./features/performance/leaderboard.page').then(m => m.LeaderboardPage) },
       { path: 'class/:id', loadComponent: () => import('./features/athlete/class-detail.page').then(m => m.ClassDetailPage) },
       { path: 'profile/:membershipId', loadComponent: () => import('./features/athlete/athlete-profile.page').then(m => m.AthleteProfilePage) },
@@ -66,6 +67,8 @@ export const routes: Routes = [
       { path: 'schedule', loadComponent: () => import('./features/admin/schedule.page').then(m => m.SchedulePage) },
       { path: 'invites', loadComponent: () => import('./features/admin/invites.page').then(m => m.InvitesPage) },
       { path: 'plans', loadComponent: () => import('./features/admin/plans.page').then(m => m.PlansPage) },
+      { path: 'subscriptions', loadComponent: () => import('./features/admin/subscriptions.page').then(m => m.SubscriptionsPage) },
+      { path: 'stripe', loadComponent: () => import('./features/admin/box-stripe.page').then(m => m.BoxStripePage) },
       { path: 'movements', loadComponent: () => import('./features/admin/movements.page').then(m => m.MovementsPage) },
       { path: 'tvs', loadComponent: () => import('./features/admin/tvs.page').then(m => m.TvsPage) },
       { path: 'settings', loadComponent: () => import('./features/admin/settings.page').then(m => m.SettingsPage) },
@@ -73,6 +76,12 @@ export const routes: Routes = [
   },
   { path: 'tv', loadComponent: () => import('./features/tv/tv-shell.page').then(m => m.TvShellPage) },
   { path: 'join/:token', loadComponent: () => import('./features/join/join.page').then(m => m.JoinPage) },
+  // Stripe checkout's success/cancel redirect (StripeCheckoutService) is hardcoded server-side to
+  // APP_URL + "/membership" — this top-level redirect (query params carry through) is what makes
+  // that land in the athlete shell's real page instead of 404ing.
+  { path: 'membership', pathMatch: 'full', redirectTo: 'athlete/membership' },
+  { path: 'receipts/:paymentId', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
+    loadComponent: () => import('./features/receipt/receipt.page').then(m => m.ReceiptPage) },
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
   { path: '**', redirectTo: 'auth/login' },
 ];

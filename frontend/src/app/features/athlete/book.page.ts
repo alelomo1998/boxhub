@@ -163,6 +163,7 @@ export class BookPage implements OnInit {
   private reason(code: string | undefined): string {
     switch (code) {
       case 'LIMIT_REACHED': return "You have reached your plan's weekly class limit.";
+      case 'NO_ACTIVE_SUBSCRIPTION': return 'You need an active plan to book classes.';
       case 'PAST_CUTOFF': return 'Too late to cancel this class — contact your coach.';
       case 'ALREADY_BOOKED': return 'You are already booked for this class.';
       case 'CANCELLED': return 'This class has been cancelled.';

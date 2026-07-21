@@ -1,0 +1,448 @@
+package com.boxhub.box;
+
+import com.boxhub.AbstractIntegrationTest;
+import com.boxhub.identity.AuthService;
+import com.boxhub.identity.Membership;
+import com.boxhub.identity.MembershipRepository;
+import com.boxhub.identity.User;
+import com.boxhub.shared.CryptoService;
+import com.boxhub.shared.Mailer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * The security-critical test for M10 T5. Deliberately does NOT hit the real Stripe network:
+ * {@code com.stripe.net.Webhook.constructEvent} is a pure local HMAC-SHA256 check, so a signed
+ * event is built by hand here using Stripe's documented signing scheme
+ * ({@code signed_payload = "{timestamp}.{payload}"}, HMAC-SHA256 with the endpoint secret, hex
+ * digest, header {@code t=<ts>,v1=<hex>}) — the same scheme the real Stripe backend uses to sign
+ * outbound webhooks, and the same one {@code Webhook.constructEvent} verifies against.
+ * <p>
+ * Every assertion reads persisted state (never just a status code) — a test that only checked the
+ * HTTP status would still pass if the tenant-less lookup silently found nothing (gotcha #1).
+ */
+class StripeWebhookTest extends AbstractIntegrationTest {
+
+    private static final String WEBHOOK_SECRET = "whsec_test_signing_secret_for_stripe_webhook_1234567890";
+
+    @Autowired MockMvc mvc;
+    @Autowired BoxRepository boxes;
+    @Autowired PlanRepository plans;
+    @Autowired MembershipRepository memberships;
+    @Autowired SubscriptionRepository subscriptions;
+    @Autowired PaymentRepository payments;
+    @Autowired BoxStripeRepository boxStripe;
+    @Autowired AuthService authService;
+    @Autowired CryptoService crypto;
+    @MockitoBean Mailer mailer;
+
+    // authService.register() (newMembership/newFixture, below) sends a verification mail through
+    // this same now-mocked bean — an unstubbed mailer.link(...) returns null, and AuthService's
+    // Map.of("link", null, ...) NPEs before send() is even reached (same gotcha documented on
+    // PasswordResetTest/VerificationTest). Stub it globally so every pre-existing test in this
+    // class keeps working now that Mailer is a mock instead of the real bean.
+    @BeforeEach
+    void stubMailer() {
+        lenient().when(mailer.link(any())).thenAnswer(inv -> "https://boxhub.test" + inv.getArgument(0, String.class));
+    }
+
+    @AfterEach
+    void clearAuth() { SecurityContextHolder.clearContext(); }
+
+    private record Fixture(UUID boxId, UUID membershipId, UUID planId, UUID subscriptionId,
+                            UUID paymentId, String sessionId) {}
+
+    private UUID newBox(String slug) {
+        Box b = new Box();
+        b.setName("Webhook " + slug);
+        b.setSlug(slug);
+        b.setTimezone("Europe/Rome");
+        return boxes.save(b).getId();
+    }
+
+    private void actAsBox(UUID boxId) {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
+                .subject(UUID.randomUUID().toString())
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
+    }
+
+    private UUID newMembership(UUID boxId) {
+        long n = System.nanoTime();
+        User u = authService.register("wh-" + n + "-" + Math.random() + "@t.io", "correct-horse-battery", "Athlete");
+        Box box = boxes.findById(boxId).orElseThrow();
+        Membership m = new Membership();
+        m.setUser(u);
+        m.setBox(box);
+        m.setRole("ATHLETE");
+        return memberships.save(m).getId();
+    }
+
+    private UUID newPlan() {
+        Plan p = new Plan();
+        p.setName("Monthly " + System.nanoTime());
+        p.setDurationDays(30);
+        p.setPriceCents(5000);
+        p.setCurrency("eur");
+        p.setEntitlement("UNLIMITED");
+        return plans.save(p).getId();
+    }
+
+    /** A box connected to Stripe, a membership already on this plan (grandfathered, null end —
+     *  mirrors "already a member, now paying online for the first time"), and a PENDING payment
+     *  carrying the checkout session id — exactly what StripeCheckoutService.createSession leaves
+     *  behind before the webhook ever fires. */
+    private Fixture newFixture(String slug) {
+        UUID boxId = newBox(slug);
+        actAsBox(boxId);
+        UUID membershipId = newMembership(boxId);
+        UUID planId = newPlan();
+
+        Subscription sub = new Subscription();
+        sub.setMembershipId(membershipId);
+        sub.setPlanId(planId);
+        sub.setStatus("ACTIVE");
+        sub.setPriceCents(0);
+        sub.setCurrentPeriodEnd(null); // grandfathered — the webhook's recordPeriod call should set a concrete end
+        UUID subscriptionId = subscriptions.save(sub).getId();
+
+        String sessionId = "cs_test_" + System.nanoTime() + "_" + UUID.randomUUID();
+        Payment payment = new Payment();
+        payment.setSubscriptionId(subscriptionId);
+        payment.setAmountCents(5000);
+        payment.setCurrency("eur");
+        payment.setMethod("STRIPE");
+        payment.setStatus("PENDING");
+        payment.setStripeSessionId(sessionId);
+        UUID paymentId = payments.save(payment).getId();
+
+        BoxStripe bs = new BoxStripe();
+        bs.setBoxId(boxId);
+        bs.setRestrictedKeyEnc(crypto.encrypt("rk_test_dummy_restricted_key"));
+        bs.setWebhookSecretEnc(crypto.encrypt(WEBHOOK_SECRET));
+        bs.setEnabled(true);
+        boxStripe.save(bs);
+
+        return new Fixture(boxId, membershipId, planId, subscriptionId, paymentId, sessionId);
+    }
+
+    /** Defaults payment_status to "paid" — the settled case every pre-existing test in this class
+     *  exercises. The unpaid/delayed-rail cases below build their own payload explicitly. */
+    private String eventPayload(String sessionId, String type) {
+        return eventPayload(sessionId, type, "paid");
+    }
+
+    private String eventPayload(String sessionId, String type, String paymentStatus) {
+        return "{\"type\":\"" + type + "\",\"data\":{\"object\":{\"id\":\"" + sessionId + "\"," +
+                "\"payment_status\":\"" + paymentStatus + "\"}}}";
+    }
+
+    /** Like eventPayload but with the session metadata Stripe echoes back — carries the purchased
+     *  planId, which the webhook must use (not the placeholder subscription's plan). Always "paid"
+     *  — the cross-plan-renewal tests are about which plan activates, not settlement gating. */
+    private String eventPayload(String sessionId, String type, UUID planId) {
+        return "{\"type\":\"" + type + "\",\"data\":{\"object\":{\"id\":\"" + sessionId + "\"," +
+                "\"payment_status\":\"paid\",\"metadata\":{\"planId\":\"" + planId + "\"}}}}";
+    }
+
+    /** Stripe's documented webhook signing scheme — a pure local HMAC, no network involved. */
+    private String signatureHeader(String payload, String secret) throws Exception {
+        long timestamp = Instant.now().getEpochSecond();
+        String signedPayload = timestamp + "." + payload;
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        byte[] hash = mac.doFinal(signedPayload.getBytes(StandardCharsets.UTF_8));
+        return "t=" + timestamp + ",v1=" + HexFormat.of().formatHex(hash);
+    }
+
+    @Test
+    void validSignatureAndCheckoutCompletedMarksPaymentSucceededAndActivatesSubscription() throws Exception {
+        Fixture f = newFixture("valid-" + System.nanoTime());
+        String payload = eventPayload(f.sessionId(), "checkout.session.completed");
+        String sig = signatureHeader(payload, WEBHOOK_SECRET);
+
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(payload))
+                .andExpect(status().isOk());
+
+        // MockMvc's filter chain clears SecurityContextHolder at the end of the request
+        // (SecurityContextHolderFilter) — re-establish tenant scope for direct @TenantId reads.
+        actAsBox(f.boxId());
+
+        Payment payment = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo("SUCCEEDED");
+
+        Subscription sub = subscriptions.findById(f.subscriptionId()).orElseThrow();
+        assertThat(sub.getStatus()).isEqualTo("ACTIVE");
+        assertThat(sub.getCurrentPeriodEnd()).isNotNull(); // grandfathered null end -> concrete period, now real
+        assertThat(sub.getCurrentPeriodEnd()).isAfter(Instant.now().plusSeconds(29L * 24 * 3600));
+    }
+
+    @Test
+    void replayedEventIsIdempotentNoSecondExtend() throws Exception {
+        Fixture f = newFixture("replay-" + System.nanoTime());
+        String payload = eventPayload(f.sessionId(), "checkout.session.completed");
+        String sig = signatureHeader(payload, WEBHOOK_SECRET);
+
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(payload))
+                .andExpect(status().isOk());
+
+        actAsBox(f.boxId());
+        Instant firstEnd = subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd();
+        assertThat(firstEnd).isNotNull();
+
+        // Same event, same signature — exactly what a Stripe retry looks like.
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(payload))
+                .andExpect(status().isOk());
+
+        actAsBox(f.boxId());
+        Instant secondEnd = subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd();
+        assertThat(secondEnd).isEqualTo(firstEnd); // no second extend
+
+        Payment payment = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void forgedSignatureIs400AndNothingChanges() throws Exception {
+        Fixture f = newFixture("forged-" + System.nanoTime());
+        String payload = eventPayload(f.sessionId(), "checkout.session.completed");
+        String wrongSig = signatureHeader(payload, "whsec_a_completely_different_secret_1234567890");
+
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", wrongSig).content(payload))
+                .andExpect(status().isBadRequest());
+
+        Payment payment = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo("PENDING"); // unchanged
+
+        actAsBox(f.boxId());
+        Subscription sub = subscriptions.findById(f.subscriptionId()).orElseThrow();
+        assertThat(sub.getCurrentPeriodEnd()).isNull(); // still grandfathered — never extended
+    }
+
+    @Test
+    void webhookRepointsPaymentAtTheSubscriptionRecordPeriodActuallyPaidFor() throws Exception {
+        // A lapsed member renews: the checkout placeholder points the payment at the member's old
+        // EXPIRED subscription (that's all createSession had to satisfy the NOT-NULL FK), and there
+        // is no ACTIVE subscription, so recordPeriod CREATES a fresh one. The payment must end up
+        // pointing at that new row, not the stale EXPIRED one — otherwise T6 receipts render wrong.
+        UUID boxId = newBox("repoint-" + System.nanoTime());
+        actAsBox(boxId);
+        UUID membershipId = newMembership(boxId);
+        UUID planId = newPlan();
+
+        Subscription expired = new Subscription();
+        expired.setMembershipId(membershipId);
+        expired.setPlanId(planId);
+        expired.setStatus("EXPIRED");
+        expired.setPriceCents(5000);
+        expired.setCurrentPeriodEnd(Instant.now().minusSeconds(3600));
+        UUID expiredSubId = subscriptions.save(expired).getId();
+
+        String sessionId = "cs_test_" + System.nanoTime() + "_" + UUID.randomUUID();
+        Payment payment = new Payment();
+        payment.setSubscriptionId(expiredSubId); // the placeholder createSession would set
+        payment.setAmountCents(5000);
+        payment.setCurrency("eur");
+        payment.setMethod("STRIPE");
+        payment.setStatus("PENDING");
+        payment.setStripeSessionId(sessionId);
+        payments.save(payment);
+
+        BoxStripe bs = new BoxStripe();
+        bs.setBoxId(boxId);
+        bs.setRestrictedKeyEnc(crypto.encrypt("rk_test_dummy"));
+        bs.setWebhookSecretEnc(crypto.encrypt(WEBHOOK_SECRET));
+        bs.setEnabled(true);
+        boxStripe.save(bs);
+
+        String payload = eventPayload(sessionId, "checkout.session.completed");
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", signatureHeader(payload, WEBHOOK_SECRET)).content(payload))
+                .andExpect(status().isOk());
+
+        actAsBox(boxId);
+        Payment saved = payments.findByStripeSessionId(sessionId).orElseThrow();
+        assertThat(saved.getStatus()).isEqualTo("SUCCEEDED");
+        assertThat(saved.getSubscriptionId()).isNotEqualTo(expiredSubId); // repointed off the stale row
+
+        Subscription paid = subscriptions.findById(saved.getSubscriptionId()).orElseThrow();
+        assertThat(paid.getStatus()).isEqualTo("ACTIVE");
+        assertThat(paid.getCurrentPeriodEnd()).isAfter(Instant.now().plusSeconds(29L * 24 * 3600));
+
+        // the old EXPIRED row is left as-is, not resurrected
+        assertThat(subscriptions.findById(expiredSubId).orElseThrow().getStatus()).isEqualTo("EXPIRED");
+    }
+
+    @Test
+    void lapsedMemberRenewingOntoADifferentPlanIsActivatedOnThePlanTheyPaidFor() throws Exception {
+        // The member's stale placeholder subscription is on plan A (EXPIRED). They check out plan B.
+        // The webhook must activate plan B (what they paid for), NOT plan A (the placeholder's plan).
+        UUID boxId = newBox("crossplan-" + System.nanoTime());
+        actAsBox(boxId);
+        UUID membershipId = newMembership(boxId);
+
+        Plan planA = new Plan();
+        planA.setName("Basic " + System.nanoTime());
+        planA.setDurationDays(30);
+        planA.setPriceCents(3000);
+        planA.setCurrency("eur");
+        planA.setEntitlement("WEEKLY_LIMIT");
+        planA.setWeeklyClassLimit(3);
+        UUID planAId = plans.save(planA).getId();
+
+        Plan planB = new Plan();
+        planB.setName("Elite " + System.nanoTime());
+        planB.setDurationDays(90);
+        planB.setPriceCents(9000);
+        planB.setCurrency("eur");
+        planB.setEntitlement("UNLIMITED");
+        UUID planBId = plans.save(planB).getId();
+
+        Subscription expired = new Subscription();
+        expired.setMembershipId(membershipId);
+        expired.setPlanId(planAId);
+        expired.setStatus("EXPIRED");
+        expired.setPriceCents(3000);
+        expired.setCurrentPeriodEnd(Instant.now().minusSeconds(3600));
+        UUID expiredId = subscriptions.save(expired).getId();
+
+        String sessionId = "cs_test_" + System.nanoTime() + "_" + UUID.randomUUID();
+        Payment payment = new Payment();
+        payment.setSubscriptionId(expiredId); // placeholder points at the plan-A row
+        payment.setAmountCents(9000);         // but the money is plan B's price
+        payment.setCurrency("eur");
+        payment.setMethod("STRIPE");
+        payment.setStatus("PENDING");
+        payment.setStripeSessionId(sessionId);
+        payments.save(payment);
+
+        BoxStripe bs = new BoxStripe();
+        bs.setBoxId(boxId);
+        bs.setRestrictedKeyEnc(crypto.encrypt("rk_test_dummy"));
+        bs.setWebhookSecretEnc(crypto.encrypt(WEBHOOK_SECRET));
+        bs.setEnabled(true);
+        boxStripe.save(bs);
+
+        String payload = eventPayload(sessionId, "checkout.session.completed", planBId);
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", signatureHeader(payload, WEBHOOK_SECRET)).content(payload))
+                .andExpect(status().isOk());
+
+        actAsBox(boxId);
+        Payment saved = payments.findByStripeSessionId(sessionId).orElseThrow();
+        Subscription paid = subscriptions.findById(saved.getSubscriptionId()).orElseThrow();
+        assertThat(paid.getPlanId()).isEqualTo(planBId); // activated on the plan actually purchased
+        assertThat(paid.getStatus()).isEqualTo("ACTIVE");
+        // plan B is 90 days — a plan-A (30d) activation would land the end well short of 60 days out.
+        assertThat(paid.getCurrentPeriodEnd()).isAfter(Instant.now().plusSeconds(60L * 24 * 3600));
+    }
+
+    @Test
+    void unknownSessionIdIs200NoOpAndDoesNotTouchAnyPayment() throws Exception {
+        Fixture f = newFixture("unknown-" + System.nanoTime()); // a real, unrelated PENDING payment
+        String unknownSessionId = "cs_test_never_created_" + System.nanoTime();
+        String payload = eventPayload(unknownSessionId, "checkout.session.completed");
+        // No payment row means no box to resolve a secret from, so signature verification is never
+        // reached — any well-formed header proves the point (garbage v1, real timestamp).
+        String sig = "t=" + Instant.now().getEpochSecond() + ",v1=" + "0".repeat(64);
+
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(payload))
+                .andExpect(status().isOk());
+
+        Payment untouched = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(untouched.getStatus()).isEqualTo("PENDING");
+    }
+
+    /**
+     * The CRITICAL fix: a delayed-notification payment method (SEPA debit, bank transfer) fires
+     * checkout.session.completed immediately with payment_status "unpaid" — money hasn't moved yet.
+     * Granting the subscription/receipt here would let a bounced debit train for free. Only once
+     * Stripe's real settlement event (checkout.session.async_payment_succeeded) lands should the
+     * member actually get activated — and a replay of either event afterwards must never re-extend.
+     */
+    @Test
+    void completedWithUnpaidStatusIsNoOpThenAsyncSucceededSettlesExactlyOnce() throws Exception {
+        Fixture f = newFixture("delayed-" + System.nanoTime());
+        // newFixture()'s authService.register() already sent ITS OWN unrelated verify-email mail —
+        // every assertion below is scoped to the "payment-receipt" template specifically, not a
+        // blanket zero-mail-ever assertion.
+
+        // Step 1: the session completes but the money is not in yet.
+        String unpaidPayload = eventPayload(f.sessionId(), "checkout.session.completed", "unpaid");
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", signatureHeader(unpaidPayload, WEBHOOK_SECRET))
+                        .content(unpaidPayload))
+                .andExpect(status().isOk());
+
+        Payment stillPending = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(stillPending.getStatus()).isEqualTo("PENDING");
+        actAsBox(f.boxId());
+        assertThat(subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd()).isNull();
+        verify(mailer, never()).send(any(), any(), eq("payment-receipt"), any());
+
+        // Step 2: the delayed rail genuinely settles.
+        String succeededPayload = eventPayload(f.sessionId(), "checkout.session.async_payment_succeeded", "paid");
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", signatureHeader(succeededPayload, WEBHOOK_SECRET))
+                        .content(succeededPayload))
+                .andExpect(status().isOk());
+
+        Payment settled = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(settled.getStatus()).isEqualTo("SUCCEEDED");
+        actAsBox(f.boxId());
+        Instant firstEnd = subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd();
+        assertThat(firstEnd).isNotNull();
+        verify(mailer, times(1)).send(any(), any(), eq("payment-receipt"), any());
+
+        // Step 3: a replay of the settlement event (Stripe retry) must not double-extend or re-mail.
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", signatureHeader(succeededPayload, WEBHOOK_SECRET))
+                        .content(succeededPayload))
+                .andExpect(status().isOk());
+
+        actAsBox(f.boxId());
+        Instant secondEnd = subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd();
+        assertThat(secondEnd).isEqualTo(firstEnd);
+        verify(mailer, times(1)).send(any(), any(), eq("payment-receipt"), any()); // still exactly one — no duplicate
+
+        // Step 4: a replay of the ORIGINAL unpaid-completed event also changes nothing further.
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", signatureHeader(unpaidPayload, WEBHOOK_SECRET))
+                        .content(unpaidPayload))
+                .andExpect(status().isOk());
+        actAsBox(f.boxId());
+        assertThat(subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd()).isEqualTo(firstEnd);
+    }
+}

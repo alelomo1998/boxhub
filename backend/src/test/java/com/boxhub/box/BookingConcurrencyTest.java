@@ -31,6 +31,8 @@ class BookingConcurrencyTest extends AbstractIntegrationTest {
     @Autowired BoxRepository boxes;
     @Autowired ClassSessionRepository sessions;
     @Autowired BookingRepository bookings;
+    @Autowired PlanRepository plans;
+    @Autowired SubscriptionService subscriptionService;
     @Autowired AuthService authService;
     @Autowired MembershipRepository memberships;
     @Autowired BookingService bookingService;
@@ -47,6 +49,8 @@ class BookingConcurrencyTest extends AbstractIntegrationTest {
                 .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
     }
 
+    // M10 T4: booking requires an active Subscription; give each test membership an UNLIMITED
+    // one so the entitlement gate never interferes with the no-oversell race this test proves.
     private UUID newMembership(UUID boxId) {
         long n = System.nanoTime();
         User u = authService.register("conc-" + n + "-" + Math.random() + "@t.io", "correct-horse-battery", "Athlete");
@@ -55,7 +59,13 @@ class BookingConcurrencyTest extends AbstractIntegrationTest {
         m.setUser(u);
         m.setBox(box);
         m.setRole("ATHLETE");
-        return memberships.save(m).getId();
+        UUID membershipId = memberships.save(m).getId();
+        Plan p = new Plan();
+        p.setName("Plan " + n + "-" + Math.random());
+        p.setDurationDays(30);
+        UUID planId = plans.save(p).getId();
+        subscriptionService.recordPeriod(membershipId, planId, 0, "test");
+        return membershipId;
     }
 
     @Test

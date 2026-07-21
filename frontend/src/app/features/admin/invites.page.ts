@@ -25,11 +25,13 @@ import { AuthService } from '../../core/auth/auth.service';
           <select class="bh-select" name="role" [(ngModel)]="role" data-testid="invite-role">
             <option>ATHLETE</option><option>COACH</option><option>BOX_ADMIN</option>
           </select>
-          <select class="bh-select" name="planId" [(ngModel)]="planId">
-            <option [ngValue]="null">No plan</option>
+          <select class="bh-select" name="planId" [(ngModel)]="planId" data-testid="invite-plan">
+            <option [ngValue]="undefined" disabled>Select a plan</option>
+            <option [ngValue]="null">No plan (bill manually)</option>
             @for (p of plans(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
           </select>
-          <bh-button type="submit" size="sm" data-testid="invite-create">Create invite</bh-button>
+          <bh-button type="submit" size="sm" [disabled]="!email || (plans().length > 0 && planId === undefined)"
+                     data-testid="invite-create">Create invite</bh-button>
         </form>
         @if (createError()) { <p class="err" role="alert">{{ createError() }}</p> }
       }
@@ -77,7 +79,10 @@ export class InvitesPage implements OnInit {
   private auth = inject(AuthService);
   email = '';
   role: Role = 'ATHLETE';
-  planId: string | null = null;
+  // undefined = no explicit choice made yet — the disabled placeholder option. A box with priced
+  // plans must force an explicit pick (a real plan, or the explicit "No plan (bill manually)")
+  // rather than silently defaulting to plan-less, which produces an unbookable member (M10 review).
+  planId: string | null | undefined = undefined;
   readonly invites = signal<Invite[]>([]);
   readonly plans = signal<Plan[]>([]);
   readonly lastLink = signal('');
@@ -95,6 +100,7 @@ export class InvitesPage implements OnInit {
 
   create() {
     if (!this.email) return;
+    if (this.plans().length > 0 && this.planId === undefined) return; // must pick a plan or "No plan"
     this.createError.set('');
     this.admin.createInvite({ email: this.email, role: this.role, planId: this.planId ?? undefined })
       .subscribe({

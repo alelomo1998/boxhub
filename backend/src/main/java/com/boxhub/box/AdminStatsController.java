@@ -20,12 +20,14 @@ public class AdminStatsController {
     private final MembershipRepository memberships;
     private final ClassSessionRepository sessions;
     private final BookingRepository bookings;
+    private final SubscriptionService subscriptions;
 
     public AdminStatsController(MembershipRepository memberships, ClassSessionRepository sessions,
-                                BookingRepository bookings) {
+                                BookingRepository bookings, SubscriptionService subscriptions) {
         this.memberships = memberships;
         this.sessions = sessions;
         this.bookings = bookings;
+        this.subscriptions = subscriptions;
     }
 
     public record WeekAttendance(long checkins, long booked, long capacity, int fillPct) {}
@@ -38,9 +40,15 @@ public class AdminStatsController {
 
         List<Membership> all = memberships.findAll();
         long active = all.stream().filter(m -> "ACTIVE".equals(m.getStatus())).count();
-        long expiring = all.stream().filter(m -> m.getExpiresAt() != null
-                && !m.getExpiresAt().isBefore(LocalDate.now())
-                && m.getExpiresAt().isBefore(LocalDate.now().plusDays(15))).count();
+        // M10: sourced from each membership's active Subscription's currentPeriodEnd, not the dead
+        // Membership.expiresAt column (nothing writes it any more). A grandfathered subscription
+        // (null end) never counts as expiring; same threshold/semantics as before, just re-sourced.
+        long expiring = all.stream()
+                .map(m -> subscriptions.activeFor(m.getId()).map(Subscription::getCurrentPeriodEnd).orElse(null))
+                .filter(end -> end != null)
+                .map(end -> end.atZone(ZoneId.systemDefault()).toLocalDate())
+                .filter(end -> !end.isBefore(LocalDate.now()) && end.isBefore(LocalDate.now().plusDays(15)))
+                .count();
 
         ZoneId zone = ZoneId.systemDefault();
         Instant weekStart = LocalDate.now(zone).with(DayOfWeek.MONDAY).atStartOfDay(zone).toInstant();

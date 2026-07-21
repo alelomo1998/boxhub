@@ -90,6 +90,9 @@ class SuperadminBoxApiTest extends AbstractIntegrationTest {
         long n = System.nanoTime();
         String ownerEmail = "owner-" + n + "@t.io";
         Box box = boxWithOwner("PENDING", ownerEmail);
+        // The cap is a platform-wide ACTIVE-box count and the shared test container accumulates
+        // boxes across the whole suite; this happy-path activation must not be at its mercy.
+        settings.set(PlatformSettings.MAX_BOXES, "1000000");
 
         mvc.perform(post("/api/admin/boxes/" + box.getId() + "/approve")
                         .header("Authorization", "Bearer " + rootToken()))

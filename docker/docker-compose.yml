@@ -41,6 +41,7 @@ services:
       BOXHUB_SMTP_PORT: "1025"
       BOXHUB_APP_URL: ${BOXHUB_APP_URL:-http://localhost}
       BOXHUB_SUPERADMIN_EMAILS: ${BOXHUB_SUPERADMIN_EMAILS:-super@demo.io}
+      BOXHUB_STRIPE_ENC_KEY: ${BOXHUB_STRIPE_ENC_KEY:-AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=}
     volumes:
       - media:/data/media
     depends_on:

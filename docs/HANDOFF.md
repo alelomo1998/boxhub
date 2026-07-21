@@ -1,6 +1,6 @@
 # BoxHub — Session Hand-off
 
-**Updated:** 2026-07-19. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-07-21. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. Repo: `~/Desktop/boxhub`, GitHub `alelomo1998/boxhub` (private), CI green on push.
@@ -17,7 +17,7 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 - **M0 foundations** — auth (JWT access+refresh rotation), per-box role memberships, box-scoped tenant tokens, `TenantContext`, RFC7807 errors, Flyway V1, Angular shells + auth, Docker Compose, CI, deploy script.
 - **M1 box core** — plans CRUD, invites (one-time hashed shareable link, no SMTP), public preview + accept, superadmin + box creation, member list/search/patch (last-admin guard), box settings, per-IP auth rate limiting, Hibernate `@TenantId`. Flyway V2.
 - **Design system** — warm-dark "broadcast/heritage" identity. Token file is single source of truth; `bh-*` shared components; ThemeService (dark default). ALL existing screens restyled.
-- **M2 scheduling & booking** — Flyway V3; class templates → auto-generated sessions (rolling horizon, `@Scheduled`); **BookingService** engine (session-row pessimistic lock, FIFO waitlist auto-promote, cancel cutoff, plan weekly-limit — no-oversell proven by concurrency test); coach roster + check-in; nightly no-show sweep; athlete booking UI + coach sessions/roster + admin schedule; richer booking view (coach name + booked athletes); dev seeder now seeds a real weekly schedule.
+- **M2 scheduling & booking** — Flyway V3; class templates → auto-generated sessions (rolling horizon, `@Scheduled`); **BookingService** engine (session-row pessimistic lock, FIFO waitlist auto-promote, cancel cutoff, plan weekly-limit — no-oversell proven by concurrency test; **M10 moved the entitlement check onto the active subscription**); coach roster + check-in; nightly no-show sweep; athlete booking UI + coach sessions/roster + admin schedule; richer booking view (coach name + booked athletes); dev seeder now seeds a real weekly schedule.
 - **M3 programming** — Flyway V4 (schema) + V5 (seed ~122 movements + 18 girls/heroes benchmarks); `com.boxhub.programming` package. **Hybrid WOD model** (typed top-level wod_type/score_type/time_cap + semi-structured `blocks_json` movement lines). **Box-configurable tracks** (`track` @TenantId, RX+Fitness seeded on box create via `TrackService.seedDefaults`). **Global copy-on-use benchmarks** (`benchmark_template` NON-@TenantId, cloned into box WOD w/ provenance). **Programming calendar**: `program_slot` unique (box,date,track), per-slot DRAFT/PUBLISHED, bulk publish. **Published-only WOD board** (athletes never see drafts — proven). Coach UI: WOD builder (movement-picker datalist) + library + week-grid calendar + benchmark browse/clone. Admin: tracks + custom-movement management. Athlete: **WOD board hero screen**. `movement`/`benchmark_template` are deliberately NOT @TenantId — explicit `box_id IS NULL OR = :box` filter (gotcha #1).
 - **M4 tracking** — Flyway V6; `com.boxhub.performance` package. **Scores attach to `program_slot`** (`wod_score`, @TenantId, unique box+slot+membership). **Self-log only**: membership resolved from JWT via `findByUserIdAndBoxId`, never a param — an athlete can only write their own score, only against PUBLISHED slots. **Session leaderboard** (`Leaderboard.rank` pure fn): private omitted, RX block before scaled, ordered per score_type (TIME finished-asc then capped-by-reps, ROUNDS_REPS desc, LOAD desc). **Lift log** (`lift_entry`) with **auto-PR** (strictly-greater load per movement) + PR list + per-movement progression. **Benchmark history DERIVED** from scores whose slot.wod has a `benchmark_template_id`. Athlete UI: score logging + leaderboard peek on the WOD board; **My progress** page (benchmark PRs, lift PRs, inline-SVG progression chart — no chart lib, CSP-safe); lift-log entry. Board DTO now carries `slotId`.
 
@@ -35,7 +35,9 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 - **M9 onboarding (2026-07-19, branch `m9-onboarding`)** — a box no longer needs a superadmin to exist. Flyway **V13** (`boxes.status` PENDING/ACTIVE/SUSPENDED/REJECTED + `owner_email`; `platform_settings` key/value seeded `signup_mode=APPROVAL`/`max_boxes=100`; `waitlist`). **`POST /api/auth/signup-box`** (permitAll, rate-limited) registers the owner + box + BOX_ADMIN membership as one atomic unit — same `RegisterTx`/`BoxSignupTx` proxied-unit pattern M8 needed for the aborted-tx trap, now with a bounded 3-attempt taken-vs-slug retry that gives up with a 503 `SIGNUP_RETRY` rather than looping forever; OPEN activates instantly, APPROVAL/at-cap parks the box PENDING or the signup on the waitlist. **Status gating**: a PENDING box preps freely (class types, schedule, settings) but box-token mint, invite-create, and TV pair/claim 403 `BOX_PENDING`; SUSPENDED 403s box-token mint itself (kill switch) and disconnects any live TV stream — side effects strictly post-commit, same house rule M9-T4's review enforced on M8's mail. **Superadmin console** `/superadmin` (guarded on the session's `superadmin` flag, still the `BOXHUB_SUPERADMIN_EMAILS` allowlist; new dev user `super@demo.io`, no box): pending queue (approve → ACTIVE + `box-approved` mail, reject → REJECTED + `box-rejected` mail), all-boxes suspend/reactivate, waitlist view, signup-mode/max-boxes settings (validate-then-write — no half-applied flip). **FE**: public `/auth/start` (open form or waitlist form, mode resolved live from `signupMode()`), admin-shell PENDING banner + dashboard setup guide (step 3 locked until ACTIVE), invites/TVs pages swap to a locked card under `BOX_PENDING`. e2e (`onboarding.spec.ts`) drives the whole loop through a real Mailpit inbox: signup → verify → PENDING banner + locked invites → superadmin approves from the pending queue → approval mail lands → owner signs back in → invites unlock → invite mail lands.
 
-**Tests:** backend **281** (Testcontainers Postgres), frontend **140** Karma specs, e2e **24** Playwright (SERIAL — `workers:1`). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. P2/P3 leftovers in BACKLOG §"Deferred from M9"/"M8"/"M7"/"M6"/"M5.5".
+- **M10 memberships & payments (2026-07-21, branch `m10-memberships-payments`)** — a box sells memberships. Flyway **V14**: `plans` gain `price_cents`/`currency`/`entitlement` (`UNLIMITED`|`WEEKLY_LIMIT`), new `subscription` / `payment` / `box_stripe`, and **`memberships.plan_id` is DROPPED**. **`subscription` is now first-class** between a membership and a plan: plans carry a **list** price, each subscription carries the **agreed** price (+ optional note), so a box discounts per athlete. **Booking follows the active subscription** — `BookingService.entitlementBlocked` 409s `NO_ACTIVE_SUBSCRIPTION`, allows `UNLIMITED`, and keeps the pre-M10 Mon–Sun box-timezone count verbatim for `WEEKLY_LIMIT`; **a lapse blocks only NEW bookings** (check-in/cancel/no-show/waitlist-promotion untouched, now pinned by a test). **Grandfathering**: V14 gives every pre-existing membership a no-expiry ACTIVE subscription so nobody lost booking on deploy; a standalone `MigrationGrandfatherTest` (own Testcontainer, programmatic Flyway 13→seed→14) proves it per-box. **Two payment rails**: (1) **Stripe Checkout** on the box's OWN restricted key — `CryptoService` AES-GCM at rest (`BOXHUB_STRIPE_ENC_KEY`, **no default — a missing key fails startup**), `GET/PUT/DELETE /api/box/stripe` returns `{connected}` only, never key material; `POST /api/stripe/webhook` is permitAll + CSRF-exempt and **signature-verification is its entire security boundary** — raw bytes, box resolved from our OWN Payment row (not unverified JSON), all `@TenantId` work inside `runAsBox` with the tenant set BEFORE the tx opens, idempotent on `stripe_session_id`, **and gated on `payment_status == "paid"`** (+ `async_payment_succeeded`) so a delayed SEPA/bank-transfer session never grants membership before the money settles. (2) **Admin-recorded** `CASH|TRANSFER|CARD|OTHER` at the amount actually collected (`STRIPE` rejected there). `DELETE /api/box/subscriptions/{id}` cancels (frees the single-ACTIVE slot — plan switching needs it, `SWITCH_REQUIRES_CANCEL`). **Receipts** at `GET /api/box/receipts/{paymentId}` (payer or admin only) + a printable `/receipts/:paymentId` page, emailed on both rails **after commit**. Nightly `SubscriptionLapseJob` flips ACTIVE→EXPIRED and mails (cross-box: iterates boxes under `runAsBox`, since the derived query is `@TenantId`-filtered). Invite-accept creates an ACTIVE subscription (no Payment row — they haven't paid). **Money is integer cents everywhere; `€xx.xx` only at the FE edge.** FE: admin plans pricing, record-payment, Stripe connect, athlete membership (Subscribe gated on `stripeAvailable`), receipt page.
+
+**Tests:** backend **343** (Testcontainers Postgres), frontend **181** Karma specs, e2e **25** Playwright (SERIAL — `workers:1`). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. P2/P3 leftovers in BACKLOG §"Deferred from M9"/"M8"/"M7"/"M6"/"M5.5".
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
@@ -93,7 +95,8 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io` / `super@demo.io` (superadmin, no box), password `boxhub-demo-2026`. Fresh volume seeds Demo Box + a weekly schedule. **Mailpit** (dev/e2e mail) at http://localhost:8025.
 - Backend: `cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Frontend: `cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npm run build`. E2E: stack up, then `cd e2e && npx playwright test`.
 - **`docker compose -f docker/docker-compose.yml down -v` is MANDATORY before an e2e run after a seeder or demo-password change** — the seeder self-skips when the demo box already exists, so a stale Postgres volume silently keeps the old data (cost real debugging time when the M8 demo password changed). Also: `runner`/`tv` specs are not idempotent (fixed-name TV devices accumulate) — they need a fresh stack.
-- Flyway only for schema (V1–V13 applied; **next is V14**). Never edit an applied migration.
+- Flyway only for schema (V1–V14 applied; **next is V15**). Never edit an applied migration.
+- **M10 dev note:** `BOXHUB_STRIPE_ENC_KEY` (32-byte base64) is required for the backend to boot — docker-compose supplies a dev default; there is deliberately NO fallback in `application.yml`, so a deploy without it fails fast rather than encrypting live Stripe credentials with a committed key. A box needs a REAL Stripe restricted key + webhook secret to exercise the online rail; the demo stack runs entirely on admin-recorded payments.
 
 ## RULES — maintain these (from CLAUDE.md + user feedback)
 - **Milestone lock:** work only the active milestone; out-of-scope ideas → `docs/BACKLOG.md`, don't build them.
@@ -105,29 +108,29 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**M10 — memberships & payments. Spec + plan written and approved; ready to EXECUTE (subagent-driven).**
-- **Spec:** `docs/superpowers/specs/2026-07-19-m10-memberships-payments-design.md`
-- **Plan:** `docs/superpowers/plans/2026-07-19-m10-memberships-payments.md` — **8 tasks**, Flyway **V14**.
+**M11 — security hardening.** Next in Project 1 per the v1 roadmap (`docs/superpowers/specs/2026-07-14-v1-roadmap-design.md`).
+Not yet brainstormed: start with `superpowers:brainstorming` → design spec + user approval → `writing-plans` → execute.
+**Next Flyway is V15.**
 
-M10 makes `subscription` a first-class entity between a membership and a plan; `Membership.planId` is dropped and the
-booking engine reads the active subscription for its entitlement check. Plans carry a **list price**; each
-subscription carries the **agreed price** (so a box negotiates/discounts per athlete) + an optional note. Payments
-record any method — **STRIPE** (the one *automated, optional* rail via the box's own restricted key, AES-GCM
-encrypted at rest, signature-verified idempotent webhook) plus admin-recorded **CASH/TRANSFER/CARD/OTHER** at the
-amount actually collected. Lapse blocks *new* bookings but keeps booked classes; a nightly job expires + mails.
-Existing members are **grandfathered** into no-expiry active subscriptions so nobody loses booking on deploy day.
+**M10 is complete** — spec `.../2026-07-19-m10-memberships-payments-design.md`, plan `.../2026-07-19-m10-memberships-payments.md`,
+task→SHA ledger in `.superpowers/sdd/progress.md`. **M0–M10 all merged + pushed.** No milestone in progress.
 
-**Load-bearing risks the plan already pre-adjudicates (don't re-litigate):** the grandfather migration (T1 —
-every membership must still book after V14, `MigrationGrandfatherTest` pins it); the Stripe webhook is tenant-less on
-a `@TenantId` domain, so resolve the box from `metadata.boxId` and do all @TenantId work inside `runAsBox(...)`
-(TvStreamService pattern) with a native `findByStripeSessionId` (gotcha #1); the webhook needs CSRF exemption
-(`/api/stripe/webhook` into the M8 `csrfRequired` exempt set, like `/api/tv/pair`); money is **integer cents**
-everywhere, `€xx.xx` only at the FE edge. **Stripe is severable** — if T5 gets hairy, T1–T4+T6 (admin rail) + T7
-minus the Subscribe button are a complete shippable membership system; land that and fast-follow Stripe with no
-rework.
-
-**M9 is complete** — spec `.../2026-07-18-m9-onboarding-design.md`, plan `.../2026-07-18-m9-onboarding.md`, task→SHA
-ledger in `.superpowers/sdd/progress.md`. **M0–M9 all merged + pushed.** No milestone in progress.
+**What M10 execution taught (worth carrying into M11):**
+- **The e2e suite earned its keep again.** Driving a real browser found what 334 backend tests could not: the entitlement
+  gate made every *seeded demo athlete* unbookable, because V14 grandfathers memberships that exist **at migration time**,
+  and on a fresh volume Flyway runs before the seeder creates any. Any milestone that gates an existing flow must ask
+  "what about rows created *after* the migration?"
+- **A new gate needs its *negative* half tested too.** "A lapse blocks new bookings" was covered; "a lapse must NOT
+  disturb already-booked classes" was asserted nowhere until the final review demanded it.
+- **Money paths need an explicit settled-check.** The webhook originally treated `checkout.session.completed` as "paid",
+  which grants membership before a delayed SEPA/bank-transfer payment settles (or bounces). It now requires
+  `payment_status == "paid"` and handles `async_payment_succeeded`.
+- **A blank number input is not zero.** The admin record-payment form coerced an empty agreed price to `0`, silently
+  recording real payments as €0.00. Guard on `== null`, never falsy — an explicit `0` is a legitimate comp.
+- **Emailed links keep breaking (gotcha #9, fourth time).** The receipt mail pointed at `/membership` and *nothing*
+  returned a `paymentId`, so the receipt page was unreachable by any route. Pin emailed paths with exact-equality assertions.
+- **A dropped field leaves dead surfaces behind.** `Membership.expiresAt` survived M10 with no writer, so the athlete
+  home's expiry warning and the admin "expiring plans" tile silently read empty until repointed at the subscription.
 
 Process reminder: superpowers flow (brainstorm → spec+approval → writing-plans → subagent-driven-development),
 orchestrator = Fable/Opus, executors = Sonnet, impeccable gate (≥28/40, no P0/P1) per FE surface, tenancy tests on

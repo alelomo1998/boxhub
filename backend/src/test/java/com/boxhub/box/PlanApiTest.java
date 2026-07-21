@@ -131,4 +131,47 @@ class PlanApiTest extends AbstractIntegrationTest {
                         .content("{\"name\":\"Neg Limit\",\"durationDays\":30,\"weeklyClassLimit\":-1}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void createWithPriceAndEntitlementRoundTrips() throws Exception {
+        String body = mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Priced Unlimited\",\"durationDays\":30," +
+                                "\"priceCents\":6500,\"currency\":\"eur\",\"entitlement\":\"UNLIMITED\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.priceCents").value(6500))
+                .andExpect(jsonPath("$.currency").value("eur"))
+                .andExpect(jsonPath("$.entitlement").value("UNLIMITED"))
+                .andReturn().getResponse().getContentAsString();
+        String id = om.readTree(body).get("id").asText();
+
+        // list surfaces the price too, and a patch changes it
+        mvc.perform(get("/api/box/plans").header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$[?(@.id=='" + id + "')].priceCents").value(org.hamcrest.Matchers.hasItem(6500)));
+        mvc.perform(patch("/api/box/plans/" + id).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"priceCents\":8000}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priceCents").value(8000));
+    }
+
+    @Test
+    void createDefaultsEntitlementFromWeeklyLimitAndPriceToZero() throws Exception {
+        // no price, no explicit entitlement, but a weekly limit -> WEEKLY_LIMIT, price 0, eur
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Three A Week\",\"durationDays\":30,\"weeklyClassLimit\":3}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.entitlement").value("WEEKLY_LIMIT"))
+                .andExpect(jsonPath("$.priceCents").value(0))
+                .andExpect(jsonPath("$.currency").value("eur"));
+    }
+
+    @Test
+    void weeklyLimitEntitlementWithoutALimitIs400() throws Exception {
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Bad\",\"durationDays\":30,\"entitlement\":\"WEEKLY_LIMIT\"}"))
+                .andExpect(status().isBadRequest());
+    }
 }

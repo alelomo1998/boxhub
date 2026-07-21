@@ -14,7 +14,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@TestPropertySource(properties = "boxhub.auth-rate-limit=1000")
+@TestPropertySource(properties = {
+        "boxhub.auth-rate-limit=1000",
+        "boxhub.stripe.enc-key=HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo="
+})
 public abstract class AbstractIntegrationTest {
 
     // Singleton container: started once per JVM, never stopped between test classes.

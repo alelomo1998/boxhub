@@ -1,7 +1,8 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import { AdminService, Member, PageResponse, Plan } from './admin.service';
+import { RouterLink } from '@angular/router';
+import { AdminService, Member, PageResponse } from './admin.service';
 import { Role } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
@@ -9,7 +10,7 @@ import { PillComponent } from '../../ui/pill.component';
 @Component({
   selector: 'bh-admin-members',
   standalone: true,
-  imports: [FormsModule, DatePipe, ButtonComponent, PillComponent],
+  imports: [FormsModule, DatePipe, RouterLink, ButtonComponent, PillComponent],
   template: `
     <section class="bh-section">
       <div class="bh-section-head">
@@ -39,11 +40,12 @@ import { PillComponent } from '../../ui/pill.component';
                   </select>
                 </td>
                 <td>
-                  <select class="bh-select" [ngModel]="m.planId" [name]="'plan-' + m.membershipId"
-                          (ngModelChange)="patch(m, { planId: $event })">
-                    <option [ngValue]="null">—</option>
-                    @for (p of plans(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
-                  </select>
+                  <!-- read-only: plan assignment moved to POST /api/box/subscriptions (M10 T7) -->
+                  @if (m.planName) {
+                    {{ m.planName }}
+                  } @else {
+                    <a class="no-plan" routerLink="/admin/subscriptions" data-testid="no-plan">No active plan</a>
+                  }
                 </td>
                 <td class="num">
                   {{ m.expiresAt | date:'dd MMM yyyy' }}
@@ -68,6 +70,7 @@ import { PillComponent } from '../../ui/pill.component';
     .count { font-family: var(--font-mono); font-size: 12px; color: var(--faint); text-transform: none; letter-spacing: 0.06em; margin-left: 10px; }
     .bh-section-head .bh-input { max-width: 240px; }
     .failed { color: var(--red); font-size: 12px; font-family: var(--font-mono); margin-left: 8px; }
+    .no-plan { color: var(--faint); text-decoration: underline; font-size: var(--fs-sm); }
     .pager { display: flex; align-items: center; gap: var(--sp-3); }
   `],
 })
@@ -76,11 +79,9 @@ export class MembersPage implements OnInit {
   readonly search = signal('');
   readonly pageIndex = signal(0);
   readonly page = signal<PageResponse<Member>>({ content: [], totalElements: 0, totalPages: 0 });
-  readonly plans = signal<Plan[]>([]);
   readonly error = signal<string | null>(null);
 
   ngOnInit() {
-    this.admin.listPlans().subscribe(p => this.plans.set(p));
     this.load();
   }
 
@@ -99,7 +100,7 @@ export class MembersPage implements OnInit {
     this.admin.listMembers(this.search(), this.pageIndex()).subscribe(p => this.page.set(p));
   }
 
-  patch(m: Member, patch: Partial<{ role: Role; status: string; planId: string }>) {
+  patch(m: Member, patch: Partial<{ role: Role; status: string }>) {
     this.error.set(null);
     this.admin.patchMember(m.membershipId, patch).subscribe({
       next: () => this.load(),

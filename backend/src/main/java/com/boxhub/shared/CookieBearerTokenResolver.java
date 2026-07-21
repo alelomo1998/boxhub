@@ -29,12 +29,17 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
     // even log back in. None of these endpoints need a principal derived from a cookie: login/
     // register/verify/password-reset are anonymous by nature, and refresh/logout/csrf read the
     // refresh cookie (or nothing) directly rather than relying on resolved-bearer auth.
+    // /api/stripe/webhook is here for the same reason: an external, cookie-less Stripe POST that
+    // must never be authenticated off of some unrelated visitor's stray browser cookie — the
+    // webhook establishes its own synthetic per-box Authentication (runAsBox) after verifying the
+    // Stripe-Signature header, and must not inherit ambient SecurityContext from resolve().
     private static final java.util.Set<String> PUBLIC_AUTH_PATHS = java.util.Set.of(
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
             "/api/auth/csrf", "/api/auth/verify", "/api/auth/verify/resend",
             "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/providers",
             "/api/me/email/confirm",
-            "/api/auth/signup-box", "/api/auth/waitlist", "/api/auth/signup-mode");
+            "/api/auth/signup-box", "/api/auth/waitlist", "/api/auth/signup-mode",
+            "/api/stripe/webhook");
 
     @Override
     public String resolve(HttpServletRequest request) {

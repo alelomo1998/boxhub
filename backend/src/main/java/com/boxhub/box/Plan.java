@@ -16,6 +16,9 @@ public class Plan {
     @Column(name = "duration_days", nullable = false) private int durationDays = 30;
     @Column(name = "weekly_class_limit") private Integer weeklyClassLimit;
     @Column(nullable = false) private boolean archived = false;
+    @Column(name = "price_cents", nullable = false) private int priceCents = 0;
+    @Column(nullable = false) private String currency = "eur";
+    @Column(nullable = false) private String entitlement = "UNLIMITED";
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
@@ -27,4 +30,10 @@ public class Plan {
     public void setWeeklyClassLimit(Integer weeklyClassLimit) { this.weeklyClassLimit = weeklyClassLimit; }
     public boolean isArchived() { return archived; }
     public void setArchived(boolean archived) { this.archived = archived; }
+    public int getPriceCents() { return priceCents; }
+    public void setPriceCents(int priceCents) { this.priceCents = priceCents; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+    public String getEntitlement() { return entitlement; }
+    public void setEntitlement(String entitlement) { this.entitlement = entitlement; }
 }

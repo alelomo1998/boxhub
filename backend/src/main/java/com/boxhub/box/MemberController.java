@@ -11,8 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -26,17 +29,22 @@ public class MemberController {
 
     private final MembershipRepository memberships;
     private final PlanRepository plans;
+    private final SubscriptionService subscriptions;
 
-    public MemberController(MembershipRepository memberships, PlanRepository plans) {
+    public MemberController(MembershipRepository memberships, PlanRepository plans, SubscriptionService subscriptions) {
         this.memberships = memberships;
         this.plans = plans;
+        this.subscriptions = subscriptions;
     }
 
     public record MemberDto(UUID membershipId, UUID userId, String name, String email,
                             String role, String status, UUID planId, String planName,
-                            LocalDate expiresAt, boolean expiringSoon) {}
+                            UUID subscriptionId, LocalDate expiresAt, boolean expiringSoon) {}
 
-    record PatchMemberRequest(String role, String status, UUID planId, LocalDate expiresAt) {}
+    // No expiresAt: M10 moved expiry onto the active subscription, so writing the membership
+    // column would be silently ignored by every surface that reads it — the same dead-field
+    // defect planId had before T6 removed it. Expiry changes go through a subscription period.
+    record PatchMemberRequest(String role, String status) {}
 
     @GetMapping
     public Page<MemberDto> list(@RequestParam(required = false) String search,
@@ -69,18 +77,31 @@ public class MemberController {
 
         if (req.role() != null) m.setRole(req.role());
         if (req.status() != null) m.setStatus(req.status());
-        if (req.planId() != null) m.setPlanId(req.planId());
-        if (req.expiresAt() != null) m.setExpiresAt(req.expiresAt());
         return toDto(memberships.save(m));
     }
 
     private MemberDto toDto(Membership m) {
-        String planName = m.getPlanId() == null ? null
-                : plans.findById(m.getPlanId()).map(Plan::getName).orElse(null);
-        boolean soon = m.getExpiresAt() != null
-                && !m.getExpiresAt().isAfter(LocalDate.now().plusDays(EXPIRING_SOON_DAYS));
+        // Plan assignment AND expiry live on the membership's active Subscription (M10), not on
+        // Membership.expiresAt — nothing writes that column any more (recordPeriod, invite accept,
+        // the webhook and the lapse job all write Subscription.currentPeriodEnd instead), so it is
+        // permanently stale. No active subscription (never assigned, or lapsed) means null/false,
+        // correctly; a grandfathered subscription (null currentPeriodEnd) never counts as expiring.
+        UUID planId = null;
+        String planName = null;
+        UUID subscriptionId = null;
+        LocalDate expiresAt = null;
+        Optional<Subscription> active = subscriptions.activeFor(m.getId());
+        if (active.isPresent()) {
+            Subscription sub = active.get();
+            planId = sub.getPlanId();
+            planName = plans.findById(planId).map(Plan::getName).orElse(null);
+            subscriptionId = sub.getId();
+            Instant end = sub.getCurrentPeriodEnd();
+            if (end != null) expiresAt = end.atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+        boolean soon = expiresAt != null && !expiresAt.isAfter(LocalDate.now().plusDays(EXPIRING_SOON_DAYS));
         return new MemberDto(m.getId(), m.getUser().getId(), m.getUser().getName(),
-                m.getUser().getEmail(), m.getRole(), m.getStatus(), m.getPlanId(), planName,
-                m.getExpiresAt(), soon);
+                m.getUser().getEmail(), m.getRole(), m.getStatus(), planId, planName,
+                subscriptionId, expiresAt, soon);
     }
 }

@@ -7,12 +7,17 @@ import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.TokenService;
 import com.boxhub.identity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDate;
+import java.time.Instant;
+import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -25,6 +30,8 @@ class MemberApiTest extends AbstractIntegrationTest {
     @Autowired BoxRepository boxes;
     @Autowired MembershipRepository memberships;
     @Autowired TokenService tokenService;
+    @Autowired PlanRepository plans;
+    @Autowired SubscriptionService subscriptionService;
     @Autowired ObjectMapper om;
 
     Box boxA;
@@ -32,6 +39,9 @@ class MemberApiTest extends AbstractIntegrationTest {
     Membership adminMembership;
     Membership athleteMembership;
     User athleteUser;
+
+    @AfterEach
+    void clearAuth() { SecurityContextHolder.clearContext(); }
 
     @BeforeEach
     void setup() {
@@ -43,19 +53,38 @@ class MemberApiTest extends AbstractIntegrationTest {
         boxes.save(boxA);
 
         User admin = authService.register("madm-" + n + "@t.io", "correct-horse-battery", "Mem Admin");
-        adminMembership = member(admin, "BOX_ADMIN", null);
+        adminMembership = member(admin, "BOX_ADMIN");
         adminToken = tokenService.boxToken(admin, adminMembership);
 
         athleteUser = authService.register("math-" + n + "@t.io", "correct-horse-battery", "Searchable Athlete");
-        athleteMembership = member(athleteUser, "ATHLETE", LocalDate.now().plusDays(5)); // expiring soon
+        athleteMembership = member(athleteUser, "ATHLETE");
+
+        // M10: expiringSoon/planName now come off the active Subscription's currentPeriodEnd, not
+        // the dead Membership.expiresAt column — a 5-day plan gives this athlete an "expiring soon"
+        // subscription end.
+        actAsBox(boxA.getId());
+        Plan p = new Plan();
+        p.setName("Expiring soon plan " + n);
+        p.setDurationDays(5);
+        UUID planId = plans.save(p).getId();
+        subscriptionService.recordPeriod(athleteMembership.getId(), planId, 0, "test");
+        SecurityContextHolder.clearContext();
     }
 
-    private Membership member(User u, String role, LocalDate expires) {
+    private void actAsBox(UUID boxId) {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
+                .subject(UUID.randomUUID().toString())
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
+    }
+
+    private Membership member(User u, String role) {
         Membership m = new Membership();
         m.setUser(u);
         m.setBox(boxA);
         m.setRole(role);
-        m.setExpiresAt(expires);
         return memberships.save(m);
     }
 
@@ -70,7 +99,8 @@ class MemberApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].name").value("Searchable Athlete"))
-                .andExpect(jsonPath("$.content[0].expiringSoon").value(true));
+                .andExpect(jsonPath("$.content[0].expiringSoon").value(true))
+                .andExpect(jsonPath("$.content[0].subscriptionId").exists());
     }
 
     @Test

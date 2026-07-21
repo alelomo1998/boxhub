@@ -84,6 +84,7 @@ export class AthleteShellPage implements OnInit {
     { link: 'book', label: 'Book', glyph: '＋' },
     { link: 'wod', label: 'WOD', glyph: '◎' },
     { link: 'progress', label: 'Progress', glyph: '▲' },
+    { link: 'membership', label: 'Plan', glyph: '$' },
   ];
 
   ngOnInit() {

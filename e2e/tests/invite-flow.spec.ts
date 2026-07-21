@@ -15,6 +15,9 @@ test('full invite flow: create -> join -> visible in members', async ({ page, co
   await loginAdmin(page);
   await page.goto('/admin/invites');
   await page.fill('[data-testid="invite-email"]', inviteeEmail);
+  // the demo box has priced plans, so the invite form now requires an explicit plan choice (M10
+  // review fix) — pick "No plan (bill manually)" since this spec isn't exercising billing.
+  await page.selectOption('[data-testid="invite-plan"]', { label: 'No plan (bill manually)' });
   await page.click('[data-testid="invite-create"]');
   const link = await page.getByTestId('invite-link').textContent();
   expect(link).toContain('/join/');

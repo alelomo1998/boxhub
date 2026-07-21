@@ -131,3 +131,12 @@
 - Proration / plan-change mid-period; refunds; grace-period window on lapse; pending-confirmation offline handshake.
 - Stripe Connect (OAuth, no stored keys) — revisit post-v1 if BoxHub ever takes a cut.
 - Online per-user discounts / Stripe coupons — self-serve Checkout charges list price only in v1.
+- `MemberController.toDto` runs `activeFor` + a plan lookup per row — a 100-member page costs ~200 extra queries where the pre-M10 version cost one join (flagged by the M10 final review; joins the pre-existing member-list N+1 item).
+- Receipts compute the discount against the plan's CURRENT list price, so re-opening an old receipt after a price change shows a discount that was never given — snapshot `listPriceCents` onto the Payment row if receipts must be durable financial documents.
+- Drop the now-unwritten `memberships.expires_at` column (M10 moved expiry to `subscription.current_period_end`; the three surfaces were repointed but the column survives because dropping it needs a migration and M10 was V14-only).
+- The self-serve box owner (`BoxSignupTx`) gets a BOX_ADMIN membership with no subscription, so an owner cannot book their own classes until someone records a payment for them — the third membership-creation route, and the only one still uncovered.
+- The invite form's plan is required only when the box already HAS priced plans; a brand-new box with zero plans can still send a plan-less invite, which still produces a member who cannot book.
+- `INVALID_PLAN` / `INVALID_MEMBERSHIP` (400 from `POST /api/box/subscriptions`) have no friendly frontend copy — only reachable via a raw API call, since the form disables submit without both fields.
+- The Stripe webhook answers 200 for an unknown session id and 400 for a known one whose box has no credentials — a small existence oracle over Stripe session ids for an unauthenticated caller. Uniform 200 if it is ever free to do.
+- `payment-receipt.html` divides cents by 100 inside the Thymeleaf mail template (email cannot route through the Angular frontend's formatting) — the only place backend-side currency formatting exists; no DTO or stored value uses a float.
+- `checkout.session.async_payment_failed` is not handled — a failed delayed-notification payment leaves its Payment row PENDING forever. Correct today (nothing is granted), but there is no cleanup or notification.

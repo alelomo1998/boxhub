@@ -1,7 +1,5 @@
 package com.boxhub.box;
 
-import com.boxhub.identity.Membership;
-import com.boxhub.identity.MembershipRepository;
 import com.boxhub.shared.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,16 +26,16 @@ public class BookingService {
     private final ClassSessionRepository sessions;
     private final BookingRepository bookings;
     private final BoxRepository boxes;
-    private final MembershipRepository memberships;
     private final PlanRepository plans;
+    private final SubscriptionService subscriptions;
 
     public BookingService(ClassSessionRepository sessions, BookingRepository bookings, BoxRepository boxes,
-                          MembershipRepository memberships, PlanRepository plans) {
+                          PlanRepository plans, SubscriptionService subscriptions) {
         this.sessions = sessions;
         this.bookings = bookings;
         this.boxes = boxes;
-        this.memberships = memberships;
         this.plans = plans;
+        this.subscriptions = subscriptions;
     }
 
     @Transactional
@@ -51,7 +49,7 @@ public class BookingService {
         if (bookings.findBySessionIdAndMembershipId(sessionId, membershipId).isPresent()) throw conflict("ALREADY_BOOKED");
         // ponytail: cutoff gates cancellation only (spec §3) — booking within the cutoff window is
         // allowed (last-minute booking is fine; last-minute self-cancel is not). See cancel() below.
-        if (weeklyLimitReached(session, box, membershipId)) throw conflict("LIMIT_REACHED");
+        if (entitlementBlocked(session, box, membershipId)) throw conflict("LIMIT_REACHED");
 
         Booking b = new Booking();
         b.setSessionId(sessionId);
@@ -138,11 +136,18 @@ public class BookingService {
         return flipped;
     }
 
-    private boolean weeklyLimitReached(ClassSession session, Box box, UUID membershipId) {
-        Membership membership = memberships.findById(membershipId).orElseThrow();
-        if (membership.getPlanId() == null) return false;
-        Plan plan = plans.findById(membership.getPlanId()).orElse(null);
-        Integer limit = plan == null ? null : plan.getWeeklyClassLimit();
+    /**
+     * M10 T4: booking rights follow the membership's active Subscription, not the dropped
+     * Membership.planId. No active subscription -> can't book at all (NO_ACTIVE_SUBSCRIPTION).
+     * UNLIMITED entitlement -> never blocked. WEEKLY_LIMIT -> the existing Mon-Sun box-timezone
+     * count vs the plan's weekly_class_limit (logic unchanged from the pre-M10 version).
+     */
+    private boolean entitlementBlocked(ClassSession session, Box box, UUID membershipId) {
+        Subscription active = subscriptions.activeFor(membershipId).orElseThrow(() -> conflict("NO_ACTIVE_SUBSCRIPTION"));
+        Plan plan = plans.findById(active.getPlanId()).orElseThrow();
+        if ("UNLIMITED".equals(plan.getEntitlement())) return false;
+
+        Integer limit = plan.getWeeklyClassLimit();
         if (limit == null) return false;
 
         ZoneId tz = ZoneId.of(box.getTimezone());
