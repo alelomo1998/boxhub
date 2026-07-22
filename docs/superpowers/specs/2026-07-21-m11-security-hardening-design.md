@@ -129,7 +129,7 @@ work is CSP: Angular injects component styles as runtime `<style>` tags, so a st
 `ngCspNonce` rather than `style-src 'unsafe-inline'`. Scripts get no `unsafe-inline` and no `unsafe-eval`. Fonts
 are already data-URIs, so that part is free.
 
-**Rate limiting** extends the existing per-IP Bucket4j filter to `signup-box`, invite creation, media upload,
+**Rate limiting** extends the existing per-IP `AuthRateLimitFilter` (Caffeine counters, not Bucket4j) to invite creation, media upload,
 checkout creation, booking, and the public invite-preview/receipt lookups, plus a **global per-IP ceiling** as a
 backstop. Stays in-memory and single-node (documented); Redis is the known upgrade for when a second node exists.
 
