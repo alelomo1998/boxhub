@@ -35,10 +35,22 @@ A test that asks Spring for its route table (`RequestMappingHandlerMapping`) and
 three denials:
 
 1. **No credentials** → 401
-2. **A foreign box's token** (valid user, valid box, wrong box) → 403/404
+2. **A foreign box's token** (valid user, valid box, wrong box) → 403 **or** 404
 3. **Insufficient role** (athlete token against an admin route) → 403
 
-Two properties make this real rather than decorative:
+**On 403 vs 404 for the cross-tenant case:** both are accepted denials. The house convention is that a foreign id
+should *look absent* (404) on resource lookups so the endpoint does not leak which ids exist in other boxes, while
+403 is right when the route itself is forbidden regardless of the id. The sweep accepts either and does not try to
+adjudicate; what it must never accept is a 2xx.
+
+**Assertions 1 and 2 are fully automatic; assertion 3 cannot be.** Required roles are enforced imperatively inside
+methods (`RoleGuard.requireBoxAdmin()`), not declaratively, so no amount of reflection can infer a route's intended
+minimum role. The sweep therefore carries a **declared route → minimum-role table**, and a route missing from that
+table **fails the sweep**. This is deliberate: it forces someone to state each endpoint's intent once, in a
+reviewable list, instead of leaving it implicit in a method body. (Deriving this from annotations instead is a
+larger refactor of `RoleGuard`'s call sites and is explicitly not attempted here.)
+
+Two further properties make this real rather than decorative:
 
 **The allowlist is the security artifact.** Endpoints that legitimately are not box-scoped — `/api/auth/**`,
 `/api/stripe/webhook`, `/api/tv/pair`, `/api/tv/pair/poll`, the public invite preview — live in an explicit
@@ -154,6 +166,11 @@ override**, or the e2e specs start failing for a reason that looks like flake an
 
 **Done** = sweep green with a reviewed allowlist; every sweep finding fixed; no secret has a default; log-hygiene
 green; CSP on with zero browser violations; dependency scan gating CI; backend, frontend and e2e all green.
+
+**Expected size.** This is a wide milestone — roughly 10–12 tasks, comparable to or slightly larger than M10's 8.
+It stays one milestone by explicit decision, on the condition that Task 1 (the sweep) runs before the rest of the
+plan is fixed. If the sweep's finding list turns out to be large, the plan may split the fixes across several
+tasks rather than growing one; that is a planning decision, not a re-scoping of this spec.
 
 ## Out of scope
 
