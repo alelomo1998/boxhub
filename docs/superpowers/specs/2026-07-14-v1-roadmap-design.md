@@ -113,6 +113,12 @@ audit, and the payment surface M10 introduces.
 *Why here:* every backend domain now exists, so the whole server surface hardens in one pass — and nothing gets built
 on top of an un-hardened auth surface.
 
+**Specced 2026-07-21** — `docs/superpowers/specs/2026-07-21-m11-security-hardening-design.md`. The bar is
+**public-launch-safe** (hostile internet *and* hostile tenants), scoped to app + secrets handling; infra hardening
+stays with Production below. Spine is an automated authz/tenancy **conformance sweep** over Spring's own route
+table, so tenancy becomes a standing guarantee rather than a one-time audit. Also adds signed short-lived media
+URLs, encryption-key versioning, a minimal superadmin audit log, and per-session kill.
+
 ### M12 — Frontend rework
 Whole-app pass on structure *and* aesthetic: the three shells and every screen. The current app is over-complicated
 and not visually pleasing; this is a rework, not a polish pass. Impeccable gate per surface.
@@ -124,6 +130,14 @@ later is building it twice.
 Lean and useful: box economics (real, now that M10 produces revenue data), engagement, class statistics. The admin
 dashboard shell + 3 KPIs from M5 are the seed. Table stakes — enough to answer a box owner's actual questions,
 no more.
+
+### M14 — MFA & account security
+TOTP two-factor for the accounts whose compromise actually hurts — **BOX_ADMIN and superadmin** — with recovery
+codes; optional for athletes. A box-admin takeover exposes member PII and lets the attacker swap the box's Stripe
+credentials, which is why this is not merely nice-to-have.
+
+*Why here:* it is a real feature with enrollment and recovery UX, not a hardening pass, so M11 deliberately does not
+carry it. **Cuttable** if the pilot shows nobody wants it — but it belongs on the map rather than in memory.
 
 **Project 1 exits when the platform is flawless and boring.**
 
@@ -156,8 +170,10 @@ learn.
 
 # Launch
 
-- **Production.** Small Linux VPS, Docker Compose prod profile, TLS + domain, secrets, Postgres backups, health
-  checks, log access, CI deploy on green. No Kubernetes.
+- **Production.** Small Linux VPS, Docker Compose prod profile, TLS + domain, **firewall + SSH hardening**,
+  secrets delivery on the host, Postgres backups **and a restore drill** (a backup nobody has restored is a
+  hypothesis), health checks, log access + retention, CI deploy on green. No Kubernetes.
+  M11 deliberately defers every item on this line to here, because they need a real host and cannot be proven in CI.
 - **Marketing site.** Product presentation, pricing, and the funnel into the "Start your box" signup. Leads with the
   room, because the room is the sale.
 - **Pilot.** A real box, two weeks, on the complete product. Bug fixing and gap filling only.
@@ -170,4 +186,4 @@ Per milestone: brainstorm → spec + user approval → writing-plans → subagen
 (orchestrator = main session, executors = Sonnet subagents) → impeccable gate (≥28/40, no open P0/P1) on every
 frontend surface → tenancy tests on every box-scoped endpoint → merge to `main` on green.
 
-Next Flyway migration is **V11**.
+Next Flyway migration is **V15** (updated 2026-07-21; M8 took V11–V12, M9 V13, M10 V14).

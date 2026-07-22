@@ -140,3 +140,8 @@
 - The Stripe webhook answers 200 for an unknown session id and 400 for a known one whose box has no credentials — a small existence oracle over Stripe session ids for an unauthenticated caller. Uniform 200 if it is ever free to do.
 - `payment-receipt.html` divides cents by 100 inside the Thymeleaf mail template (email cannot route through the Angular frontend's formatting) — the only place backend-side currency formatting exists; no DTO or stored value uses a float.
 - `checkout.session.async_payment_failed` is not handled — a failed delayed-notification payment leaves its Payment row PENDING forever. Correct today (nothing is granted), but there is no cleanup or notification.
+
+## Deferred from M11 (security hardening) — decided during the M11 brainstorm
+- **Full audit log** (M11 ships only a minimal superadmin lifecycle log): every admin action and member-data access, hash-chained/immutable rows, retention policy, search + filter UI, export.
+- **Redis-backed distributed rate limiting** — M11's limiter stays in-memory and single-node, which matches the one-VPS target; revisit only when a second node actually exists.
+- **Superadmin account model** to replace the `BOXHUB_SUPERADMIN_EMAILS` env allowlist (no account, no per-superadmin identity beyond the email claim).
