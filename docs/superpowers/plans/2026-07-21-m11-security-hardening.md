@@ -22,6 +22,22 @@
 - Conventional commits ending `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`. macOS dup files break builds: `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete`.
 - **Repo orientation rule (binding):** run `graphify query "<question>"` before exploring/grepping; direct reads of files you are about to modify are allowed. Include this rule in every subagent prompt.
 
+## Execution model — per-task model tiering (decided 2026-07-21)
+
+Orchestrator = the main session's own model. Executors are dispatched with an **explicit** `model`, chosen per task:
+
+| Tier | Tasks | Rationale |
+|---|---|---|
+| **opus** | T1 (sweep), T2 (authz fixes), T6 (secrets/crypto), T12 final review | These set the milestone's guarantee, touch crypto correctness, or fix the holes themselves. |
+| **sonnet** | T3, T4, T5, T7, T8, T9, T10, T11 | The plan carries the code; judgment is bounded. |
+| **haiku** | none | Every M11 task carries security judgment. M10's evidence: the "mechanical" Stripe task needed three fix rounds for real money bugs. |
+
+**Reviewer model scales to diff risk**, not a fixed tier: opus reviews T1/T2/T6, sonnet reviews the rest.
+
+**Escalation ladder (binding):** if an executor returns BLOCKED, or a review returns a Critical, the *fix* dispatch
+goes **one tier up** from the tier that produced the defect. Cheapest-model-first is a false economy when a task
+needs three rounds — turn count beats token price.
+
 ## File Structure
 
 **Backend — new:**
