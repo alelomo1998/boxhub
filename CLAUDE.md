@@ -12,7 +12,7 @@ CrossFit box platform. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16. Mul
 - **Milestone lock:** work only the active milestone. Out-of-scope ideas → `docs/BACKLOG.md`, don't build them.
 - **Schema changes only via Flyway.** Never edit an applied migration.
 - **Every box-scoped endpoint** gets happy + auth-denied + cross-tenant-denied tests.
-- **Tenancy:** resolve tenant ONLY from the JWT via `TenantContext`, never from request params. `@TenantId` entities (Plan, Invite): any query that must be tenant-agnostic needs NATIVE SQL — JPQL/derived queries (incl. bulk updates) are silently filtered to the caller's box.
+- **Tenancy:** resolve tenant ONLY from the JWT via `TenantContext`, never from request params. `@TenantId` entities (Plan, Invite): any query that must be tenant-agnostic needs NATIVE SQL — JPQL/derived queries (incl. bulk updates) are silently filtered to the caller's box. Full rule, both failure modes, the `runAsBox` pattern, and the native-method table: `docs/TENANCY.md`.
 - Conventional commits. `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend builds (system JDK is 26, too new).
 
 ## Design rules (binding — see design law doc for detail)
