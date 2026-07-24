@@ -16,7 +16,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
         "boxhub.auth-rate-limit=1000",
-        "boxhub.stripe.enc-key=HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo="
+        "boxhub.stripe.enc-key=HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo=",
+        "boxhub.media.link-secret=test-only-media-link-secret"
 })
 public abstract class AbstractIntegrationTest {
 

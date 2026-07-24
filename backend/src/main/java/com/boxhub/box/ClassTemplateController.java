@@ -1,5 +1,6 @@
 package com.boxhub.box;
 
+import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
@@ -20,17 +21,19 @@ public class ClassTemplateController {
 
     private final ClassTemplateRepository templates;
     private final SessionGenerator generator;
+    private final MediaSigner mediaSigner;
 
-    public ClassTemplateController(ClassTemplateRepository templates, SessionGenerator generator) {
+    public ClassTemplateController(ClassTemplateRepository templates, SessionGenerator generator, MediaSigner mediaSigner) {
         this.templates = templates;
         this.generator = generator;
+        this.mediaSigner = mediaSigner;
     }
 
     public record TemplateDto(UUID id, String name, int weekday, LocalTime startTime,
                               int durationMin, int capacity, UUID coachId, boolean active, String imagePath) {
-        static TemplateDto of(ClassTemplate t) {
+        static TemplateDto of(ClassTemplate t, MediaSigner mediaSigner) {
             return new TemplateDto(t.getId(), t.getName(), t.getWeekday(), t.getStartTime(),
-                    t.getDurationMin(), t.getCapacity(), t.getCoachId(), t.isActive(), t.getImagePath());
+                    t.getDurationMin(), t.getCapacity(), t.getCoachId(), t.isActive(), mediaSigner.sign(t.getImagePath()));
         }
     }
 
@@ -44,7 +47,7 @@ public class ClassTemplateController {
 
     @GetMapping
     public List<TemplateDto> list() {
-        return templates.findAll().stream().map(TemplateDto::of).toList();
+        return templates.findAll().stream().map(t -> TemplateDto.of(t, mediaSigner)).toList();
     }
 
     @PostMapping
@@ -60,7 +63,7 @@ public class ClassTemplateController {
         t.setCoachId(req.coachId());
         ClassTemplate saved = templates.save(t);
         generator.generateForBox(TenantContext.requireBoxId());
-        return TemplateDto.of(saved);
+        return TemplateDto.of(saved, mediaSigner);
     }
 
     @PatchMapping("/{id}")
@@ -77,6 +80,6 @@ public class ClassTemplateController {
         if (req.active() != null) t.setActive(req.active());
         ClassTemplate saved = templates.save(t);
         if (saved.isActive()) generator.generateForBox(TenantContext.requireBoxId());
-        return TemplateDto.of(saved);
+        return TemplateDto.of(saved, mediaSigner);
     }
 }

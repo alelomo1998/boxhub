@@ -97,6 +97,39 @@ class TvStateServiceTest extends AbstractIntegrationTest {
         assertThat(st.timer()).isNull();
     }
 
+    /**
+     * The TV runs all day off SSE pushes with a short (10 min) signed-URL lifetime; it only
+     * survives that if compose() mints a fresh signature every single call rather than caching
+     * or reusing one from the stored avatarPath. Proven directly: two compose() calls across a
+     * real second boundary must produce two DIFFERENT signed URLs for the same underlying path.
+     */
+    @Test
+    void railAvatarPathsAreSignedFreshOnEveryCompose() throws InterruptedException {
+        long n = System.nanoTime();
+        Box a = newBox("tvs-sign-" + n);
+        actAsBox(a.getId());
+
+        ClassSession s = new ClassSession();
+        s.setName("WOD Class"); s.setStartAt(Instant.now().minusSeconds(600));
+        s.setDurationMin(60); s.setCapacity(12); s.setProgrammingStatus("PUBLISHED");
+        s = sessions.save(s);
+
+        Membership m = member(a, "tvsign-" + n + "@t.io", "Signed Athlete");
+        m.setAvatarPath("/media/" + a.getId() + "/pic.jpg");
+        memberships.save(m);
+        Booking b = new Booking(); b.setSessionId(s.getId()); b.setMembershipId(m.getId()); b.setStatus("BOOKED");
+        bookings.save(b);
+
+        TvStateService.TvState first = state.compose(a.getId());
+        String firstAvatar = first.rail().get(0).avatarPath();
+        assertThat(firstAvatar).contains("?md5=").contains("&expires=");
+
+        Thread.sleep(1100); // cross a whole-second boundary; expires is epoch-seconds
+        TvStateService.TvState second = state.compose(a.getId());
+        String secondAvatar = second.rail().get(0).avatarPath();
+        assertThat(secondAvatar).isNotEqualTo(firstAvatar); // proves compose() re-signs, not caches
+    }
+
     @Test
     void noShowExcludedFromRail() {
         long n = System.nanoTime();

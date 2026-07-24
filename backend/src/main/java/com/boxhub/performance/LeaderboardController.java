@@ -6,6 +6,7 @@ import com.boxhub.programming.SessionItem;
 import com.boxhub.programming.SessionItemController;
 import com.boxhub.programming.SessionItemRepository;
 import com.boxhub.programming.WodRepository;
+import com.boxhub.shared.MediaSigner;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,13 +25,15 @@ public class LeaderboardController {
     private final SessionItemRepository items;
     private final WodRepository wods;
     private final MembershipRepository memberships;
+    private final MediaSigner mediaSigner;
 
     public LeaderboardController(WodScoreRepository scores, SessionItemRepository items, WodRepository wods,
-                                 MembershipRepository memberships) {
+                                 MembershipRepository memberships, MediaSigner mediaSigner) {
         this.scores = scores;
         this.items = items;
         this.wods = wods;
         this.memberships = memberships;
+        this.mediaSigner = mediaSigner;
     }
 
     public record Entry(int rank, String athleteName, String avatarPath, boolean rx, Integer timeSeconds,
@@ -55,7 +58,7 @@ public class LeaderboardController {
         int rank = 1;
         for (WodScore s : ranked) {
             Who w = who.getOrDefault(s.getMembershipId(), new Who("—", null));
-            entries.add(new Entry(rank++, w.name(), w.avatar(),
+            entries.add(new Entry(rank++, w.name(), mediaSigner.sign(w.avatar()),
                     s.isRx(), s.getTimeSeconds(), s.getRounds(), s.getReps(), s.getLoad(), s.isFinished()));
         }
         return new LeaderboardDto(scoreType, entries);

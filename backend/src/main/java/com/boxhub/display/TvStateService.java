@@ -7,6 +7,7 @@ import com.boxhub.performance.Leaderboard;
 import com.boxhub.performance.WodScore;
 import com.boxhub.performance.WodScoreRepository;
 import com.boxhub.programming.*;
+import com.boxhub.shared.MediaSigner;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,13 +46,14 @@ public class TvStateService {
     private final MembershipRepository memberships;
     private final WodScoreRepository scores;
     private final ClassTimerRepository timers;
+    private final MediaSigner mediaSigner;
 
     public TvStateService(BoxRepository boxes, ClassSessionRepository sessions, SessionItemRepository items,
                           WodRepository wods, BookingRepository bookings, MembershipRepository memberships,
-                          WodScoreRepository scores, ClassTimerRepository timers) {
+                          WodScoreRepository scores, ClassTimerRepository timers, MediaSigner mediaSigner) {
         this.boxes = boxes; this.sessions = sessions; this.items = items;
         this.wods = wods; this.bookings = bookings; this.memberships = memberships; this.scores = scores;
-        this.timers = timers;
+        this.timers = timers; this.mediaSigner = mediaSigner;
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +115,7 @@ public class TvStateService {
                 for (WodScore sc : rankedScores) {
                     Membership m = memberships.findById(sc.getMembershipId()).orElse(null);
                     if (m == null) continue;
-                    ranked.put(m.getId(), new RailRow(m.getUser().getName(), m.getAvatarPath(),
+                    ranked.put(m.getId(), new RailRow(m.getUser().getName(), mediaSigner.sign(m.getAvatarPath()),
                             "SCORED", r++, format(scoreType, sc), sc.isRx()));
                 }
             }
@@ -125,7 +127,7 @@ public class TvStateService {
             if (!inClass || ranked.containsKey(b.getMembershipId())) continue;
             Membership m = memberships.findById(b.getMembershipId()).orElse(null);
             if (m == null) continue;
-            rail.add(new RailRow(m.getUser().getName(), m.getAvatarPath(), b.getStatus(), null, null, null));
+            rail.add(new RailRow(m.getUser().getName(), mediaSigner.sign(m.getAvatarPath()), b.getStatus(), null, null, null));
         }
 
         TimerInfo timer = composeTimer(current.getId());
@@ -133,7 +135,7 @@ public class TvStateService {
         return new TvState("CLASS", box.getName(), null,
                 new SessionInfo(current.getId(), current.getName(), current.getStartAt(), current.getDurationMin(),
                         coach == null ? null : coach.getUser().getName(),
-                        coach == null ? null : coach.getAvatarPath()),
+                        coach == null ? null : mediaSigner.sign(coach.getAvatarPath())),
                 itemInfos, rail, timer);
     }
 

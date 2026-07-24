@@ -20,6 +20,9 @@ public class BoxController {
         this.boxes = boxes;
     }
 
+    // logoUrl is deliberately NOT routed through MediaSigner: it renders on the pre-login invite
+    // preview (no JWT to authenticate a signature request with), so per the M11 spec the box logo
+    // stays public. Contrast with avatarPath/imagePath elsewhere, which are box-members-only.
     record CurrentBoxResponse(UUID id, String name, String slug, String timezone, String logoUrl,
                               int cancelCutoffMin, int bookingHorizonWeeks, String role) {
         static CurrentBoxResponse of(Box b) {

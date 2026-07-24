@@ -7,6 +7,7 @@ import com.boxhub.performance.LiftEntryRepository;
 import com.boxhub.performance.PerformanceQueries;
 import com.boxhub.programming.Movement;
 import com.boxhub.programming.MovementRepository;
+import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.TenantContext;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,12 +37,13 @@ public class HomeController {
     private final LiftEntryRepository lifts;
     private final MovementRepository movements;
     private final SubscriptionService subscriptions;
+    private final MediaSigner mediaSigner;
 
     public HomeController(BookingRepository bookings, ClassSessionRepository sessions,
                           ClassTemplateRepository templates, MembershipRepository memberships,
                           AnnouncementRepository announcements, PerformanceQueries queries,
                           LiftEntryRepository lifts, MovementRepository movements,
-                          SubscriptionService subscriptions) {
+                          SubscriptionService subscriptions, MediaSigner mediaSigner) {
         this.bookings = bookings;
         this.sessions = sessions;
         this.templates = templates;
@@ -51,6 +53,7 @@ public class HomeController {
         this.lifts = lifts;
         this.movements = movements;
         this.subscriptions = subscriptions;
+        this.mediaSigner = mediaSigner;
     }
 
     public record Participant(String name, String avatarPath) {}
@@ -113,8 +116,8 @@ public class HomeController {
         if (next == null) return null;
 
         ClassSession s = sessionById.get(next.getSessionId());
-        String image = s.getTemplateId() == null ? null
-                : templates.findById(s.getTemplateId()).map(ClassTemplate::getImagePath).orElse(null);
+        String image = mediaSigner.sign(s.getTemplateId() == null ? null
+                : templates.findById(s.getTemplateId()).map(ClassTemplate::getImagePath).orElse(null));
 
         Map<UUID, Membership> memberById = memberships.findAll().stream()
                 .collect(Collectors.toMap(Membership::getId, m -> m, (a, b) -> a));
@@ -124,7 +127,7 @@ public class HomeController {
                 .map(b -> {
                     Membership m = memberById.get(b.getMembershipId());
                     return new Participant(m == null ? "—" : m.getUser().getName(),
-                            m == null ? null : m.getAvatarPath());
+                            m == null ? null : mediaSigner.sign(m.getAvatarPath()));
                 }).toList();
 
         return new NextBooking(s.getId(), s.getName(), s.getStartAt(), image, next.getStatus(),

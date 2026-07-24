@@ -4,6 +4,7 @@ import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
+import com.boxhub.shared.MediaSigner;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,15 +26,17 @@ public class SessionDetailController {
     private final BookingRepository bookings;
     private final MembershipRepository memberships;
     private final UserRepository users;
+    private final MediaSigner mediaSigner;
 
     public SessionDetailController(ClassSessionRepository sessions, ClassTemplateRepository templates,
                                    BookingRepository bookings, MembershipRepository memberships,
-                                   UserRepository users) {
+                                   UserRepository users, MediaSigner mediaSigner) {
         this.sessions = sessions;
         this.templates = templates;
         this.bookings = bookings;
         this.memberships = memberships;
         this.users = users;
+        this.mediaSigner = mediaSigner;
     }
 
     public record CoachDto(String name, String avatarPath) {}
@@ -47,8 +50,8 @@ public class SessionDetailController {
     public SessionDetailDto detail(@PathVariable UUID id) {
         ClassSession s = sessions.findById(id).orElseThrow(NoSuchElementException::new);
 
-        String image = s.getTemplateId() == null ? null
-                : templates.findById(s.getTemplateId()).map(ClassTemplate::getImagePath).orElse(null);
+        String image = mediaSigner.sign(s.getTemplateId() == null ? null
+                : templates.findById(s.getTemplateId()).map(ClassTemplate::getImagePath).orElse(null));
 
         CoachDto coach = null;
         if (s.getCoachId() != null) {
@@ -56,7 +59,7 @@ public class SessionDetailController {
             if (u != null) {
                 String avatar = memberships.findByUserIdAndBoxId(u.getId(), s.getBoxId())
                         .map(Membership::getAvatarPath).orElse(null);
-                coach = new CoachDto(u.getName(), avatar);
+                coach = new CoachDto(u.getName(), mediaSigner.sign(avatar));
             }
         }
 
@@ -81,7 +84,7 @@ public class SessionDetailController {
         Membership m = memberById.get(b.getMembershipId());
         return new GridEntry(b.getMembershipId(),
                 m == null ? "—" : m.getUser().getName(),
-                m == null ? null : m.getAvatarPath(),
+                m == null ? null : mediaSigner.sign(m.getAvatarPath()),
                 b.getStatus());
     }
 }
