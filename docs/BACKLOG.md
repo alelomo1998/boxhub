@@ -145,3 +145,4 @@
 - **Full audit log** (M11 ships only a minimal superadmin lifecycle log): every admin action and member-data access, hash-chained/immutable rows, retention policy, search + filter UI, export.
 - **Redis-backed distributed rate limiting** — M11's limiter stays in-memory and single-node, which matches the one-VPS target; revisit only when a second node actually exists.
 - **Superadmin account model** to replace the `BOXHUB_SUPERADMIN_EMAILS` env allowlist (no account, no per-superadmin identity beyond the email claim).
+- `POST /api/box/sessions/{id}/checkin|uncheck|no-show` return 500, not 400, when the body carries no `bookingId` (`SessionController.BookingIdRequest` has no `@NotNull` and the params are not `@Valid`, so `bookings.findById(null)` throws) — found by the authz sweep's positive control; authz runs first, so it is an unmapped 500 on malformed input, not a security hole.

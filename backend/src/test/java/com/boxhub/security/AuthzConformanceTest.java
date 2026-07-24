@@ -9,6 +9,8 @@ import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.TokenService;
 import com.boxhub.identity.User;
+import com.boxhub.performance.LiftEntry;
+import com.boxhub.performance.LiftEntryRepository;
 import com.boxhub.programming.*;
 import com.boxhub.shared.Mailer;
 import org.assertj.core.api.SoftAssertions;
@@ -48,12 +50,23 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  *       unfiltered {@code repo.findById(id)} would pass it. Real ids are what makes this a
  *       tenancy assertion. A path variable with no seeded counterpart is a hard failure — the
  *       sweep never falls back to a random UUID.</li>
+ *   <li><b>(b+) positive control</b> — every url probe (b) denies is re-issued with box A's OWN
+ *       admin token and must not 404. Probe (b) is otherwise self-asserting: if a fixture row
+ *       drifts (starts 404-ing for everyone, or a bare {@code {id}} falls through to a preceding
+ *       segment naming the wrong type) the denial silently degenerates back into "unknown id →
+ *       not 2xx" with no signal. These run in a SECOND PASS after the sweep, DELETEs last: they
+ *       carry valid bodies and really do mutate, so running them inline would poison later probes.</li>
  *   <li><b>(c) insufficient role</b> — box A's ATHLETE token against every route declaring a role
  *       stricter than ATHLETE (COACH <i>and</i> BOX_ADMIN) must yield 403.</li>
- *   <li><b>(d) collection leak</b> — box B's admin calling a box-scoped collection GET must see
- *       ZERO box-A rows: the response must contain none of the box-A markers. This is the only
- *       thing covering a collection handler that ignores tenancy entirely (the foreign probe
- *       cannot: box B legitimately gets 2xx there, holding its OWN rows).</li>
+ *   <li><b>(d) collection leak</b> — box B's admin calling a box-scoped collection GET must (i) get
+ *       a <b>2xx</b> and (ii) see ZERO box-A rows: the response must contain none of the box-A
+ *       markers. The 2xx half is not decoration — a route that 4xx-es (a required
+ *       {@code @RequestParam} the probe did not supply, say) contains no marker either, so the leak
+ *       assertion would pass VACUOUSLY, which is the exact failure class this sweep exists to kill.
+ *       Any route where box B legitimately cannot reach 2xx must therefore be handled explicitly
+ *       ({@link #query}) rather than absorbed silently. This is the only thing covering a collection
+ *       handler that ignores tenancy entirely (the foreign probe cannot: box B legitimately gets
+ *       2xx there, holding its OWN rows).</li>
  *   <li><b>(e) superadmin surface</b> — every {@code /api/admin/**} route must reject a BOX_ADMIN
  *       box token with 403. Box-admin → superadmin escalation is exactly the shape this guarantee
  *       has to own.</li>
@@ -77,6 +90,26 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  *       every query parameter combination.</li>
  *   <li>{@code @TenantId} only catches JPQL/derived queries on annotated entities — Movement,
  *       TvDevice and Membership are NOT annotated, which is exactly why probes (b) and (d) exist.</li>
+ *   <li><b>Probe (d) is a CROSS-BOX assertion only — it cannot see an intra-box leak.</b> Verified,
+ *       not assumed: dropping the caller scoping from {@code LiftController.byMovement} (so it
+ *       returns every member's lifts) leaves this sweep GREEN, because {@code LiftEntry} is
+ *       {@code @TenantId} and the derived query is still box-filtered — box B sees nothing either
+ *       way. Only a tenant-filter BYPASS is visible here: the same route re-pointed at a
+ *       {@code nativeQuery} with no box predicate fails the assertion immediately. Athlete-vs-
+ *       athlete visibility inside one box is a different guarantee and belongs in the per-feature
+ *       tests, not here.</li>
+ *   <li><b>Three of the seven {@code self} probes are STATUS-ONLY, and must not be read as content
+ *       coverage.</b> Probe (f) asserts "no box-A marker in the body"; for
+ *       {@code PATCH /api/me/password}, {@code POST /api/me/email} and
+ *       {@code POST /api/auth/logout-all} the response is empty or a bare status, so no marker
+ *       could ever appear whether the handler is correct or not — the probe there degenerates to
+ *       "another user's token does not blow the route up". Real weight in this family is carried
+ *       by {@code GET /api/me}, {@code GET /api/me/export} and {@code GET /api/auth/sessions}
+ *       (which DO render caller data) and by the explicit {@code POST /api/auth/box-token} denial.
+ *       Nothing stronger is cheap here: no {@code /api/me/**} route names another user, so there
+ *       is no cross-user id to probe with — they all resolve the caller from
+ *       {@code TenantContext.userId()}. A future {@code /api/me/{userId}/…} would hit
+ *       {@link #concrete}'s hard failure, not slip through.</li>
  * </ol>
  */
 class AuthzConformanceTest extends AbstractIntegrationTest {
@@ -100,14 +133,18 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
     @Autowired MovementRepository movements;
     @Autowired TvDeviceRepository tvDevices;
     @Autowired BenchmarkTemplateRepository benchmarks;
+    @Autowired LiftEntryRepository lifts;
+    @Autowired BookingRepository bookings;
     @MockitoBean Mailer mailer;
 
-    /** ATHLETE in box A; BOX_ADMIN in box B; and box B's admin as a plain user-scoped token. */
-    private String athleteToken, foreignBoxToken, foreignUserToken;
+    /** ATHLETE and BOX_ADMIN in box A; BOX_ADMIN in box B; box B's admin as a plain user token. */
+    private String athleteToken, ownerToken, foreignBoxToken, foreignUserToken;
     private Box boxA;
 
     /** Path-variable name (or, for a bare {id}, the preceding path segment) -> REAL box-A id. */
     private final Map<String, String> pathIds = new HashMap<>();
+    /** Same, for {@code /api/admin/**} only — those probes must NOT touch box A, see {@link #concrete}. */
+    private final Map<String, String> adminIds = new HashMap<>();
     /** Strings that must never appear in a response served to box B / to another user. */
     private final List<String> markers = new ArrayList<>();
 
@@ -137,10 +174,20 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
 
         boxA = newBox("Sweep A " + mark, "sweep-a-" + n);
         Box boxB = newBox("Sweep B " + n, "sweep-b-" + n);
+        // Throwaway target for the /api/admin/** probes. They used to resolve {id} to box A via the
+        // "boxes" segment, so the `suspend` probe MUTATED the fixture every other probe depends on
+        // (that masking is documented in the Task-2 report). Those probes only assert the 403, so
+        // the box they name is free.
+        Box boxC = newBox("Sweep C " + n, "sweep-c-" + n);
 
         User athlete = authService.register("sweep-ath-" + n + "@t.io", "correct-horse-battery", "Sweep Athlete");
         Membership athleteMembership = member(athlete, boxA, "ATHLETE");
         athleteToken = tokenService.boxToken(athlete, athleteMembership);
+
+        // Box A's own admin — used ONLY by the positive control for probe (b).
+        User owner = authService.register("sweep-own-" + n + "@t.io", "correct-horse-battery", "Sweep Owner A");
+        Membership ownerMembership = member(owner, boxA, "BOX_ADMIN");
+        ownerToken = tokenService.boxToken(owner, ownerMembership);
 
         User foreignAdmin = authService.register("sweep-adm-" + n + "@t.io", "correct-horse-battery", "Sweep Admin B");
         foreignBoxToken = tokenService.boxToken(foreignAdmin, member(foreignAdmin, boxB, "BOX_ADMIN"));
@@ -188,6 +235,16 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         session.setCapacity(12);
         session = sessions.save(session);
 
+        // DELETE /api/box/sessions/{id}/booking cancels the CALLER'S OWN booking, so without this
+        // row box A's own admin 404s there too — the positive control caught exactly that, and it
+        // means the foreign probe's 404 would have been "no booking of mine", not "not your box".
+        // Booking is @TenantId, so this stays invisible to box B.
+        Booking booking = new Booking();
+        booking.setSessionId(session.getId());
+        booking.setMembershipId(ownerMembership.getId());
+        booking.setStatus("BOOKED");
+        bookings.save(booking);
+
         Wod wod = new Wod();
         wod.setTitle("Wod " + mark);
         wod.setWodType("FOR_TIME");
@@ -208,6 +265,17 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         movement.setCategory("BARBELL");
         movement = movements.save(movement);
 
+        // GET /api/box/lifts needs a movementId AND a box-A row to leak, or its collection-leak
+        // assertion is true for the wrong reason (an empty result set).
+        LiftEntry lift = new LiftEntry();
+        lift.setMembershipId(athleteMembership.getId());
+        lift.setMovementId(movement.getId());
+        lift.setLoad(new java.math.BigDecimal("100"));
+        lift.setReps(1);
+        lift.setPerformedOn(java.time.LocalDate.now());
+        lift.setNotes(mark);
+        lift = lifts.save(lift);
+
         TvDevice tv = new TvDevice();
         tv.setBoxId(boxA.getId());
         tv.setName("Tv " + mark);
@@ -227,7 +295,6 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         pathIds.put("token", invite.rawToken());
         // by preceding path segment, for a bare {id}
         pathIds.put("boxes", boxA.getId().toString());
-        pathIds.put("members", athleteMembership.getId().toString());
         pathIds.put("subscriptions", sub.getId().toString());
         pathIds.put("plans", plan.getId().toString());
         pathIds.put("invites", invite.invite().getId().toString());
@@ -236,18 +303,52 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         pathIds.put("wods", wod.getId().toString());
         pathIds.put("movements", movement.getId().toString());
         pathIds.put("tv", tv.getId().toString());
-        // BenchmarkTemplate is a GLOBAL catalog row, not a box-A resource — see BENCHMARKS_ARE_GLOBAL.
+        // BenchmarkTemplate is a GLOBAL catalog row, not a box-A resource — see SKIP_FOREIGN.
         pathIds.put("benchmarks", benchmarks.findAll().getFirst().getId().toString());
+
+        adminIds.clear();
+        adminIds.put("boxes", boxC.getId().toString());
 
         markers.clear();
         markers.add(mark);
         markers.add(athlete.getEmail());
         markers.addAll(List.of(boxA.getId(), athleteMembership.getId(), plan.getId(), sub.getId(),
                         payment.getId(), invite.invite().getId(), template.getId(), session.getId(),
-                        wod.getId(), item.getId(), movement.getId(), tv.getId())
+                        wod.getId(), item.getId(), movement.getId(), tv.getId(), lift.getId())
                 .stream().map(UUID::toString).toList());
 
-        bodies = bodies(plan.getId(), movement.getId());
+        // Both request-shaping maps are built HERE, from seeded ids, and nowhere else: a static map
+        // plus a "%s" placeholder plus a factory method was three ways to say the same thing.
+        query = Map.of(
+                "GET /api/box/sessions", "?from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z",
+                "GET /api/box/my-bookings", "?from=2020-01-01T00:00:00Z",
+                "GET /api/box/lifts", "?movementId=" + movement.getId());
+
+        bodies = Map.ofEntries(
+                Map.entry("PUT /api/box/stripe", "{\"restrictedKey\":\"rk_test_x\",\"webhookSecret\":\"whsec_x\"}"),
+                Map.entry("POST /api/box/plans", "{\"name\":\"P\",\"durationDays\":30,\"priceCents\":100}"),
+                Map.entry("POST /api/box/invites", "{\"email\":\"probe@t.io\",\"role\":\"ATHLETE\"}"),
+                Map.entry("POST /api/box/movements", "{\"name\":\"M\",\"category\":\"BARBELL\"}"),
+                Map.entry("PUT /api/box/sessions/{sessionId}/items", "{\"items\":[]}"),
+                Map.entry("PATCH /api/box/sessions/{sessionId}/programming", "{\"status\":\"PUBLISHED\"}"),
+                Map.entry("PUT /api/box/class-templates/{templateId}/skeleton", "{\"pieces\":[]}"),
+                Map.entry("POST /api/box/class-templates",
+                        "{\"name\":\"T\",\"weekday\":1,\"startTime\":\"10:00\",\"durationMin\":60,\"capacity\":10}"),
+                Map.entry("PUT /api/box/announcement", "{\"body\":\"hi\"}"),
+                Map.entry("POST /api/box/wods", "{\"title\":\"W\",\"wodType\":\"FOR_TIME\",\"scoreType\":\"TIME\"}"),
+                Map.entry("PUT /api/box/me/avatar", "{\"path\":\"media/x.png\"}"),
+                Map.entry("POST /api/box/subscriptions/checkout", "{\"planId\":\"" + plan.getId() + "\"}"),
+                Map.entry("POST /api/box/lifts", "{\"movementId\":\"" + movement.getId() + "\",\"load\":100}"),
+                // The one non-box route that names a tenant: box A's id, so a caller with no box-A
+                // membership must be refused a box-A token.
+                Map.entry("POST /api/auth/box-token", "{\"boxId\":\"" + boxA.getId() + "\"}"),
+                // Same password in and out, deliberately: the probe must reach the handler without
+                // changing the fixture user's credentials, or the /api/me/email probe that runs
+                // after it (routes are walked in sorted order) would fail on WRONG_PASSWORD.
+                Map.entry("PATCH /api/me/password",
+                        "{\"currentPassword\":\"correct-horse-battery\",\"newPassword\":\"correct-horse-battery\"}"),
+                Map.entry("POST /api/me/email",
+                        "{\"password\":\"correct-horse-battery\",\"newEmail\":\"probe-new@t.io\"}"));
     }
 
     private Box newBox(String name, String slug) {
@@ -419,44 +520,31 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             // would anonymize the fixture's foreign user and poison every later assertion.
             "DELETE /api/me");
 
-    /** Query strings for routes whose required @RequestParams would otherwise 400 before the handler. */
-    private static final Map<String, String> QUERY = Map.of(
-            "GET /api/box/sessions", "?from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z",
-            "GET /api/box/my-bookings", "?from=2020-01-01T00:00:00Z");
+    /**
+     * Floor per probe family. The census used to be PRINTED, which meant an accidental early
+     * {@code continue}, a narrowed filter or a broken {@code bodies} entry could silently drop
+     * assertions and leave the sweep green. Asserting the floors makes "204 assertions" a checked
+     * invariant. Raise a floor when a family legitimately grows; never lower one to go green.
+     */
+    private static final Map<String, Integer> MIN_PROBES = Map.of(
+            "anonymous", 92, "foreign-box", 33, "positive-control", 33,
+            "insufficient-role", 41, "collection-leak", 22, "superadmin", 9, "self", 7);
+
+    /**
+     * Query string per route whose required {@code @RequestParam} would otherwise 400 before the
+     * handler runs. Built in {@link #fixture()} because {@code GET /api/box/lifts} needs a seeded
+     * box-A movement id. A missing entry is no longer silent: probe (d) fails any non-2xx.
+     */
+    private Map<String, String> query;
 
     /**
      * Minimal VALID body per route that has a @Valid @RequestBody. Without these the probe's `{}`
      * is rejected by the validator with a 400 BEFORE the handler's RoleGuard/tenant check runs, so
      * the assertion could not tell a guarded route from an unguarded one. With a well-formed body
-     * the probe reaches the authz check and a failure here is a REAL hole.
+     * the probe reaches the authz check and a failure here is a REAL hole. Built in {@link #fixture()}
+     * — several bodies carry seeded box-A ids.
      */
     private Map<String, String> bodies;
-
-    private static Map<String, String> bodies(UUID planId, UUID movementId) {
-        return Map.ofEntries(
-                Map.entry("PUT /api/box/stripe", "{\"restrictedKey\":\"rk_test_x\",\"webhookSecret\":\"whsec_x\"}"),
-                Map.entry("POST /api/box/plans", "{\"name\":\"P\",\"durationDays\":30,\"priceCents\":100}"),
-                Map.entry("POST /api/box/invites", "{\"email\":\"probe@t.io\",\"role\":\"ATHLETE\"}"),
-                Map.entry("POST /api/box/movements", "{\"name\":\"M\",\"category\":\"BARBELL\"}"),
-                Map.entry("PUT /api/box/sessions/{sessionId}/items", "{\"items\":[]}"),
-                Map.entry("PATCH /api/box/sessions/{sessionId}/programming", "{\"status\":\"PUBLISHED\"}"),
-                Map.entry("PUT /api/box/class-templates/{templateId}/skeleton", "{\"pieces\":[]}"),
-                Map.entry("POST /api/box/class-templates",
-                        "{\"name\":\"T\",\"weekday\":1,\"startTime\":\"10:00\",\"durationMin\":60,\"capacity\":10}"),
-                Map.entry("PUT /api/box/announcement", "{\"body\":\"hi\"}"),
-                Map.entry("POST /api/box/wods", "{\"title\":\"W\",\"wodType\":\"FOR_TIME\",\"scoreType\":\"TIME\"}"),
-                Map.entry("PUT /api/box/me/avatar", "{\"path\":\"media/x.png\"}"),
-                Map.entry("POST /api/box/subscriptions/checkout", "{\"planId\":\"" + planId + "\"}"),
-                Map.entry("POST /api/box/lifts", "{\"movementId\":\"" + movementId + "\",\"load\":100}"),
-                Map.entry("POST /api/auth/box-token", "{\"boxId\":\"%s\"}"), // %s filled with box A's id
-                // Same password in and out, deliberately: the probe must reach the handler without
-                // changing the fixture user's credentials, or the /api/me/email probe that runs
-                // after it (routes are walked in sorted order) would fail on WRONG_PASSWORD.
-                Map.entry("PATCH /api/me/password",
-                        "{\"currentPassword\":\"correct-horse-battery\",\"newPassword\":\"correct-horse-battery\"}"),
-                Map.entry("POST /api/me/email",
-                        "{\"password\":\"correct-horse-battery\",\"newEmail\":\"probe-new@t.io\"}"));
-    }
 
     // ---------------------------------------------------------------- route table
 
@@ -472,6 +560,12 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                     : Set.<String>of();
             var methods = info.getMethodsCondition().getMethods();
             for (String p : patterns) {
+                // Deliberate scope: only /api/**. Actuator (/actuator/**, and any
+                // @RestControllerEndpoint) lives on a DIFFERENT handler mapping — see the
+                // @Qualifier on `mapping` — and is guarded by SecurityConfig + management port
+                // config, not by tenancy. Nothing there is box-scoped, so there is no tenancy
+                // assertion to make; if a box-scoped actuator endpoint is ever added it belongs
+                // under /api/ (or this sweep needs a second mapping).
                 if (!p.startsWith("/api/")) continue;
                 // A @RequestMapping with no method= answers EVERY verb. We probe it as GET only —
                 // if such a mapping is ever added, its other verbs are NOT covered here. Today
@@ -491,12 +585,16 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
      * unable to distinguish a tenant-scoped handler from an unscoped one.
      */
     private String concrete(String pattern) {
+        // /api/admin/** resolves against a THROWAWAY box, never box A: those probes assert only the
+        // 403, and pointing {id} at box A let `POST /api/admin/boxes/{id}/suspend` mutate the
+        // fixture mid-sweep. An admin path variable with no entry here is still a hard failure.
+        Map<String, String> ids = pattern.startsWith("/api/admin/") ? adminIds : pathIds;
         String[] segs = pattern.split("/", -1);
         for (int i = 0; i < segs.length; i++) {
             if (!segs[i].startsWith("{")) continue;
             String var = segs[i].substring(1, segs[i].length() - 1);
-            String id = pathIds.get(var);
-            if (id == null && i > 0) id = pathIds.get(segs[i - 1]);
+            String id = ids.get(var);
+            if (id == null && i > 0) id = ids.get(segs[i - 1]);
             if (id == null) throw new AssertionError(
                     "No seeded box-A resource for path variable {" + var + "} in " + pattern
                     + ". Seed one in fixture() and register it in pathIds — the sweep must never "
@@ -507,10 +605,8 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
     }
 
     private MockHttpServletRequestBuilder req(Route r) {
-        String body = bodies.getOrDefault(r.key(), "{}");
-        if (body.contains("%s")) body = body.formatted(boxA.getId());
-        var b = request(HttpMethod.valueOf(r.method()), concrete(r.pattern()) + QUERY.getOrDefault(r.key(), ""))
-                .contentType(APPLICATION_JSON).content(body);
+        var b = request(HttpMethod.valueOf(r.method()), concrete(r.pattern()) + query.getOrDefault(r.key(), ""))
+                .contentType(APPLICATION_JSON).content(bodies.getOrDefault(r.key(), "{}"));
         // A write with no Authorization header hits the CSRF filter first and 403s, hiding the
         // 401 we are actually testing. Same reason SuperadminBoxApiTest uses .with(csrf()).
         return "GET".equals(r.method()) ? b : b.with(csrf());
@@ -536,6 +632,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         List<String> failures = new ArrayList<>();
         List<String> unlisted = new ArrayList<>();
         Map<String, Integer> probes = new TreeMap<>();
+        List<Route> positives = new ArrayList<>();
 
         for (Route r : routes()) {
             if (PUBLIC_ALLOWLIST.contains(r.key())) continue;
@@ -557,6 +654,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                                 + " (want 403/404" + (foreign == 400 ? "; 400 means validation ran before authz" : "")
                                 + ")");
                     probes.merge("foreign-box", 1, Integer::sum);
+                    positives.add(r); // (b+) — asserted in a second pass, see below
                 }
 
                 // (c) insufficient role: anything stricter than ATHLETE must reject an athlete.
@@ -567,9 +665,18 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                     probes.merge("insufficient-role", 1, Integer::sum);
                 }
 
-                // (d) collection leak: box B must see ZERO box-A rows.
+                // (d) collection leak: box B must REACH the collection (2xx) and see ZERO box-A rows.
                 if ("GET".equals(r.method()) && !r.pattern().contains("{")) {
                     Result res = call(r, foreignBoxToken);
+                    // A non-2xx body carries no box-A marker either, so without this the leak
+                    // assertion below passes VACUOUSLY — the route would be counted as covered
+                    // while proving nothing. Default-deny applies to the probe itself.
+                    if (res.status() / 100 != 2)
+                        failures.add(r.key() + " collection-leak probe: box B got " + res.status()
+                                + " and never reached the collection, so the leak assertion proved"
+                                + " NOTHING" + (res.status() == 400
+                                        ? " (400 — a required @RequestParam is missing from `query`)" : "")
+                                + ". Make the probe reach 2xx, or state why box B legitimately cannot.");
                     String hit = leaked(res.body());
                     if (hit != null)
                         failures.add(r.key() + " leaked a box-A value to box B: " + hit);
@@ -604,12 +711,37 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             }
         }
 
+        // (b+) positive control, LAST and with DELETEs last within it. Every url probe (b) denied
+        // must be reachable by box A's own admin — otherwise the denial only re-proved "unknown id
+        // -> not 2xx". These carry the same valid bodies, so they genuinely mutate; running them
+        // inline would poison the fixture the other probes read.
+        positives.sort(Comparator.comparing((Route r) -> "DELETE".equals(r.method())).thenComparing(Route::key));
+        for (Route r : positives) {
+            probes.merge("positive-control", 1, Integer::sum);
+            try {
+                if (call(r, ownerToken).status() == 404)
+                    failures.add(r.key() + " positive control: box A's OWN admin got 404 on the seeded id."
+                            + " The foreign-box probe on this route therefore proves nothing — the row is"
+                            + " unreachable for everyone (fixture drift, or {id} resolved to the wrong type).");
+            } catch (Exception reached) {
+                // The request reached the handler and blew up on the probe's throwaway body — e.g.
+                // POST /api/box/sessions/{id}/checkin with no bookingId. Reachability is the ONLY
+                // claim this control makes, and an absent row surfaces as a handled 404 (mapped from
+                // NoSuchElementException), never as a thrown exception, so this cannot hide a 404.
+            }
+        }
+
         SoftAssertions.assertSoftly(s -> {
             s.assertThat(failures).as("Authz conformance failures").isEmpty();
             s.assertThat(unlisted)
                     .as("Routes with no declared expectation. Add each to MIN_ROLE / NON_BOX_SCOPE "
                         + "with its real intent, or to PUBLIC_ALLOWLIST with a justification.")
                     .isEmpty();
+            // The census is ASSERTED, not merely printed: a silently shrinking probe family is the
+            // quietest way for this guarantee to rot.
+            MIN_PROBES.forEach((family, floor) -> s.assertThat(probes.getOrDefault(family, 0))
+                    .as("probe count for '" + family + "' — assertions were lost, not added")
+                    .isGreaterThanOrEqualTo(floor));
         });
         System.out.println("[authz-sweep] routes=" + routes().size()
                 + " allowlisted=" + PUBLIC_ALLOWLIST.size() + " probes=" + probes
