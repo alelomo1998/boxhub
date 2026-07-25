@@ -384,8 +384,11 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             "GET /api/invites/{token}",        // public invite preview, unguessable token
             "POST /api/tv/pair", "POST /api/tv/pair/poll", // device pairing, pre-identity
             "GET /api/tv/stream",              // NOT pre-identity: carries a long-lived device token
-                                               // in the query string, verified in TvStreamController.
-                                               // M11 T5 moves that token to an httpOnly cookie.
+                                               // in the httpOnly bh_tv cookie (Path=/api/tv, set at
+                                               // pair-claim), verified in TvStreamController — which
+                                               // 401s with no cookie and rejects a REVOKED device.
+                                               // M11 T5 moved it off the query string so it stops
+                                               // landing in nginx logs and browser history.
             "POST /api/stripe/webhook");       // Stripe signature IS the credential
 
     /**

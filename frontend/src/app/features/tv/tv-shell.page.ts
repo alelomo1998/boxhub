@@ -4,7 +4,9 @@ import { AvatarComponent } from '../../ui/avatar.component';
 import { TvService, TvState } from './tv.service';
 import { renderTimer } from '../../ui/timer';
 
-const TOKEN_KEY = 'boxhub_tv_token';
+// Just a "have I paired before" marker — the actual credential is the httpOnly bh_tv cookie
+// (M11 T5), which JS cannot read and does not need to.
+const PAIRED_KEY = 'boxhub_tv_paired';
 
 /** The gym TV: pair once (giant code), then a self-driving 80/20 board. Hero surface. */
 @Component({
@@ -196,8 +198,8 @@ export class TvShellPage implements OnInit, OnDestroy {
   ngOnInit() {
     document.documentElement.setAttribute('data-theme', 'dark'); // TV is always dark
     this.clockTimer = setInterval(() => this.now.set(new Date()), 1000);
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) { this.mode.set('live'); this.openStream(token); }
+    const paired = localStorage.getItem(PAIRED_KEY);
+    if (paired) { this.mode.set('live'); this.openStream(); }
     else this.startPairing();
   }
 
@@ -229,11 +231,11 @@ export class TvShellPage implements OnInit, OnDestroy {
   pollOnce() {
     this.tv.poll(this.code(), this.secret).subscribe({
       next: r => {
-        if (!r?.token) return; // 202 keeps polling
+        if (!r?.paired) return; // 202 keeps polling
         clearInterval(this.pollTimer);
-        localStorage.setItem(TOKEN_KEY, r.token);
+        localStorage.setItem(PAIRED_KEY, '1');
         this.mode.set('live');
-        this.openStream(r.token);
+        this.openStream();
       },
       error: err => {
         if (err.status === 410 || err.status === 404) { // code expired: mint a fresh one
@@ -244,18 +246,18 @@ export class TvShellPage implements OnInit, OnDestroy {
     });
   }
 
-  private openStream(token: string) {
-    this.es = this.tv.stream(token);
+  private openStream() {
+    this.es = this.tv.stream();
     this.es.addEventListener('state', (ev: MessageEvent) => {
       this.reconnecting.set(false);
       this.onState(JSON.parse(ev.data));
     });
     this.es.onerror = () => {
       // CLOSED = the browser gave up (revoked device / hard 401); a wall screen must recover on
-      // its own, so drop the dead token and show a fresh pairing code. CONNECTING = transient
+      // its own, so drop the stale marker and show a fresh pairing code. CONNECTING = transient
       // wifi blip, EventSource keeps retrying — just flag it.
       if (this.es?.readyState === EventSource.CLOSED) {
-        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(PAIRED_KEY);
         this.startPairing();
       } else {
         this.reconnecting.set(true);

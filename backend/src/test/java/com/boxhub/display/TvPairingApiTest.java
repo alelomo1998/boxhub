@@ -67,13 +67,27 @@ class TvPairingApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Rig wall left"));
 
-        // poll now returns a tv-scoped token bound to box A
+        // poll now sets the bh_tv cookie (the credential) and confirms via body, never returning
+        // the token itself in JSON — that's the whole point of M11 T5.
         MvcResult r = mvc.perform(post("/api/tv/pair/poll").contentType(APPLICATION_JSON)
                 .content("{\"code\":\"" + p.code() + "\",\"secret\":\"" + p.secret() + "\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty()).andReturn();
-        String token = new com.fasterxml.jackson.databind.ObjectMapper()
-                .readTree(r.getResponse().getContentAsString()).get("token").asText();
+                .andExpect(jsonPath("$.paired").value(true)).andReturn();
+
+        // MockMvc's cookie jar does not enforce RFC 6265 Path matching (M8 gotcha #8) — read the
+        // real Set-Cookie header, not r.getResponse().getCookie(...), so a future edit that widens
+        // or narrows the Path fails loudly instead of passing green here and breaking in a browser.
+        String setCookie = r.getResponse().getHeaders(org.springframework.http.HttpHeaders.SET_COOKIE)
+                .stream().filter(h -> h.startsWith("bh_tv=")).findFirst()
+                .orElseThrow(() -> new AssertionError("no bh_tv Set-Cookie header on poll success"));
+        assertThat(setCookie).containsIgnoringCase("HttpOnly");
+        assertThat(setCookie).containsIgnoringCase("SameSite=Lax");
+        assertThat(java.util.Arrays.stream(setCookie.split(";")).map(String::trim)
+                        .filter(attr -> attr.regionMatches(true, 0, "Path=", 0, 5))
+                        .findFirst().orElseThrow(() -> new AssertionError("bh_tv cookie has no Path: " + setCookie)))
+                .isEqualToIgnoringCase("Path=/api/tv");
+
+        String token = setCookie.substring("bh_tv=".length(), setCookie.indexOf(';'));
         var jwt = jwtDecoder.decode(token);
         assertThat(jwt.getClaimAsString("scope")).isEqualTo("tv");
         assertThat(jwt.getClaimAsString("box_id")).isEqualTo(a.getId().toString());
