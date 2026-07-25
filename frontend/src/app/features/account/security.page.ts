@@ -96,12 +96,17 @@ type SessionsState = 'loading' | 'error' | 'ready';
                       <span class="meta">{{ s.ip }} · last seen {{ s.lastSeen | date:'dd MMM yyyy, HH:mm' }}</span>
                     </span>
                     @if (s.current) { <bh-pill tone="active" label="This device" /> }
+                    <bh-button variant="ghost" size="sm" [disabled]="revokingId() === s.id"
+                               (click)="revokeSession(s)" [attr.data-testid]="'signout-one-' + s.id">
+                      {{ revokingId() === s.id ? 'Signing out…' : (s.current ? 'Sign out this device' : 'Sign out') }}
+                    </bh-button>
                   </li>
                 }
               </ul>
             } @else {
               <p class="stateline" data-testid="sessions-empty">No active sessions.</p>
             }
+            @if (revokeError()) { <p class="err" data-testid="revoke-error">{{ revokeError() }}</p> }
             @if (signOutError()) { <p class="err" data-testid="signout-error">{{ signOutError() }}</p> }
             <bh-button variant="ghost" size="sm" [disabled]="signOutPending()" (click)="signOutEverywhere()" data-testid="signout-all">
               {{ signOutPending() ? 'Signing out…' : 'Sign out everywhere' }}
@@ -228,6 +233,29 @@ export class SecurityPage implements OnInit {
 
   back() {
     this.location.back();
+  }
+
+  // Per-row revoke ("I lost my phone"): one family, not logout-all. Keyed by the row being
+  // revoked so only that row shows pending — a single boolean would disable every button.
+  revokingId = signal<string | null>(null);
+  revokeError = signal<string | null>(null);
+
+  revokeSession(s: AccountSession) {
+    this.revokingId.set(s.id);
+    this.revokeError.set(null);
+    this.auth.revokeSession(s.id).subscribe({
+      next: () => {
+        this.revokingId.set(null);
+        // Revoking the session you are currently holding ends it — the cookie is dead, so stay
+        // consistent with signOutEverywhere and land on login rather than a page that will 401.
+        if (s.current) { this.auth.clear(); this.router.navigate(['/auth/login']); return; }
+        this.loadSessions();
+      },
+      error: () => {
+        this.revokingId.set(null);
+        this.revokeError.set("Couldn't sign out that device — try again.");
+      },
+    });
   }
 
   loadSessions() {

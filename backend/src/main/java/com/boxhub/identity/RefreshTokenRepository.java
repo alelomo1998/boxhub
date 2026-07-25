@@ -13,6 +13,8 @@ import java.util.UUID;
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
+    boolean existsByFamilyIdAndUserId(UUID familyId, UUID userId);
+
     @Query("""
             select t from RefreshToken t
             where t.user.id = :userId and t.consumedAt is null and t.revokedAt is null

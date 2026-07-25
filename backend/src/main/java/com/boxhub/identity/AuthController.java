@@ -223,6 +223,21 @@ public class AuthController {
         return accounts.sessions(TenantContext.userId(), rawRefreshToken);
     }
 
+    /**
+     * Per-session kill ("I lost my phone"), not logout-all: revokes exactly the one family named
+     * by familyId. Lives under /api/auth for the same reason GET /sessions does — bh_rt is
+     * Path-scoped there.
+     *
+     * Ownership is enforced in RefreshTokenService.revokeSession, scoped to the caller's own
+     * userId. Another user's family id 404s (mapped from NoSuchElementException) rather than
+     * 403ing — a 403 would confirm the id exists, an existence oracle over other users' sessions.
+     */
+    @DeleteMapping("/sessions/{familyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeSession(@PathVariable UUID familyId) {
+        refreshTokens.revokeSession(TenantContext.userId(), familyId);
+    }
+
     record BoxTokenRequest(@jakarta.validation.constraints.NotNull UUID boxId) {}
 
     @PostMapping("/box-token")

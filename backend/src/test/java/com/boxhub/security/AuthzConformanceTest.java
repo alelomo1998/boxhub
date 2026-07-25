@@ -7,6 +7,8 @@ import com.boxhub.display.TvDeviceRepository;
 import com.boxhub.identity.AuthService;
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.identity.RefreshTokenRepository;
+import com.boxhub.identity.RefreshTokenService;
 import com.boxhub.identity.TokenService;
 import com.boxhub.identity.User;
 import com.boxhub.performance.LiftEntry;
@@ -120,6 +122,8 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping mapping;
     @Autowired AuthService authService;
     @Autowired TokenService tokenService;
+    @Autowired RefreshTokenService refreshTokens;
+    @Autowired RefreshTokenRepository refreshTokenRepo;
     @Autowired BoxRepository boxes;
     @Autowired MembershipRepository memberships;
     @Autowired PlanRepository plans;
@@ -276,6 +280,13 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         lift.setNotes(mark);
         lift = lifts.save(lift);
 
+        // DELETE /api/auth/sessions/{familyId}: a real family belonging to box-A's athlete, so the
+        // self probe (foreignUserToken, a DIFFERENT user) has an id that exists but is not theirs —
+        // exactly the case that must 404, not 403 or 204.
+        String rawRefresh = refreshTokens.issue(athlete, "sweep-ua", "9.9.9.9");
+        UUID athleteFamilyId = refreshTokenRepo.findByTokenHash(RefreshTokenService.sha256(rawRefresh))
+                .orElseThrow().getFamilyId();
+
         TvDevice tv = new TvDevice();
         tv.setBoxId(boxA.getId());
         tv.setName("Tv " + mark);
@@ -293,6 +304,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         pathIds.put("templateId", template.getId().toString());
         pathIds.put("itemId", item.getId().toString());
         pathIds.put("token", invite.rawToken());
+        pathIds.put("familyId", athleteFamilyId.toString());
         // by preceding path segment, for a bare {id}
         pathIds.put("boxes", boxA.getId().toString());
         pathIds.put("subscriptions", sub.getId().toString());
@@ -502,6 +514,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("PATCH /api/me/password", "SELF"),
             Map.entry("POST /api/me/email", "SELF"),
             Map.entry("GET /api/auth/sessions", "SELF"),
+            Map.entry("DELETE /api/auth/sessions/{familyId}", "SELF"),
             Map.entry("POST /api/auth/logout-all", "SELF"),
             Map.entry("POST /api/auth/box-token", "SELF"),
             Map.entry("POST /api/invites/{token}/accept", "SELF"));

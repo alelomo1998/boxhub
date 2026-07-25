@@ -52,6 +52,8 @@ public class AccountService {
         this.performance = performance;
     }
 
+    // id is the FAMILY id, not the individual RefreshToken row id: rotation replaces the row on
+    // every refresh, but the family persists, and DELETE /api/auth/sessions/{familyId} targets it.
     public record SessionDto(UUID id, String device, String ip, Instant lastSeen, boolean current) {}
 
     @Transactional
@@ -113,7 +115,7 @@ public class AccountService {
     public List<SessionDto> sessions(UUID userId, String rawRefreshToken) {
         String callerHash = rawRefreshToken == null ? null : RefreshTokenService.sha256(rawRefreshToken);
         return refreshTokens.activeSessions(userId).stream()
-                .map(t -> new SessionDto(t.getId(), t.getUserAgent(), t.getIp(), t.getLastUsedAt(),
+                .map(t -> new SessionDto(t.getFamilyId(), t.getUserAgent(), t.getIp(), t.getLastUsedAt(),
                         callerHash != null && callerHash.equals(t.getTokenHash())))
                 .toList();
     }
