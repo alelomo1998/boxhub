@@ -495,6 +495,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("GET /api/admin/waitlist", "SUPERADMIN"),
             Map.entry("GET /api/admin/settings", "SUPERADMIN"),
             Map.entry("PATCH /api/admin/settings", "SUPERADMIN"),
+            Map.entry("GET /api/admin/audit", "SUPERADMIN"),
             Map.entry("GET /api/me", "SELF"),
             Map.entry("DELETE /api/me", "SELF"),
             Map.entry("GET /api/me/export", "SELF"),
