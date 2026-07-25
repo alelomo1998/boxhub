@@ -10,6 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // ponytail: MediaSigner's constructor takes the secret as a plain String, no other Spring
 // dependency — plain JUnit instantiation covers it fully (mirrors CryptoServiceTest), no need
@@ -20,6 +21,20 @@ class MediaSignerTest {
     private static final Pattern QS = Pattern.compile("\\?md5=([^&]+)&expires=(\\d+)$");
 
     private final MediaSigner signer = new MediaSigner(SECRET);
+
+    @Test
+    void aBlankOrShortSecretFailsFastAtConstruction() {
+        // boxhub.media.link-secret has no config default, but Spring resolves a SET-BUT-EMPTY env
+        // var happily and `BOXHUB_MEDIA_LINK_SECRET=` is the normal shape of an unset k8s/CI secret
+        // reference. Without these guards that deploy boots and every media URL is forgeable under
+        // the empty string — the same failure shape as M10's committed enc-key default, one layer
+        // below where SecretDefaultsTest can see.
+        assertThatThrownBy(() -> new MediaSigner("")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new MediaSigner("   ")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new MediaSigner(null)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new MediaSigner("too-short-to-be-a-real-secret"))
+                .isInstanceOf(IllegalStateException.class);
+    }
 
     @Test
     void signedUrlContainsMd5AndExpires() {

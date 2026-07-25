@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.core.io.ClassPathResource;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -96,6 +98,46 @@ class SecretDefaultsTest {
                 .as("secret-shaped properties in application.yml carrying a usable default. Either "
                         + "drop the fallback (${VAR}) or, if this is genuinely not a secret, add it to "
                         + "SecretDefaultsTest.ALLOWED_WITH_DEFAULT with a written justification")
+                .isEmpty();
+    }
+
+    /**
+     * The yml scan above is blind to a secret injected straight into Java as
+     * {@code @Value("${ENV:committed-default}")} — which is a pattern this codebase already uses
+     * (OAuth2SecurityConfig, AuthController), so the hole is reachable, not theoretical. Same rule,
+     * applied to annotations: a secret-shaped name may not carry a non-empty inline default.
+     */
+    @Test
+    void noValueAnnotationGivesASecretShapedPropertyAUsableDefault() throws Exception {
+        Path root = Path.of("src/main/java");
+        assertThat(Files.isDirectory(root)).as("source root for the @Value scan").isTrue();
+
+        // @Value("${some.name:fallback}") — capture the property name and the fallback.
+        Pattern valueAnno = Pattern.compile("@Value\\(\\s*\"\\$\\{([^:}]+):([^}]*)}\"");
+        List<String> violations = new ArrayList<>();
+        int scanned = 0;
+
+        try (var files = Files.walk(root)) {
+            for (Path p : files.filter(f -> f.toString().endsWith(".java")).toList()) {
+                String src = Files.readString(p);
+                Matcher m = valueAnno.matcher(src);
+                while (m.find()) {
+                    scanned++;
+                    String name = m.group(1);
+                    String fallback = m.group(2);
+                    if (fallback.isEmpty()) continue;                  // ${VAR:} is fail-closed enough
+                    if (!SECRET_ISH.matcher(name).find()) continue;    // not a secret-shaped name
+                    if (ALLOWED_WITH_DEFAULT.contains(name)) continue;
+                    violations.add(p.getFileName() + ": @Value(\"${" + name + ":" + fallback + "}\")");
+                }
+            }
+        }
+
+        assertThat(scanned).as("@Value placeholders scanned under src/main/java").isPositive();
+        assertThat(violations)
+                .as("@Value-injected secrets carrying a committed default — these bypass the "
+                        + "application.yml scan entirely. Drop the fallback so a missing secret fails "
+                        + "startup instead of silently using a value that is in git")
                 .isEmpty();
     }
 

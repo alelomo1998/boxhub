@@ -56,6 +56,11 @@ public class CryptoService {
             if (k.length != 32) {
                 throw new IllegalStateException("BOXHUB_STRIPE_ENC_KEYS: key v" + version + " must be 32 bytes (base64)");
             }
+            // Last-win on a duplicate version would surface much later as "decrypt failed" on every
+            // row encrypted under the shadowed key. Fail at boot, like every other config typo here.
+            if (keys.containsKey(version)) {
+                throw new IllegalStateException("BOXHUB_STRIPE_ENC_KEYS: version v" + version + " listed twice");
+            }
             keys.put(version, new SecretKeySpec(k, "AES"));
         }
         if (keys.isEmpty()) {

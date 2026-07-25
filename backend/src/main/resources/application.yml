@@ -41,7 +41,7 @@ boxhub:
   auth-rate-limit: ${BOXHUB_AUTH_RATE_LIMIT:10}
   media-dir: ${BOXHUB_MEDIA_DIR:./media}
   media:
-    # No default — same reasoning as boxhub.stripe.enc-key below: a missing secret must fail
+    # No default — same reasoning as boxhub.stripe.enc-keys below: a missing secret must fail
     # startup, not boot with a guessable/committed link secret that lets every media URL be forged.
     link-secret: ${BOXHUB_MEDIA_LINK_SECRET}
   app-url: ${BOXHUB_APP_URL:http://localhost}

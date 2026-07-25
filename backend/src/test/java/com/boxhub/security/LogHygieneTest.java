@@ -66,7 +66,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // Deliberately verbose — log hygiene has to hold under the noisiest level an operator might
         // plausibly turn on while debugging, not just at the default INFO.
         "logging.level.com.boxhub=TRACE",
-        "logging.level.org.springframework.web=DEBUG",
+        // TRACE, not DEBUG: at DEBUG, Spring's LogFormatUtils.formatValue truncates a logged
+        // request/response body at 100 chars, so any secret sitting past that offset could not be
+        // detected even with redaction removed — two of this class's assertions were vacuous for
+        // exactly that reason (webhookSecret at ~char 90 of ConnectRequest, the invite link past
+        // ~100 of CreatedInviteResponse). TRACE logs the body untruncated.
+        "logging.level.org.springframework.web=TRACE",
         "logging.level.org.springframework.security=DEBUG",
         "logging.level.org.hibernate.SQL=DEBUG"
 })

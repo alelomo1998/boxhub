@@ -21,7 +21,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
         // fails at boot.
         "boxhub.jwt.secret=test-only-jwt-secret-must-be-at-least-32-bytes!",
         "boxhub.stripe.enc-keys=1:HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo=",
-        "boxhub.media.link-secret=test-only-media-link-secret"
+        // >=32 chars: MediaSigner enforces a 32-char floor (a short or blank link secret makes
+        // every signed media URL forgeable), so this must satisfy it or no context boots.
+        "boxhub.media.link-secret=test-only-media-link-secret-padded-to-32"
 })
 public abstract class AbstractIntegrationTest {
 
