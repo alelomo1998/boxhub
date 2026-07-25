@@ -41,7 +41,9 @@ services:
       BOXHUB_SMTP_PORT: "1025"
       BOXHUB_APP_URL: ${BOXHUB_APP_URL:-http://localhost}
       BOXHUB_SUPERADMIN_EMAILS: ${BOXHUB_SUPERADMIN_EMAILS:-super@demo.io}
-      BOXHUB_STRIPE_ENC_KEY: ${BOXHUB_STRIPE_ENC_KEY:-AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=}
+      # version:base64key, newest first (see CryptoService). Rotating = prepend "2:<newkey>," and
+      # keep the old entry so existing rows still decrypt.
+      BOXHUB_STRIPE_ENC_KEYS: ${BOXHUB_STRIPE_ENC_KEYS:-1:AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=}
       BOXHUB_MEDIA_LINK_SECRET: ${BOXHUB_MEDIA_LINK_SECRET:-dev-only-media-link-secret-change-me}
     volumes:
       - media:/data/media

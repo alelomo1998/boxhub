@@ -30,12 +30,24 @@ public class AccountController {
         this.cookies = cookies;
     }
 
+    // Every record below redacts toString() for the reason documented on
+    // AuthController.RegisterRequest: Spring MVC logs the deserialized @RequestBody at DEBUG on
+    // org.springframework.web, so a default record toString() writes plaintext passwords and
+    // single-use tokens into the log file. LogHygieneTest guards this.
     record PasswordChangeRequest(@NotBlank String currentPassword,
-                                 @NotBlank @Size(min = 10, max = 100) String newPassword) {}
-    record EmailChangeRequest(@NotBlank String password, @NotBlank @Email String newEmail) {}
-    record TokenRequest(@NotBlank String token) {}
+                                 @NotBlank @Size(min = 10, max = 100) String newPassword) {
+        @Override public String toString() { return "PasswordChangeRequest[currentPassword=***, newPassword=***]"; }
+    }
+    record EmailChangeRequest(@NotBlank String password, @NotBlank @Email String newEmail) {
+        @Override public String toString() { return "EmailChangeRequest[password=***, newEmail=" + newEmail + "]"; }
+    }
+    record TokenRequest(@NotBlank String token) {
+        @Override public String toString() { return "TokenRequest[token=***]"; }
+    }
     /** password is optional — a passwordless (Google-only) account has nothing to verify. */
-    record DeleteRequest(String password) {}
+    record DeleteRequest(String password) {
+        @Override public String toString() { return "DeleteRequest[password=***]"; }
+    }
 
     /**
      * A password change is how you evict someone who is already inside, so it revokes every

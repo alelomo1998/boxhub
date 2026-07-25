@@ -29,7 +29,17 @@ public class BoxStripeController {
         this.crypto = crypto;
     }
 
-    record ConnectRequest(@NotBlank String restrictedKey, @NotBlank String webhookSecret) {}
+    /**
+     * toString() is redacted, and that is load-bearing, not cosmetic. Spring MVC's
+     * {@code RequestResponseBodyMethodProcessor} logs {@code Read "application/json" to [<the
+     * deserialized argument>]} at DEBUG on {@code org.springframework.web} — so a record's default
+     * toString() puts the box's live Stripe restricted key and webhook secret straight into the log
+     * file the moment anyone debugs a request. LogHygieneTest caught exactly this. Redacting here
+     * (rather than muting that logger) means the DTO is safe wherever it gets printed.
+     */
+    record ConnectRequest(@NotBlank String restrictedKey, @NotBlank String webhookSecret) {
+        @Override public String toString() { return "ConnectRequest[restrictedKey=***, webhookSecret=***]"; }
+    }
     record StatusDto(boolean connected) {}
 
     @PutMapping

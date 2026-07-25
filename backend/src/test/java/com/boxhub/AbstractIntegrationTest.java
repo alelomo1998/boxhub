@@ -16,7 +16,11 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
         "boxhub.auth-rate-limit=1000",
-        "boxhub.stripe.enc-key=HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo=",
+        // Every secret-shaped property in application.yml is now default-less (SecretDefaultsTest
+        // enforces it), so the test context has to supply all of them or placeholder resolution
+        // fails at boot.
+        "boxhub.jwt.secret=test-only-jwt-secret-must-be-at-least-32-bytes!",
+        "boxhub.stripe.enc-keys=1:HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo=",
         "boxhub.media.link-secret=test-only-media-link-secret"
 })
 public abstract class AbstractIntegrationTest {

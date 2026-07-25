@@ -126,7 +126,12 @@ public class StripeWebhookController {
 
         BoxStripe creds = boxStripe.findByBoxId(boxId).orElse(null);
         if (creds == null || !creds.isEnabled()) {
-            return ResponseEntity.badRequest().build(); // no secret to verify against
+            // 200, not 400: this caller is unauthenticated, so a status that differs from the
+            // unknown-session-id 200 above would turn the endpoint into an existence oracle over
+            // Stripe session ids. Both "I have never heard of this session" and "I have, but that
+            // box has no credentials to verify against" must be indistinguishable. Nothing is
+            // written on either path.
+            return ResponseEntity.ok().build();
         }
         String secret = crypto.decrypt(creds.getWebhookSecretEnc());
 

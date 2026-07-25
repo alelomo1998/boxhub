@@ -29,7 +29,10 @@ management:
       enabled: false
 boxhub:
   jwt:
-    secret: ${BOXHUB_JWT_SECRET:dev-only-secret-must-be-at-least-32-bytes!}
+    # No default — a committed signing key lets anyone mint a BOX_ADMIN token for any deploy that
+    # forgot the env var, and the deploy would boot happily. Same fail-closed rule as the two
+    # secrets below; enforced by SecretDefaultsTest.
+    secret: ${BOXHUB_JWT_SECRET}
     access-ttl: 15m
     refresh-ttl: 30d
   cookie:
@@ -44,12 +47,17 @@ boxhub:
   app-url: ${BOXHUB_APP_URL:http://localhost}
   mail:
     from: ${BOXHUB_MAIL_FROM:BoxHub <no-reply@boxhub.local>}
-  # No default here — deliberately. ${BOXHUB_STRIPE_ENC_KEY} with no fallback fails Spring's
+  # No default here — deliberately. ${BOXHUB_STRIPE_ENC_KEYS} with no fallback fails Spring's
   # placeholder resolution at boot if the var is unset, before CryptoService's 32-byte check
   # ever runs. A committed default would be a real usable master key sitting in git history;
   # every environment that must boot (docker-compose, tests) supplies its own value instead.
+  # SecretDefaultsTest enforces this for every secret-shaped property in this file.
+  #
+  # Format: comma-separated version:base64key, newest first (see CryptoService). Migrating a
+  # deploy that predates versioning: BOXHUB_STRIPE_ENC_KEYS=1:$OLD_BOXHUB_STRIPE_ENC_KEY —
+  # unprefixed rows decrypt under v1, so nothing has to be re-encrypted.
   stripe:
-    enc-key: ${BOXHUB_STRIPE_ENC_KEY}
+    enc-keys: ${BOXHUB_STRIPE_ENC_KEYS}
 # Deviation from the M8 plan: no spring.security.oauth2.client.registration.* block, and no
 # boxhub.google.* block either — OAuth2SecurityConfig reads BOXHUB_GOOGLE_CLIENT_ID and
 # BOXHUB_GOOGLE_CLIENT_SECRET directly as env vars (@ConditionalOnProperty + @Value). Two
