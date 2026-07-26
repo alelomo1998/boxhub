@@ -111,10 +111,11 @@ class RateLimitTest extends AbstractIntegrationTest {
 
     @Test
     void burstUnderWriteLimitPassesThrough() throws Exception {
-        // writeLimit=3: two requests is a real burst under the limit, not the boundary itself.
+        // writeLimit=3: all three allowed requests must pass, including the boundary one where
+        // the counter reaches exactly the limit (the check is `n > limit`, so == limit passes).
         // Each must land as the ordinary 401, proving the request was never rate-limited —
         // a vacuous "not 429" check alone wouldn't rule out a filter that always denies.
-        for (int n = 0; n < 2; n++) {
+        for (int n = 0; n < 3; n++) {
             mvc.perform(post("/api/box/invites").with(csrf())
                             .with(r -> { r.setRemoteAddr("10.20.4.1"); return r; }))
                     .andExpect(status().isUnauthorized());
