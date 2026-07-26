@@ -215,6 +215,37 @@ class PurgeJobTest extends AbstractIntegrationTest {
         assertThat(invites.findById(pendingB)).isPresent();
     }
 
+    /**
+     * Regression guard for the native-vs-JPQL distinction on InviteRepository#purgeAcceptedOrExpired.
+     * The tenant-LESS scenario above (SecurityContextHolder cleared) fails open on Hibernate's
+     * NO_TENANT/root and happens to sweep every box regardless of native vs JPQL — it does not
+     * discriminate. This test leaves ONE box's ambient tenant set (the same actAsBox path a real
+     * request would carry) before calling purge(), which is docs/TENANCY.md's "failure mode 1":
+     * a JPQL/derived bulk delete would silently purge only that one box. This test FAILS if
+     * purgeAcceptedOrExpired is ever changed from native to JPQL/derived.
+     */
+    @Test
+    void invitePurgeSweepsBothBoxesEvenUnderOneBoxsAmbientTenant() {
+        UUID boxA = newBox("purge-inv-tenant-a-" + System.nanoTime());
+        actAsBox(boxA);
+        User adminA = newUser(boxA, "inv-tenant-admin-a");
+        Instant now = Instant.now();
+        UUID expiredA = newInvite(adminA.getId(), now.minus(Duration.ofDays(31)), null).getId();
+
+        UUID boxB = newBox("purge-inv-tenant-b-" + System.nanoTime());
+        actAsBox(boxB);
+        User adminB = newUser(boxB, "inv-tenant-admin-b");
+        UUID acceptedB = newInvite(adminB.getId(), now.plusSeconds(3600), now.minus(Duration.ofDays(31))).getId();
+
+        actAsBox(boxA); // ambient tenant = ONE specific box, left set — not cleared
+        purgeJob.purge();
+
+        actAsBox(boxA);
+        assertThat(invites.findById(expiredA)).isEmpty();
+        actAsBox(boxB);
+        assertThat(invites.findById(acceptedB)).isEmpty();
+    }
+
     @Test
     void stalePendingTvPairingCodesArePurgedAcrossBothBoxesAndActiveDevicesNeverAreEvenIfOld() {
         UUID boxA = newBox("purge-tv-a-" + System.nanoTime());
