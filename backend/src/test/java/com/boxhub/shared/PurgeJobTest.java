@@ -202,6 +202,10 @@ class PurgeJobTest extends AbstractIntegrationTest {
         User adminB = newUser(boxB, "inv-admin-b");
         UUID acceptedB = newInvite(adminB.getId(), now.plusSeconds(3600), now.minus(Duration.ofDays(31))).getId();
         UUID pendingB = newInvite(adminB.getId(), now.plusSeconds(3600), null).getId();
+        // Accepted, but WITHIN grace: the admin invites list still wants it as context. Pins the
+        // age check on the accepted branch — drop `and accepted_at < :cutoff` from the query and
+        // this row disappears while every other assertion here keeps passing.
+        UUID recentlyAcceptedB = newInvite(adminB.getId(), now.plusSeconds(3600), now).getId();
 
         SecurityContextHolder.clearContext(); // real scheduler entry point: no ambient tenant at all
         purgeJob.purge();
@@ -213,6 +217,7 @@ class PurgeJobTest extends AbstractIntegrationTest {
         actAsBox(boxB);
         assertThat(invites.findById(acceptedB)).isEmpty();
         assertThat(invites.findById(pendingB)).isPresent();
+        assertThat(invites.findById(recentlyAcceptedB)).isPresent();
     }
 
     /**
