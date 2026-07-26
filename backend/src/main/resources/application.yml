@@ -39,6 +39,14 @@ boxhub:
     secure: ${BOXHUB_COOKIE_SECURE:false}
   superadmin-emails: ${BOXHUB_SUPERADMIN_EMAILS:}
   auth-rate-limit: ${BOXHUB_AUTH_RATE_LIMIT:10}
+  # Abuse backstops, not quotas — deliberately loose. A whole box sits behind ONE NAT public IP
+  # (gym WiFi), and a class opening at midnight produces a genuine booking rush; a false 429 on
+  # booking is a product bug, not a save. These exist to stop credential-stuffing/scraping, not
+  # to throttle real traffic.
+  rate-limit:
+    write: ${BOXHUB_WRITE_RATE_LIMIT:60}        # per IP per minute — invites/media/checkout/booking
+    lookup: ${BOXHUB_LOOKUP_RATE_LIMIT:120}     # per IP per minute — invite preview + receipts
+    global: ${BOXHUB_GLOBAL_RATE_LIMIT:600}     # per IP per minute, ALL /api/ requests
   media-dir: ${BOXHUB_MEDIA_DIR:./media}
   media:
     # No default — same reasoning as boxhub.stripe.enc-keys below: a missing secret must fail

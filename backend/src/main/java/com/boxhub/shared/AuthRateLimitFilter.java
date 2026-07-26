@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 
@@ -21,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -38,36 +40,82 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
             "/api/auth/verify/resend", "/api/auth/password/forgot");
     private static final int EMAIL_LIMIT = 3;
 
+    // Extended M11 rule groups. Ant patterns so a variable segment (e.g. the session id in
+    // /book, the token in /api/invites/*) can still be matched — LIMITED above only ever did
+    // an exact string compare, which is why it could never cover these.
+    private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+
+    private static final List<String> WRITE_PATTERNS = List.of(
+            "/api/box/invites", "/api/box/media", "/api/box/subscriptions/checkout",
+            "/api/box/sessions/*/book");
+
+    private static final List<String> LOOKUP_PATTERNS = List.of(
+            "/api/invites/*", "/api/box/receipts/*");
+
     private final int limit;
-    private final Cache<String, AtomicInteger> counters = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofMinutes(1))
-            .maximumSize(100_000)
-            .build();
+    private final int writeLimit;
+    private final int lookupLimit;
+    private final int globalLimit;
+
+    private final Cache<String, AtomicInteger> counters = newMinuteCache();
+    private final Cache<String, AtomicInteger> writeCounters = newMinuteCache();
+    private final Cache<String, AtomicInteger> lookupCounters = newMinuteCache();
+    private final Cache<String, AtomicInteger> globalCounters = newMinuteCache();
     private final Cache<String, AtomicInteger> emailCounters = Caffeine.newBuilder()
             .expireAfterWrite(Duration.ofHours(1))
             .maximumSize(100_000)
             .build();
 
-    public AuthRateLimitFilter(@Value("${boxhub.auth-rate-limit}") int limit) {
+    public AuthRateLimitFilter(@Value("${boxhub.auth-rate-limit}") int limit,
+                               @Value("${boxhub.rate-limit.write}") int writeLimit,
+                               @Value("${boxhub.rate-limit.lookup}") int lookupLimit,
+                               @Value("${boxhub.rate-limit.global}") int globalLimit) {
         this.limit = limit;
+        this.writeLimit = writeLimit;
+        this.lookupLimit = lookupLimit;
+        this.globalLimit = globalLimit;
+    }
+
+    private static Cache<String, AtomicInteger> newMinuteCache() {
+        return Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(1)).maximumSize(100_000).build();
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !("POST".equals(request.getMethod()) && LIMITED.contains(request.getRequestURI()));
+        // Every /api/ request must pass through so the global per-IP ceiling can count it —
+        // not just the exact-match auth routes as before. /actuator/** never matches this
+        // prefix, so it's excluded without a separate check.
+        return !request.getRequestURI().startsWith("/api/");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
         String ip = clientIp(req);
-        int n = counters.get(ip, k -> new AtomicInteger()).incrementAndGet();
-        if (n > limit) {
+        String uri = req.getRequestURI();
+        String method = req.getMethod();
+
+        boolean overGlobal = globalCounters.get(ip, k -> new AtomicInteger()).incrementAndGet() > globalLimit;
+
+        boolean authLimited = "POST".equals(method) && LIMITED.contains(uri);
+        boolean writeLimited = "POST".equals(method) && matchesAny(WRITE_PATTERNS, uri);
+        boolean lookupLimited = "GET".equals(method) && matchesAny(LOOKUP_PATTERNS, uri);
+
+        boolean overSpecific = false;
+        if (authLimited) {
+            overSpecific = counters.get(ip, k -> new AtomicInteger()).incrementAndGet() > limit;
+        } else if (writeLimited) {
+            overSpecific = writeCounters.get(ip, k -> new AtomicInteger()).incrementAndGet() > writeLimit;
+        } else if (lookupLimited) {
+            overSpecific = lookupCounters.get(ip, k -> new AtomicInteger()).incrementAndGet() > lookupLimit;
+        }
+
+        if (overGlobal || overSpecific) {
             tooMany(res);
             return;
         }
 
-        if (EMAIL_LIMITED.contains(req.getRequestURI())) {
+        if (authLimited && EMAIL_LIMITED.contains(uri)) {
             var wrapped = new ContentCachingRequestWrapper(req);
             String body = new String(wrapped.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String email = extractEmail(body);
@@ -80,6 +128,13 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(req, res);
+    }
+
+    private static boolean matchesAny(List<String> patterns, String uri) {
+        for (String pattern : patterns) {
+            if (PATH_MATCHER.match(pattern, uri)) return true;
+        }
+        return false;
     }
 
     private void tooMany(HttpServletResponse res) throws IOException {

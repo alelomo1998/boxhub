@@ -36,6 +36,9 @@ services:
       # Dev/e2e stack: the serial Playwright suite logs in many times from one IP within the
       # 1-min window. Prod overrides this with a strict value; keep the default relaxed here.
       BOXHUB_AUTH_RATE_LIMIT: ${BOXHUB_AUTH_RATE_LIMIT:-200}
+      BOXHUB_WRITE_RATE_LIMIT: ${BOXHUB_WRITE_RATE_LIMIT:-500}
+      BOXHUB_LOOKUP_RATE_LIMIT: ${BOXHUB_LOOKUP_RATE_LIMIT:-500}
+      BOXHUB_GLOBAL_RATE_LIMIT: ${BOXHUB_GLOBAL_RATE_LIMIT:-5000}
       BOXHUB_MEDIA_DIR: /data/media
       BOXHUB_SMTP_HOST: mailpit
       BOXHUB_SMTP_PORT: "1025"
