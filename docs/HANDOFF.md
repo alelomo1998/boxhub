@@ -1,6 +1,6 @@
 # BoxHub — Session Hand-off
 
-**Updated:** 2026-07-21. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-07-25. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. Repo: `~/Desktop/boxhub`, GitHub `alelomo1998/boxhub` (private), CI green on push.
@@ -91,6 +91,16 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 8. **MockMvc does not enforce RFC 6265 cookie `Path` matching (M8).** A cookie-path/endpoint mismatch passes green in MockMvc and fails only in a real browser — it shipped once. `bh_rt` is `Path=/api/auth`, which is exactly why sessions live at `/api/auth/sessions`, not `/api/me/sessions`.
 9. **Every emailed link must match a real Angular route (M8).** Three shipped dead because the backend built bare paths (`/verify?token=`) while the routes are namespaced `/auth/*`, and `/join` is a `:token` path param not a query. `e2e/tests/auth.spec.ts` follows the real link out of Mailpit — that is what catches this class of bug; MockMvc/Karma cannot.
 
+## ENVIRONMENT TRAPS (found the hard way in M11 — read before running any gate)
+The repo lives on an **iCloud-synced Desktop**, which is the root of most of these.
+1. **`rm -rf backend/target` before every backend `mvn`.** iCloud writes conflict-copy `.class` files (2620 once, 777 a day later) and classpath scanning then takes **10+ minutes** and looks like a hang. A 40-second suite became 9:59 from forgetting this.
+2. **`ng test` cold-bundles for MANY minutes emitting a single line** ("Generating browser application bundles (phase: setup)"). There is no `frontend/.angular/cache` — iCloud appears to evict it — so every run is cold.
+3. **Never pipe a gate through `grep`/`tail`.** The pipeline buffers, so a *working* run produces zero output until it finishes and is indistinguishable from a hang. Write raw output to a file and poll the file.
+4. **Never kill a gate that looks stuck.** Killing `ng test` mid-write caused `EPERM` on a karma reporter file on the next run and left orphaned processes that competed with each other — each "fix" manufactured the next symptom. Three separate stalls traced to this.
+5. **Never run the backend suite and Karma concurrently.** It starves `MailerTest`'s `verify(sender, timeout(2000))` on an `@Async` send — it failed at exactly 2.021s, then passed alone. Pure self-inflicted flake.
+6. **macOS has no `timeout` binary.** `timeout N cmd | tail` silently runs *nothing* and reports success from `tail`.
+7. **Accepted fallback when Karma won't complete:** `cd frontend && npx tsc --noEmit -p tsconfig.spec.json` (rc=0, fast, no browser). It covers all app source and all specs, which is the realistic failure mode for a rename-style refactor. Say plainly that Karma did not run — never imply it passed. CI runs the real Karma gate on Linux, where none of this applies.
+
 ## How to run / test
 - Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io` / `super@demo.io` (superadmin, no box), password `boxhub-demo-2026`. Fresh volume seeds Demo Box + a weekly schedule. **Mailpit** (dev/e2e mail) at http://localhost:8025.
 - Backend: `cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Frontend: `cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npm run build`. E2E: stack up, then `cd e2e && npx playwright test`.
@@ -108,12 +118,30 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**M11 — security hardening.** Next in Project 1 per the v1 roadmap (`docs/superpowers/specs/2026-07-14-v1-roadmap-design.md`).
-Not yet brainstormed: start with `superpowers:brainstorming` → design spec + user approval → `writing-plans` → execute.
-**Next Flyway is V15.**
+**M11 security hardening is IN PROGRESS on branch `m11-security-hardening` — resume at Task 9 of 12.**
+
+- **Spec:** `docs/superpowers/specs/2026-07-21-m11-security-hardening-design.md` (approved)
+- **Plan:** `docs/superpowers/plans/2026-07-21-m11-security-hardening.md` — 12 tasks, per-task model tiering recorded in it
+- **Task→SHA ledger + every environment trap:** `.superpowers/sdd/progress.md` — **read the M11 section before running anything**
+- Branch base `01fc409`, HEAD **`b9f67d0`**. Nothing merged to `main` yet. Backend **380 tests, 0 skips**. Next Flyway is **V16** (V15 used by T7).
+
+**Done (T1–T8), all committed:** conformance sweep (T1–T2) · `@TenantId` audit + `docs/TENANCY.md` (T3) · signed media URLs + EXIF strip (T4) · TV token → httpOnly cookie (T5) · secret-default enforcement, encryption-key versioning, log hygiene, webhook oracle (T6) · superadmin audit log, Flyway V15 (T7) · per-session kill (T8).
+
+**Remaining:** **T9** extended rate limits · **T10** purge jobs · **T11** security headers + strict CSP · **T12** dependency scanning, docs, final whole-branch review, merge.
+
+### T9 specifics (next up)
+Extend `shared/AuthRateLimitFilter.java` to invite creation, media upload, checkout creation, booking, and the public invite-preview/receipt lookups, plus a **global per-IP ceiling**. Stays in-memory/single-node (documented); Redis is the deferred upgrade.
+
+Two things that will bite:
+1. **The filter matches `LIMITED.contains(request.getRequestURI())` — an exact-string match**, so it *cannot* match any path with a variable segment. Pattern matching has to be added before any of the new limits work at all.
+2. **Every new limit needs a dev/e2e env override in `docker/docker-compose.yml`**, exactly as `BOXHUB_AUTH_RATE_LIMIT=200` already exists. The e2e suite is serial and fires far more requests per minute from one IP than a human ever would — without the override the 25 e2e specs start failing in a way that looks like flake and is not.
+
+### Two standing rules specific to this milestone
+- **`backend/src/test/java/com/boxhub/security/AuthzConformanceTest.java` is the milestone's standing guarantee** (237+ assertions over every mapped route, negative-controlled). A new route makes it fail until its intent is declared — that is the design. The only permitted edit is registering a route in the declaration table (and seeding a real id in `pathIds` if it takes a path variable). Never weaken an assertion, allowlist around one, or restructure it. Orchestrator audits every edit to it.
+- **The audit-row rule is the inverse of the mail rule.** Mail fires strictly *after* commit (a mail sent inside a tx that rolls back is a lie); the audit row is written strictly *inside* the tx (a row surviving a rolled-back transition is also a lie). Both exist so the record matches reality.
 
 **M10 is complete** — spec `.../2026-07-19-m10-memberships-payments-design.md`, plan `.../2026-07-19-m10-memberships-payments.md`,
-task→SHA ledger in `.superpowers/sdd/progress.md`. **M0–M10 all merged + pushed.** No milestone in progress.
+task→SHA ledger in `.superpowers/sdd/progress.md`. **M0–M10 all merged + pushed.**
 
 **What M10 execution taught (worth carrying into M11):**
 - **The e2e suite earned its keep again.** Driving a real browser found what 334 backend tests could not: the entitlement
