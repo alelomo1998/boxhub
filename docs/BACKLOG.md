@@ -7,12 +7,12 @@
 - ~~Refresh response memberships discarded by AuthService.refresh~~ — DONE M1-T14 (refresh now updates memberships signal + localStorage).
 
 ## Security / correctness
-- **Audit all @TenantId entities (Plan, Invite) for JPQL/derived queries that must be tenant-agnostic.** M1 found BOTH `findByTokenHash` AND the `burnIfUnaccepted` bulk UPDATE were silently @TenantId-filtered (broke cross-box invite accept); fixed to native SQL. Plan queries are currently all box-scoped so correct-by-context, but the trap is latent — any future tenant-agnostic access to a @TenantId entity via JPQL will silently filter. Consider a lint/convention note.
-- No server-side logout/revocation endpoint; refresh tokens valid 30d after client logout.
-- No purge job for expired refresh_tokens / accepted-or-expired invites rows.
+- ~~Audit all @TenantId entities for JPQL/derived queries that must be tenant-agnostic~~ — DONE M11-T3 (`docs/TENANCY.md` is now the convention note, linked from CLAUDE.md; found and fixed a 4th instance on the public invite preview).
+- ~~No server-side logout/revocation endpoint~~ — DONE M8 (sessions list + log-out-everywhere) and M11-T8 (`DELETE /api/auth/sessions/{familyId}`, per-session kill).
+- ~~No purge job for expired refresh_tokens / accepted-or-expired invites rows~~ — DONE M11-T10 (nightly `PurgeJob` also sweeps email tokens and stale PENDING TV pairing codes).
+- ~~No email delivery for invites~~ — DONE M8-T11.
 - Refresh-token concurrent double-use race accepted (no row lock; random single-use tokens).
 - Register concurrent-race catch path has no direct test (hard to force with MockMvc; DB-enforced).
-- No email delivery for invites — admin copies the shareable link manually (SMTP integration later).
 
 ## Deferred from M3 (programming)
 - Movement media: videos, coaching cues, images (seed is names + category + modality only).
@@ -147,3 +147,12 @@
 - **Redis-backed distributed rate limiting** — M11's limiter stays in-memory and single-node, which matches the one-VPS target; revisit only when a second node actually exists.
 - **Superadmin account model** to replace the `BOXHUB_SUPERADMIN_EMAILS` env allowlist (no account, no per-superadmin identity beyond the email claim).
 - `POST /api/box/sessions/{id}/checkin|uncheck|no-show` return 500, not 400, when the body carries no `bookingId` (`SessionController.BookingIdRequest` has no `@NotNull` and the params are not `@Valid`, so `bookings.findById(null)` throws) — found by the authz sweep's positive control; authz runs first, so it is an unmapped 500 on malformed input, not a security hole.
+
+### Found during M11 execution (not fixed — out of milestone scope)
+- **Google SSO is unreachable behind nginx.** `docker/nginx.conf` has no `/oauth2` location and never did, so the login page's `<a href="/oauth2/authorization/google">` falls through to the SPA catch-all instead of Spring Security's authorization endpoint. Invisible in dev because the OAuth2 chain is conditional on `BOXHUB_GOOGLE_CLIENT_ID`, which the dev compose doesn't set — but a production deploy that DOES set it gets a dead button. Pre-M11; found by the T11 CSP reviewer. Fix is one `location /oauth2/ { proxy_pass ... }` block plus `/login/oauth2/` for the callback, and an e2e or curl assertion so it can't rot again.
+- **Angular 19 is EOL with published advisories.** `npm audit --omit=dev` reports 6 high, all cascades of an Angular SSR client-hydration CVE that this client-rendered-only app cannot hit (no `provideClientHydration`, no `@angular/ssr`). The only fix npm offers is 19→22, a three-major upgrade. Deferred to **M12 (frontend rework)**; when it lands, flip the per-push gate in `.github/workflows/ci.yml` to `--audit-level=high` and drop `continue-on-error` from the nightly informational step.
+- **`SuperadminAuditRepository` extends `JpaRepository`**, which inherits `delete()`/`deleteAll()`/`save()`, so the audit log's append-only property is enforced by convention (a comment) rather than structurally. Extending `Repository<>` and declaring only `save` + the finder would make it enforceable.
+- **An ACTIVE `TvDevice` keeps its `pairing_code` forever** (`TvPairingService.claim` deliberately retains it so the TV's in-flight poll still resolves), so the 6-digit code space fills monotonically as boxes pair devices. M11-T10's purge only sweeps stale PENDING rows. Null the code once the device's first post-claim poll has succeeded.
+- **`docker-compose.yml` uses shell-level `:-` fallbacks for all three secrets**, so compose interpolation resolves BEFORE Spring and a deploy from that file silently runs on committed dev secrets — defeating `SecretDefaultsTest` for exactly the path someone would take. `SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}` invites `SPRING_PROFILE=prod` on it. The naive fix is wrong (deleting `:-` makes compose pass empty strings); the real fix is `env_file` + `.env.example` so compose omits unset vars and Spring's bare `${VAR}` fails closed. **For the Production phase.**
+- **EXIF stripping covers JPEG/PNG only** — the JDK ships no WebP `ImageIO` codec, so WebP uploads pass through with metadata intact (`MediaStorage`, flagged with a `ponytail:` comment naming TwelveMonkeys as the upgrade path). Low risk (GPS EXIF is a camera-JPEG artifact) but a real gap.
+- Email addresses are still logged in DTO lines (`LogHygieneTest` only guards secrets/JWTs/keys) — PII in logs, not a credential leak.
