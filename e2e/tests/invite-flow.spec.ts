@@ -1,18 +1,12 @@
-import { test, expect, Page } from '@playwright/test';
-
-async function loginAdmin(page: Page) {
-  await page.goto('/auth/login');
-  await page.fill('input[name="email"]', 'admin@demo.io');
-  await page.fill('input[name="password"]', 'boxhub-demo-2026');
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/\/admin/);
-}
+import { test, expect } from '@playwright/test';
+import { login } from './_support';
 
 test('full invite flow: create -> join -> visible in members', async ({ page, context }) => {
   const stamp = Date.now();
   const inviteeEmail = `e2e-joiner-${stamp}@t.io`;
 
-  await loginAdmin(page);
+  await login(page, 'admin@demo.io');
+  await expect(page).toHaveURL(/\/admin/);
   await page.goto('/admin/invites');
   await page.fill('[data-testid="invite-email"]', inviteeEmail);
   // the demo box has priced plans, so the invite form now requires an explicit plan choice (M10

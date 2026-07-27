@@ -3,8 +3,11 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   use: { baseURL: process.env.E2E_BASE_URL ?? 'http://localhost' },
-  retries: 1,
+  // M12a: retries were load-bearing — login/admin-panel/invite specs failed at --retries=0 and
+  // passed with one retry, which is how a flaky spec trained everyone to re-run red pipelines.
+  // Isolation is now per-run (see tests/_support.ts), so a red build means something again.
+  retries: 0,
   // Serial: the suite shares one seeded backend stack; parallel workers race on shared
-  // state and cold-start. One worker + retries keeps it deterministic.
+  // state and cold-start. One worker keeps it deterministic.
   workers: 1,
 });

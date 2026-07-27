@@ -1,12 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-
-async function login(page: Page, email: string) {
-  await page.goto('/auth/login');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', 'boxhub-demo-2026');
-  await page.click('button[type="submit"]');
-  await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
-}
+import { test, expect } from '@playwright/test';
+import { login, runId } from './_support';
 
 test('coach runs a class: arms a timer, logs a score, TV shows the clock', async ({ browser }) => {
   // TV pairs first
@@ -27,9 +20,10 @@ test('coach runs a class: arms a timer, logs a score, TV shows the clock', async
   await login(admin, 'admin@demo.io');
   await admin.goto('/admin/tvs');
   await admin.getByTestId('tv-code').fill(code);
-  await admin.getByTestId('tv-name').fill('Runner TV');
+  const tvName = `Runner TV ${runId()}`;
+  await admin.getByTestId('tv-name').fill(tvName);
   await admin.getByRole('button', { name: 'Pair' }).click();
-  await expect(admin.locator('.row', { hasText: 'Runner TV' })).toBeVisible();
+  await expect(admin.locator('.row', { hasText: tvName })).toBeVisible();
 
   // coach opens the runner for today's class, arms an AMRAP, then starts it
   await coach.goto('/coach/classes');
@@ -46,8 +40,10 @@ test('coach runs a class: arms a timer, logs a score, TV shows the clock', async
   await expect(coach.getByTestId('timer-start')).toBeEnabled();
   await coach.getByTestId('timer-start').click();
 
-  // TV takes over with the giant clock within a couple SSE pushes
-  await expect(tv.locator('.tvtimer')).toBeVisible({ timeout: 15000 });
+  // Two assertions, in order, so a failure says WHICH half broke: first that the SSE frame
+  // carrying a running timer actually arrived, then that the clock rendered from it.
+  await expect(tv.getByTestId('tv-stream')).toHaveAttribute('data-timer', 'RUNNING', { timeout: 15000 });
+  await expect(tv.locator('.tvtimer')).toBeVisible({ timeout: 5000 });
 
   await tvCtx.close(); await coachCtx.close(); await adminCtx.close();
 });

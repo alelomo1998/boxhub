@@ -1,12 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-
-async function login(page: Page, email: string) {
-  await page.goto('/auth/login');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', 'boxhub-demo-2026');
-  await page.click('button[type="submit"]');
-  await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
-}
+import { test, expect } from '@playwright/test';
+import { login, runId } from './_support';
 
 test('TV pairs via admin and shows the live board', async ({ browser }) => {
   const tvCtx = await browser.newContext();
@@ -22,9 +15,10 @@ test('TV pairs via admin and shows the live board', async ({ browser }) => {
   await login(admin, 'admin@demo.io');
   await admin.goto('/admin/tvs');
   await admin.getByTestId('tv-code').fill(code);
-  await admin.getByTestId('tv-name').fill('E2E TV');
+  const tvName = `E2E TV ${runId()}`;
+  await admin.getByTestId('tv-name').fill(tvName);
   await admin.getByRole('button', { name: 'Pair' }).click();
-  await expect(admin.locator('.row', { hasText: 'E2E TV' })).toBeVisible();
+  await expect(admin.locator('.row', { hasText: tvName })).toBeVisible();
 
   // TV flips to live within a few polls and renders a board or the idle clock
   await expect(tv.locator('.board, .idle').first()).toBeVisible({ timeout: 15000 });

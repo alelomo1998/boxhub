@@ -1,15 +1,9 @@
-import { test, expect, Page } from '@playwright/test';
-
-async function loginAdmin(page: Page) {
-  await page.goto('/auth/login');
-  await page.fill('input[name="email"]', 'admin@demo.io');
-  await page.fill('input[name="password"]', 'boxhub-demo-2026');
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/\/admin/);
-}
+import { test, expect } from '@playwright/test';
+import { login } from './_support';
 
 test('admin creates a plan and edits settings', async ({ page }) => {
-  await loginAdmin(page);
+  await login(page, 'admin@demo.io');
+  await expect(page).toHaveURL(/\/admin/);
 
   await page.goto('/admin/plans');
   const planName = 'E2E Plan ' + Date.now();

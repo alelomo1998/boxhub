@@ -1,12 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-
-async function login(page: Page, email: string) {
-  await page.goto('/auth/login');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', 'boxhub-demo-2026');
-  await page.click('button[type="submit"]');
-  await page.waitForURL(u => !u.pathname.includes('/auth/login'), { timeout: 20000 });
-}
+import { test, expect } from '@playwright/test';
+import { login } from './_support';
 
 test('athlete books today, logs a per-piece score, sees the leaderboard', async ({ page }) => {
   await login(page, 'athlete@demo.io');
