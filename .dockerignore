@@ -1,4 +1,41 @@
-**/node_modules
-**/target
-**/dist
-.git
+# Build context = the REPO ROOT (both services use `context: ..`), so everything here is sent to
+# the daemon on every build, and anything a Dockerfile COPYs becomes a cache layer.
+#
+# This is an ALLOW-list on purpose. The previous version was a deny-list of four entries
+# (node_modules, target, dist, .git) and it missed `frontend/.angular`, the Angular build cache —
+# which grew to 6.1 GB locally. `COPY frontend/ .` then wrote a 6.55 GB layer, and because the
+# cache changes on every local `ng build`/`ng test`, every docker build produced a NEW 6.5 GB
+# cache entry instead of reusing one. Four builds in a day = 26 GB; that is how the build cache
+# reached 117.5 GB.
+#
+# A deny-list only protects against the junk someone thought of. An allow-list means the next
+# tool that invents a multi-gigabyte cache directory cannot silently end up in an image layer.
+# If a Dockerfile needs a new path, re-include it here explicitly.
+
+# 1. Exclude everything.
+*
+
+# 2. Re-include only what the two Dockerfiles actually COPY.
+#    frontend.Dockerfile: frontend/package*.json, frontend/, docker/nginx.conf,
+#                         docker/security-headers.conf
+#    backend.Dockerfile:  backend/pom.xml, backend/src
+!frontend
+!backend/pom.xml
+!backend/src
+!docker
+
+# 3. Strip build artifacts and caches back out of the directories re-included above.
+#    These are regenerated inside the image; shipping them is pure waste and, worse, they change
+#    on every local run and so bust the COPY layer's cache hash every single build.
+frontend/node_modules
+frontend/.angular
+frontend/dist
+frontend/.vscode
+frontend/.impeccable
+backend/target
+
+# 4. Never useful in an image, and noisy for cache invalidation.
+**/.DS_Store
+**/*.log
+**/test-results
+**/playwright-report

@@ -2,7 +2,14 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
-COPY frontend/ .
+# Copy build INPUTS explicitly, never `COPY frontend/ .`. That wildcard pulled in whatever else
+# lived in the directory — including frontend/.angular, the Angular build cache, which reached
+# 6.1 GB locally and produced a 6.55 GB layer on every build. .dockerignore now excludes it too;
+# this is the second lock, so the same class of mistake cannot come back through a mis-edited
+# ignore file. Add a line here when the build genuinely needs a new input.
+COPY frontend/angular.json frontend/tsconfig*.json ./
+COPY frontend/src ./src
+COPY frontend/public ./public
 RUN npm run build -- --configuration production
 
 FROM nginx:1.31-alpine
