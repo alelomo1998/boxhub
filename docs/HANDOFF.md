@@ -125,7 +125,28 @@ The repo lives on an **iCloud-synced Desktop**, which is the root of most of the
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
-**M11 security hardening is COMPLETE on branch `m11-security-hardening`.** Next milestone is **M12 — frontend rework** (per the v1 roadmap; excludes the TV board, which Project 2 owns). Brainstorm it first — it is not yet specced.
+**M11 is complete, merged and pushed; CI green on `main`.** The backlog was re-triaged on 2026-07-27 and is
+now organised by **destination, not origin** — read `docs/BACKLOG.md` top-down, it tells you what to do next.
+
+**Order of work, decided with the user:** reduce the backlog first, then the UX rework, then features.
+
+1. **M12a — Test & CI reliability** ← START HERE. Per-test e2e DB isolation, the `runner.spec` SSE flake,
+   four coverage gaps. M11 shipped three failures that appeared only on CI; until the gates are trustworthy
+   every later milestone is guessing.
+2. **M12b — Correctness & data integrity** (13 items, Flyway **V16** for the dead `memberships.expires_at`).
+3. **M12c — Production readiness** (Google SSO behind nginx is a live prod bug; compose secret fallbacks).
+4. **M12 — UX/UI rework.** Task 1 is the **Angular 19 → 22** upgrade (19 is EOL); when it lands, flip the
+   npm audit gate to `--audit-level=high`, drop `continue-on-error` from the nightly step, and fold npm back
+   into the OSV gate.
+5. **M15 / M16 / M17** — programming depth, payments depth, platform & accounts. Deliberately *after* the
+   rework: they ship screens, and building them first means building that UI twice.
+
+TV items belong to **Project 2 (The Room)** and are not scheduled here.
+
+- M11 spec: `docs/superpowers/specs/2026-07-21-m11-security-hardening-design.md` · plan:
+  `docs/superpowers/plans/2026-07-21-m11-security-hardening.md` · ledger: `.superpowers/sdd/progress.md`.
+- Backend **390** / frontend **184** / e2e **26**, all green, and **CI on `main` is green** — which it had
+  not been since before M10. Next Flyway **V16**.
 
 - **M11 spec:** `docs/superpowers/specs/2026-07-21-m11-security-hardening-design.md` · **plan:** `docs/superpowers/plans/2026-07-21-m11-security-hardening.md` (12 tasks, per-task model tiering)
 - **Task→SHA ledger + every environment trap:** `.superpowers/sdd/progress.md` — read the M11 section before running anything.

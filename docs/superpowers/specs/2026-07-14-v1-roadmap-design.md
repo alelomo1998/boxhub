@@ -119,6 +119,28 @@ stays with Production below. Spine is an automated authz/tenancy **conformance s
 table, so tenancy becomes a standing guarantee rather than a one-time audit. Also adds signed short-lived media
 URLs, encryption-key versioning, a minimal superadmin audit log, and per-session kill.
 
+### M12a / M12b / M12c — Backlog reduction (added 2026-07-27)
+
+Three small milestones that run **before** M12, from the backlog re-triage. All three are deliberately
+**invisible work** — no new screens — so none of it is invalidated by the frontend rework that follows.
+Full item lists in `docs/BACKLOG.md`.
+
+- **M12a — Test & CI reliability.** Per-test e2e DB isolation (one root cause behind three separately-filed
+  symptoms), the `runner.spec` SSE flake, and four missing-coverage gaps. **Do this first.** M11 shipped
+  three failures that appeared only on CI, hidden behind a local green and a flaky spec; until the gates are
+  trustworthy every later milestone is guessing.
+- **M12b — Correctness & data integrity.** Unchecked foreign `planId`, the self-serve owner who cannot book
+  their own classes, the zero-plan-box invite hole, unhandled `async_payment_failed`, receipt discounts
+  computed against a *current* list price, dropping the dead `memberships.expires_at` column (**Flyway V16**),
+  and the timer's concurrent-ARM race.
+- **M12c — Production readiness.** Google SSO is unreachable behind nginx (a live prod bug: no `/oauth2`
+  location has ever existed), compose's `:-` secret fallbacks silently running a deploy on committed dev
+  secrets, WebP EXIF, and PII in logs. Merges into the Launch → Production phase.
+
+*Why before M12:* these are backend and infrastructure. The feature backlog (M15–M17) is explicitly **after**
+the rework — those milestones ship screens, and building them first means building that UI twice, which is
+the same argument that keeps the TV board out of M12.
+
 ### M12 — Frontend rework
 Whole-app pass on structure *and* aesthetic: the three shells and every screen. The current app is over-complicated
 and not visually pleasing; this is a rework, not a polish pass. Impeccable gate per surface.
@@ -130,6 +152,19 @@ later is building it twice.
 Lean and useful: box economics (real, now that M10 produces revenue data), engagement, class statistics. The admin
 dashboard shell + 3 KPIs from M5 are the seed. Table stakes — enough to answer a box owner's actual questions,
 no more.
+
+### M15 / M16 / M17 — Post-rework feature milestones (added 2026-07-27)
+
+Carved out of the backlog re-triage. All three ship user-facing screens, so all three come **after** M12.
+
+- **M15 — Programming & tracking depth.** Movement media, WOD versioning and snapshot-on-publish, tags and
+  search, the kg/lb box setting (loads are unitless product-wide today), 1RM estimation, score photos,
+  cross-box leaderboards, richer charting, an offline score queue, "bookings open at" windows.
+- **M16 — Payments depth.** Stripe recurring/auto-renew, class-packs, a reusable discount catalog, coupons,
+  PDF receipts, proration/refunds/grace periods, and Stripe Connect if BoxHub ever takes a cut.
+- **M17 — Platform & accounts.** A real superadmin account model (replacing the env allowlist), the full
+  audit log, box deletion and box-level data export, second-box creation, slug rename, waitlist auto-notify,
+  approval SLA emails, and bounding the async mail queue before any broadcast feature.
 
 ### M14 — MFA & account security
 TOTP two-factor for the accounts whose compromise actually hurts — **BOX_ADMIN and superadmin** — with recovery
