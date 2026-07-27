@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.4.1</version>
+    <version>3.4.13</version>
     <relativePath/>
   </parent>
   <groupId>com.boxhub</groupId>
@@ -16,6 +16,20 @@
     <java.version>21</java.version>
     <!-- >=1.21.4 required: older TC pins Docker API v1.32, rejected by Docker 29 (min 1.40) -->
     <testcontainers.version>1.21.4</testcontainers.version>
+    <!--
+      Ahead of what Spring Boot 3.4.13 manages, because what it manages is still vulnerable.
+      Both are same-line patch bumps, and both are properties the Boot parent exposes for exactly
+      this. Drop each override once the managed version catches up (check with
+      `mvn dependency:tree` after a Boot bump — an override that is now BEHIND is worse than none).
+        tomcat 10.1.50 -> 10.1.55: closes GHSA-h6fc-48rj-7qqh and GHSA-r29c-68gh-xp6x (both 9.8,
+          digest-auth bypass and unvalidated HTTP/2 request headers) plus ~9 lower-scored, in the
+          server handling every request we serve.
+        thymeleaf 3.1.3 -> 3.1.5: closes three 9.0 sandbox-expression escapes. We render only
+          app-controlled email templates, never user-supplied expressions, so exploitability here
+          is low — but the fix is free.
+    -->
+    <tomcat.version>10.1.55</tomcat.version>
+    <thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
   </properties>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
