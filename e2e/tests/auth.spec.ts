@@ -13,14 +13,6 @@ async function xsrfHeaders(page: Page): Promise<Record<string, string>> {
   return { 'X-XSRF-TOKEN': cookie.value };
 }
 
-async function latestMailTo(email: string): Promise<string> {
-  const res = await fetch('http://localhost:8025/api/v1/search?query=to:' + encodeURIComponent(email));
-  const { messages } = await res.json();
-  if (!messages?.length) throw new Error('no mail for ' + email);
-  const full = await fetch(`http://localhost:8025/api/v1/message/${messages[0].ID}`);
-  return (await full.json()).HTML as string;
-}
-
 /**
  * bh-button puts the data-testid on the custom-element HOST, which stretches to the form's
  * full width while the real <button> inside is only as wide as its label. Clicking the host
@@ -33,6 +25,29 @@ function linkFrom(html: string, path: string): string {
   const m = html.match(new RegExp(`href="([^"]*${path}[^"]*)"`));
   if (!m) throw new Error('no ' + path + ' link in mail');
   return m[1].replace(/&amp;/g, '&');
+}
+
+/** Mail is @Async and fires strictly after commit, so it arrives late — and by the time the
+ *  "forgot password" step looks, this journey's inbox already holds the earlier verify mail. The
+ *  newest message is not necessarily the wanted one. Poll until a message actually containing the
+ *  wanted link shows up, rather than grabbing messages[0] and hoping. */
+async function mailLinkTo(email: string, path: string, timeoutMs = 20000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let lastErr = 'no mail at all';
+  while (Date.now() < deadline) {
+    const res = await fetch('http://localhost:8025/api/v1/search?query=to:' + encodeURIComponent(email));
+    const { messages } = await res.json();
+    for (const m of messages ?? []) {
+      const html = (await (await fetch(`http://localhost:8025/api/v1/message/${m.ID}`)).json()).HTML as string;
+      try {
+        return linkFrom(html, path);
+      } catch {
+        lastErr = `mail present but no ${path} link yet`;
+      }
+    }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  throw new Error(`${lastErr} for ${email} after ${timeoutMs}ms`);
 }
 
 // Serial: this suite runs with workers: 1 against one seeded backend. A fresh address per run
@@ -66,8 +81,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
   });
 
   test('the verify link in the real inbox logs the account in', async () => {
-    const html = await latestMailTo(EMAIL);
-    const link = linkFrom(html, '/auth/verify');
+    const link = await mailLinkTo(EMAIL, '/auth/verify');
     // Absolute link straight from the mail — a real user clicks exactly this, no rewriting.
     // Three of these links shipped dead earlier in M8; only following the real one catches that.
     await page.goto(link);
@@ -97,8 +111,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
     await page.click(btn('forgot-submit'));
     await expect(page.getByTestId('forgot-confirm')).toBeVisible();
 
-    const html = await latestMailTo(EMAIL);
-    const link = linkFrom(html, '/auth/reset');
+    const link = await mailLinkTo(EMAIL, '/auth/reset');
     await page.goto(link);
     await page.fill('[data-testid="reset-password"]', NEW_PASSWORD);
     await page.click(btn('reset-submit'));

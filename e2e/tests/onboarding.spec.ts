@@ -1,18 +1,34 @@
 import { test, expect, Browser, Page } from '@playwright/test';
 
 // Copied from auth.spec.ts — spec-local by design (see that file's comment on why).
-async function latestMailTo(email: string): Promise<string> {
-  const res = await fetch('http://localhost:8025/api/v1/search?query=to:' + encodeURIComponent(email));
-  const { messages } = await res.json();
-  if (!messages?.length) throw new Error('no mail for ' + email);
-  const full = await fetch(`http://localhost:8025/api/v1/message/${messages[0].ID}`);
-  return (await full.json()).HTML as string;
-}
-
 function linkFrom(html: string, path: string): string {
   const m = html.match(new RegExp(`href="([^"]*${path}[^"]*)"`));
   if (!m) throw new Error('no ' + path + ' link in mail');
   return m[1].replace(/&amp;/g, '&');
+}
+
+/** Mail is @Async and fires strictly after commit, so it arrives late — and OWNER_EMAIL's inbox
+ *  already holds an earlier mail (verify, then approval) by the time later steps look. The newest
+ *  message is not necessarily the wanted one. Poll until a message actually containing the wanted
+ *  link shows up, rather than grabbing messages[0] and hoping. */
+async function mailWithLink(email: string, path: string, timeoutMs = 20000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let lastErr = 'no mail at all';
+  while (Date.now() < deadline) {
+    const res = await fetch('http://localhost:8025/api/v1/search?query=to:' + encodeURIComponent(email));
+    const { messages } = await res.json();
+    for (const m of messages ?? []) {
+      const html = (await (await fetch(`http://localhost:8025/api/v1/message/${m.ID}`)).json()).HTML as string;
+      if (new RegExp(`href="[^"]*${path}[^"]*"`).test(html)) return html;
+      lastErr = `mail present but no ${path} link yet`;
+    }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  throw new Error(`${lastErr} for ${email} after ${timeoutMs}ms`);
+}
+
+async function mailLinkTo(email: string, path: string, timeoutMs = 20000): Promise<string> {
+  return linkFrom(await mailWithLink(email, path, timeoutMs), path);
 }
 
 /**
@@ -61,8 +77,7 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
   });
 
   test('the verify link logs the owner in; the box shows PENDING everywhere it should', async () => {
-    const html = await latestMailTo(OWNER_EMAIL);
-    const link = linkFrom(html, '/auth/verify');
+    const link = await mailLinkTo(OWNER_EMAIL, '/auth/verify');
     // Absolute link straight from the mail — a real user clicks exactly this, no rewriting.
     await page.goto(link);
     await page.waitForURL(url => !url.pathname.startsWith('/auth/verify'));
@@ -99,7 +114,7 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
   });
 
   test('the owner\'s inbox gets the box-approved mail', async () => {
-    const html = await latestMailTo(OWNER_EMAIL);
+    const html = await mailWithLink(OWNER_EMAIL, '/auth/login');
     expect(html).toContain('is live');
     expect(linkFrom(html, '/auth/login')).toBeTruthy();
   });
@@ -122,7 +137,7 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     await page.click(btn('invite-create'));
     await expect(page.getByTestId('invite-link')).toContainText('/join/');
 
-    const html = await latestMailTo(ATHLETE_EMAIL);
-    expect(linkFrom(html, '/join/')).toBeTruthy();
+    const link = await mailLinkTo(ATHLETE_EMAIL, '/join/');
+    expect(link).toBeTruthy();
   });
 });
