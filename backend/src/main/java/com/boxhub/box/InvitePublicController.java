@@ -40,8 +40,14 @@ public class InvitePublicController {
     public PreviewResponse preview(@PathVariable String token) {
         Invite inv = inviteService.findValid(token);
         Box box = boxes.findById(inv.getBoxId()).orElseThrow(NoSuchElementException::new);
+        // Plan is @TenantId; this permitAll endpoint can be hit with an ambient JWT for a
+        // DIFFERENT box already in the SecurityContext (e.g. cookie from a box-admin's own
+        // dashboard tab). An unguarded plans.findById would then silently filter to that
+        // wrong tenant and return empty -> planName always null for a cross-box preview.
+        // Same trap as StripeWebhookController/SessionGenerator (see CLAUDE.md); fix is the
+        // same runAsBox pattern accept() already uses below.
         String planName = inv.getPlanId() == null ? null
-                : plans.findById(inv.getPlanId()).map(Plan::getName).orElse(null);
+                : runAsBox(inv.getBoxId(), () -> plans.findById(inv.getPlanId()).map(Plan::getName).orElse(null));
         return new PreviewResponse(box.getName(), box.getSlug(), inv.getRole(), inv.getEmail(), planName);
     }
 
@@ -78,6 +84,11 @@ public class InvitePublicController {
 
     /** Mirrors StripeWebhookController/SessionGenerator's runAsBox exactly. */
     private void runAsBox(UUID boxId, Runnable action) {
+        runAsBox(boxId, () -> { action.run(); return null; });
+    }
+
+    /** Value-returning variant, for reads (e.g. the preview plan lookup) that need the box tenant. */
+    private <T> T runAsBox(UUID boxId, java.util.function.Supplier<T> action) {
         Authentication prev = SecurityContextHolder.getContext().getAuthentication();
         try {
             Jwt jwt = Jwt.withTokenValue("invite-accept").header("alg", "HS256")
@@ -86,7 +97,7 @@ public class InvitePublicController {
                     .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
             SecurityContextHolder.getContext().setAuthentication(
                     new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-            action.run();
+            return action.get();
         } finally {
             SecurityContextHolder.getContext().setAuthentication(prev);
         }

@@ -53,15 +53,32 @@ public class AuthController {
         this.googleConfigured = !googleClientId.isBlank();
     }
 
+    /**
+     * Every request record on this controller that carries credential material redacts toString(),
+     * and that is load-bearing, not cosmetic. Spring MVC's {@code RequestResponseBodyMethodProcessor}
+     * logs {@code Read "application/json" to [<the deserialized argument>]} at DEBUG on
+     * {@code org.springframework.web} — a default record toString() therefore writes the user's
+     * plaintext password (or a single-use reset/verify token) into the log file the moment anyone
+     * debugs a request. LogHygieneTest caught exactly this. Redacting on the DTO (rather than muting
+     * that logger) keeps it safe wherever it gets printed.
+     */
     record RegisterRequest(@NotBlank @Email String email,
                            @NotBlank @Size(min = 10, max = 100) String password,
                            @NotBlank @Size(max = 100) String name,
-                           String inviteToken) {}
+                           String inviteToken) {
+        @Override public String toString() {
+            return "RegisterRequest[email=" + email + ", password=***, name=" + name + ", inviteToken=***]";
+        }
+    }
     record UserResponse(UUID id, String email, String name) {}
     public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role, String boxStatus) {}
     public record SessionResponse(List<MembershipDto> memberships) {}
-    record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
-    record TokenRequest(@NotBlank String token) {}
+    record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
+        @Override public String toString() { return "LoginRequest[email=" + email + ", password=***]"; }
+    }
+    record TokenRequest(@NotBlank String token) {
+        @Override public String toString() { return "TokenRequest[token=***]"; }
+    }
     record EmailRequest(@NotBlank @Email String email) {}
     record ProvidersResponse(boolean google) {}
 
@@ -98,7 +115,11 @@ public class AuthController {
     record SignupBoxRequest(@NotBlank @Size(max = 80) String boxName,
                             @NotBlank @Size(max = 100) String name,
                             @NotBlank @Email String email,
-                            @NotBlank @Size(min = 10, max = 100) String password) {}
+                            @NotBlank @Size(min = 10, max = 100) String password) {
+        @Override public String toString() {
+            return "SignupBoxRequest[boxName=" + boxName + ", name=" + name + ", email=" + email + ", password=***]";
+        }
+    }
     record SignupBoxResponse(String email, String name) {}
     record FullResponse(boolean full) {}
     record WaitlistRequest(@NotBlank @Email String email, @NotBlank @Size(max = 80) String boxName) {}
@@ -148,7 +169,9 @@ public class AuthController {
                 .ifPresent(authService::sendVerification);
     }
 
-    record ResetRequest(@NotBlank String token, @NotBlank @Size(min = 10, max = 100) String password) {}
+    record ResetRequest(@NotBlank String token, @NotBlank @Size(min = 10, max = 100) String password) {
+        @Override public String toString() { return "ResetRequest[token=***, password=***]"; }
+    }
 
     /** Always 202. A 404 would confirm whether the address is registered. */
     @PostMapping("/password/forgot")
@@ -198,6 +221,21 @@ public class AuthController {
     public List<AccountService.SessionDto> sessions(HttpServletRequest http) {
         String rawRefreshToken = CookieBearerTokenResolver.cookie(http, CookieService.RT);
         return accounts.sessions(TenantContext.userId(), rawRefreshToken);
+    }
+
+    /**
+     * Per-session kill ("I lost my phone"), not logout-all: revokes exactly the one family named
+     * by familyId. Lives under /api/auth for the same reason GET /sessions does — bh_rt is
+     * Path-scoped there.
+     *
+     * Ownership is enforced in RefreshTokenService.revokeSession, scoped to the caller's own
+     * userId. Another user's family id 404s (mapped from NoSuchElementException) rather than
+     * 403ing — a 403 would confirm the id exists, an existence oracle over other users' sessions.
+     */
+    @DeleteMapping("/sessions/{familyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeSession(@PathVariable UUID familyId) {
+        refreshTokens.revokeSession(TenantContext.userId(), familyId);
     }
 
     record BoxTokenRequest(@jakarta.validation.constraints.NotNull UUID boxId) {}

@@ -4,6 +4,7 @@ import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
+import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,16 +31,18 @@ public class SessionController {
     private final UserRepository users;
     private final BookingService bookingService;
     private final ApplicationEventPublisher events;
+    private final MediaSigner mediaSigner;
 
     public SessionController(ClassSessionRepository sessions, BookingRepository bookings,
                             MembershipRepository memberships, UserRepository users, BookingService bookingService,
-                            ApplicationEventPublisher events) {
+                            ApplicationEventPublisher events, MediaSigner mediaSigner) {
         this.sessions = sessions;
         this.bookings = bookings;
         this.memberships = memberships;
         this.users = users;
         this.bookingService = bookingService;
         this.events = events;
+        this.mediaSigner = mediaSigner;
     }
 
     record SessionView(UUID id, String name, Instant startAt, int durationMin, int capacity, UUID coachId,
@@ -112,7 +115,7 @@ public class SessionController {
             Membership m = memberships.findById(b.getMembershipId()).orElse(null);
             String name = m != null ? m.getUser().getName() : "";
             String email = m != null ? m.getUser().getEmail() : "";
-            String avatar = m != null ? m.getAvatarPath() : null;
+            String avatar = m != null ? mediaSigner.sign(m.getAvatarPath()) : null;
             out.add(new RosterEntry(b.getId(), b.getMembershipId(), name, email, avatar, b.getStatus(), b.getPosition()));
         }
         return out;

@@ -1,6 +1,7 @@
 package com.boxhub.identity;
 
 import com.boxhub.performance.PerformanceQueries;
+import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -22,10 +23,12 @@ public class ProfileController {
 
     private final MembershipRepository memberships;
     private final PerformanceQueries queries;
+    private final MediaSigner mediaSigner;
 
-    public ProfileController(MembershipRepository memberships, PerformanceQueries queries) {
+    public ProfileController(MembershipRepository memberships, PerformanceQueries queries, MediaSigner mediaSigner) {
         this.memberships = memberships;
         this.queries = queries;
+        this.mediaSigner = mediaSigner;
     }
 
     public record ProfileDto(UUID membershipId, String name, String avatarPath, boolean isPrivate, boolean me,
@@ -49,7 +52,7 @@ public class ProfileController {
                 .orElseThrow(NoSuchElementException::new);
         boolean self = target.getId().equals(me.getId());
         boolean masked = target.isPrivateProfile() && !self;
-        return new ProfileDto(target.getId(), target.getUser().getName(), target.getAvatarPath(),
+        return new ProfileDto(target.getId(), target.getUser().getName(), mediaSigner.sign(target.getAvatarPath()),
                 target.isPrivateProfile(), self,
                 masked ? null : queries.benchmarkHistory(target.getId()),
                 masked ? null : queries.liftPrs(target.getId(), TenantContext.requireBoxId()),

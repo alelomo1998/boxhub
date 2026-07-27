@@ -386,6 +386,57 @@ class StripeWebhookTest extends AbstractIntegrationTest {
     }
 
     /**
+     * M11 T6 — closing an existence oracle. This endpoint is unauthenticated, so any status code
+     * that varies with "does this session id exist" is an oracle an anonymous caller can probe.
+     * M10 answered 200 for an unknown session id but 400 for a known one whose box had no
+     * credentials; both are now 200, and neither writes anything.
+     */
+    @Test
+    void unknownSessionAndMissingCredentialsAreIndistinguishableAndNeitherWrites() throws Exception {
+        // A well-formed header is enough: neither path ever reaches signature verification.
+        String sig = "t=" + Instant.now().getEpochSecond() + ",v1=" + "0".repeat(64);
+
+        // (a) session id that was never created.
+        String unknownPayload = eventPayload("cs_test_never_created_" + System.nanoTime(),
+                "checkout.session.completed");
+        int unknownStatus = mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(unknownPayload))
+                .andReturn().getResponse().getStatus();
+
+        // (b) real session id, but the box disconnected Stripe (row deleted).
+        Fixture deleted = newFixture("nocreds-del-" + System.nanoTime());
+        boxStripe.findByBoxId(deleted.boxId()).ifPresent(boxStripe::delete);
+        String deletedPayload = eventPayload(deleted.sessionId(), "checkout.session.completed");
+        int deletedStatus = mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(deletedPayload))
+                .andReturn().getResponse().getStatus();
+
+        // (c) real session id, credentials present but disabled — the other half of the guard.
+        Fixture disabled = newFixture("nocreds-off-" + System.nanoTime());
+        BoxStripe off = boxStripe.findByBoxId(disabled.boxId()).orElseThrow();
+        off.setEnabled(false);
+        boxStripe.save(off);
+        String disabledPayload = eventPayload(disabled.sessionId(), "checkout.session.completed");
+        int disabledStatus = mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(disabledPayload))
+                .andReturn().getResponse().getStatus();
+
+        assertThat(unknownStatus).isEqualTo(200);
+        assertThat(deletedStatus).as("no-credentials must not be distinguishable from unknown-session")
+                .isEqualTo(unknownStatus);
+        assertThat(disabledStatus).isEqualTo(unknownStatus);
+
+        // Nothing written on either credential-less path.
+        for (Fixture f : java.util.List.of(deleted, disabled)) {
+            assertThat(payments.findByStripeSessionId(f.sessionId()).orElseThrow().getStatus())
+                    .isEqualTo("PENDING");
+            actAsBox(f.boxId());
+            assertThat(subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd())
+                    .isNull();
+        }
+    }
+
+    /**
      * The CRITICAL fix: a delayed-notification payment method (SEPA debit, bank transfer) fires
      * checkout.session.completed immediately with payment_status "unpaid" — money hasn't moved yet.
      * Granting the subscription/receipt here would let a bounced debit train for free. Only once

@@ -1,1 +1,4 @@
 target/
+# OWASP dependency-check's local NVD mirror (hundreds of MB). Written only when the
+# dependency-check goal is invoked explicitly — see the plugin comment in pom.xml.
+dependency-check-data/

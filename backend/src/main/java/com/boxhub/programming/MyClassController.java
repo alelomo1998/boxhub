@@ -7,6 +7,7 @@ import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.box.ClassTemplate;
 import com.boxhub.box.ClassTemplateRepository;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.TenantContext;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,16 +32,18 @@ public class MyClassController {
     private final MembershipRepository memberships;
     private final SessionItemRepository items;
     private final SessionItemController itemsApi; // dto mapping
+    private final MediaSigner mediaSigner;
 
     public MyClassController(ClassSessionRepository sessions, ClassTemplateRepository templates,
                              BookingRepository bookings, MembershipRepository memberships,
-                             SessionItemRepository items, SessionItemController itemsApi) {
+                             SessionItemRepository items, SessionItemController itemsApi, MediaSigner mediaSigner) {
         this.sessions = sessions;
         this.templates = templates;
         this.bookings = bookings;
         this.memberships = memberships;
         this.items = items;
         this.itemsApi = itemsApi;
+        this.mediaSigner = mediaSigner;
     }
 
     public record SessionRef(UUID id, String name, Instant startAt, String imagePath, String programmingStatus) {}
@@ -83,6 +86,7 @@ public class MyClassController {
 
     private SessionRef ref(ClassSession s, Map<UUID, String> images) {
         return new SessionRef(s.getId(), s.getName(), s.getStartAt(),
-                s.getTemplateId() == null ? null : images.get(s.getTemplateId()), s.getProgrammingStatus());
+                mediaSigner.sign(s.getTemplateId() == null ? null : images.get(s.getTemplateId())),
+                s.getProgrammingStatus());
     }
 }

@@ -26,12 +26,13 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
     @Autowired ObjectMapper om;
 
     String adminToken, athleteToken, otherAdminToken;
+    Box a, b;
 
     @BeforeEach
     void setup() {
         long n = System.nanoTime();
-        Box a = newBox("CT A " + n, "ct-a-" + n);
-        Box b = newBox("CT B " + n, "ct-b-" + n);
+        a = newBox("CT A " + n, "ct-a-" + n);
+        b = newBox("CT B " + n, "ct-b-" + n);
         adminToken = boxToken("cta-" + n + "@t.io", a, "BOX_ADMIN");
         athleteToken = boxToken("ctath-" + n + "@t.io", a, "ATHLETE");
         otherAdminToken = boxToken("ctb-" + n + "@t.io", b, "BOX_ADMIN");
@@ -116,5 +117,33 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.cancelCutoffMin").value(90))
                 .andExpect(jsonPath("$.bookingHorizonWeeks").value(3));
+    }
+
+    /**
+     * Since M11 T4 the stored imagePath is minted into a signed nginx secure_link URL, so an
+     * unvalidated path is a capability to read someone else's file: box A's admin could store box
+     * B's media path and have us sign it for them. Own-box path must round-trip (and come back
+     * signed), foreign-box path must be refused. The second half fails against the unguarded
+     * version — it returned 200 and a valid signature over box B's file.
+     */
+    @Test
+    void templateImageMustBeThisBoxsOwnMediaPath() throws Exception {
+        String id = om.readTree(mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                                .header("Authorization", "Bearer " + adminToken)
+                                .content("{\"name\":\"Img\",\"weekday\":1,\"startTime\":\"07:00\",\"durationMin\":60,\"capacity\":10}"))
+                        .andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        mvc.perform(patch("/api/box/class-templates/" + id).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"imagePath\":\"/media/" + a.getId() + "/mine.jpg\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imagePath").value(org.hamcrest.Matchers.containsString("md5=")));
+
+        mvc.perform(patch("/api/box/class-templates/" + id).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"imagePath\":\"/media/" + b.getId() + "/theirs.jpg\"}"))
+                .andExpect(status().isForbidden());
     }
 }

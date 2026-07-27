@@ -12,7 +12,10 @@ CrossFit box platform. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16. Mul
 - **Milestone lock:** work only the active milestone. Out-of-scope ideas → `docs/BACKLOG.md`, don't build them.
 - **Schema changes only via Flyway.** Never edit an applied migration.
 - **Every box-scoped endpoint** gets happy + auth-denied + cross-tenant-denied tests.
-- **Tenancy:** resolve tenant ONLY from the JWT via `TenantContext`, never from request params. `@TenantId` entities (Plan, Invite): any query that must be tenant-agnostic needs NATIVE SQL — JPQL/derived queries (incl. bulk updates) are silently filtered to the caller's box.
+- **Tenancy:** resolve tenant ONLY from the JWT via `TenantContext`, never from request params. `@TenantId` entities (Plan, Invite): any query that must be tenant-agnostic needs NATIVE SQL — JPQL/derived queries (incl. bulk updates) are silently filtered to the caller's box. Full rule, both failure modes, the `runAsBox` pattern, and the native-method table: `docs/TENANCY.md`.
+- **The authz conformance sweep is a standing guarantee (M11, binding).** `backend/src/test/java/com/boxhub/security/AuthzConformanceTest.java` sweeps Spring's live route table and defaults to DENY: a new route fails the build until someone declares its intent in `MIN_ROLE`, or allowlists it by METHOD+pattern with a written justification. **That failure is the design, not a broken test.** The only permitted edit is registering a route (plus seeding a real id in `pathIds` if it takes a path variable). Never weaken an assertion, allowlist around one, or restructure it — and the orchestrator, not an executor, audits every edit to it.
+- **No secret gets a working default.** A missing secret must fail startup, never fall back; `SecretDefaultsTest` enforces this over `application.yml` and `@Value` annotations both. A blank-but-set env var counts as missing — validate for it at the consumer.
+- **Mail fires strictly AFTER commit; an audit row is written strictly INSIDE the transaction.** Both exist so the record matches reality: a mail sent in a tx that rolls back is a lie, and an audit row surviving a rolled-back transition is also a lie.
 - Conventional commits. `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend builds (system JDK is 26, too new).
 
 ## Design rules (binding — see design law doc for detail)

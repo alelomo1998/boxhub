@@ -146,6 +146,48 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void previewResolvesPlanNameEvenUnderAForeignBoxAmbientTenant() throws Exception {
+        // Reproduces the @TenantId trap for reads: Plan is @TenantId, and preview() is permitAll,
+        // so it can be hit with SOME other box's JWT already in the SecurityContext (e.g. a cookie
+        // from a box-admin's own dashboard tab). A plans.findById() not wrapped in runAsBox would
+        // silently filter to that WRONG box and return empty -> planName always null. Two boxes,
+        // seeded independently, so this fails against the un-wrapped derived-query version.
+        long n = System.nanoTime();
+        String planBody = mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Unlimited " + n + "\",\"durationDays\":30}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String planName = om.readTree(planBody).get("name").asText();
+        String planId = om.readTree(planBody).get("id").asText();
+
+        String body = mvc.perform(post("/api/box/invites").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"email\":\"planprev-" + n + "@t.io\",\"role\":\"ATHLETE\",\"planId\":\"" + planId + "\"}"))
+                .andReturn().getResponse().getContentAsString();
+        String token = om.readTree(body).get("link").asText().substring("/join/".length());
+
+        // a user who is ALREADY an admin of a DIFFERENT box, holding that box's token
+        Box otherBox = new Box();
+        otherBox.setName("Plan Preview Other Box " + n);
+        otherBox.setSlug("plan-prev-other-" + n);
+        otherBox.setTimezone("Europe/Rome");
+        boxes.save(otherBox);
+        User otherAdmin = authService.register("planprevadm-" + n + "@t.io", "correct-horse-battery", "Other Adm");
+        Membership om2 = new Membership();
+        om2.setUser(otherAdmin);
+        om2.setBox(otherBox);
+        om2.setRole("BOX_ADMIN");
+        memberships.save(om2);
+        String otherBoxToken = tokenService.boxToken(otherAdmin, om2); // ambient tenant = otherBox, not `box`
+
+        mvc.perform(get("/api/invites/" + token).header("Authorization", "Bearer " + otherBoxToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.boxName").value(box.getName()))
+                .andExpect(jsonPath("$.planName").value(planName));
+    }
+
+    @Test
     void burnIsAtomicSingleUse() throws Exception {
         long n = System.nanoTime();
         String token = createInviteLink("race-" + n + "@t.io", "ATHLETE");

@@ -14,6 +14,9 @@ interface BoxRow {
 }
 interface WaitlistRow { email: string; boxName: string; createdAt: string; }
 interface Settings { signupMode: string; maxBoxes: number; }
+interface AuditRow {
+  id: string; actorEmail: string; action: string; boxId: string | null; detail: string | null; createdAt: string;
+}
 
 @Component({
   selector: 'bh-superadmin-console',
@@ -152,6 +155,36 @@ interface Settings { signupMode: string; maxBoxes: number; }
           }
         }
       </section>
+
+      <section class="bh-section">
+        <h2 class="t-h2">Audit log</h2>
+        @switch (auditState()) {
+          @case ('loading') { <p class="stateline" data-testid="audit-loading">Loading…</p> }
+          @case ('error') { <p class="stateline err" data-testid="audit-error">Couldn't load the audit log — try again.</p> }
+          @default {
+            @if (auditRows().length) {
+              <div class="bh-table-wrap">
+                <table class="bh-table" data-testid="audit-table">
+                  <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Box</th><th>Detail</th></tr></thead>
+                  <tbody>
+                    @for (a of auditRows(); track a.id) {
+                      <tr [attr.data-testid]="'audit-row-' + a.id">
+                        <td class="num">{{ a.createdAt | date:'dd MMM yyyy, HH:mm' }}</td>
+                        <td>{{ a.actorEmail }}</td>
+                        <td><bh-pill tone="active" [label]="a.action" /></td>
+                        <td>{{ a.boxId || '—' }}</td>
+                        <td>{{ a.detail || '—' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="stateline" data-testid="audit-empty">No superadmin actions recorded yet.</p>
+            }
+          }
+        }
+      </section>
     </main>
   `,
   styles: [`
@@ -201,11 +234,16 @@ export class ConsolePage implements OnInit {
   settingsPending = signal(false);
   settingsError = signal('');
 
+  // Audit log
+  auditRows = signal<AuditRow[]>([]);
+  auditState = signal<FetchState>('loading');
+
   ngOnInit() {
     this.loadQueue();
     this.loadBoxes();
     this.loadWaitlist();
     this.loadSettings();
+    this.loadAudit();
   }
 
   logout() {
@@ -248,6 +286,14 @@ export class ConsolePage implements OnInit {
     });
   }
 
+  loadAudit() {
+    this.auditState.set('loading');
+    this.http.get<AuditRow[]>('/api/admin/audit').subscribe({
+      next: rows => { this.auditRows.set(rows); this.auditState.set('ready'); },
+      error: () => this.auditState.set('error'),
+    });
+  }
+
   approve(b: BoxRow) {
     this.queueErrors.update(e => ({ ...e, [b.id]: '' }));
     this.queueActionId.set(b.id);
@@ -256,6 +302,7 @@ export class ConsolePage implements OnInit {
         this.queueActionId.set(null);
         this.pendingBoxes.update(rows => rows.filter(r => r.id !== b.id));
         this.loadBoxes();
+        this.loadAudit();
       },
       error: (e: HttpErrorResponse) => {
         this.queueActionId.set(null);
@@ -272,6 +319,7 @@ export class ConsolePage implements OnInit {
         this.queueActionId.set(null);
         this.pendingBoxes.update(rows => rows.filter(r => r.id !== b.id));
         this.loadBoxes();
+        this.loadAudit();
       },
       error: (e: HttpErrorResponse) => {
         this.queueActionId.set(null);
@@ -284,7 +332,7 @@ export class ConsolePage implements OnInit {
     this.boxesErrors.update(e => ({ ...e, [b.id]: '' }));
     this.boxesActionId.set(b.id);
     this.http.post<BoxRow>(`/api/admin/boxes/${b.id}/suspend`, {}).subscribe({
-      next: () => { this.boxesActionId.set(null); this.loadBoxes(); },
+      next: () => { this.boxesActionId.set(null); this.loadBoxes(); this.loadAudit(); },
       error: () => {
         this.boxesActionId.set(null);
         this.boxesErrors.update(errs => ({ ...errs, [b.id]: 'Something went wrong — try again.' }));
@@ -296,7 +344,7 @@ export class ConsolePage implements OnInit {
     this.boxesErrors.update(e => ({ ...e, [b.id]: '' }));
     this.boxesActionId.set(b.id);
     this.http.post<BoxRow>(`/api/admin/boxes/${b.id}/reactivate`, {}).subscribe({
-      next: () => { this.boxesActionId.set(null); this.loadBoxes(); },
+      next: () => { this.boxesActionId.set(null); this.loadBoxes(); this.loadAudit(); },
       error: () => {
         this.boxesActionId.set(null);
         this.boxesErrors.update(errs => ({ ...errs, [b.id]: 'Something went wrong — try again.' }));
@@ -311,6 +359,7 @@ export class ConsolePage implements OnInit {
       next: () => {
         this.settingsPending.set(false);
         this.loadSettings();
+        this.loadAudit();
       },
       error: (e: HttpErrorResponse) => {
         this.settingsPending.set(false);

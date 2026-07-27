@@ -173,6 +173,12 @@ export class AuthService {
     return this.http.get<AccountSession[]>('/api/auth/sessions');
   }
 
+  /** Revokes ONE session. AccountSession.id is the refresh-token familyId, which is exactly what
+   *  the endpoint keys on. Same /api/auth path reason as sessions() above. */
+  revokeSession(familyId: string): Observable<void> {
+    return this.http.delete<void>(`/api/auth/sessions/${familyId}`);
+  }
+
   exportData(): Observable<Record<string, unknown>> {
     return this.http.get<Record<string, unknown>>('/api/me/export');
   }

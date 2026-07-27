@@ -2,6 +2,7 @@ package com.boxhub.display;
 
 import com.boxhub.box.BoxRepository;
 import com.boxhub.box.BoxStatusGuard;
+import com.boxhub.identity.CookieService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -29,9 +30,13 @@ public class TvStreamController {
         this.stream = stream;
     }
 
-    /** EventSource can't set headers → token as query param (accepted pilot risk, BACKLOG). */
+    /** Token rides in the httpOnly bh_tv cookie (Path=/api/tv), set at pair-claim poll (M11 T5).
+     *  EventSource sends cookies same-origin automatically — no query string, so the 400-day
+     *  device token never lands in nginx access logs or browser history. */
     @GetMapping(value = "/api/tv/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(@RequestParam String token, HttpServletResponse response) {
+    public SseEmitter stream(@CookieValue(name = CookieService.TV, required = false) String token,
+                              HttpServletResponse response) {
+        if (token == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         Jwt jwt;
         try { jwt = jwtDecoder.decode(token); }
         catch (Exception e) { throw new ResponseStatusException(HttpStatus.UNAUTHORIZED); }

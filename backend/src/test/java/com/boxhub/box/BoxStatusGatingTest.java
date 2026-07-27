@@ -154,12 +154,16 @@ class BoxStatusGatingTest extends AbstractIntegrationTest {
         MvcResult pollResult = mvc.perform(post("/api/tv/pair/poll").contentType(APPLICATION_JSON)
                         .content("{\"code\":\"" + p.code() + "\",\"secret\":\"" + p.secret() + "\"}"))
                 .andExpect(status().isOk()).andReturn();
-        String tvToken = om.readTree(pollResult.getResponse().getContentAsString()).get("token").asText();
+        // token rides home as the bh_tv cookie (M11 T5), not the response body — pull it from Set-Cookie
+        String setCookie = pollResult.getResponse().getHeaders(org.springframework.http.HttpHeaders.SET_COOKIE)
+                .stream().filter(h -> h.startsWith("bh_tv=")).findFirst()
+                .orElseThrow(() -> new AssertionError("no bh_tv Set-Cookie header on poll success"));
+        String tvToken = setCookie.substring("bh_tv=".length(), setCookie.indexOf(';'));
 
         box.setStatus("SUSPENDED");
         boxes.save(box);
 
-        mvc.perform(get("/api/tv/stream").param("token", tvToken))
+        mvc.perform(get("/api/tv/stream").cookie(new jakarta.servlet.http.Cookie("bh_tv", tvToken)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("BOX_SUSPENDED"));
     }

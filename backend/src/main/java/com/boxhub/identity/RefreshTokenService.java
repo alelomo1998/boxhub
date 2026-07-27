@@ -73,6 +73,23 @@ public class RefreshTokenService {
         tokens.revokeAllForUser(userId, Instant.now());
     }
 
+    /**
+     * Per-session kill ("I lost my phone"): revokes ONE family, not every family for the user —
+     * that distinction is the whole point versus revokeAllFor/logout-all.
+     *
+     * Ownership is checked BEFORE the write, and the check is existence-scoped to (familyId,
+     * userId) together: a family that exists but belongs to someone else must look identical,
+     * from the caller's side, to a family that does not exist at all. Throwing here (mapped to
+     * 404 by ApiExceptionHandler) rather than AccessDeniedException (403) is deliberate — a 403
+     * would confirm the id exists, which is an existence oracle over other users' session ids.
+     */
+    @Transactional
+    public void revokeSession(UUID userId, UUID familyId) {
+        if (!tokens.existsByFamilyIdAndUserId(familyId, userId))
+            throw new java.util.NoSuchElementException("No such session");
+        tokens.revokeFamily(familyId, Instant.now());
+    }
+
     @Transactional(readOnly = true)
     public List<RefreshToken> activeSessions(UUID userId) {
         return tokens.findActiveByUser(userId, Instant.now());

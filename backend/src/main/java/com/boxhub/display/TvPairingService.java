@@ -20,7 +20,7 @@ import java.util.UUID;
 @Service
 public class TvPairingService {
 
-    static final Duration CODE_TTL = Duration.ofMinutes(10);
+    public static final Duration CODE_TTL = Duration.ofMinutes(10);
 
     private final TvDeviceRepository devices;
     private final TokenService tokens;

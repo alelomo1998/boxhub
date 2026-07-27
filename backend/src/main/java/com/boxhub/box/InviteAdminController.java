@@ -39,8 +39,16 @@ public class InviteAdminController {
                                @NotBlank @Pattern(regexp = "ATHLETE|COACH|BOX_ADMIN") String role,
                                UUID planId) {}
 
+    /** {@code link} embeds the raw invite token — a single-use credential that grants membership.
+     *  toString() redacts it because Spring MVC logs the response body at DEBUG
+     *  ({@code Writing [<return value>]}); see AuthController.RegisterRequest for the full note. */
     record CreatedInviteResponse(UUID id, String email, String role, UUID planId,
-                                 Instant expiresAt, String link) {}
+                                 Instant expiresAt, String link) {
+        @Override public String toString() {
+            return "CreatedInviteResponse[id=" + id + ", email=" + email + ", role=" + role
+                    + ", planId=" + planId + ", expiresAt=" + expiresAt + ", link=***]";
+        }
+    }
 
     record InviteDto(UUID id, String email, String role, UUID planId, Instant expiresAt) {}
 

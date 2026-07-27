@@ -16,7 +16,21 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
         "boxhub.auth-rate-limit=1000",
-        "boxhub.stripe.enc-key=HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo="
+        // Same reasoning, for M11's extended limits. The global ceiling counts EVERY /api/
+        // request, and the whole suite shares this one Spring context with MockMvc's default
+        // remoteAddr 127.0.0.1 — so at the production default of 600/min the suite's own
+        // volume would eventually trip the limiter and read as flake.
+        "boxhub.rate-limit.write=100000",
+        "boxhub.rate-limit.lookup=100000",
+        "boxhub.rate-limit.global=100000",
+        // Every secret-shaped property in application.yml is now default-less (SecretDefaultsTest
+        // enforces it), so the test context has to supply all of them or placeholder resolution
+        // fails at boot.
+        "boxhub.jwt.secret=test-only-jwt-secret-must-be-at-least-32-bytes!",
+        "boxhub.stripe.enc-keys=1:HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo=",
+        // >=32 chars: MediaSigner enforces a 32-char floor (a short or blank link secret makes
+        // every signed media URL forgeable), so this must satisfy it or no context boots.
+        "boxhub.media.link-secret=test-only-media-link-secret-padded-to-32"
 })
 public abstract class AbstractIntegrationTest {
 

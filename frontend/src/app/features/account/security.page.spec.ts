@@ -96,6 +96,46 @@ describe('SecurityPage', () => {
     expect(cmp.sessions().find(s => s.id === 's2')?.current).toBeFalse();
   });
 
+  it('revokes ONE session by familyId and reloads the list — not logout-all', () => {
+    const fixture = setup();
+    const cmp = fixture.componentInstance;
+    cmp.loadSessions();
+    http.expectOne('/api/auth/sessions').flush([
+      { id: 's1', device: 'Chrome on Mac', ip: '1.2.3.4', lastSeen: '2026-07-17T10:00:00Z', current: true },
+      { id: 's2', device: 'Safari on iPhone', ip: '5.6.7.8', lastSeen: '2026-07-16T10:00:00Z', current: false },
+    ]);
+
+    cmp.revokeSession(cmp.sessions().find(s => s.id === 's2')!);
+    // the targeted family only, and NOT /api/auth/logout-all — that distinction is the feature
+    const req = http.expectOne('/api/auth/sessions/s2');
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null, { status: 204, statusText: 'No Content' });
+
+    // a non-current row leaves the user signed in and just refreshes the list
+    http.expectOne('/api/auth/sessions').flush([
+      { id: 's1', device: 'Chrome on Mac', ip: '1.2.3.4', lastSeen: '2026-07-17T10:00:00Z', current: true },
+    ]);
+    expect(cmp.sessions().length).toBe(1);
+    expect(cmp.revokingId()).toBeNull();
+    expect(cmp.revokeError()).toBeNull();
+  });
+
+  it('shows an inline error and clears pending when a revoke fails', () => {
+    const fixture = setup();
+    const cmp = fixture.componentInstance;
+    cmp.loadSessions();
+    http.expectOne('/api/auth/sessions').flush([
+      { id: 's2', device: 'Safari on iPhone', ip: '5.6.7.8', lastSeen: '2026-07-16T10:00:00Z', current: false },
+    ]);
+
+    cmp.revokeSession(cmp.sessions()[0]);
+    http.expectOne('/api/auth/sessions/s2')
+        .flush('nope', { status: 404, statusText: 'Not Found' });
+
+    expect(cmp.revokeError()).toContain("Couldn't sign out that device");
+    expect(cmp.revokingId()).toBeNull(); // pending must not stick, or the row stays disabled forever
+  });
+
   it('shows an error state when sessions fail to load', () => {
     TestBed.configureTestingModule({
       imports: [SecurityPage],

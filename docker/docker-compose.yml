@@ -36,12 +36,18 @@ services:
       # Dev/e2e stack: the serial Playwright suite logs in many times from one IP within the
       # 1-min window. Prod overrides this with a strict value; keep the default relaxed here.
       BOXHUB_AUTH_RATE_LIMIT: ${BOXHUB_AUTH_RATE_LIMIT:-200}
+      BOXHUB_WRITE_RATE_LIMIT: ${BOXHUB_WRITE_RATE_LIMIT:-500}
+      BOXHUB_LOOKUP_RATE_LIMIT: ${BOXHUB_LOOKUP_RATE_LIMIT:-500}
+      BOXHUB_GLOBAL_RATE_LIMIT: ${BOXHUB_GLOBAL_RATE_LIMIT:-5000}
       BOXHUB_MEDIA_DIR: /data/media
       BOXHUB_SMTP_HOST: mailpit
       BOXHUB_SMTP_PORT: "1025"
       BOXHUB_APP_URL: ${BOXHUB_APP_URL:-http://localhost}
       BOXHUB_SUPERADMIN_EMAILS: ${BOXHUB_SUPERADMIN_EMAILS:-super@demo.io}
-      BOXHUB_STRIPE_ENC_KEY: ${BOXHUB_STRIPE_ENC_KEY:-AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=}
+      # version:base64key, newest first (see CryptoService). Rotating = prepend "2:<newkey>," and
+      # keep the old entry so existing rows still decrypt.
+      BOXHUB_STRIPE_ENC_KEYS: ${BOXHUB_STRIPE_ENC_KEYS:-1:AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=}
+      BOXHUB_MEDIA_LINK_SECRET: ${BOXHUB_MEDIA_LINK_SECRET:-dev-only-media-link-secret-change-me}
     volumes:
       - media:/data/media
     depends_on:
@@ -59,6 +65,10 @@ services:
       dockerfile: docker/frontend.Dockerfile
     ports:
       - "${HTTP_PORT:-80}:80"
+    environment:
+      # Same secret as the backend — nginx validates the signature the API mints. envsubst'd
+      # into nginx.conf at container start (see frontend.Dockerfile / nginx.conf.template).
+      BOXHUB_MEDIA_LINK_SECRET: ${BOXHUB_MEDIA_LINK_SECRET:-dev-only-media-link-secret-change-me}
     volumes:
       - media:/media:ro
     depends_on:

@@ -26,13 +26,15 @@ export class TvService {
     return this.http.post<{ code: string; secret: string }>('/api/tv/pair', {});
   }
 
-  poll(code: string, secret: string): Observable<{ token: string } | null> {
-    // 202 has no body -> null; 200 -> {token}
-    return this.http.post<{ token: string } | null>('/api/tv/pair/poll', { code, secret });
+  poll(code: string, secret: string): Observable<{ paired: boolean } | null> {
+    // 202 has no body -> null; 200 -> {paired: true}. The actual credential rides home as the
+    // httpOnly bh_tv cookie (Set-Cookie on this same response) — never in the JSON body.
+    return this.http.post<{ paired: boolean } | null>('/api/tv/pair/poll', { code, secret });
   }
 
-  /** Native EventSource: auto-reconnect on gym wifi comes free. */
-  stream(token: string): EventSource {
-    return new EventSource('/api/tv/stream?token=' + encodeURIComponent(token));
+  /** Native EventSource: auto-reconnect on gym wifi comes free. bh_tv cookie rides same-origin
+   *  automatically — no token in the URL, so it never lands in access logs or history. */
+  stream(): EventSource {
+    return new EventSource('/api/tv/stream');
   }
 }
