@@ -1,26 +1,75 @@
 version: 2
+
+# This file configures VERSION UPDATES only. Dependabot SECURITY ALERTS are a repository
+# setting and are independent of it — they stay on regardless of anything here, and they are
+# the half that actually matters. Everything below is about keeping routine bumps from
+# becoming noise.
+#
+# The first run of the original config opened ~12 pull requests at once, almost all failing
+# major bumps (Angular 22, Spring Boot 4.1, Node 26, TypeScript 7). A wall of red PRs gets
+# ignored, and an ignored bot is worse than no bot. Hence: monthly, grouped into one PR per
+# ecosystem, capped, and majors excluded.
+#
+# Majors are excluded on purpose, not out of laziness. A framework major here is a project,
+# not a bump: Angular 19 -> 22 is M12's own milestone, and Spring Boot 3.4 -> 4.x would move
+# the whole security stack that M11 just hardened. Those get planned, not merged by a bot.
+# Patches and minors are exactly what automation should carry.
 updates:
   - package-ecosystem: maven
     directory: /backend
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      backend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      frontend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /e2e
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      e2e-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      actions:
+        patterns: ["*"]
 
+  # Base images only (postgres, nginx, node, mailpit). Majors excluded for the same reason:
+  # a Node or Postgres major is a deliberate upgrade, not a bot merge.
   - package-ecosystem: docker
     directory: /docker
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

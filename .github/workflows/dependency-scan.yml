@@ -1,37 +1,37 @@
 name: dependency-scan
-# Nightly OWASP dependency-check scan of backend/ Maven dependencies against the NVD CVE
-# feed, failing the job on any finding with CVSS >= 7 (see backend/pom.xml for the plugin
-# config and backend/owasp-suppressions.xml for reviewed suppressions).
+# Vulnerability scan of backend (Maven) and frontend/e2e (npm) dependencies against the OSV
+# database. Runs on every push and PR because it needs no credentials and finishes in seconds.
 #
-# This job CANNOT do anything useful without the NVD_API_KEY repository secret. Without a
-# key, the NVD CVE database sync is rate-limited hard enough that it takes hours and
-# routinely times out -- which is also why this does not run on every push (see the
-# `backend` job in ci.yml, which never touches this plugin). Add the secret at
-# Settings > Secrets and variables > Actions > New repository secret > NVD_API_KEY
-# (request a free key at https://nvd.nist.gov/developers/request-an-api-key). Until that
-# secret exists, both the schedule and manual runs of this workflow will fail or hang.
+# This replaced OWASP dependency-check, which had to be nightly-only for one reason: it mirrors
+# the whole NVD feed, and without an NVD API key that sync takes hours and times out. A scan that
+# only runs at 4am and needs a secret nobody added is not a gate. OSV carries the same advisories
+# for these ecosystems, resolves Maven transitives from pom.xml, and gates the push instead.
+#
+# Findings that are real but deliberately not blocking go in osv-scanner.toml at the repo root,
+# each with a written reason and a review date — an unsuppressed noisy scan gets ignored by
+# humans, which is worse than no scan.
 on:
+  push:
+    branches: [main]
+  pull_request:
   schedule:
-    - cron: "0 4 * * *"
-  workflow_dispatch: {}
+    # Also weekly, so an advisory published against unchanged code still surfaces.
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
-  dependency-check:
+  osv-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '21', cache: maven }
-      - uses: actions/cache@v4
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
-          path: backend/dependency-check-data
-          key: dependency-check-data-${{ hashFiles('backend/pom.xml') }}
-          restore-keys: |
-            dependency-check-data-
-      - name: OWASP dependency-check
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: cd backend && mvn -B org.owasp:dependency-check-maven:check
+          scan-args: |-
+            --recursive
+            --skip-git
+            ./
 
   frontend-audit-informational:
     runs-on: ubuntu-latest
@@ -40,14 +40,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json }
       - run: cd frontend && npm ci
-      # Informational only (continue-on-error): every high-severity advisory today is a
-      # cascade of Angular 19's SSR-hydration CVE, which this client-rendered-only app
-      # cannot hit (no provideClientHydration/@angular/ssr anywhere in frontend/src). The
-      # only fix is Angular 19->22, a breaking major upgrade scheduled for M12 (frontend
-      # rework) -- not something to force into the last task of a security branch. The
-      # per-push gate in ci.yml stays at --audit-level=critical --omit=dev (green today)
-      # so this step exists purely to keep the full high-severity list visible every
-      # night without wedging the job. When M12 lands: drop continue-on-error here and
-      # flip the ci.yml gate to --audit-level=high.
+      # Informational only (continue-on-error): every high-severity npm advisory today is a
+      # cascade of Angular 19's SSR-hydration CVE, which this client-rendered-only app cannot hit
+      # (no provideClientHydration/@angular/ssr anywhere in frontend/src). The only fix is
+      # Angular 19->22, a breaking major upgrade scheduled for M12 (frontend rework). The real
+      # per-push gate lives in ci.yml at --audit-level=critical --omit=dev (green today); this
+      # step exists to keep the full high-severity list visible without wedging the job.
+      # When M12 lands: drop continue-on-error here and flip the ci.yml gate to high.
       - run: cd frontend && npm audit --audit-level=high
         continue-on-error: true
