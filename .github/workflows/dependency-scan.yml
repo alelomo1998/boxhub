@@ -7,6 +7,14 @@ name: dependency-scan
 # only runs at 4am and needs a secret nobody added is not a gate. OSV carries the same advisories
 # for these ecosystems, resolves Maven transitives from pom.xml, and gates the push instead.
 #
+# WHY THIS GATES THE BACKEND ONLY: osv-scanner has no severity threshold — it fails on any
+# finding at all. That is the right policy for the backend, which scans clean today and should
+# stay that way. It is the wrong policy for npm, where we knowingly carry Angular 19's
+# advisories until the 19->22 upgrade in M12, so an npm-inclusive gate would be red forever and
+# stop being read. npm keeps the two-tier policy decided for it: `npm audit --audit-level=critical
+# --omit=dev` gates every push in ci.yml, and the informational job below prints the full
+# high-severity list every run. Fold npm into this gate once M12 lands.
+#
 # Findings that are real but deliberately not blocking go in osv-scanner.toml at the repo root,
 # each with a written reason and a review date — an unsuppressed noisy scan gets ignored by
 # humans, which is worse than no scan.
@@ -37,8 +45,8 @@ jobs:
       - name: Generate the backend SBOM
         run: cd backend && mvn -B -q org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
 
-      # Explicit paths, not --recursive: recursing would find pom.xml again and re-trigger the
-      # extraction failure above.
+      # Explicit path, not --recursive: recursing would find pom.xml again and re-trigger the
+      # extraction failure above. Backend only — see the severity note at the top of this file.
       - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
           scan-args: |-
@@ -46,8 +54,6 @@ jobs:
             --all-packages
             --output=osv-results.json
             --sbom=backend/target/bom.json
-            --lockfile=frontend/package-lock.json
-            --lockfile=e2e/package-lock.json
 
       # The action exits 0 when osv-scanner rejects its own arguments — it prints usage and
       # the job goes green having scanned nothing. That is exactly how this shipped the first
@@ -63,8 +69,8 @@ jobs:
           if not f.exists():
               sys.exit("osv-results.json missing — the scanner never ran (check its arguments)")
           data = json.loads(f.read_text())
-          # Assert on ECOSYSTEMS, not file paths: what matters is that both halves of the app
-          # were really examined, and that stays true if a manifest is renamed or moved.
+          # Assert on the ECOSYSTEM, not a file path: what matters is that the backend was
+          # really examined, and that stays true if the SBOM moves or is renamed.
           seen = {}
           for r in data.get("results", []):
               src = r.get("source", {}).get("path", "?")
@@ -73,9 +79,8 @@ jobs:
                   seen.setdefault(eco, set()).add(src)
           for eco, srcs in sorted(seen.items()):
               print(f"{eco}: {sorted(srcs)}")
-          missing = [e for e in ("Maven", "npm") if e not in seen]
-          if missing:
-              sys.exit(f"no {missing} packages were scanned — that half of the app is unprotected")
+          if "Maven" not in seen:
+              sys.exit("no Maven packages were scanned — the backend is unprotected")
           PY
 
   frontend-audit-informational:
