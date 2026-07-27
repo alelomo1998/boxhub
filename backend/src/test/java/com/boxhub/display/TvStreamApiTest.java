@@ -3,8 +3,12 @@ package com.boxhub.display;
 import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
+import com.boxhub.identity.AuthService;
 import com.boxhub.identity.CookieService;
+import com.boxhub.identity.Membership;
+import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.TokenService;
+import com.boxhub.identity.User;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +26,8 @@ class TvStreamApiTest extends AbstractIntegrationTest {
     @Autowired BoxRepository boxes;
     @Autowired TvDeviceRepository devices;
     @Autowired TokenService tokenService;
+    @Autowired AuthService authService;
+    @Autowired MembershipRepository memberships;
 
     private Box newBox(String slug) {
         Box b = new Box(); b.setName(slug); b.setSlug(slug); b.setTimezone("Europe/Rome");
@@ -86,13 +92,29 @@ class TvStreamApiTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void boxTokenIsNotATvToken() throws Exception {
-        // a user/box-scoped JWT must not open a TV stream
+    void boxScopedTokenCannotOpenATvStream() throws Exception {
+        // The real assertion the old test's name promised. A box token is a VALID, correctly
+        // signed JWT — only its scope claim differs — so this exercises the scope check itself
+        // rather than the device lookup. It discriminates: a box token has no device_id claim,
+        // so removing the scope check yields a 500 (UUID.fromString(null)), not a 401.
+        long n = System.nanoTime();
+        Box a = newBox("tvscope-" + n);
+        User u = authService.register("tvscope-" + n + "@t.io", "correct-horse-battery", "TV Scope");
+        Membership m = new Membership();
+        m.setUser(u); m.setBox(a); m.setRole("BOX_ADMIN");
+        m = memberships.save(m);
+        String boxToken = tokenService.boxToken(u, m);
+
+        mvc.perform(get("/api/tv/stream").cookie(new Cookie(CookieService.TV, boxToken)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unknownDeviceIdIsRejectedEvenWithAValidTvToken() throws Exception {
+        // What the old boxTokenIsNotATvToken actually asserted — kept, under an honest name.
         long n = System.nanoTime();
         Box a = newBox("tvwr-" + n);
-        TvDevice d = activeDevice(a);
-        // craft: token with wrong scope — reuse tvToken then assert scope check by faking with user token is
-        // impractical here; instead assert unknown device id in an otherwise-valid tv token is rejected
+        activeDevice(a);
         String token = tokenService.tvToken(UUID.randomUUID(), a.getId());
         mvc.perform(get("/api/tv/stream").cookie(new Cookie(CookieService.TV, token)))
                 .andExpect(status().isUnauthorized());
