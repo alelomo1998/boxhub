@@ -6,6 +6,8 @@ import ch.qos.logback.core.read.ListAppender;
 import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
+import com.boxhub.box.ClassTemplate;
+import com.boxhub.box.ClassTemplateRepository;
 import com.boxhub.box.Payment;
 import com.boxhub.box.PaymentRepository;
 import com.boxhub.box.Plan;
@@ -95,6 +97,7 @@ class LogHygieneTest extends AbstractIntegrationTest {
     @Autowired PlanRepository plans;
     @Autowired SubscriptionRepository subscriptions;
     @Autowired PaymentRepository payments;
+    @Autowired ClassTemplateRepository classTemplates;
 
     private Logger root;
     private ListAppender<ILoggingEvent> captured;
@@ -151,6 +154,18 @@ class LogHygieneTest extends AbstractIntegrationTest {
         sub.setStatus("ACTIVE");
         sub.setPriceCents(0);
         UUID subscriptionId = subscriptions.save(sub).getId();
+
+        // Gives step 7 something to serialize: ClassTemplate is @TenantId, so without a row here
+        // the listing comes back empty, TemplateDto.of never runs, and MediaSigner.sign() is
+        // never called inside the capture window — the media-secret assertion would be vacuous.
+        ClassTemplate tpl = new ClassTemplate();
+        tpl.setName("Hygiene " + n);
+        tpl.setWeekday(1);
+        tpl.setStartTime(java.time.LocalTime.of(7, 0));
+        tpl.setDurationMin(60);
+        tpl.setCapacity(10);
+        tpl.setImagePath("/media/" + box.getId() + "/hygiene.jpg");
+        classTemplates.save(tpl);
 
         String sessionId = "cs_test_hygiene_" + n;
         Payment payment = new Payment();
