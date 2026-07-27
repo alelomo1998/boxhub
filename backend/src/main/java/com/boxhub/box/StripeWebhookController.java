@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.net.Webhook;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -52,6 +54,8 @@ import java.util.UUID;
  */
 @RestController
 public class StripeWebhookController {
+
+    private static final Logger log = LoggerFactory.getLogger(StripeWebhookController.class);
 
     private static final String CHECKOUT_COMPLETED = "checkout.session.completed";
     // A delayed-notification payment method (SEPA direct debit, bank transfer — one dashboard
@@ -131,6 +135,10 @@ public class StripeWebhookController {
             // Stripe session ids. Both "I have never heard of this session" and "I have, but that
             // box has no credentials to verify against" must be indistinguishable. Nothing is
             // written on either path.
+            // Logged because the response cannot signal it: Stripe treats 200 as delivered and
+            // never retries, so this payment stays PENDING forever with no other operator signal.
+            // Box id only — never the credentials or the session id.
+            log.warn("stripe webhook for box {} has no usable credentials; payment left PENDING", boxId);
             return ResponseEntity.ok().build();
         }
         String secret = crypto.decrypt(creds.getWebhookSecretEnc());

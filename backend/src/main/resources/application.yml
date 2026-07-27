@@ -46,7 +46,12 @@ boxhub:
   rate-limit:
     write: ${BOXHUB_WRITE_RATE_LIMIT:60}        # per IP per minute — invites/media/checkout/booking
     lookup: ${BOXHUB_LOOKUP_RATE_LIMIT:120}     # per IP per minute — invite preview + receipts
-    global: ${BOXHUB_GLOBAL_RATE_LIMIT:600}     # per IP per minute, ALL /api/ requests
+    # Fixed 1-minute window (Caffeine expireAfterWrite), not sliding. A whole gym shares one NAT
+    # public IP, so this is sized so one busy member cannot 429 their box's coaches mid-class.
+    # It has NOT been measured against a real class-opening rush — do that before launch, and if
+    # it is tight, split authenticated traffic into its own higher bucket rather than just
+    # raising this (see docs/BACKLOG.md).
+    global: ${BOXHUB_GLOBAL_RATE_LIMIT:1200}    # per IP per minute, ALL /api/ requests
   media-dir: ${BOXHUB_MEDIA_DIR:./media}
   media:
     # No default — same reasoning as boxhub.stripe.enc-keys below: a missing secret must fail

@@ -34,7 +34,10 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     private static final Set<String> LIMITED = Set.of(
             "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/tv/pair",
             "/api/auth/verify", "/api/auth/verify/resend", "/api/auth/password/forgot",
-            "/api/auth/password/reset", "/api/auth/signup-box", "/api/auth/waitlist");
+            "/api/auth/password/reset", "/api/auth/signup-box", "/api/auth/waitlist",
+            // Single-use email token in the body is its only credential, same as verify and
+            // password/reset above — so it gets the same per-IP guessing limit they do.
+            "/api/me/email/confirm");
 
     private static final Set<String> EMAIL_LIMITED = Set.of(
             "/api/auth/verify/resend", "/api/auth/password/forgot");

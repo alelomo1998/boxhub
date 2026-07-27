@@ -43,6 +43,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -83,6 +84,7 @@ class LogHygieneTest extends AbstractIntegrationTest {
     // Must match AbstractIntegrationTest's @TestPropertySource values exactly.
     private static final String ENC_KEY = "HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo=";
     private static final String JWT_SECRET = "test-only-jwt-secret-must-be-at-least-32-bytes!";
+    private static final String MEDIA_LINK_SECRET = "test-only-media-link-secret-padded-to-32";
 
     @Autowired MockMvc mvc;
     @Autowired AuthService authService;
@@ -215,6 +217,12 @@ class LogHygieneTest extends AbstractIntegrationTest {
         String pairSecret = pairJson.replaceAll("(?s).*\"secret\"\\s*:\\s*\"([^\"]+)\".*", "$1");
         assertThat(pairSecret).as("pairing secret extracted from the response").doesNotContain("{");
 
+        // 7. A response whose DTO runs every media path through MediaSigner, so the signing path
+        //    is actually exercised inside the capture window rather than asserted against in the
+        //    abstract.
+        mvc.perform(get("/api/box/class-templates").header("Authorization", "Bearer " + boxToken))
+                .andExpect(status().isOk());
+
         // --- now assert on what was actually captured --------------------------------------------
         String text = capturedText();
 
@@ -235,6 +243,10 @@ class LogHygieneTest extends AbstractIntegrationTest {
         assertThat(text).as("user password in logs").doesNotContain(PASSWORD);
         assertThat(text).as("raw invite token in logs").doesNotContain(inviteToken);
         assertThat(text).as("TV pairing secret in logs").doesNotContain(pairSecret);
+        // Leaking this one forges every media URL on the platform, since nginx's secure_link
+        // check is the only thing standing between a path and the file. Step 7 above drives a
+        // response whose DTO runs through MediaSigner, so the signing path is really exercised.
+        assertThat(text).as("media link-signing secret in logs").doesNotContain(MEDIA_LINK_SECRET);
     }
 
     /** Everything the appender saw: formatted messages, arguments, and full throwable chains. */
