@@ -27,7 +27,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   // different plan without cancelling first is a real, separate conflict (SWITCH_REQUIRES_CANCEL)
   // — orthogonal to what this spec proves. A brand-new membership guarantees NO_ACTIVE_SUBSCRIPTION
   // going in, so the entitlement gate is genuinely exercised end to end, and the spec is safe to
-  // rerun or retry against the same shared backend (workers: 1, retries: 1).
+  // rerun against the same shared backend (workers: 1, retries: 0 since M12a).
   const athleteEmail = `e2e-member-${stamp}@t.io`;
 
   // admin publishes a priced, unlimited-entitlement plan
