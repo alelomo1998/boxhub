@@ -41,6 +41,20 @@ class BoxSignupTest extends AbstractIntegrationTest {
     @BeforeEach
     void stubMailer() { when(mailer.link(any())).thenReturn("http://localhost/x"); }
 
+    /**
+     * The signup path refuses with {@code full} once ACTIVE boxes reach MAX_BOXES, and the shared
+     * Testcontainer never rolls back boxes — so every box any test class creates counts, forever,
+     * against the seeded cap of 100. The suite crossed it during M11 and these tests started
+     * returning 200 {"full":true} instead of 201, but only on CI, because class execution order
+     * differs there. Give the tests that are not ABOUT the cap unconditional headroom; the two
+     * that are (atCapSignupReportsFullAndCreatesNothing, closedModeReportsFull) set their own
+     * value in the test body, which runs after this.
+     * ponytail: headroom, not isolation — the real fix is per-class box cleanup or a cap that
+     * isn't global suite state. Same defect bit SuperadminBoxApiTest in M10; see docs/BACKLOG.md.
+     */
+    @BeforeEach
+    void capHeadroom() { settings.set(PlatformSettings.MAX_BOXES, "1000000"); }
+
     @AfterEach
     void restoreSettings() {
         settings.set(PlatformSettings.SIGNUP_MODE, "APPROVAL");

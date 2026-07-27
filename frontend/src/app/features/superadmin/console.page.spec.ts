@@ -24,6 +24,7 @@ describe('ConsolePage', () => {
     http.expectOne(r => r.url === '/api/admin/boxes' && !r.params.has('status')).flush([]);
     http.expectOne('/api/admin/waitlist').flush([]);
     http.expectOne('/api/admin/settings').flush({ signupMode: 'APPROVAL', maxBoxes: 5 });
+    http.expectOne('/api/admin/audit').flush([]);
   }
 
   it('loads the pending queue and removes a row on approve', () => {

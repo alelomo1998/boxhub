@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,13 +52,14 @@ public class SubscriptionService {
 
         Subscription sub;
         Instant base;
+        // (see now() below — these instants get persisted and compared against re-read values)
         if (activeOpt.isPresent()) {
             Subscription active = activeOpt.get();
             if (!active.getPlanId().equals(planId)) {
                 throw conflict("SWITCH_REQUIRES_CANCEL");
             }
             sub = active;
-            Instant now = Instant.now();
+            Instant now = now();
             Instant currentEnd = active.getCurrentPeriodEnd();
             base = (currentEnd != null && currentEnd.isAfter(now)) ? currentEnd : now;
         } else {
@@ -65,7 +67,7 @@ public class SubscriptionService {
             sub.setMembershipId(membershipId);
             sub.setPlanId(planId);
             sub.setStatus("ACTIVE");
-            base = Instant.now();
+            base = now();
         }
 
         sub.setPriceCents(priceCents);
@@ -77,6 +79,18 @@ public class SubscriptionService {
         sub.setCurrentPeriodStart(base);
         sub.setCurrentPeriodEnd(base.plusSeconds(plan.getDurationDays() * 24L * 3600));
         return subscriptions.save(sub);
+    }
+
+    /**
+     * Postgres {@code timestamptz} stores microseconds, but {@code Instant.now()} carries
+     * nanoseconds on Linux (macOS happens to tick at microsecond resolution, which is why this
+     * only ever failed on CI). An untruncated instant therefore differs from the value that comes
+     * back out of the database by sub-microsecond noise, so any code — or test — comparing an
+     * in-memory period boundary against a re-read one is wrong on some machines and right on
+     * others. Truncating at the point of creation makes the two agree everywhere.
+     */
+    private static Instant now() {
+        return Instant.now().truncatedTo(ChronoUnit.MICROS);
     }
 
     @Transactional
