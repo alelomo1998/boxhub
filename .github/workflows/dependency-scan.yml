@@ -30,8 +30,37 @@ jobs:
         with:
           scan-args: |-
             --recursive
-            --skip-git
+            --format=json
+            --all-packages
+            --output=osv-results.json
             ./
+
+      # The action exits 0 when osv-scanner rejects its own arguments — it prints usage and
+      # the job goes green having scanned nothing. That is exactly how this shipped the first
+      # time (`--skip-git` was removed upstream). So do not trust the exit code: assert the
+      # scan actually reached our manifests. `if: always()` because the step above legitimately
+      # fails the job when it finds a vulnerability, and we still want to know it really ran.
+      - name: Assert the scan actually covered our manifests
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, sys, pathlib
+          f = pathlib.Path("osv-results.json")
+          if not f.exists():
+              sys.exit("osv-results.json missing — the scanner never ran (check its arguments)")
+          data = json.loads(f.read_text())
+          sources = {r.get("source", {}).get("path", "") for r in data.get("results", [])}
+          packages = sum(len(r.get("packages", [])) for r in data.get("results", []))
+          print(f"scanned {packages} packages across {len(sources)} manifests:")
+          for s in sorted(sources):
+              print("  " + s)
+          required = ["backend/pom.xml", "frontend/package-lock.json"]
+          missing = [m for m in required if not any(s.endswith(m) for s in sources)]
+          if missing:
+              sys.exit(f"scan did not cover: {missing} — the gate is not protecting these")
+          if packages == 0:
+              sys.exit("scan reported zero packages — nothing was actually examined")
+          PY
 
   frontend-audit-informational:
     runs-on: ubuntu-latest
