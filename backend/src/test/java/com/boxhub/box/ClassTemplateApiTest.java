@@ -119,6 +119,43 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.bookingHorizonWeeks").value(3));
     }
 
+    @Test
+    void settingsPatchAppliesTimezoneAloneWithoutDisturbingOtherFields() throws Exception {
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"cancelCutoffMin\":45,\"bookingHorizonWeeks\":2}"))
+                .andExpect(status().isOk());
+
+        // Timezone ONLY — every other field must survive untouched.
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"timezone\":\"America/New_York\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.timezone").value("America/New_York"))
+                .andExpect(jsonPath("$.cancelCutoffMin").value(45))
+                .andExpect(jsonPath("$.bookingHorizonWeeks").value(2));
+    }
+
+    /**
+     * BoxController.patchSettings maps a blank logoUrl to null (not to ""): see
+     * {@code req.logoUrl().isBlank() ? null : req.logoUrl().trim()}. So the "clear" round trip
+     * observes the field disappearing from the JSON (null), never an empty string.
+     */
+    @Test
+    void settingsPatchCanClearTheLogoUrl() throws Exception {
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"logoUrl\":\"https://example.test/logo.png\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.logoUrl").value("https://example.test/logo.png"));
+
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"logoUrl\":\"\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.logoUrl").doesNotExist());
+    }
+
     /**
      * Since M11 T4 the stored imagePath is minted into a signed nginx secure_link URL, so an
      * unvalidated path is a capability to read someone else's file: box A's admin could store box
