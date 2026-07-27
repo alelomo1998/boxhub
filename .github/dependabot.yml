@@ -40,6 +40,13 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # These two are pinned BY Angular, not by us: @angular-devkit/build-angular@19.x declares
+      # `peer typescript@">=5.5 <5.9"` and Angular 19 similarly pins zone.js to 0.15.x. A routine
+      # minor bump of either makes `npm ci` fail outright with ERESOLVE — it already did, and
+      # because updates are grouped it blocked four unrelated packages with it. They move when
+      # Angular moves (M12), so they are Angular's business, not Dependabot's.
+      - dependency-name: "typescript"
+      - dependency-name: "zone.js"
 
   - package-ecosystem: npm
     directory: /e2e
