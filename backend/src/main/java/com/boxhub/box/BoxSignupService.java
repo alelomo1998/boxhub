@@ -6,11 +6,18 @@ import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
 import com.boxhub.shared.PlatformSettings;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class BoxSignupService {
@@ -23,10 +30,12 @@ public class BoxSignupService {
     private final PasswordPolicy passwordPolicy;
     private final PasswordEncoder passwordEncoder;
     private final BoxSignupTx tx;
+    private final SubscriptionService subscriptionService;
 
     public BoxSignupService(AuthService authService, UserRepository users, BoxRepository boxes,
                             BoxWaitlistRepository waitlist, PlatformSettings settings,
-                            PasswordPolicy passwordPolicy, PasswordEncoder passwordEncoder, BoxSignupTx tx) {
+                            PasswordPolicy passwordPolicy, PasswordEncoder passwordEncoder, BoxSignupTx tx,
+                            SubscriptionService subscriptionService) {
         this.authService = authService;
         this.users = users;
         this.boxes = boxes;
@@ -35,6 +44,7 @@ public class BoxSignupService {
         this.passwordPolicy = passwordPolicy;
         this.passwordEncoder = passwordEncoder;
         this.tx = tx;
+        this.subscriptionService = subscriptionService;
     }
 
     public record SignupOutcome(boolean full) {}
@@ -66,10 +76,10 @@ public class BoxSignupService {
         String hash = passwordEncoder.encode(password);
         String boxStatus = "OPEN".equals(settings.signupMode()) ? "ACTIVE" : "PENDING";
 
-        User owner;
+        BoxSignupTx.Result result;
         for (int attempt = 1; ; attempt++) {
             try {
-                owner = tx.createOwnerAndBox(boxName.trim(), uniqueSlug(boxName), name, normalized, hash, boxStatus);
+                result = tx.createOwnerAndBox(boxName.trim(), uniqueSlug(boxName), name, normalized, hash, boxStatus);
                 break;
             } catch (DataIntegrityViolationException e) {
                 // createOwnerAndBox's transaction already rolled back cleanly (see BoxSignupTx
@@ -94,8 +104,33 @@ public class BoxSignupService {
             }
         }
 
-        authService.sendVerification(owner);
+        // Comp the owner so they can book their own classes right away (M12b Task 2) — a fresh
+        // signup would otherwise leave the owner with a membership but no subscription, and the
+        // entitlement gate rejects every booking with 409 NO_ACTIVE_SUBSCRIPTION. Must run in its
+        // own transaction with the box's real tenant established first (runAsBox): Plan and
+        // Subscription are @TenantId, and createOwnerAndBox's transaction (above) already committed
+        // under the tenant-less signup request.
+        BoxSignupTx.Result r = result;
+        runAsBox(r.boxId(), () -> subscriptionService.comp(r.membershipId()));
+
+        authService.sendVerification(r.owner());
         return new SignupOutcome(false);
+    }
+
+    /** Mirrors InvitePublicController/SessionGenerator's runAsBox exactly — see docs/TENANCY.md. */
+    private void runAsBox(UUID boxId, Runnable action) {
+        Authentication prev = SecurityContextHolder.getContext().getAuthentication();
+        try {
+            Jwt jwt = Jwt.withTokenValue("system").header("alg", "HS256")
+                    .subject(UUID.randomUUID().toString())
+                    .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                    .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+            SecurityContextHolder.getContext().setAuthentication(
+                    new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
+            action.run();
+        } finally {
+            SecurityContextHolder.getContext().setAuthentication(prev);
+        }
     }
 
     /**

@@ -143,7 +143,11 @@ class InviteSubscriptionTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void acceptingAPlanLessInviteLeavesTheMemberWithoutASubscription() throws Exception {
+    void acceptingAPlanLessInviteCompsTheMemberSoTheyCanBook() throws Exception {
+        // M12b Task 2: a plan-less invite used to leave the member without any subscription at
+        // all, so they couldn't book (409 NO_ACTIVE_SUBSCRIPTION). The box bills this member
+        // offline, but they still need to be bookable — so accept now comps them onto the per-box
+        // synthetic "Comped" plan instead of doing nothing.
         long n = System.nanoTime();
         String email = "planless-" + n + "@t.io";
         String token = createInviteLink0NoPlan(email);
@@ -158,7 +162,25 @@ class InviteSubscriptionTest extends AbstractIntegrationTest {
         UUID membershipId = memberships.findByUserIdAndBoxId(joiner.getId(), boxId).orElseThrow().getId();
 
         actAsBox(boxId);
-        assertThat(subscriptions.findByMembershipIdAndStatus(membershipId, "ACTIVE")).isEmpty();
+        Subscription sub = subscriptions.findByMembershipIdAndStatus(membershipId, "ACTIVE").orElseThrow();
+        assertThat(sub.getCurrentPeriodEnd()).isNull(); // no-expiry comp, like a grandfathered row
+        Plan compedPlan = plans.findById(sub.getPlanId()).orElseThrow();
+        assertThat(compedPlan.getName()).isEqualTo("Comped");
+        assertThat(compedPlan.isArchived()).isTrue();
+
+        // Entitlement check: the comp must actually let them book, not just exist as a row.
+        ClassSession session = new ClassSession();
+        session.setName("WOD");
+        session.setStartAt(Instant.now().plusSeconds(3600 * 24));
+        session.setDurationMin(60);
+        session.setCapacity(10);
+        UUID sessionId = sessions.save(session).getId();
+
+        String boxToken = tokenService.boxToken(joiner, memberships.findById(membershipId).orElseThrow());
+        mvc.perform(post("/api/box/sessions/" + sessionId + "/book")
+                        .header("Authorization", "Bearer " + boxToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("BOOKED"));
     }
 
     private String createInviteLink0NoPlan(String email) throws Exception {

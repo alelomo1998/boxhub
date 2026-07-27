@@ -1,5 +1,6 @@
 package com.boxhub.box;
 
+import com.boxhub.shared.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,6 +92,43 @@ public class SubscriptionService {
      */
     private static Instant now() {
         return Instant.now().truncatedTo(ChronoUnit.MICROS);
+    }
+
+    /**
+     * An ACTIVE, no-expiry, zero-price subscription on a per-box synthetic "Comped" plan.
+     * <p>
+     * {@code subscription.plan_id} is NOT NULL with an FK to {@code plans}, so a comp cannot
+     * simply be plan-less. V14's grandfather migration hit the identical wall and solved it with a
+     * per-box synthetic archived plan ("Grandfathered"); this is that pattern, kept as a distinctly
+     * named plan so the two reasons (grandfathered vs. comped) stay distinguishable in any later
+     * reporting. {@code archived = true} keeps it out of {@code GET /api/box/plans}, same as
+     * "Grandfathered".
+     * <p>
+     * Callers: the self-serve owner at box signup, and an invite accepted with no plan (that box
+     * bills offline, so the member must still be bookable). Both must call this with the box's
+     * real tenant already established (runAsBox) — Plan and Subscription are {@code @TenantId}.
+     */
+    @Transactional
+    public Subscription comp(UUID membershipId) {
+        UUID boxId = TenantContext.requireBoxId();
+        Plan comped = plans.findByBoxIdAndName(boxId, "Comped").orElseGet(() -> {
+            Plan p = new Plan();
+            p.setName("Comped");
+            p.setDurationDays(30);
+            p.setArchived(true);
+            p.setPriceCents(0);
+            p.setCurrency("eur");
+            p.setEntitlement("UNLIMITED");
+            return plans.save(p);
+        });
+
+        Subscription sub = new Subscription();
+        sub.setMembershipId(membershipId);
+        sub.setPlanId(comped.getId());
+        sub.setStatus("ACTIVE");
+        sub.setPriceCents(0);
+        sub.setCurrentPeriodEnd(null); // no expiry, same as a grandfathered row
+        return subscriptions.save(sub);
     }
 
     @Transactional
