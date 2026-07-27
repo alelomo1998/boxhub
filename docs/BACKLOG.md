@@ -15,29 +15,6 @@ entries whose history is still load-bearing.
 
 ---
 
-## M12a · Test & CI reliability  → do FIRST
-
-*Why first: M11 shipped three failures that only appeared on CI, hidden behind a local green and a
-flaky spec. Until the gates are trustworthy, every later milestone is guessing.*
-
-- **Per-test DB isolation for e2e.** One root cause behind three separately-filed symptoms: `runner`/`tv`
-  specs are not idempotent (fixed-name TV devices accumulate, so they pass only on a fresh stack);
-  `programming.spec` republishes a today class and had to be retargeted at "Burn It" to avoid clobbering
-  `tracking.spec`'s Fran session; and login/admin-panel/invite specs fail at `--retries=0` but pass with
-  the configured `retries=1`. Fixing isolation ends this whole family.
-- **`e2e/tests/runner.spec.ts` is flaky on CI** — `expect(tv.locator('.tvtimer')).toBeVisible({timeout: 15000})`
-  at line 50: the TV never receives the SSE push that starts the giant clock. Failed 3× across 2 unrelated
-  dependency PRs on 2026-07-27, passed on re-run each time, passes locally. Timing sensitivity on slower
-  runners. The real cost is that it trains people to re-run red pipelines without reading them.
-  Fix by waiting on the SSE state rather than the rendered element.
-- `TvStreamService`: no `scope=="box"`-token-rejected stream test (`boxTokenIsNotATvToken` asserts
-  unknown-device instead — inherited from the plan's own test code).
-- `RepositoryTest` cannot detect a join-fetch regression in `findByUserIdWithBox`.
-- Google concurrency test can't self-verify the double-click race actually fired (relies on incidental
-  scheduling).
-- `box-settings` partial-patch branches not individually tested (timezone-only, logo-clear).
-- Register concurrent-race catch path has no direct test (hard to force with MockMvc; DB-enforced).
-
 ## M12b · Correctness & data integrity
 
 *Small, invisible, mostly backend. None of it ships a screen, so none of it is invalidated by the UX rework.*
@@ -268,6 +245,26 @@ now would be speculative work with no load data behind it.*
 ---
 
 ## Archive — closed, kept only where the reasoning still matters
+
+**Closed by M12a (2026-07-27)** — the whole section is gone, all seven items resolved:
+- ~~Per-test e2e DB isolation~~ — the three separately-filed symptoms had one cause. `e2e/tests/_support.ts`
+  stamps every created entity with a run id. Proven by running the suite twice against the same stack with
+  no reset, which fails before the change.
+- ~~`runner.spec.ts` SSE flake~~ — measured first: delivery is 2.34s +/-18ms against a 15s budget, so latency
+  was never the constraint. The spec now asserts the SSE frame arrived *before* asserting the clock
+  rendered, so a failure names which half broke.
+- ~~`TvStreamService` scope test~~ — the old test's comment called a wrong-scope token "impractical" to
+  fake. It wasn't. Negative control: removing the scope check yields a 500 (a box token has no `device_id`),
+  not a 401.
+- ~~`box-settings` partial-patch branches~~ — timezone-only and logo-clear. Blank `logoUrl` maps to null,
+  not `""` — the test asserts what the code does.
+- ~~Join-fetch regression detector~~ — needed `entityManager.clear()` first, or the lazy proxy resolves from
+  the L1 cache and the statement count is 1 either way. Negative control: `expected: 1L but was: 2L`.
+- ~~Google race self-verification~~ — a counter on `GoogleLinkTx`, read via a method: direct field access
+  NPEs because the bean is CGLIB-proxied and Objenesis skips the constructor on the proxy shell.
+- ~~Register concurrent-race path~~ — **was never open.** `RegistrationTest` has raced it since M9
+  (`5d86ecd`); the negative control was run against the *existing* test and it failed on `users_email_key`.
+  The backlog entry was stale.
 
 **Closed by M11** (these sat open in the backlog long after they were done):
 - ~~Media reads unauthenticated; add signed URLs + EXIF strip~~ — M11 T4. *(WebP gap tracked in M12c.)*

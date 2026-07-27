@@ -41,7 +41,7 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
     **The dependency-scanning criterion is met**, via OSV-Scanner rather than the OWASP plugin the spec named: it gates every push with no credentials, where the plugin could only run nightly behind an NVD API key. The frontend gate is `--audit-level=critical --omit=dev` rather than `high`, because every current high is a cascade of Angular 19's SSR-hydration CVE that this client-rendered-only app cannot hit, and the only fix is the 19->22 upgrade M12 owns.
 
-**Tests:** backend **390** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **26** Playwright (SERIAL — `workers:1`). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. P2/P3 leftovers in BACKLOG §"Deferred from M9"/"M8"/"M7"/"M6"/"M5.5".
+**Tests:** backend **394** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **26** Playwright (SERIAL — `workers:1`). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. P2/P3 leftovers in BACKLOG §"Deferred from M9"/"M8"/"M7"/"M6"/"M5.5".
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
@@ -130,10 +130,8 @@ now organised by **destination, not origin** — read `docs/BACKLOG.md` top-down
 
 **Order of work, decided with the user:** reduce the backlog first, then the UX rework, then features.
 
-1. **M12a — Test & CI reliability** ← START HERE. Per-test e2e DB isolation, the `runner.spec` SSE flake,
-   four coverage gaps. M11 shipped three failures that appeared only on CI; until the gates are trustworthy
-   every later milestone is guessing.
-2. **M12b — Correctness & data integrity** (13 items, Flyway **V16** for the dead `memberships.expires_at`).
+1. ~~**M12a — Test & CI reliability**~~ — **DONE 2026-07-27.** e2e runs at **`retries: 0`** now: a red build means something again. Verified by three consecutive runs plus a same-stack re-run (the check that proves isolation). Backend 394.
+2. **M12b — Correctness & data integrity** ← START HERE (13 items, Flyway **V16** for the dead `memberships.expires_at`).
 3. **M12c — Production readiness** (Google SSO behind nginx is a live prod bug; compose secret fallbacks).
 4. **M12 — UX/UI rework.** Task 1 is the **Angular 19 → 22** upgrade (19 is EOL); when it lands, flip the
    npm audit gate to `--audit-level=high`, drop `continue-on-error` from the nightly step, and fold npm back
@@ -145,12 +143,12 @@ TV items belong to **Project 2 (The Room)** and are not scheduled here.
 
 - M11 spec: `docs/superpowers/specs/2026-07-21-m11-security-hardening-design.md` · plan:
   `docs/superpowers/plans/2026-07-21-m11-security-hardening.md` · ledger: `.superpowers/sdd/progress.md`.
-- Backend **390** / frontend **184** / e2e **26**, all green, and **CI on `main` is green** — which it had
+- Backend **394** / frontend **184** / e2e **26** (now at **`retries: 0`**), all green, and **CI on `main` is green** — which it had
   not been since before M10. Next Flyway **V16**.
 
 - **M11 spec:** `docs/superpowers/specs/2026-07-21-m11-security-hardening-design.md` · **plan:** `docs/superpowers/plans/2026-07-21-m11-security-hardening.md` (12 tasks, per-task model tiering)
 - **Task→SHA ledger + every environment trap:** `.superpowers/sdd/progress.md` — read the M11 section before running anything.
-- Backend **390** / frontend **184** / e2e **26**, all green — and **CI on `main` is green**, which it had not been since before M10.
+- Backend **394** / frontend **184** / e2e **26** (now at **`retries: 0`**), all green — and **CI on `main` is green**, which it had not been since before M10.
 - **CI catches a class of bug the local gates structurally cannot.** Three failures appeared only on Linux CI: Karma does not complete on this machine at all (so two superadmin-console specs shipped with an unflushed `GET /api/admin/audit`), the shared Testcontainer's ever-growing box count crossed the 100-box signup cap once M11 added tests (only visible because class execution order differs on CI), and `Instant.now()` carries nanoseconds on Linux while Postgres `timestamptz` stores microseconds, so a period boundary never equalled its re-read value there. That last one had been failing CI silently since M10. **Check the CI run after every push — a local green is not the gate.**
 
 **M12 must start by picking up two things M11 deliberately deferred to it** (both in `docs/BACKLOG.md`):
