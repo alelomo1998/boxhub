@@ -1,6 +1,6 @@
 # BoxHub — project instructions
 
-CrossFit box platform. Angular 19 + Spring Boot 3.4 / Java 21 + Postgres 16. Multi-tenant.
+CrossFit box platform. Angular 19 + Spring Boot 3.5 / Java 21 + Postgres 16. Multi-tenant.
 
 ## Authoritative docs (read before working)
 - **Master spec / roadmap:** `docs/superpowers/specs/2026-07-07-boxhub-design.md` — milestones M0–M7, the operating rules.
