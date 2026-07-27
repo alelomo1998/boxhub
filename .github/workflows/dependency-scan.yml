@@ -33,8 +33,8 @@ jobs:
   osv-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '21', cache: maven }
 
       # osv-scanner cannot read this pom.xml directly: its Maven resolver fails on any
@@ -47,7 +47,7 @@ jobs:
 
       # Explicit path, not --recursive: recursing would find pom.xml again and re-trigger the
       # extraction failure above. Backend only — see the severity note at the top of this file.
-      - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
         with:
           scan-args: |-
             --format=json
@@ -86,8 +86,8 @@ jobs:
   frontend-audit-informational:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json }
       - run: cd frontend && npm ci
       # Informational only (continue-on-error): every high-severity npm advisory today is a
