@@ -40,8 +40,10 @@ test('coach runs a class: arms a timer, logs a score, TV shows the clock', async
   await expect(coach.getByTestId('timer-start')).toBeEnabled();
   await coach.getByTestId('timer-start').click();
 
-  // TV takes over with the giant clock within a couple SSE pushes
-  await expect(tv.locator('.tvtimer')).toBeVisible({ timeout: 15000 });
+  // Two assertions, in order, so a failure says WHICH half broke: first that the SSE frame
+  // carrying a running timer actually arrived, then that the clock rendered from it.
+  await expect(tv.getByTestId('tv-stream')).toHaveAttribute('data-timer', 'RUNNING', { timeout: 15000 });
+  await expect(tv.locator('.tvtimer')).toBeVisible({ timeout: 5000 });
 
   await tvCtx.close(); await coachCtx.close(); await adminCtx.close();
 });

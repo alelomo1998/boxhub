@@ -15,6 +15,9 @@ const PAIRED_KEY = 'boxhub_tv_paired';
   imports: [DatePipe, AvatarComponent],
   template: `
     <main class="tv" data-theme="dark">
+      <span class="sr-only" data-testid="tv-stream"
+            [attr.data-frames]="frames()"
+            [attr.data-timer]="state()?.timer?.status ?? 'none'"></span>
       @switch (mode()) {
         @case ('pairing') {
           <section class="pairing">
@@ -100,6 +103,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
   `,
   styles: [`
     :host { display: block; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .tv { min-height: 100vh; background: var(--ground); color: var(--bone); overflow: hidden;
       cursor: none; }
     .eyebrow { font-family: var(--font-mono); font-size: 1.6vh; letter-spacing: 0.16em;
@@ -189,6 +193,10 @@ export class TvShellPage implements OnInit, OnDestroy {
   reconnecting = signal(false);
   pairWaiting = signal(false); // backend unreachable during pairing — tell the wall, don't sit blank
   now = signal(new Date());
+  /** Bumped on every SSE frame. Exposed as data-frames so e2e can distinguish "the frame never
+   *  arrived" from "the frame arrived but the clock did not render" — the runner spec used to
+   *  assert only on the rendered clock and could not tell those apart. */
+  frames = signal(0);
 
   private secret = '';
   private pollTimer: any;
@@ -265,7 +273,7 @@ export class TvShellPage implements OnInit, OnDestroy {
     };
   }
 
-  onState(s: TvState) { this.state.set(s); }
+  onState(s: TvState) { this.state.set(s); this.frames.update(n => n + 1); }
 
   timerDisplay(t: NonNullable<TvState['timer']>) {
     return renderTimer(
