@@ -5,7 +5,7 @@ RUN mvn -q -B dependency:go-offline
 COPY backend/src ./src
 RUN mvn -q -B -DskipTests package
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 # wget needed by the compose healthcheck (not present in the base image)
 RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
