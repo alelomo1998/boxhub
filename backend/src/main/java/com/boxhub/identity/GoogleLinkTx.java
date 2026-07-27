@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The transactional units behind {@link GoogleLinkService#resolve}, split into their own
@@ -19,6 +20,16 @@ import java.util.Optional;
 class GoogleLinkTx {
 
     private static final String PROVIDER = "google";
+
+    // ponytail: test-observable counter only, read through a method (not the bare field) —
+    // this bean is CGLIB-proxied for @Transactional, and the proxy shell's own field slot is
+    // never initialized (Objenesis skips the constructor), so direct field access on an
+    // injected reference NPEs. Method calls delegate through to the real target instance.
+    private final AtomicInteger recoveryCount = new AtomicInteger();
+
+    int recoveryCount() {
+        return recoveryCount.get();
+    }
 
     private final UserRepository users;
     private final AuthIdentityRepository identities;
@@ -69,6 +80,7 @@ class GoogleLinkTx {
 
     @Transactional
     User recoverFromLinkRace(String subject, String normalized) {
+        recoveryCount.incrementAndGet();
         return identities.findByProviderAndProviderSubject(PROVIDER, subject)
                 .map(AuthIdentity::getUser)
                 .orElseGet(() -> {

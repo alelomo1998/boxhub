@@ -24,6 +24,7 @@ class GoogleLinkTest extends AbstractIntegrationTest {
     @Autowired AuthIdentityRepository identities;
     @Autowired AuthService authService;
     @Autowired PasswordEncoder encoder;
+    @Autowired GoogleLinkTx googleLinkTx;
 
     private String email() { return "google-" + System.nanoTime() + "@t.io"; }
     private String sub() { return "sub-" + System.nanoTime(); }
@@ -86,6 +87,7 @@ class GoogleLinkTest extends AbstractIntegrationTest {
         // Looped with fresh subject/email each iteration because the race is timing-dependent —
         // a single shot can miss it depending on how the barrier release interleaves with the
         // two connections' commits.
+        int recoveriesBefore = googleLinkTx.recoveryCount();
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             for (int i = 0; i < 5; i++) {
@@ -116,6 +118,9 @@ class GoogleLinkTest extends AbstractIntegrationTest {
         } finally {
             pool.shutdown();
         }
+        // Proves the race was actually forced and recovered from, not just that both
+        // threads happened to converge without ever hitting the unique-constraint race.
+        assertThat(googleLinkTx.recoveryCount()).isGreaterThan(recoveriesBefore);
     }
 
     @Test
