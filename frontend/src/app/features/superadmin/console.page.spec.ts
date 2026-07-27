@@ -37,8 +37,9 @@ describe('ConsolePage', () => {
 
     cmp.approve(PENDING_ROW as any);
     http.expectOne('/api/admin/boxes/b1/approve').flush(PENDING_ROW);
-    // approve reloads the all-boxes list
+    // approve reloads the all-boxes list, and the audit log — approving writes an audit row
     http.expectOne(r => r.url === '/api/admin/boxes' && !r.params.has('status')).flush([{ ...PENDING_ROW, status: 'ACTIVE' }]);
+    http.expectOne('/api/admin/audit').flush([]);
 
     expect(cmp.pendingBoxes().length).toBe(0);
   });
@@ -80,8 +81,9 @@ describe('ConsolePage', () => {
     expect(req.request.body).toEqual({ signupMode: 'OPEN', maxBoxes: 10 });
     req.flush({ signupMode: 'OPEN', maxBoxes: 10 });
 
-    // save reloads settings
+    // save reloads settings, and the audit log — a settings change writes an audit row
     http.expectOne('/api/admin/settings').flush({ signupMode: 'OPEN', maxBoxes: 10 });
+    http.expectOne('/api/admin/audit').flush([]);
     expect(cmp.settingsPending()).toBeFalse();
   });
 
