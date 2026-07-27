@@ -63,8 +63,8 @@ updates:
       actions:
         patterns: ["*"]
 
-  # Base images only (postgres, nginx, node, mailpit). Majors excluded for the same reason:
-  # a Node or Postgres major is a deliberate upgrade, not a bot merge.
+  # Base images only (postgres, nginx, node, maven, temurin). Majors excluded for the same
+  # reason: a Node or Postgres major is a deliberate upgrade, not a bot merge.
   - package-ecosystem: docker
     directory: /docker
     schedule:
@@ -73,3 +73,10 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # The build and runtime JDK are pinned to 21 on purpose — Boot and the toolchain are
+      # tested there, and JDK 26 is too new (see docs/HANDOFF.md). Dependabot cannot see that:
+      # it read `maven:3.9-eclipse-temurin-21` -> `3-eclipse-temurin-26` as a routine bump, not
+      # a major, and opened a PR that would have silently compiled the backend on JDK 26.
+      # Bump the JDK by editing the Dockerfiles deliberately, not by merging a bot PR.
+      - dependency-name: "maven"
+      - dependency-name: "eclipse-temurin"
