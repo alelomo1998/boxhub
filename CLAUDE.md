@@ -36,7 +36,7 @@ Keep the superpowers arc (brainstorm → writing-plans → execute → finish). 
 - **Orchestrator = main session (Fable/Opus).** Owns the plan, dispatches tasks, reviews diffs, runs the gates (tests, build, tenancy greps, impeccable), commits, merges. Executors never self-merge.
 - **Executor = Sonnet subagents** (`Agent` tool with `model: "sonnet"`), one per plan task, each given a self-contained brief: files to touch, exact code from the plan, verification commands.
 - **Escalation:** executors never guess. Blocked / ambiguous / plan-conflicts-with-reality → return the question to the orchestrator instead of improvising; the orchestrator answers (or asks the user) and re-dispatches.
-- Trivial glue (one-line fixes, doc edits, commit mechanics) stays inline with the orchestrator — don't spawn an executor for a rename.
+- **ALWAYS subagent (binding, user-stated 2026-07-27).** The orchestrator does NOT implement plan tasks. It dispatches, reviews every diff, runs the gates, commits, merges. The orchestrator implements only two things itself: **genuinely difficult or delicate work** (crypto, tenancy, concurrency, money, anything where a wrong diff is expensive) and **trivial glue** (one-line fixes, doc edits, commit mechanics). Everything in between goes to an executor — don't do an executor's job because it feels faster.
 - Commit in batches (several plan tasks per commit is fine). Track progress in `.superpowers/sdd/progress.md`.
 - History: M0/M1 used heavy per-task implement+review+fix loops (too slow); M2–M5.5 ran fully inline (fast but burns the big model on mechanical work). This model is the middle: big model judges, fast model types.
 
