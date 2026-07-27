@@ -26,14 +26,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: maven }
+
+      # osv-scanner cannot read this pom.xml directly: its Maven resolver fails on any
+      # dependency whose version comes from the Spring Boot parent BOM rather than the pom
+      # ("failed parsing version constraint ... invalid > in >=0.0.0"), and it then skips the
+      # whole Maven side while still exiting 0. An SBOM sidesteps that and is more accurate
+      # anyway — it is the classpath Maven actually resolved, not a guess parsed from XML.
+      - name: Generate the backend SBOM
+        run: cd backend && mvn -B -q org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+
+      # Explicit paths, not --recursive: recursing would find pom.xml again and re-trigger the
+      # extraction failure above.
       - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
           scan-args: |-
-            --recursive
             --format=json
             --all-packages
             --output=osv-results.json
-            ./
+            --sbom=backend/target/bom.json
+            --lockfile=frontend/package-lock.json
+            --lockfile=e2e/package-lock.json
 
       # The action exits 0 when osv-scanner rejects its own arguments — it prints usage and
       # the job goes green having scanned nothing. That is exactly how this shipped the first
@@ -49,17 +63,19 @@ jobs:
           if not f.exists():
               sys.exit("osv-results.json missing — the scanner never ran (check its arguments)")
           data = json.loads(f.read_text())
-          sources = {r.get("source", {}).get("path", "") for r in data.get("results", [])}
-          packages = sum(len(r.get("packages", [])) for r in data.get("results", []))
-          print(f"scanned {packages} packages across {len(sources)} manifests:")
-          for s in sorted(sources):
-              print("  " + s)
-          required = ["backend/pom.xml", "frontend/package-lock.json"]
-          missing = [m for m in required if not any(s.endswith(m) for s in sources)]
+          # Assert on ECOSYSTEMS, not file paths: what matters is that both halves of the app
+          # were really examined, and that stays true if a manifest is renamed or moved.
+          seen = {}
+          for r in data.get("results", []):
+              src = r.get("source", {}).get("path", "?")
+              for p in r.get("packages", []):
+                  eco = p.get("package", {}).get("ecosystem", "?")
+                  seen.setdefault(eco, set()).add(src)
+          for eco, srcs in sorted(seen.items()):
+              print(f"{eco}: {sorted(srcs)}")
+          missing = [e for e in ("Maven", "npm") if e not in seen]
           if missing:
-              sys.exit(f"scan did not cover: {missing} — the gate is not protecting these")
-          if packages == 0:
-              sys.exit("scan reported zero packages — nothing was actually examined")
+              sys.exit(f"no {missing} packages were scanned — that half of the app is unprotected")
           PY
 
   frontend-audit-informational:
