@@ -51,4 +51,20 @@ public class PaymentReceipts {
 
         mailer.send(member.getUser().getEmail(), "Your BoxHub payment receipt", "payment-receipt", vars);
     }
+
+    /** A delayed-notification payment (SEPA debit, bank transfer) bounced. Nothing was granted, so
+     *  this is purely informational — factual, no plan/discount detail (the placeholder subscription's
+     *  plan may not even be the one the member tried to buy; see StripeWebhookController). */
+    public void sendPaymentFailed(Payment payment, Subscription subscription) {
+        Membership member = memberships.findByIdWithUser(subscription.getMembershipId()).orElse(null);
+        if (member == null) return; // defensive — should never happen for a real payment
+
+        Map<String, Object> vars = new HashMap<>();
+        vars.put("name", member.getUser().getName());
+        vars.put("amountCents", payment.getAmountCents());
+        vars.put("currency", payment.getCurrency());
+        vars.put("link", mailer.link("/membership"));
+
+        mailer.send(member.getUser().getEmail(), "Your BoxHub payment did not go through", "payment-failed", vars);
+    }
 }

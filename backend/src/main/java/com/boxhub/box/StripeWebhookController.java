@@ -66,6 +66,12 @@ public class StripeWebhookController {
     // nothing was ever granted). Both accepted types are gated on payment_status "paid" below so
     // a member is only ever granted a subscription/receipt once the money actually settled.
     private static final String ASYNC_PAYMENT_SUCCEEDED = "checkout.session.async_payment_succeeded";
+    // The delayed rail's other outcome: the debit/transfer bounces instead of settling. Nothing was
+    // ever granted (payment_status never reached "paid"), so there is nothing to undo — but the row
+    // must stop being PENDING forever, and the member must be told, or they sit believing they're
+    // subscribed until a booking fails. No payment_status gating needed here: this event type IS the
+    // terminal outcome, independent of whatever payment_status the object carries.
+    private static final String ASYNC_PAYMENT_FAILED = "checkout.session.async_payment_failed";
     private static final String PAID = "paid";
 
     private final PaymentRepository payments;
@@ -94,6 +100,9 @@ public class StripeWebhookController {
 
     /** What sendReceipt() needs, carried out of the transaction so the mail can fire after commit. */
     private record ReceiptData(Payment payment, Subscription subscription, Plan plan) {}
+
+    /** What sendPaymentFailed() needs, carried out of the transaction so the mail can fire after commit. */
+    private record FailureData(Payment payment, Subscription subscription) {}
 
     @PostMapping("/api/stripe/webhook")
     public ResponseEntity<Void> webhook(HttpServletRequest request,
@@ -150,6 +159,29 @@ public class StripeWebhookController {
         }
 
         String type = root.path("type").asText(null);
+
+        if (ASYNC_PAYMENT_FAILED.equals(type)) {
+            FailureData failure = runAsBox(boxId, () -> tx.execute(status -> {
+                Payment p = payments.findByStripeSessionId(sessionId).orElse(null);
+                // Only a still-PENDING row is actionable. Already FAILED (a Stripe retry) or already
+                // SUCCEEDED (this specific session settling first, however unlikely) is a no-op — no
+                // second write, no second email. Idempotency is a property of the row, not a cache.
+                if (p == null || !"PENDING".equals(p.getStatus())) {
+                    return null;
+                }
+                Subscription sub = subscriptions.findById(p.getSubscriptionId()).orElseThrow();
+                p.setStatus("FAILED");
+                payments.save(p);
+                return new FailureData(p, sub);
+            }));
+
+            // House rule: mail fires strictly after commit, never from inside the transaction above.
+            if (failure != null) {
+                receipts.sendPaymentFailed(failure.payment(), failure.subscription());
+            }
+            return ResponseEntity.ok().build();
+        }
+
         if (!CHECKOUT_COMPLETED.equals(type) && !ASYNC_PAYMENT_SUCCEEDED.equals(type)) {
             return ResponseEntity.ok().build();
         }
