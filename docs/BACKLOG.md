@@ -15,42 +15,6 @@ entries whose history is still load-bearing.
 
 ---
 
-## M12b · Correctness & data integrity
-
-*Small, invisible, mostly backend. None of it ships a screen, so none of it is invalidated by the UX rework.*
-
-- **Member patch accepts an unknown/foreign `planId` unchecked** — FK only requires the plan to exist, so a
-  foreign one persists and renders `planName` null. Validate tenant-scoped, the way invite-create does.
-- **The self-serve box owner (`BoxSignupTx`) gets a BOX_ADMIN membership with no subscription**, so an owner
-  cannot book their own classes until someone records a payment for them. Third membership-creation route,
-  and the only one still uncovered.
-- **A brand-new box with zero priced plans can still send a plan-less invite**, producing a member who
-  cannot book. The invite form requires a plan only when the box already HAS priced plans.
-- **`checkout.session.async_payment_failed` is not handled** — a failed delayed-notification payment leaves
-  its Payment row PENDING forever. Correct today (nothing is granted), but no cleanup and no notification.
-- **Receipts compute the discount against the plan's CURRENT list price**, so re-opening an old receipt after
-  a price change shows a discount that was never given. Snapshot `listPriceCents` onto the Payment row if
-  receipts are to be durable financial documents.
-- **Drop the now-unwritten `memberships.expires_at` column** (M10 moved expiry to
-  `subscription.current_period_end`; all three surfaces were repointed, the column survived because
-  dropping it needs a migration). **Next Flyway is V16.**
-- `POST /api/box/sessions/{id}/checkin|uncheck|no-show` return 500, not 400, on a body with no `bookingId`
-  (`BookingIdRequest` has no `@NotNull`, params are not `@Valid`, so `bookings.findById(null)` throws).
-  Authz runs first, so it is unmapped malformed-input handling, not a security hole.
-- **Timer concurrency:** two coaches on one session race the `class_timers` row (last-write, no lock), and
-  `act()`'s first-ARM is check-then-insert, so concurrent first-ARMs race the unique index → 500. No
-  `DataIntegrityViolation` handler anywhere.
-- **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
-  library wods each time, so the library grows unboundedly. Dedupe or update-in-place.
-- **Types-page fan-out** (image/skeleton applied per weekly slot row) — a partial failure leaves slots
-  inconsistent. Move "class type" to a first-class entity if it bites.
-- `SuperadminAuditRepository` extends `JpaRepository`, inheriting `delete()`/`deleteAll()`/`save()`, so the
-  audit log's append-only property is convention (a comment) rather than structural. Extending `Repository<>`
-  and declaring only `save` + the finder would make it enforceable.
-- Box timezone is not validated on create/settings-patch — arbitrary strings persist (admin/superadmin
-  are trusted, so this is low severity).
-- `Membership.role`/`status` are plain Strings (DB check-constrained) — consider enums.
-
 ## M12c · Production readiness
 
 *Blockers for a real deploy. Independent of the UX rework; some are live bugs today.*
@@ -85,6 +49,7 @@ baseline, so it must land before the rework, not after. When it does: flip the p
 step, and fold npm back into the OSV gate.
 
 **Structure & system**
+- **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become library wods each time, so the library grows unboundedly. Descoped from M12b: the fix is dedupe-or-update-in-place, a design change to this screen's save model.
 - Coach + admin surfaces are still pre-rebuild: raw px type sizes, sub-44px targets, screens re-implementing
   `bh-*` input styles (wod-builder/calendar/tracks/movements), no loading states.
 - Header CSS is ~90% duplicated across three shells; logout/theme placement differs per shell (athlete
@@ -146,6 +111,7 @@ step, and fold npm back into the OSV gate.
 
 ## M15 · Programming & tracking depth  *(after M12 — these ship screens)*
 
+- **Types-page fan-out** (image/skeleton applied per weekly slot row) — a partial failure leaves slots inconsistent. Descoped from M12b: the suggested fix is making "class type" a first-class entity, i.e. a schema refactor rather than a bug fix.
 - Movement media: videos, coaching cues, images (seed is names + category + modality only).
 - WOD versioning / revision history / comments.
 - **Snapshot-on-publish** — editing a published WOD is currently live, so athletes see edits immediately,
@@ -211,6 +177,8 @@ now would be speculative work with no load data behind it.*
 
 ## Accepted — decisions, not debt
 
+- **`Membership.role`/`status` stay plain Strings rather than enums.** The DB already check-constrains both, behaviour would not change, and the edit churns many files. Retired from M12b as YAGNI.
+
 *Do not "fix" these without re-opening the decision that made them.*
 
 - Refresh-token concurrent double-use race (no row lock; tokens are random and single-use).
@@ -265,6 +233,26 @@ now would be speculative work with no load data behind it.*
 - ~~Register concurrent-race path~~ — **was never open.** `RegistrationTest` has raced it since M9
   (`5d86ecd`); the negative control was run against the *existing* test and it failed on `users_email_key`.
   The backlog entry was stale.
+
+**Closed by M12b (2026-07-27)** — Flyway V16 and V17:
+- ~~Drop the unwritten `memberships.expires_at`~~ — V16. No surviving reader in Java, JPQL or templates.
+- ~~Self-serve owner cannot book their own classes~~ / ~~plan-less invitee cannot book~~ — both now get an
+  ACTIVE no-expiry subscription on a per-box synthetic `Comped` plan, following V14's grandfather
+  precedent (`subscription.plan_id` is NOT NULL, so a plan-less comp is impossible). Proven by tests that
+  assert a real BOOKING, not the existence of a row.
+- ~~Receipts compute the discount against the plan's CURRENT list price~~ — V16 adds
+  `payment.list_price_cents`, snapshotted at both creation sites. Rows predating it stay NULL and the
+  receipt OMITS the discount rather than inventing one.
+- ~~`checkout.session.async_payment_failed` unhandled~~ — V17 widens the status check; the row goes
+  PENDING → FAILED and the member is emailed, idempotently.
+- ~~Box timezone unvalidated~~ — rejected on create AND patch (the brief named only patch).
+- ~~`checkin`/`uncheck`/`no-show` 500 on a missing `bookingId`~~ — now 400. Fixed with a null check placed
+  AFTER the guards, not `@Valid`: `@Valid` runs during argument resolution, so it would have returned 400
+  to unauthorised callers and broken `AuthzConformanceTest`'s foreign-box probe.
+- ~~`SuperadminAuditRepository` append-only by convention~~ — extends `Repository<>` now, so the guarantee
+  is structural.
+- ~~Member patch accepts a foreign `planId`~~ — **was never open.** `PatchMemberRequest(String role,
+  String status)` has no `planId`; M10 removed it. The entry was stale.
 
 **Closed by M11** (these sat open in the backlog long after they were done):
 - ~~Media reads unauthenticated; add signed URLs + EXIF strip~~ — M11 T4. *(WebP gap tracked in M12c.)*
