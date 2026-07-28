@@ -13,6 +13,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -101,5 +102,17 @@ class BoxCreationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + tokenService.userToken(rootUser))
                         .content("{\"name\":\"Bad Slug\",\"slug\":\"UPPER\",\"timezone\":\"Europe/Rome\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void invalidTimezoneIs400NotPersisted() throws Exception {
+        long n = System.nanoTime();
+        User rootUser = root();
+        mvc.perform(post("/api/admin/boxes").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + tokenService.userToken(rootUser))
+                        .content("{\"name\":\"Bad TZ Box\",\"slug\":\"badtz-" + n + "\",\"timezone\":\"Not/AZone\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertThat(boxes.existsBySlug("badtz-" + n)).isFalse();
     }
 }

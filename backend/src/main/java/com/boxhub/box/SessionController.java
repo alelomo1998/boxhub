@@ -7,9 +7,12 @@ import com.boxhub.identity.UserRepository;
 import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -121,12 +124,20 @@ public class SessionController {
         return out;
     }
 
-    record BookingIdRequest(UUID bookingId) {}
+    // @NotNull documents the contract; it is NOT enforced via @Valid on the controller params
+    // below — AuthzConformanceTest pins that authorization (RoleGuard + the tenant-scoped
+    // session lookup) must run BEFORE any input validation, so an unauthorized/cross-tenant
+    // caller with a malformed body still gets 403/404, never a 400 that leaks past the guard.
+    // @Valid on a @RequestBody runs during argument resolution, before the method body's
+    // RoleGuard call, which would invert that order — so the null check is manual, after both
+    // guards.
+    record BookingIdRequest(@NotNull UUID bookingId) {}
 
     @PostMapping("/{id}/checkin")
     public void checkIn(@PathVariable UUID id, @RequestBody BookingIdRequest req) {
         RoleGuard.requireStaff();
         sessions.findById(id).orElseThrow(NoSuchElementException::new);
+        requireBookingId(req);
         bookingService.checkIn(req.bookingId());
         events.publishEvent(new com.boxhub.display.TvStateChanged(TenantContext.requireBoxId()));
     }
@@ -135,6 +146,7 @@ public class SessionController {
     public void uncheck(@PathVariable UUID id, @RequestBody BookingIdRequest req) {
         RoleGuard.requireStaff();
         sessions.findById(id).orElseThrow(NoSuchElementException::new);
+        requireBookingId(req);
         bookingService.uncheck(req.bookingId());
         events.publishEvent(new com.boxhub.display.TvStateChanged(TenantContext.requireBoxId()));
     }
@@ -143,7 +155,13 @@ public class SessionController {
     public void noShow(@PathVariable UUID id, @RequestBody BookingIdRequest req) {
         RoleGuard.requireStaff();
         sessions.findById(id).orElseThrow(NoSuchElementException::new);
+        requireBookingId(req);
         bookingService.markNoShow(req.bookingId());
         events.publishEvent(new com.boxhub.display.TvStateChanged(TenantContext.requireBoxId()));
+    }
+
+    private static void requireBookingId(BookingIdRequest req) {
+        if (req.bookingId() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bookingId required");
     }
 }

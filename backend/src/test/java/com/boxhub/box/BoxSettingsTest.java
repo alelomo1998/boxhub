@@ -66,4 +66,15 @@ class BoxSettingsTest extends AbstractIntegrationTest {
                         .content("{\"name\":\"Hax\"}"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void invalidTimezoneIs400NotPersisted() throws Exception {
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"timezone\":\"Not/AZone\"}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.timezone").value("Europe/Rome"));
+    }
 }

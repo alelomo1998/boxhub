@@ -125,6 +125,24 @@ class SessionApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void missingBookingIdIs400NotA500() throws Exception {
+        mvc.perform(post("/api/box/sessions/" + sessionId + "/checkin").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(post("/api/box/sessions/" + sessionId + "/uncheck").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(post("/api/box/sessions/" + sessionId + "/no-show").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void athleteCannotAccessRosterOrCheckin() throws Exception {
         mvc.perform(get("/api/box/sessions/" + sessionId + "/roster").header("Authorization", "Bearer " + athleteToken))
                 .andExpect(status().isForbidden());

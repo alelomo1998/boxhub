@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.ZoneId;
 import java.util.UUID;
 
 @RestController
@@ -29,6 +30,8 @@ public class BoxAdminController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BoxDto create(@Valid @RequestBody CreateBoxRequest req) {
+        if (!ZoneId.getAvailableZoneIds().contains(req.timezone()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid timezone");
         Box b = new Box();
         b.setName(req.name().trim());
         b.setSlug(req.slug());
