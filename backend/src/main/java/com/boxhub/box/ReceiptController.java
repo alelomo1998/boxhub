@@ -41,7 +41,7 @@ public class ReceiptController {
     }
 
     record ReceiptDto(UUID paymentId, int amountCents, String currency, String method, String planName,
-                       Instant periodStart, Instant periodEnd, int listPriceCents, int discountCents,
+                       Instant periodStart, Instant periodEnd, Integer listPriceCents, Integer discountCents,
                        String boxName, Instant createdAt) {}
 
     @GetMapping("/{paymentId}")
@@ -58,10 +58,14 @@ public class ReceiptController {
 
         Plan plan = plans.findById(sub.getPlanId()).orElseThrow(NoSuchElementException::new);
         Box box = boxes.findById(boxId).orElseThrow(NoSuchElementException::new);
-        int discountCents = Math.max(0, plan.getPriceCents() - payment.getAmountCents());
+        // The list price at PAYMENT TIME, never the plan's current price — a price rise since must
+        // never retroactively paint an old receipt with a discount that was never given. Null (rows
+        // written before M12b) means the discount is unknown, not zero: omit it entirely.
+        Integer listPriceCents = payment.getListPriceCents();
+        Integer discountCents = listPriceCents == null ? null : Math.max(0, listPriceCents - payment.getAmountCents());
 
         return new ReceiptDto(payment.getId(), payment.getAmountCents(), payment.getCurrency(),
                 payment.getMethod(), plan.getName(), sub.getCurrentPeriodStart(), sub.getCurrentPeriodEnd(),
-                plan.getPriceCents(), discountCents, box.getName(), payment.getCreatedAt());
+                listPriceCents, discountCents, box.getName(), payment.getCreatedAt());
     }
 }

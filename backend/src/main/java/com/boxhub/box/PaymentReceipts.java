@@ -31,8 +31,11 @@ public class PaymentReceipts {
         Membership member = memberships.findByIdWithUser(subscription.getMembershipId()).orElse(null);
         if (member == null || plan == null) return; // defensive — should never happen for a real payment
 
-        int listPriceCents = plan.getPriceCents();
-        int discountCents = Math.max(0, listPriceCents - payment.getAmountCents());
+        // The list price at PAYMENT TIME (Task 1's snapshot column), never the plan's current price
+        // — a price rise since must never retroactively paint an old receipt with a discount that
+        // was never given. Null (rows written before M12b) means the discount is unknown, not zero.
+        Integer listPriceCents = payment.getListPriceCents();
+        boolean hasDiscount = listPriceCents != null && listPriceCents - payment.getAmountCents() > 0;
 
         Map<String, Object> vars = new HashMap<>();
         vars.put("name", member.getUser().getName());
@@ -41,7 +44,7 @@ public class PaymentReceipts {
         vars.put("currency", payment.getCurrency());
         vars.put("method", payment.getMethod());
         vars.put("listPriceCents", listPriceCents);
-        vars.put("hasDiscount", discountCents > 0);
+        vars.put("hasDiscount", hasDiscount);
         // Must match app.routes.ts's `receipts/:paymentId` route exactly (plural "receipts") —
         // a mismatched path here has previously shipped a dead emailed link.
         vars.put("link", mailer.link("/receipts/" + payment.getId()));

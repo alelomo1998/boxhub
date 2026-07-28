@@ -366,4 +366,63 @@ class SubscriptionApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/receipts/" + payment.getId()).header("Authorization", "Bearer " + adminTokenB))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void aReceiptWithNoRecordedListPriceOmitsTheDiscountEntirely() throws Exception {
+        // A Payment row with listPriceCents == null (i.e. created before M12b) must render with NO
+        // discount figure — not a discount computed against today's plan price. This is the fix:
+        // the omission, not the column.
+        String body = mvc.perform(post("/api/box/subscriptions").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminTokenA)
+                        .content(recordBody(athleteMembershipA.getId().toString(), planA.getId().toString(), "CASH", 4000)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        UUID subscriptionId = UUID.fromString(om.readTree(body).get("id").asText());
+
+        actAsBox(boxA.getId());
+        Payment payment = payments.findAll().stream()
+                .filter(p -> p.getSubscriptionId().equals(subscriptionId)).findFirst().orElseThrow();
+        payment.setListPriceCents(null); // simulate a pre-M12b row
+        payments.save(payment);
+
+        Plan plan = plans.findById(planA.getId()).orElseThrow();
+        plan.setPriceCents(9000); // raise the plan's CURRENT price well above the amount paid
+        plans.save(plan);
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/receipts/" + payment.getId()).header("Authorization", "Bearer " + athleteTokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amountCents").value(4000))
+                .andExpect(jsonPath("$.listPriceCents").doesNotExist())
+                .andExpect(jsonPath("$.discountCents").doesNotExist());
+    }
+
+    @Test
+    void aReceiptReportsTheDiscountAgainstThePriceStoredAtPaymentTime() throws Exception {
+        // Seed a payment with listPriceCents = 5000 (the plan's list price at payment time), amount
+        // 4000 -> discount 1000. Then raise the plan to 9000 and re-fetch: the discount must STILL
+        // be 1000, not 5000 (against today's price) and certainly not 5000 (9000-4000).
+        String body = mvc.perform(post("/api/box/subscriptions").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminTokenA)
+                        .content(recordBody(athleteMembershipA.getId().toString(), planA.getId().toString(), "CASH", 4000)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        UUID subscriptionId = UUID.fromString(om.readTree(body).get("id").asText());
+
+        actAsBox(boxA.getId());
+        Payment payment = payments.findAll().stream()
+                .filter(p -> p.getSubscriptionId().equals(subscriptionId)).findFirst().orElseThrow();
+        assertThat(payment.getListPriceCents()).isEqualTo(5000); // snapshotted at record time
+
+        Plan plan = plans.findById(planA.getId()).orElseThrow();
+        plan.setPriceCents(9000);
+        plans.save(plan);
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/receipts/" + payment.getId()).header("Authorization", "Bearer " + athleteTokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amountCents").value(4000))
+                .andExpect(jsonPath("$.listPriceCents").value(5000))
+                .andExpect(jsonPath("$.discountCents").value(1000));
+    }
 }
