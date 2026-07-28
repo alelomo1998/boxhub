@@ -67,8 +67,6 @@ public class InvitePublicController {
         UUID userId = TenantContext.userId();
         InviteAcceptTx.Result r = acceptTx.accept(token, userId);
 
-        // A plan-less invite (planId null) leaves the member without a subscription — same as
-        // pre-M10, an admin assigns one later via POST /api/box/subscriptions.
         if (r.invite().getPlanId() != null) {
             runAsBox(r.box().getId(), () -> {
                 Plan plan = plans.findById(r.invite().getPlanId()).orElseThrow(NoSuchElementException::new);
@@ -76,6 +74,11 @@ public class InvitePublicController {
                 // entitlement check lets them book immediately; the lapse job chases them later.
                 subscriptionService.recordPeriod(r.membership().getId(), plan.getId(), plan.getPriceCents(), null);
             });
+        } else {
+            // A plan-less invite (planId null) means the box bills this member offline — but they
+            // still need to be bookable, so comp them onto the per-box synthetic "Comped" plan
+            // (M12b Task 2) instead of leaving them without any subscription at all.
+            runAsBox(r.box().getId(), () -> subscriptionService.comp(r.membership().getId()));
         }
 
         Box box = r.box();

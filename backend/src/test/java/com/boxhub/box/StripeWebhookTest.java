@@ -496,4 +496,54 @@ class StripeWebhookTest extends AbstractIntegrationTest {
         actAsBox(f.boxId());
         assertThat(subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd()).isEqualTo(firstEnd);
     }
+
+    /**
+     * The other half of the delayed-rail story: the debit/transfer BOUNCES instead of settling.
+     * Nothing was ever granted (payment_status never reached "paid"), so there is nothing to undo —
+     * but the row must stop being PENDING forever, and the member must be told, or they sit believing
+     * they're subscribed until a booking fails.
+     */
+    @Test
+    void asyncPaymentFailedMarksThePaymentFailedAndTellsTheMember() throws Exception {
+        Fixture f = newFixture("failed-" + System.nanoTime());
+        String payload = eventPayload(f.sessionId(), "checkout.session.async_payment_failed", "unpaid");
+        String sig = signatureHeader(payload, WEBHOOK_SECRET);
+
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(payload))
+                .andExpect(status().isOk());
+
+        Payment payment = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(payment.getStatus()).isEqualTo("FAILED");
+
+        actAsBox(f.boxId());
+        // no subscription was granted
+        assertThat(subscriptions.findById(f.subscriptionId()).orElseThrow().getCurrentPeriodEnd()).isNull();
+
+        verify(mailer, times(1)).send(any(), any(), eq("payment-failed"), any());
+    }
+
+    @Test
+    void aReplayedAsyncPaymentFailedChangesNothingAndDoesNotMailTwice() throws Exception {
+        Fixture f = newFixture("failed-replay-" + System.nanoTime());
+        String payload = eventPayload(f.sessionId(), "checkout.session.async_payment_failed", "unpaid");
+        String sig = signatureHeader(payload, WEBHOOK_SECRET);
+
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(payload))
+                .andExpect(status().isOk());
+
+        Payment firstPass = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(firstPass.getStatus()).isEqualTo("FAILED");
+        verify(mailer, times(1)).send(any(), any(), eq("payment-failed"), any());
+
+        // Same event, same signature — exactly what a Stripe retry looks like.
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", sig).content(payload))
+                .andExpect(status().isOk());
+
+        Payment secondPass = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(secondPass.getStatus()).isEqualTo("FAILED"); // unchanged
+        verify(mailer, times(1)).send(any(), any(), eq("payment-failed"), any()); // still exactly one — no duplicate
+    }
 }

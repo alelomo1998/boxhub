@@ -31,8 +31,11 @@ public class PaymentReceipts {
         Membership member = memberships.findByIdWithUser(subscription.getMembershipId()).orElse(null);
         if (member == null || plan == null) return; // defensive — should never happen for a real payment
 
-        int listPriceCents = plan.getPriceCents();
-        int discountCents = Math.max(0, listPriceCents - payment.getAmountCents());
+        // The list price at PAYMENT TIME (Task 1's snapshot column), never the plan's current price
+        // — a price rise since must never retroactively paint an old receipt with a discount that
+        // was never given. Null (rows written before M12b) means the discount is unknown, not zero.
+        Integer listPriceCents = payment.getListPriceCents();
+        boolean hasDiscount = listPriceCents != null && listPriceCents - payment.getAmountCents() > 0;
 
         Map<String, Object> vars = new HashMap<>();
         vars.put("name", member.getUser().getName());
@@ -41,11 +44,27 @@ public class PaymentReceipts {
         vars.put("currency", payment.getCurrency());
         vars.put("method", payment.getMethod());
         vars.put("listPriceCents", listPriceCents);
-        vars.put("hasDiscount", discountCents > 0);
+        vars.put("hasDiscount", hasDiscount);
         // Must match app.routes.ts's `receipts/:paymentId` route exactly (plural "receipts") —
         // a mismatched path here has previously shipped a dead emailed link.
         vars.put("link", mailer.link("/receipts/" + payment.getId()));
 
         mailer.send(member.getUser().getEmail(), "Your BoxHub payment receipt", "payment-receipt", vars);
+    }
+
+    /** A delayed-notification payment (SEPA debit, bank transfer) bounced. Nothing was granted, so
+     *  this is purely informational — factual, no plan/discount detail (the placeholder subscription's
+     *  plan may not even be the one the member tried to buy; see StripeWebhookController). */
+    public void sendPaymentFailed(Payment payment, Subscription subscription) {
+        Membership member = memberships.findByIdWithUser(subscription.getMembershipId()).orElse(null);
+        if (member == null) return; // defensive — should never happen for a real payment
+
+        Map<String, Object> vars = new HashMap<>();
+        vars.put("name", member.getUser().getName());
+        vars.put("amountCents", payment.getAmountCents());
+        vars.put("currency", payment.getCurrency());
+        vars.put("link", mailer.link("/membership"));
+
+        mailer.send(member.getUser().getEmail(), "Your BoxHub payment did not go through", "payment-failed", vars);
     }
 }

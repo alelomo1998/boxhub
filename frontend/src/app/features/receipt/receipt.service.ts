@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 export interface Receipt {
   paymentId: string; amountCents: number; currency: string; method: string; planName: string;
-  periodStart: string; periodEnd: string | null; listPriceCents: number; discountCents: number;
+  periodStart: string; periodEnd: string | null; listPriceCents: number | null; discountCents: number | null;
   boxName: string; createdAt: string;
 }
 

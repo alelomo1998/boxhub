@@ -42,6 +42,7 @@ class SubscriptionTx {
         p.setStatus("SUCCEEDED");
         p.setRecordedBy(recordedByMembershipId);
         p.setReference(reference);
+        p.setListPriceCents(plan.getPriceCents()); // snapshot — the receipt must never re-price this later
         p = payments.save(p);
 
         return new Recorded(sub, p, plan);

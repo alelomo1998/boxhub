@@ -44,8 +44,14 @@ class BoxSignupTx {
         this.waitlist = waitlist;
     }
 
+    /** boxId/membershipId travel out alongside the owner because the caller needs both, on the far
+     * side of this transaction's commit, to comp the owner a bookable subscription under the box's
+     * real tenant (Plan/Subscription are @TenantId — see SubscriptionService#comp, runAsBox in
+     * docs/TENANCY.md). Package-private record, plumbing only. */
+    record Result(User owner, java.util.UUID boxId, java.util.UUID membershipId) {}
+
     @Transactional
-    User createOwnerAndBox(String boxName, String slug, String ownerName, String normalizedEmail,
+    Result createOwnerAndBox(String boxName, String slug, String ownerName, String normalizedEmail,
                             String passwordHash, String boxStatus) {
         // Self-serve box signup never carries an invite token — always unverified; the caller
         // sends the verify mail once this transaction has committed (see BoxSignupService).
@@ -68,7 +74,7 @@ class BoxSignupTx {
         m.setRole("BOX_ADMIN");
         memberships.save(m);
 
-        return owner;
+        return new Result(owner, box.getId(), m.getId());
     }
 
     @Transactional

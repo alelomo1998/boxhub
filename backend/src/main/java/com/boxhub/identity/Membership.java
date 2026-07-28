@@ -2,7 +2,6 @@ package com.boxhub.identity;
 
 import com.boxhub.box.Box;
 import jakarta.persistence.*;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -17,7 +16,6 @@ public class Membership {
     private Box box;
     @Column(nullable = false) private String role;
     @Column(nullable = false) private String status = "ACTIVE";
-    @Column(name = "expires_at") private LocalDate expiresAt;
     @Column(name = "avatar_path") private String avatarPath;
     @Column(name = "private", nullable = false) private boolean privateProfile = false;
 
@@ -30,8 +28,6 @@ public class Membership {
     public void setRole(String role) { this.role = role; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public LocalDate getExpiresAt() { return expiresAt; }
-    public void setExpiresAt(LocalDate expiresAt) { this.expiresAt = expiresAt; }
     public String getAvatarPath() { return avatarPath; }
     public void setAvatarPath(String avatarPath) { this.avatarPath = avatarPath; }
     public boolean isPrivateProfile() { return privateProfile; }

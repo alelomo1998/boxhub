@@ -34,7 +34,10 @@ import { ButtonComponent } from '../../ui/button.component';
                   <dd>{{ r.periodStart | date:'dd MMM yyyy' }}@if (r.periodEnd) { – {{ r.periodEnd | date:'dd MMM yyyy' }} }</dd>
                 </div>
                 <div class="line"><dt>Method</dt><dd>{{ r.method }}</dd></div>
-                @if (r.discountCents > 0) {
+                <!-- Guard on listPriceCents, not just discountCents: both are null together for a
+                     payment recorded before the list price was snapshotted (M12b), and narrowing
+                     the one we divide is what makes this type-safe as well as correct. -->
+                @if (r.listPriceCents !== null && r.discountCents) {
                   <div class="line">
                     <dt>List price</dt><dd class="num">{{ r.listPriceCents / 100 | currency: r.currency.toUpperCase() }}</dd>
                   </div>

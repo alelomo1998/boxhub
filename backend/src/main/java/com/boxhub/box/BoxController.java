@@ -4,11 +4,14 @@ import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.ZoneId;
 import java.util.UUID;
 
 @RestController
@@ -48,7 +51,12 @@ public class BoxController {
         RoleGuard.requireBoxAdmin();
         Box b = boxes.findById(TenantContext.requireBoxId()).orElseThrow();
         if (req.name() != null && !req.name().isBlank()) b.setName(req.name().trim());
-        if (req.timezone() != null && !req.timezone().isBlank()) b.setTimezone(req.timezone().trim());
+        if (req.timezone() != null && !req.timezone().isBlank()) {
+            String tz = req.timezone().trim();
+            if (!ZoneId.getAvailableZoneIds().contains(tz))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid timezone");
+            b.setTimezone(tz);
+        }
         if (req.logoUrl() != null) b.setLogoUrl(req.logoUrl().isBlank() ? null : req.logoUrl().trim());
         if (req.cancelCutoffMin() != null) b.setCancelCutoffMin(req.cancelCutoffMin());
         if (req.bookingHorizonWeeks() != null) b.setBookingHorizonWeeks(req.bookingHorizonWeeks());

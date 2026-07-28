@@ -89,6 +89,7 @@ public class StripeCheckoutService {
         payment.setCurrency(plan.getCurrency());
         payment.setMethod("STRIPE");
         payment.setStatus("PENDING");
+        payment.setListPriceCents(plan.getPriceCents()); // snapshot — the receipt must never re-price this later
         payment = payments.save(payment);
 
         String restrictedKey = crypto.decrypt(stripeCreds.getRestrictedKeyEnc());

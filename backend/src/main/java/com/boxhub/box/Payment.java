@@ -21,6 +21,9 @@ public class Payment {
     @Column(name = "stripe_session_id") private String stripeSessionId;
     @Column(name = "recorded_by") private UUID recordedBy;
     @Column private String reference;
+    /** What the plan's list price was WHEN THIS PAYMENT WAS TAKEN. Null for rows created before
+     *  M12b — the receipt omits the discount line rather than computing one against today's price. */
+    @Column(name = "list_price_cents") private Integer listPriceCents;
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false) private Instant createdAt;
 
     public UUID getId() { return id; }
@@ -41,5 +44,7 @@ public class Payment {
     public void setRecordedBy(UUID recordedBy) { this.recordedBy = recordedBy; }
     public String getReference() { return reference; }
     public void setReference(String reference) { this.reference = reference; }
+    public Integer getListPriceCents() { return listPriceCents; }
+    public void setListPriceCents(Integer listPriceCents) { this.listPriceCents = listPriceCents; }
     public Instant getCreatedAt() { return createdAt; }
 }
