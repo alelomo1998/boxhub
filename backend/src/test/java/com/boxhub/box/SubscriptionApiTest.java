@@ -39,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SubscriptionApiTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
+    @Autowired SubscriptionService subscriptionService;
     @Autowired AuthService authService;
     @Autowired BoxRepository boxes;
     @Autowired MembershipRepository memberships;
@@ -424,5 +425,29 @@ class SubscriptionApiTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.amountCents").value(4000))
                 .andExpect(jsonPath("$.listPriceCents").value(5000))
                 .andExpect(jsonPath("$.discountCents").value(1000));
+    }
+
+    @Test
+    void recordingTheFirstRealPaymentReplacesTheCompInsteadOfDemandingACancel() throws Exception {
+        // A comp is a PLACEHOLDER so the member can book while the box bills them offline (M12b),
+        // not a plan anyone chose. Recording their first real payment must replace it silently —
+        // demanding a manual cancel first made SWITCH_REQUIRES_CANCEL unactionable in exactly the
+        // flow where it fires most often, and an e2e run caught it after the comp shipped.
+        // Before the fix this returns 409 SWITCH_REQUIRES_CANCEL.
+        actAsBox(boxA.getId());
+        subscriptionService.comp(athleteMembershipA.getId());
+        assertThat(subscriptionService.activeFor(athleteMembershipA.getId())).isPresent();
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(post("/api/box/subscriptions").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminTokenA)
+                        .content(recordBody(athleteMembershipA.getId().toString(), planA.getId().toString(), "CASH", 4000)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.planId").value(planA.getId().toString()));
+
+        actAsBox(boxA.getId());
+        Subscription active = subscriptionService.activeFor(athleteMembershipA.getId()).orElseThrow();
+        assertThat(active.getPlanId()).isEqualTo(planA.getId());
+        assertThat(active.getCurrentPeriodEnd()).isNotNull(); // a real period, not the comp's null end
     }
 }

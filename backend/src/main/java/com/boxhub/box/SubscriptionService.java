@@ -54,6 +54,19 @@ public class SubscriptionService {
         Subscription sub;
         Instant base;
         // (see now() below — these instants get persisted and compared against re-read values)
+        if (activeOpt.isPresent() && isComp(activeOpt.get())) {
+            // A comp is a PLACEHOLDER, not a chosen plan: it exists only so a member can book while
+            // the box bills them offline (M12b). Recording their first real payment must therefore
+            // replace it silently — requiring the admin to cancel first made SWITCH_REQUIRES_CANCEL
+            // unactionable in precisely the flow where it fires most (invite plan-less, then take
+            // the first payment), which an e2e run caught after the comp shipped.
+            // saveAndFlush, not save: the partial unique index uq_subscription_active permits one
+            // ACTIVE row per membership, so the CANCEL must reach the database before the insert.
+            Subscription comp = activeOpt.get();
+            comp.setStatus("CANCELED");
+            subscriptions.saveAndFlush(comp);
+            activeOpt = Optional.empty();
+        }
         if (activeOpt.isPresent()) {
             Subscription active = activeOpt.get();
             if (!active.getPlanId().equals(planId)) {
@@ -108,12 +121,20 @@ public class SubscriptionService {
      * bills offline, so the member must still be bookable). Both must call this with the box's
      * real tenant already established (runAsBox) — Plan and Subscription are {@code @TenantId}.
      */
+    /** True when this subscription sits on the box's synthetic comp plan — i.e. it is a placeholder
+     *  that recordPeriod may replace without asking the admin to cancel it first. */
+    private boolean isComp(Subscription sub) {
+        return plans.findById(sub.getPlanId()).map(p -> COMPED_PLAN_NAME.equals(p.getName())).orElse(false);
+    }
+
+    static final String COMPED_PLAN_NAME = "Comped";
+
     @Transactional
     public Subscription comp(UUID membershipId) {
         UUID boxId = TenantContext.requireBoxId();
-        Plan comped = plans.findByBoxIdAndName(boxId, "Comped").orElseGet(() -> {
+        Plan comped = plans.findByBoxIdAndName(boxId, COMPED_PLAN_NAME).orElseGet(() -> {
             Plan p = new Plan();
-            p.setName("Comped");
+            p.setName(COMPED_PLAN_NAME);
             p.setDurationDays(30);
             p.setArchived(true);
             p.setPriceCents(0);
