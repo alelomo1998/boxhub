@@ -278,27 +278,47 @@ full of dev secrets.
 
 - [ ] **Step 4: Prove it fails closed — the negative control**
 
-This is the discriminating check for the whole task. Run from the repo root:
+The discriminating check for the whole task, in three parts. What has to be proven is that the OLD
+file leaked committed dev secrets and the NEW one cannot.
+
+**(a) The old file, with `docker/.env` absent** — the bug, demonstrated. Rendering it in place
+matters: `context: ..` only resolves from `docker/`.
 
 ```bash
-mv docker/.env docker/.env.bak 2>/dev/null; docker compose -f docker/docker-compose.yml config
+git show HEAD:docker/docker-compose.yml > docker/docker-compose.old.yml
+docker compose -f docker/docker-compose.old.yml config > /tmp/m12c-old-render.txt 2>&1; echo "EXIT:$?"
+grep -c 'dev-only-secret-must-be-at-least-32-bytes!' /tmp/m12c-old-render.txt
+grep -c 'AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=' /tmp/m12c-old-render.txt
+grep -c 'dev-only-media-link-secret-change-me' /tmp/m12c-old-render.txt
+rm docker/docker-compose.old.yml
 ```
 
-Expected: the rendered config contains **no** `BOXHUB_JWT_SECRET`, `BOXHUB_STRIPE_ENC_KEYS` or
-`BOXHUB_MEDIA_LINK_SECRET` value at all (compose warns about unset variables). Against the OLD
-compose file the same command renders all three dev secrets in full — that contrast is the proof.
+Expected: `EXIT:0` and a non-zero count for all three — the old file renders every committed dev
+secret with no `.env` anywhere on disk. Write to a file and grep the file; never pipe
+`docker compose config` through `grep` directly. Confirm the scratch file is deleted — it must not
+reach the commit.
 
-Then restore and prove the dev path still works:
+**(b) The new file, with `docker/.env` absent.**
 
 ```bash
-mv docker/.env.bak docker/.env 2>/dev/null || cp docker/.env.example docker/.env
-docker compose -f docker/docker-compose.yml config
+docker compose -f docker/docker-compose.yml config; echo "EXIT:$?"
 ```
 
-Expected: every value present.
+Expected on Compose v5.3.0: `EXIT:1`, no config rendered at all, with
+`env file …/docker/.env not found`. Compose treats a missing `env_file` **path** as a hard error
+rather than a per-variable warning, so the failure is total refusal rather than selective blanking.
+That is the fail-closed behaviour, and it is stronger than a render with empty values: there is no
+path where the stack starts on a partial environment. **Do not add `required: false` to `env_file`
+to soften this** — it would defeat the entire task.
 
-Record both outputs in your report. **If `config` errors rather than warning on the unset case,
-report the exact error** — do not add a fallback to make it quiet.
+**(c) The new file, with `docker/.env` present.**
+
+```bash
+cp docker/.env.example docker/.env
+docker compose -f docker/docker-compose.yml config; echo "EXIT:$?"
+```
+
+Expected: `EXIT:0`, every value present. Record all three outputs in your report.
 
 - [ ] **Step 5: Teach CI to create the file**
 
@@ -314,7 +334,7 @@ Without this the e2e job cannot start the stack and CI goes red the moment this 
 - [ ] **Step 6: Add the deploy guard**
 
 `deploy/deploy.sh` currently checks for the remote `.env` **after** rsync (line 15). Move the check
-ahead of rsync and add the sentinel guard. Replace lines 1-16 with:
+ahead of rsync and add the sentinel guard. Replace lines 1-15 with:
 
 ```bash
 #!/usr/bin/env bash
@@ -350,7 +370,8 @@ rsync -az --delete \
   ./ "$HOST":/opt/boxhub/
 ```
 
-Leave lines 16-18 (`docker compose up -d --build`, the health poll, `echo "Deployed OK."`) as they are.
+Leave lines 16-18 (`docker compose up -d --build`, the health poll, `echo "Deployed OK."`) as they
+are — they follow the replaced block unchanged.
 
 - [ ] **Step 7: Prove the guard fires**
 
@@ -406,6 +427,17 @@ cd e2e && npx playwright test
 Expected: 26 passed. The demo password, the dev Postgres password and the relaxed rate limits are
 unchanged by this task, so any e2e failure here means the environment plumbing dropped a value —
 report exactly which spec and which value.
+
+Then confirm the operator-facing failure is intelligible. A fail-closed deploy is only useful if
+whoever tripped it can tell why:
+
+```bash
+mv docker/.env docker/.env.bak
+docker compose -f docker/docker-compose.yml up -d; echo "EXIT:$?"
+mv docker/.env.bak docker/.env
+```
+
+Report the message verbatim.
 
 - [ ] **Step 10: Commit**
 
