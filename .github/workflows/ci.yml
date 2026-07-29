@@ -35,6 +35,7 @@ jobs:
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v7
+      - run: cp docker/.env.example docker/.env
       - run: docker compose -f docker/docker-compose.yml up -d --build
       - run: |
           for i in $(seq 1 60); do

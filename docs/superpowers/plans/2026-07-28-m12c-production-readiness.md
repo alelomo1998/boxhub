@@ -48,6 +48,12 @@ relax, allowlist, or work around any of them.
 6. **The OAuth2 chain stays off unless a client id is configured.** `OAuth2ChainConditionTest` and
    `OAuth2SecurityConfig`'s `@ConditionalOnExpression` + `hasText` gating are not weakened. Task 2
    turns the chain on in dev by *supplying a value*, which is that mechanism working as designed.
+7. **`AuthRateLimitFilter`'s IP-identity policy is not weakened.** It resolves the client from
+   nginx-authoritative `X-Real-IP` and falls back to `getRemoteAddr()` — never client-supplied
+   `X-Forwarded-For`, which nginx appends to. Added *after* Task 2's first design violated it
+   indirectly via `server.forward-headers-strategy`; see Task 2 step 3. The lesson generalises: a
+   global Spring filter can undo a local security control in a file the change never touches, and
+   only the full suite sees it.
 
 ## File Structure
 
@@ -61,9 +67,9 @@ relax, allowlist, or work around any of them.
 
 **Task 2 — Google SSO reachable and correct**
 - Modify: `docker/nginx.conf` — `location /oauth2/` and `location /login/oauth2/`.
-- Modify: `backend/src/main/resources/application.yml` — `server.forward-headers-strategy`.
+- Modify: `backend/src/main/java/com/boxhub/shared/OAuth2SecurityConfig.java` — explicit `redirectUri`.
 - Modify: `docker/.env.example` — a fake `BOXHUB_GOOGLE_CLIENT_ID`.
-- Create: `backend/src/test/java/com/boxhub/shared/OAuth2ForwardedHeadersTest.java`.
+- Create: `backend/src/test/java/com/boxhub/shared/OAuth2RedirectUriTest.java`.
 - Modify: `e2e/tests/security.spec.ts` — the nginx routing assertion.
 
 **Task 3 — drop WebP**
@@ -278,27 +284,47 @@ full of dev secrets.
 
 - [ ] **Step 4: Prove it fails closed — the negative control**
 
-This is the discriminating check for the whole task. Run from the repo root:
+The discriminating check for the whole task, in three parts. What has to be proven is that the OLD
+file leaked committed dev secrets and the NEW one cannot.
+
+**(a) The old file, with `docker/.env` absent** — the bug, demonstrated. Rendering it in place
+matters: `context: ..` only resolves from `docker/`.
 
 ```bash
-mv docker/.env docker/.env.bak 2>/dev/null; docker compose -f docker/docker-compose.yml config
+git show HEAD:docker/docker-compose.yml > docker/docker-compose.old.yml
+docker compose -f docker/docker-compose.old.yml config > /tmp/m12c-old-render.txt 2>&1; echo "EXIT:$?"
+grep -c 'dev-only-secret-must-be-at-least-32-bytes!' /tmp/m12c-old-render.txt
+grep -c 'AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=' /tmp/m12c-old-render.txt
+grep -c 'dev-only-media-link-secret-change-me' /tmp/m12c-old-render.txt
+rm docker/docker-compose.old.yml
 ```
 
-Expected: the rendered config contains **no** `BOXHUB_JWT_SECRET`, `BOXHUB_STRIPE_ENC_KEYS` or
-`BOXHUB_MEDIA_LINK_SECRET` value at all (compose warns about unset variables). Against the OLD
-compose file the same command renders all three dev secrets in full — that contrast is the proof.
+Expected: `EXIT:0` and a non-zero count for all three — the old file renders every committed dev
+secret with no `.env` anywhere on disk. Write to a file and grep the file; never pipe
+`docker compose config` through `grep` directly. Confirm the scratch file is deleted — it must not
+reach the commit.
 
-Then restore and prove the dev path still works:
+**(b) The new file, with `docker/.env` absent.**
 
 ```bash
-mv docker/.env.bak docker/.env 2>/dev/null || cp docker/.env.example docker/.env
-docker compose -f docker/docker-compose.yml config
+docker compose -f docker/docker-compose.yml config; echo "EXIT:$?"
 ```
 
-Expected: every value present.
+Expected on Compose v5.3.0: `EXIT:1`, no config rendered at all, with
+`env file …/docker/.env not found`. Compose treats a missing `env_file` **path** as a hard error
+rather than a per-variable warning, so the failure is total refusal rather than selective blanking.
+That is the fail-closed behaviour, and it is stronger than a render with empty values: there is no
+path where the stack starts on a partial environment. **Do not add `required: false` to `env_file`
+to soften this** — it would defeat the entire task.
 
-Record both outputs in your report. **If `config` errors rather than warning on the unset case,
-report the exact error** — do not add a fallback to make it quiet.
+**(c) The new file, with `docker/.env` present.**
+
+```bash
+cp docker/.env.example docker/.env
+docker compose -f docker/docker-compose.yml config; echo "EXIT:$?"
+```
+
+Expected: `EXIT:0`, every value present. Record all three outputs in your report.
 
 - [ ] **Step 5: Teach CI to create the file**
 
@@ -314,7 +340,7 @@ Without this the e2e job cannot start the stack and CI goes red the moment this 
 - [ ] **Step 6: Add the deploy guard**
 
 `deploy/deploy.sh` currently checks for the remote `.env` **after** rsync (line 15). Move the check
-ahead of rsync and add the sentinel guard. Replace lines 1-16 with:
+ahead of rsync and add the sentinel guard. Replace lines 1-15 with:
 
 ```bash
 #!/usr/bin/env bash
@@ -350,7 +376,8 @@ rsync -az --delete \
   ./ "$HOST":/opt/boxhub/
 ```
 
-Leave lines 16-18 (`docker compose up -d --build`, the health poll, `echo "Deployed OK."`) as they are.
+Leave lines 16-18 (`docker compose up -d --build`, the health poll, `echo "Deployed OK."`) as they
+are — they follow the replaced block unchanged.
 
 - [ ] **Step 7: Prove the guard fires**
 
@@ -407,6 +434,17 @@ Expected: 26 passed. The demo password, the dev Postgres password and the relaxe
 unchanged by this task, so any e2e failure here means the environment plumbing dropped a value —
 report exactly which spec and which value.
 
+Then confirm the operator-facing failure is intelligible. A fail-closed deploy is only useful if
+whoever tripped it can tell why:
+
+```bash
+mv docker/.env docker/.env.bak
+docker compose -f docker/docker-compose.yml up -d; echo "EXIT:$?"
+mv docker/.env.bak docker/.env
+```
+
+Report the message verbatim.
+
 - [ ] **Step 10: Commit**
 
 ```bash
@@ -439,7 +477,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Modify: `docker/nginx.conf` — insert after the `location /actuator/health` block (line 42)
 - Modify: `backend/src/main/resources/application.yml`
 - Modify: `docker/.env.example`
-- Create: `backend/src/test/java/com/boxhub/shared/OAuth2ForwardedHeadersTest.java`
+- Create: `backend/src/test/java/com/boxhub/shared/OAuth2RedirectUriTest.java`
 - Modify: `e2e/tests/security.spec.ts`
 
 **Interfaces:**
@@ -453,10 +491,11 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
    `<a href="/oauth2/authorization/google">` — rendered at `login.page.ts:31` and
    `signup.page.ts:32` — is served the SPA, which routes it through the `**` wildcard back to
    `auth/login`. The button does nothing, and has never done anything.
-2. `application.yml` sets no `server.forward-headers-strategy`, so Spring ignores
-   `X-Forwarded-Proto` and builds the OAuth `redirect_uri` as `http://…` behind TLS termination —
-   which will not match an `https://` registration in the Google console. **Fixing (1) alone ships
-   a button that still fails in production.**
+2. The OAuth `redirect_uri` is built from the request. `CommonOAuth2Provider.GOOGLE`'s default
+   redirect-uri is the template `{baseUrl}/login/oauth2/code/{registrationId}`, and `{baseUrl}`
+   resolves from the request as Spring sees it — plain http on an internal host behind nginx. That
+   will not match an `https://` registration in the Google console. **Fixing (1) alone ships a
+   button that still fails in production.**
 
 `OAuth2SecurityConfig.java:71` declares `securityMatcher("/oauth2/**", "/login/oauth2/**")`; the
 nginx locations must cover both. The whole config is `@ConditionalOnExpression`-gated on
@@ -468,7 +507,7 @@ There is no `login` route, but Angular's `**` redirect to `auth/login` preserves
 
 - [ ] **Step 1: Write the failing backend test**
 
-Create `backend/src/test/java/com/boxhub/shared/OAuth2ForwardedHeadersTest.java`:
+Create `backend/src/test/java/com/boxhub/shared/OAuth2RedirectUriTest.java`:
 
 ```java
 package com.boxhub.shared;
@@ -488,24 +527,34 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * BoxHub runs behind nginx, which terminates TLS. Without
- * {@code server.forward-headers-strategy}, Spring builds the OAuth {@code redirect_uri} from the
- * request as the servlet container saw it — plain http — and ignores {@code X-Forwarded-Proto}.
- * Google then rejects the callback, because the console registration is https.
+ * BoxHub runs behind nginx, which terminates TLS. Spring's default OAuth2 redirect_uri template
+ * ({@code {baseUrl}/login/oauth2/code/{registrationId}}) is built from the request as the
+ * servlet container saw it — plain http, on an internal host — so it never matches the https
+ * registration in the Google console.
  * <p>
- * This cannot be covered by e2e: the dev stack is http end to end, so there is nothing for the
- * forwarded-proto handling to change there.
+ * The fix is <b>not</b> {@code server.forward-headers-strategy}: that installs
+ * {@code ForwardedHeaderFilter} globally, which rewrites {@code getRemoteAddr()} from the
+ * client-appendable {@code X-Forwarded-For} header and re-opens the rate-limit IP spoofing that
+ * M1-T9 closed (see {@code AuthRateLimitFilter.clientIp()} and
+ * {@code RateLimitTest.spoofedForwardedForDoesNotCreateFreshBucket}, which pins it). Instead
+ * {@code OAuth2SecurityConfig.clientRegistrationRepository} sets an explicit {@code redirectUri}
+ * built from {@code boxhub.app-url} — the same source every other absolute URL BoxHub emits
+ * already uses ({@code Mailer.link}, the Stripe checkout return URLs). No proxy header is
+ * trusted at all.
  */
-@TestPropertySource(properties = "BOXHUB_GOOGLE_CLIENT_ID=m12c-test-client-id.apps.googleusercontent.com")
-class OAuth2ForwardedHeadersTest extends AbstractIntegrationTest {
+@TestPropertySource(properties = {
+        "BOXHUB_GOOGLE_CLIENT_ID=m12c-test-client-id.apps.googleusercontent.com",
+        "boxhub.app-url=https://boxhub.example"
+})
+class OAuth2RedirectUriTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
 
     @Test
-    void authorizationRedirectUriHonoursXForwardedProtoAndHost() throws Exception {
-        String location = mvc.perform(get("/oauth2/authorization/google")
-                        .header("X-Forwarded-Proto", "https")
-                        .header("X-Forwarded-Host", "boxhub.example"))
+    void redirectUriComesFromTheConfiguredAppUrlNotTheProxiedRequest() throws Exception {
+        // The request arrives exactly as nginx forwards it: plain http, internal host. The
+        // redirect_uri must still be the public https URL registered in the Google console.
+        String location = mvc.perform(get("/oauth2/authorization/google"))
                 .andExpect(status().is3xxRedirection())
                 .andReturn().getResponse().getHeader("Location");
 
@@ -515,8 +564,6 @@ class OAuth2ForwardedHeadersTest extends AbstractIntegrationTest {
                 .build().getQueryParams().getFirst("redirect_uri");
         assertThat(redirectUri).as("redirect_uri query parameter").isNotNull();
         assertThat(URLDecoder.decode(redirectUri, StandardCharsets.UTF_8))
-                .as("redirect_uri must be the https URL registered in the Google console, "
-                        + "not the http one the servlet container saw")
                 .isEqualTo("https://boxhub.example/login/oauth2/code/google");
     }
 }
@@ -526,40 +573,55 @@ class OAuth2ForwardedHeadersTest extends AbstractIntegrationTest {
 
 ```bash
 rm -rf backend/target
-cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=OAuth2ForwardedHeadersTest
+cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=OAuth2RedirectUriTest
 ```
 
-Expected: FAIL, with the decoded `redirect_uri` coming back as `http://…` (host may be `localhost`
-rather than `boxhub.example` — either way the scheme is the point).
+Expected: FAIL, with the decoded `redirect_uri` coming back as
+`http://localhost/login/oauth2/code/google` — the template resolving against the request.
 
-**STOP AND ESCALATE if it fails because MockMvc returned no redirect at all, or 404.** That would
-mean MockMvc is not picking up the app's `ForwardedHeaderFilter`, and the tempting workaround —
-adding the filter by hand in the test — would make this test prove nothing about `application.yml`,
-which is the only thing it exists to prove. Report it; do not work around it.
+- [ ] **Step 3: Set the redirect URI from the configured app URL**
 
-- [ ] **Step 3: Add the forwarded-headers strategy**
+In `backend/src/main/java/com/boxhub/shared/OAuth2SecurityConfig.java`, the
+`clientRegistrationRepository` bean becomes:
 
-In `backend/src/main/resources/application.yml`, add a top-level `server:` block above `spring:`:
-
-```yaml
-# BoxHub always runs behind nginx (TLS terminates there). Without this, Spring builds absolute
-# URLs — most consequentially OAuth2's redirect_uri — from the request as the servlet container
-# saw it, i.e. plain http, and ignores X-Forwarded-Proto. Google rejects an http redirect_uri
-# against an https console registration, so Google SSO fails in production and only there.
-# Pinned by OAuth2ForwardedHeadersTest.
-server:
-  forward-headers-strategy: framework
+```java
+    @Bean
+    ClientRegistrationRepository clientRegistrationRepository(
+            @Value("${BOXHUB_GOOGLE_CLIENT_ID}") String clientId,
+            @Value("${BOXHUB_GOOGLE_CLIENT_SECRET:}") String clientSecret,
+            @Value("${boxhub.app-url}") String appUrl) {
+        // Absolute, from the app's own configured public URL — NOT Spring's default
+        // "{baseUrl}/login/oauth2/code/{registrationId}" template. Behind nginx the request
+        // Spring sees is plain http on an internal host, so the template yields an http://
+        // redirect_uri that cannot match an https:// registration in the Google console, and
+        // Google rejects the callback. Every other absolute URL BoxHub emits already comes from
+        // BOXHUB_APP_URL (Mailer.link, the Stripe checkout return URLs); this makes OAuth2 the
+        // same. Deliberately NOT solved with server.forward-headers-strategy: that installs
+        // ForwardedHeaderFilter globally, which rewrites getRemoteAddr() from the
+        // client-appendable X-Forwarded-For and re-opens the rate-limit IP spoofing that M1-T9
+        // closed. Pinned by RateLimitTest.spoofedForwardedForDoesNotCreateFreshBucket.
+        String base = appUrl.endsWith("/") ? appUrl.substring(0, appUrl.length() - 1) : appUrl;
+        ClientRegistration google = CommonOAuth2Provider.GOOGLE.getBuilder("google")
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .redirectUri(base + "/login/oauth2/code/google")
+                .build();
+        return new InMemoryClientRegistrationRepository(google);
+    }
 ```
+
+**Do not add `server.forward-headers-strategy` to `application.yml`.** It was this plan's first
+design and is rejected — see the test javadoc above, invariant 7, and the spec's T2 section.
 
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
 rm -rf backend/target
-cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=OAuth2ForwardedHeadersTest
+cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=OAuth2RedirectUriTest
 ```
 
-Expected: PASS. Then re-run the **full** backend suite before moving on — `forward-headers-strategy`
-changes how every absolute URL in the app is built, so this is not a local change:
+Expected: PASS. Then re-run the **full** backend suite before moving on — this changes how the app
+authenticates against an external identity provider, so it is not a local change:
 
 ```bash
 rm -rf backend/target
@@ -583,9 +645,11 @@ ends at line 42:
     # No add_header here on purpose: nginx's add_header REPLACES rather than merges, so a
     # location that sets one loses every server-level security header. These inherit.
     #
-    # X-Forwarded-Proto is load-bearing, not boilerplate: with
-    # server.forward-headers-strategy=framework the backend builds the OAuth redirect_uri from
-    # it, and an http redirect_uri does not match an https Google console registration.
+    # The redirect_uri comes from BOXHUB_APP_URL (OAuth2SecurityConfig), not from any of these
+    # headers — deliberately: trusting X-Forwarded-For to rebuild the request would also feed
+    # AuthRateLimitFilter's IP resolution, reopening the spoofing M1-T9 closed. They're set here
+    # for parity with the /api/ block above, not because anything here reads them for URL
+    # construction.
     location /oauth2/ {
         proxy_pass http://backend:8080;
         proxy_set_header Host $host;
@@ -671,8 +735,9 @@ because of that, report which one and how** — do not hide the button to make a
 - [ ] **Step 10: Commit**
 
 ```bash
-git add docker/nginx.conf backend/src/main/resources/application.yml docker/.env.example \
-        backend/src/test/java/com/boxhub/shared/OAuth2ForwardedHeadersTest.java e2e/tests/security.spec.ts
+git add docker/nginx.conf docker/.env.example \
+        backend/src/main/java/com/boxhub/shared/OAuth2SecurityConfig.java \
+        backend/src/test/java/com/boxhub/shared/OAuth2RedirectUriTest.java e2e/tests/security.spec.ts
 git commit -m "fix(m12c): make Google SSO reachable and correct behind nginx
 
 Two bugs, both invisible in dev. docker/nginx.conf never had an /oauth2
@@ -680,14 +745,22 @@ location, so the login page's Google button was served index.html by the
 SPA catch-all and did nothing — dead since M8, because the OAuth2 chain
 is conditional on BOXHUB_GOOGLE_CLIENT_ID and the dev stack never set it.
 
-And with no server.forward-headers-strategy, Spring built the OAuth
-redirect_uri from the request the servlet container saw — plain http —
-ignoring X-Forwarded-Proto, so a TLS deploy would send Google a
-redirect_uri that cannot match an https console registration.
+And the redirect_uri came from CommonOAuth2Provider.GOOGLE's default
+{baseUrl} template, resolved against the request as the servlet container
+saw it — plain http on an internal host — which cannot match an https
+registration in the Google console. It now comes from BOXHUB_APP_URL,
+the same source Mailer.link and the Stripe return URLs already use.
+
+server.forward-headers-strategy was the first design and was rejected:
+it installs ForwardedHeaderFilter globally, which rewrites
+getRemoteAddr() from the client-appendable X-Forwarded-For and re-opens
+the rate-limit IP spoofing M1-T9 closed. RateLimitTest caught it —
+spoofedForwardedForDoesNotCreateFreshBucket went 429 -> 401, the limiter
+silently not firing.
 
 A fake client id in .env.example makes the chain live in dev so e2e can
-assert the routing at all; the backend test covers the forwarded-proto
-half, which a http-only dev stack structurally cannot.
+assert the routing at all; the backend test covers the redirect_uri,
+which a dev stack whose APP_URL is http://localhost cannot.
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -878,11 +951,28 @@ logger, forces TRACE, drives seven credential-handling surfaces, and asserts abs
 proving the capture window saw real work. Invariant 3 applies: the existing assertions at lines
 250-264 are not touched.
 
-Two things that will make the new assertion go red, both by design:
+**The test already drives `Mailer` twice — do not add a third send.** An earlier draft of this task
+did, and it was both redundant and subtly broken: `AuthService.register()` (called in the fixture)
+sends its own `template=verify` mail, so a poll waiting on that string was satisfied by the
+*fixture's* send and never waited for the added one. The two sends the fixture already produces,
+proven from a real capture dump, are:
+
+- `mail FAILED: template=verify to=hygiene-<n>@t.io` — from `authService.register(email, ...)`.
+  That recipient is the existing `email` local.
+- `mail FAILED: template=invite to=invitee-<n>@t.io` — from the invite created at the test's step 5.
+
+(Both take the failure branch because the test context has no SMTP server. That is fine: **both**
+branches log the recipient, so coverage is identical either way.)
+
+So asserting on those two addresses covers `Mailer` *and* the request/response DTOs at once, with no
+extra send, no `@Autowired Mailer`, and no async race of its own.
+
+Four sites are expected to go red, but **let the failures name them** — if something outside this
+list appears, report it before fixing:
 
 - `AuthController.LoginRequest.toString()` (line 77) prints `email=` in full. Spring MVC's
-  `RequestResponseBodyMethodProcessor` logs the deserialized argument, so the login the test drives
-  puts the address straight into the log.
+  `RequestResponseBodyMethodProcessor` logs the deserialized argument.
+- `Mailer`'s two log lines, via `to=`.
 - `InviteAdminController.CreateInviteRequest` (line 38) has **no** `toString()` override at all,
   and `CreatedInviteResponse.toString()` (line 48) prints `email=` in full — Spring logs response
   bodies too.
@@ -891,52 +981,40 @@ Two things that will make the new assertion go red, both by design:
 
 In `backend/src/test/java/com/boxhub/security/LogHygieneTest.java`:
 
-Add the field, next to the other `@Autowired`s (after line 100):
+(a) Extract the invitee address so it can be asserted on. Just above the invite-creation block
+(the test's step 5), declare:
 
 ```java
-    @Autowired Mailer mailer;
+        String inviteeEmail = "invitee-" + n + "@t.io";
 ```
 
-and the import for `Mailer`:
+and use `inviteeEmail` in that request body in place of the inline `"invitee-" + n + "@t.io"`.
+Change nothing else about that block.
+
+(b) Immediately before the `// --- now assert on what was actually captured ---` line, add:
 
 ```java
-import com.boxhub.shared.Mailer;
-```
-
-Insert a step 8 immediately before the `// --- now assert on what was actually captured ---` line
-(line 241):
-
-```java
-        // 8. A real mail send. Mailer logs the recipient on BOTH its success and its failure
-        //    branch, and no other surface in this test drives it — without this the PII
-        //    assertion below would not cover the line that prompted the whole item.
-        String recipient = "mail-hygiene-" + n + "@t.io";
-        mailer.send(recipient, "Verify your email", "verify",
-                Map.of("name", "Hygiene", "link", "https://boxhub.test/auth/verify?token=x"));
-        // send() is @Async, so it returns before the log line is written. Poll rather than sleep
-        // a fixed amount; whether the SMTP connection succeeds or is refused, one of the two
-        // Mailer log lines names the template.
+        // Mailer.send is @Async, so the fixture's registration mail and the invite mail above may
+        // not be logged yet when the snapshot below is taken. Poll for both: without them in the
+        // window the two address assertions would pass because nothing had been written, not
+        // because anything was redacted.
         long deadline = System.currentTimeMillis() + 5000;
-        while (System.currentTimeMillis() < deadline && !capturedText().contains("template=verify")) {
+        while (System.currentTimeMillis() < deadline
+                && !(capturedText().contains("template=verify") && capturedText().contains("template=invite"))) {
             Thread.sleep(50);
         }
 ```
 
-with the import:
-
-```java
-import java.util.Map;
-```
-
-Then append after the existing assertion block (after line 264):
+(c) Append after the existing assertion block, touching nothing above it:
 
 ```java
         // --- M12c: PII, not credentials. Same standing-guarantee shape as the assertions above:
         // a future log line that writes a member's address fails the build.
-        assertThat(text).as("Mailer really ran inside the capture window, so the recipient "
-                + "assertion below is not vacuous").contains("template=verify");
-        assertThat(text).as("mail recipient address in logs").doesNotContain(recipient);
-        assertThat(text).as("login request email address in logs").doesNotContain(email);
+        assertThat(text).as("the fixture's registration mail really ran inside the capture window, "
+                + "so the address assertions below are not vacuous").contains("template=verify");
+        assertThat(text).as("the invite mail really ran inside the capture window").contains("template=invite");
+        assertThat(text).as("registered user's email address in logs").doesNotContain(email);
+        assertThat(text).as("invitee's email address in logs").doesNotContain(inviteeEmail);
 ```
 
 - [ ] **Step 2: Run it and record exactly what goes red**
@@ -946,7 +1024,10 @@ rm -rf backend/target
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=LogHygieneTest
 ```
 
-Expected: FAIL on the `recipient` and/or `email` assertions.
+Expected: FAIL on the address assertions. AssertJ throws on the FIRST failure, so this is
+iterative — run, record the failure verbatim, trace the log line to the class that produced it, fix
+exactly that one, re-run, repeat until green. **Record the whole ordered sequence.** That sequence
+is the evidence for step 4: every address traced to its source before it was redacted.
 
 **Report the full failure output, and identify which log line carried each address.** AssertJ
 prints the containing text, so the source is visible. This is the evidence that the redactions in
@@ -986,7 +1067,7 @@ and add, below `send`:
     }
 ```
 
-- [ ] **Step 4: Redact the address out of the two implicated DTOs**
+- [ ] **Step 4: Redact the address out of the implicated DTOs**
 
 In `backend/src/main/java/com/boxhub/identity/AuthController.java`, line 77 becomes:
 
@@ -1031,8 +1112,13 @@ rm -rf backend/target
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=LogHygieneTest
 ```
 
-Expected: PASS. Confirm in your report that the vacuous-pass guards still hold — the run must have
-asserted `contains("box_stripe")` and `contains("template=verify")` before claiming any absence.
+Expected: PASS. Confirm in your report that all three vacuous-pass guards still hold — the run must
+have asserted `contains("box_stripe")`, `contains("template=verify")` and `contains("template=invite")`
+before claiming any absence.
+
+Also quote one real post-fix `Mailer` log line from the run, so the masked form (`h***@t.io`) is on
+the record. An operator has to be able to correlate a delivery failure with a member; a mask that
+erased everything would be a different bug, and the only way to see that is to look at the output.
 
 - [ ] **Step 6: Add direct coverage for the masking edge cases**
 
@@ -1099,7 +1185,7 @@ rm -rf backend/target
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
 ```
 
-Expected: 405 + 3 new (`OAuth2ForwardedHeadersTest`, `MediaApiTest.rejectsWebpBecauseItsExifCannotBeStripped`,
+Expected: 405 + 3 new (`OAuth2RedirectUriTest`, `MediaApiTest.rejectsWebpBecauseItsExifCannotBeStripped`,
 `MailerTest.maskKeepsEnoughToCorrelateAndNoMore`) = **408**, zero failures, zero skips. `LogHygieneTest`
 gains assertions inside an existing test method, so it does not raise the count.
 
@@ -1148,7 +1234,7 @@ changes CI's own setup — the e2e job cannot start the stack without the new `c
 
 **Spec coverage.** Every spec section maps to a task: T1 ↔ "Compose secrets fail closed" (including
 `BOXHUB_COOKIE_SECURE`, the deploy guard, CI and README); T2 ↔ "Google SSO reachable and correct"
-(nginx, `forward-headers-strategy`, dev client id, both tests, the deferred real-Google backlog
+(nginx, the explicit OAuth `redirectUri`, dev client id, both tests, the deferred real-Google backlog
 entry in Task 5); T3 ↔ "Drop WebP uploads"; T4 ↔ "Recipient addresses out of the logs"; T5 ↔
 "Testing and gates". The spec's six hardening invariants are restated verbatim at the top of this
 plan and referenced from the steps where they bite (Task 2 step 4, Task 4 steps 2 and 4).

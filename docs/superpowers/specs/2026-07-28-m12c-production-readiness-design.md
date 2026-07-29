@@ -25,7 +25,7 @@ not built here.
 | # | Item | Source |
 |---|---|---|
 | T1 | compose `env_file` + `.env.example`; `BOXHUB_COOKIE_SECURE`; deploy sentinel guard; CI | backlog + folded trap |
-| T2 | nginx `/oauth2` locations; `forward-headers-strategy`; dev client id; two tests | backlog + folded trap |
+| T2 | nginx `/oauth2` locations; explicit OAuth redirect-uri; dev client id; two tests | backlog + folded trap |
 | T3 | drop WebP uploads | backlog |
 | T4 | mask recipient addresses in logs; extend `LogHygieneTest` to PII | backlog |
 | T5 | gates, docs, backlog, merge | orchestrator |
@@ -51,6 +51,12 @@ Binding on every task. An executor that cannot satisfy one **escalates instead o
 6. **The OAuth2 chain stays off unless a client id is configured.** `OAuth2ChainConditionTest` and
    `OAuth2SecurityConfig`'s `@ConditionalOnExpression` + `hasText` gating are not weakened; T2 turns
    the chain on in dev by *supplying a value*, which is the mechanism working as designed.
+7. **`AuthRateLimitFilter`'s IP-identity policy is not weakened.** It resolves the client from
+   nginx-authoritative `X-Real-IP` and falls back to `getRemoteAddr()` — never client-supplied
+   `X-Forwarded-For`, which nginx appends to. Added *after* T2's first attempt violated it
+   indirectly; see the rejected `server.forward-headers-strategy` note under T2. The lesson
+   generalises: a global Spring filter can undo a local security control in a file the change never
+   touches, and only the full suite sees it.
 
 ## T1 — Compose secrets fail closed
 
@@ -139,11 +145,24 @@ wildcard back to `auth/login`. The button does nothing. It is invisible in dev b
 `OAuth2SecurityConfig` is `@ConditionalOnExpression`-gated on `BOXHUB_GOOGLE_CLIENT_ID`, which the
 dev compose has never set: the endpoint the button targets does not exist in dev either way.
 
-**(b) `application.yml` sets no `server.forward-headers-strategy`.** Spring therefore builds the
-OAuth `redirect_uri` from the request as it sees it, ignoring `X-Forwarded-Proto`. Behind TLS
-termination that yields `http://…/login/oauth2/code/google`, which will not match an `https://`
-registration in the Google console. Fixing (a) alone ships a button that still fails in production —
-which is why this is folded in rather than deferred.
+**(b) The OAuth `redirect_uri` is built from the request.** `OAuth2SecurityConfig` builds its
+`ClientRegistration` from `CommonOAuth2Provider.GOOGLE`, whose default redirect-uri is the template
+`{baseUrl}/login/oauth2/code/{registrationId}`. `{baseUrl}` resolves from the request as Spring sees
+it — behind nginx, plain http on an internal host. That yields
+`http://…/login/oauth2/code/google`, which cannot match an `https://` registration in the Google
+console. Fixing (a) alone ships a button that still fails in production, which is why this is folded
+in rather than deferred.
+
+**`server.forward-headers-strategy` was the obvious fix and is REJECTED.** It installs Spring's
+`ForwardedHeaderFilter` globally, which rewrites `getRemoteAddr()` from `X-Forwarded-For` for every
+request in the app. nginx sets that header with `$proxy_add_x_forwarded_for`, which *appends* to
+whatever the client sent, so its leftmost entry is attacker-controlled.
+`AuthRateLimitFilter.clientIp()` falls back to `getRemoteAddr()` precisely because it is the one
+value a client cannot forge — the filter's own comment says "never trust client-supplied
+X-Forwarded-For for rate-limit identity". Enabling the strategy therefore re-opens the IP-spoofing
+hole M1-T9 closed, and `RateLimitTest.spoofedForwardedForDoesNotCreateFreshBucket` catches it: 401
+instead of 429, the limiter silently not firing. Found by the T2 executor's full-suite gate, not by
+this spec.
 
 Note what is *not* broken: `googleSuccessHandler`'s failure redirects to `/login?error=google`
 (`OAuth2SecurityConfig.java:107`) and there is no `login` route — but Angular's `**` redirect to
@@ -158,21 +177,30 @@ Accidental, working, and out of scope.
    `OAuth2SecurityConfig.java:71`'s `securityMatcher("/oauth2/**", "/login/oauth2/**")`. Neither
    location declares an `add_header`, so both inherit the server-level security headers — see
    invariant 4.
-2. `application.yml` — `server.forward-headers-strategy: framework`.
+2. `OAuth2SecurityConfig.clientRegistrationRepository` — an explicit
+   `.redirectUri(base + "/login/oauth2/code/google")`, where `base` is `boxhub.app-url`
+   (`BOXHUB_APP_URL`) with any trailing slash trimmed. This is not a workaround for the rejected
+   strategy; it is the codebase's existing convention. `BOXHUB_APP_URL` is already the single source
+   of truth for every absolute URL BoxHub emits — `Mailer.link`, the Stripe checkout return URLs —
+   and OAuth2 was the one place still deriving one from the request. It needs no proxy-header trust
+   of any kind, which is why it leaves `AuthRateLimitFilter` untouched.
 3. `docker/.env.example` — a fake `BOXHUB_GOOGLE_CLIENT_ID`, so the chain is live in dev and the
    routing is testable at all.
 
 ### Proof
 
-The nginx half and the forwarded-headers half need different tests, because dev is http end to end
-and structurally cannot observe the second.
+The nginx half and the redirect_uri half need different tests: e2e can see the routing, but the dev
+stack's `BOXHUB_APP_URL` is `http://localhost`, so it cannot tell a configured URL from a
+request-derived one.
 
 - **e2e** — `GET /oauth2/authorization/google` returns `302` with a `Location` on
   `accounts.google.com`. Before the fix it is `200 text/html`, so the assertion discriminates by
   construction. No outbound request is made: the redirect is generated locally and never followed.
-- **backend** — the OAuth2 chain enabled via `@TestPropertySource`, a request carrying
-  `X-Forwarded-Proto: https`, asserting the `redirect_uri` query parameter comes back `https`.
-  Negative control: removing `forward-headers-strategy` must fail it.
+- **backend** — the OAuth2 chain enabled via `@TestPropertySource` with
+  `boxhub.app-url=https://boxhub.example`, asserting the `redirect_uri` is that public https URL
+  even though the request itself arrives as plain http on localhost, exactly as nginx forwards it.
+  Negative control: dropping the `.redirectUri(...)` call yields
+  `http://localhost/login/oauth2/code/google`.
 
 Enabling the chain in dev makes the Google button render on the login and signup pages, since
 `auth.providers()` will report `google: true`. Existing e2e does not assert its absence; the full

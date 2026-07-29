@@ -1,10 +1,18 @@
+# Environment comes from docker/.env — see docker/.env.example, and copy it before first run.
+# NOTE the deliberate absence of ":-" fallbacks on every secret below. Compose interpolation
+# resolves before Spring sees a placeholder, so a fallback here silently defeats
+# application.yml's fail-closed bare ${VAR} (and SecretDefaultsTest, which guards it) for
+# exactly the path an operator would take. env_file omits an unset key entirely, so the
+# backend refuses to boot rather than running on a committed dev key.
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: boxhub
       POSTGRES_USER: boxhub
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-boxhub}
+      # Postgres itself refuses to initialise with a blank password, so this fails closed
+      # without needing env_file — and db has no business seeing the app's secrets.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -27,27 +35,18 @@ services:
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
+    # The only service that needs the app secrets, so the only one that gets the whole file.
+    env_file:
+      - .env
     environment:
+      # Fixed, non-secret, container-topology values. `environment` overrides `env_file`, which
+      # is what we want for the datasource mapping.
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/boxhub
       SPRING_DATASOURCE_USERNAME: boxhub
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-boxhub}
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}
-      BOXHUB_JWT_SECRET: ${BOXHUB_JWT_SECRET:-dev-only-secret-must-be-at-least-32-bytes!}
-      # Dev/e2e stack: the serial Playwright suite logs in many times from one IP within the
-      # 1-min window. Prod overrides this with a strict value; keep the default relaxed here.
-      BOXHUB_AUTH_RATE_LIMIT: ${BOXHUB_AUTH_RATE_LIMIT:-200}
-      BOXHUB_WRITE_RATE_LIMIT: ${BOXHUB_WRITE_RATE_LIMIT:-500}
-      BOXHUB_LOOKUP_RATE_LIMIT: ${BOXHUB_LOOKUP_RATE_LIMIT:-500}
-      BOXHUB_GLOBAL_RATE_LIMIT: ${BOXHUB_GLOBAL_RATE_LIMIT:-5000}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       BOXHUB_MEDIA_DIR: /data/media
       BOXHUB_SMTP_HOST: mailpit
       BOXHUB_SMTP_PORT: "1025"
-      BOXHUB_APP_URL: ${BOXHUB_APP_URL:-http://localhost}
-      BOXHUB_SUPERADMIN_EMAILS: ${BOXHUB_SUPERADMIN_EMAILS:-super@demo.io}
-      # version:base64key, newest first (see CryptoService). Rotating = prepend "2:<newkey>," and
-      # keep the old entry so existing rows still decrypt.
-      BOXHUB_STRIPE_ENC_KEYS: ${BOXHUB_STRIPE_ENC_KEYS:-1:AkuNetEmYeBStw8saSIH351fqJMEG2Y6o7ds3YFu/wc=}
-      BOXHUB_MEDIA_LINK_SECRET: ${BOXHUB_MEDIA_LINK_SECRET:-dev-only-media-link-secret-change-me}
     volumes:
       - media:/data/media
     depends_on:
@@ -68,7 +67,9 @@ services:
     environment:
       # Same secret as the backend — nginx validates the signature the API mints. envsubst'd
       # into nginx.conf at container start (see frontend.Dockerfile / nginx.conf.template).
-      BOXHUB_MEDIA_LINK_SECRET: ${BOXHUB_MEDIA_LINK_SECRET:-dev-only-media-link-secret-change-me}
+      # No env_file here: nginx needs exactly this one value, and the frontend only ever starts
+      # behind a backend that already booted, i.e. one that had a real secret.
+      BOXHUB_MEDIA_LINK_SECRET: ${BOXHUB_MEDIA_LINK_SECRET}
     volumes:
       - media:/media:ro
     depends_on:

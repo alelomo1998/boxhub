@@ -46,6 +46,17 @@ class MailerTest extends AbstractIntegrationTest {
         mailer.send("athlete@t.io", "Verify your email", "verify", Map.of("name", "A", "link", "https://x/y"));
     }
 
+    @Test
+    void maskKeepsEnoughToCorrelateAndNoMore() {
+        assertThat(Mailer.mask("alessandro@gmail.com")).isEqualTo("a***@gmail.com");
+        assertThat(Mailer.mask("a@b.io")).isEqualTo("a***@b.io");
+        // Not an address at all — reveal nothing rather than guess at a structure.
+        assertThat(Mailer.mask("garbage")).isEqualTo("***");
+        assertThat(Mailer.mask("@nolocalpart.io")).isEqualTo("***");
+        assertThat(Mailer.mask(null)).isEqualTo("(none)");
+        assertThat(Mailer.mask("  ")).isEqualTo("(none)");
+    }
+
     private String bodyOf(MimeMessage msg) throws Exception {
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
         msg.writeTo(out);

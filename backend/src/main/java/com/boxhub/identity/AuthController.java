@@ -74,7 +74,7 @@ public class AuthController {
     public record MembershipDto(UUID boxId, String boxName, String boxSlug, String role, String boxStatus) {}
     public record SessionResponse(List<MembershipDto> memberships) {}
     record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
-        @Override public String toString() { return "LoginRequest[email=" + email + ", password=***]"; }
+        @Override public String toString() { return "LoginRequest[email=***, password=***]"; }
     }
     record TokenRequest(@NotBlank String token) {
         @Override public String toString() { return "TokenRequest[token=***]"; }

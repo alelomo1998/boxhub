@@ -54,3 +54,18 @@ test('security headers present and no CSP violations across the app', async ({ b
 
   expect(violations).toEqual([]);
 });
+
+// M12c: no /oauth2 location existed in docker/nginx.conf from M8 until now, so
+// /oauth2/authorization/google — the href on the login and signup pages' Google button — was
+// served index.html by the SPA catch-all and the button did nothing. Invisible in dev because
+// the OAuth2 chain is conditional on BOXHUB_GOOGLE_CLIENT_ID, which the dev stack never set.
+test('the Google SSO authorization endpoint is proxied to Spring, not swallowed by the SPA', async ({ request }) => {
+  const res = await request.get('/oauth2/authorization/google', { maxRedirects: 0 });
+
+  // Before the nginx location existed this was 200 text/html. That is what makes this discriminate.
+  expect(res.status()).toBe(302);
+
+  const location = new URL(res.headers()['location']);
+  expect(location.host).toBe('accounts.google.com');
+  expect(location.searchParams.get('redirect_uri')).toMatch(/\/login\/oauth2\/code\/google$/);
+});

@@ -15,30 +15,27 @@ entries whose history is still load-bearing.
 
 ---
 
-## M12c · Production readiness
+## Launch → Production
 
-*Blockers for a real deploy. Independent of the UX rework; some are live bugs today.*
+*The deploy itself. Not scheduled into a milestone — this is the launch phase on the v1 roadmap.*
 
-- **Google SSO is unreachable behind nginx.** `docker/nginx.conf` has no `/oauth2` location and never did,
-  so the login page's `<a href="/oauth2/authorization/google">` falls through to the SPA catch-all instead of
-  Spring Security's authorization endpoint. Invisible in dev because the OAuth2 chain is conditional on
-  `BOXHUB_GOOGLE_CLIENT_ID`, which the dev compose doesn't set — but a production deploy that DOES set it
-  gets a dead button. Fix is one `location /oauth2/` proxy block plus `/login/oauth2/` for the callback,
-  and a curl or e2e assertion so it cannot rot again.
-- **`docker/docker-compose.yml` uses shell-level `:-` fallbacks for all three secrets.** Compose
-  interpolation resolves *before* Spring sees the placeholder, so a deploy driven from this file silently
-  runs on committed dev secrets — defeating `SecretDefaultsTest` for exactly the path someone would take.
-  `SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}` invites `SPRING_PROFILE=prod` on it. **Do not just delete
-  the `:-`** — compose would then pass empty strings. Real fix: `env_file` + `.env.example`, so compose omits
-  unset vars entirely and Spring's bare `${VAR}` fails closed.
-- **EXIF stripping covers JPEG/PNG only** — the JDK ships no WebP `ImageIO` codec, so WebP uploads pass
-  through with metadata intact (`MediaStorage`, flagged with a `ponytail:` comment naming TwelveMonkeys).
-  Low risk (GPS EXIF is a camera-JPEG artifact) but a real gap.
-- Email addresses are still logged in DTO lines — `LogHygieneTest` guards secrets/JWTs/keys only. PII in
-  logs, not a credential leak.
-- Everything already scoped to the **Launch → Production** phase stays there: TLS/HSTS enforcement, domain,
-  firewall, SSH hardening, Postgres backups **and a restore drill**, secrets delivery on the host, log
-  retention, CI deploy on green.
+- TLS/HSTS enforcement, domain, firewall, SSH hardening, Postgres backups **and a restore drill**,
+  secrets delivery on the host, log retention, CI deploy on green. When TLS lands, set
+  `BOXHUB_COOKIE_SECURE=true` in the host's `.env` (M12c added the variable and wired it through
+  compose; the dev stack runs it `false` over plain HTTP).
+- **Verify Google SSO end to end against real Google credentials on the real domain.** M12c proved
+  the nginx routing and the `redirect_uri` *shape* — the dev stack runs a fake client id that
+  reaches Google's consent screen and stops. Nothing yet exercises a real token exchange, the
+  callback, or `GoogleLinkService`'s 4-branch linking policy against the live provider. Do this
+  before the pilot, not during it.
+- **`LogHygieneTest`'s PII guarantee only covers the surfaces it drives.** M12c redacted every
+  address the test could actually see: `AuthController.LoginRequest`, `Mailer`'s two log lines,
+  `InviteAdminController.CreateInviteRequest` and `CreatedInviteResponse`. Seven other DTOs carry an
+  email field and are not driven by it — `AuthController.RegisterRequest` (still prints it in full),
+  `UserResponse`, `SignupBoxResponse`, `MeResponse`, `MemberDto`, `SessionController.RosterEntry`,
+  `InvitePublicController.PreviewResponse`, `SuperadminBoxController.WaitlistRow`,
+  `InviteAdminController.InviteDto`. Redacting them blind is untested work; widening the test's
+  driven surfaces is the real fix, and it belongs with log retention.
 
 ## M12 · UX/UI rework  *(the milestone this all clears the way for)*
 
@@ -233,6 +230,35 @@ now would be speculative work with no load data behind it.*
 - ~~Register concurrent-race path~~ — **was never open.** `RegistrationTest` has raced it since M9
   (`5d86ecd`); the negative control was run against the *existing* test and it failed on `users_email_key`.
   The backlog entry was stale.
+
+**Closed by M12c (2026-07-29)** — no Flyway; the whole section is gone, all four items resolved:
+- ~~Google SSO unreachable behind nginx~~ — `/oauth2/` and `/login/oauth2/` proxy blocks, plus an
+  explicit OAuth `redirectUri` built from `BOXHUB_APP_URL`. The second half was not in the backlog
+  entry and would have left the button dead in production anyway: `CommonOAuth2Provider.GOOGLE`'s
+  default `{baseUrl}` template resolves against the request, which behind nginx is plain http on an
+  internal host. **`server.forward-headers-strategy` was tried first and rejected** — it installs
+  `ForwardedHeaderFilter` globally, which rewrites `getRemoteAddr()` from the client-appendable
+  `X-Forwarded-For` and re-opens the rate-limit IP spoofing M1-T9 closed;
+  `RateLimitTest.spoofedForwardedForDoesNotCreateFreshBucket` caught it as 429 → 401. Negative
+  controls: `http://localhost/...` for the redirect_uri, `Received: 200` (the SPA) for the routing.
+- ~~compose `:-` secret fallbacks~~ — `env_file` + `docker/.env.example`, all `:-` removed from
+  secrets, `docker/.env` gitignored, CI creates it. Proven by contrast: rendering the OLD compose
+  file with no `.env` on disk exits 0 and prints the dev JWT secret, Stripe encryption key and media
+  link secret in full; the new one exits 1 and renders nothing. `BOXHUB_COOKIE_SECURE` was added at
+  the same time — it was set nowhere, so a prod deploy issued auth cookies without `Secure` over
+  TLS. `deploy.sh` now refuses a `.env` carrying a DEV-ONLY value **or**
+  `SPRING_PROFILES_ACTIVE=dev`, the latter because `DevDataSeeder` is the only `@Profile` bean and
+  would seed four demo accounts, one superadmin, on a README-published password into production.
+- ~~WebP EXIF gap~~ — WebP dropped rather than patched. TwelveMonkeys, the upgrade path the old
+  `ponytail:` comment named, is reader-only and would have silently transcoded the user's file to
+  JPEG. WebP appeared nowhere but the allowed-types map and two `accept` attributes.
+  `uploadedJpegLosesExifGpsData` stayed green through the collapse, which is what made it safe.
+- ~~Email addresses logged in DTO lines~~ — `Mailer` masks (`h***@t.io`, still enough to correlate a
+  delivery failure with a member), and `LogHygieneTest` grew two address assertions plus two
+  vacuous-pass guards. Found iteratively, each address traced to its source before being redacted:
+  `LoginRequest.toString()` → `Mailer`'s `to=` → `CreateInviteRequest` (had no `toString()` at all)
+  and `CreatedInviteResponse` (M11 had redacted its `link`, not its `email`). The guarantee's
+  remaining limit is filed under Launch → Production above rather than fixed blind.
 
 **Closed by M12b (2026-07-27)** — Flyway V16 and V17:
 - ~~Drop the unwritten `memberships.expires_at`~~ — V16. No surviving reader in Java, JPQL or templates.
