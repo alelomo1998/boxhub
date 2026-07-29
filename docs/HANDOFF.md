@@ -45,7 +45,9 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 - **M12b correctness & data integrity (2026-07-27)** — **Flyway V16 + V17**. The two membership routes that produced members who could not book (self-serve owner, plan-less invitee) now get an ACTIVE no-expiry subscription on a per-box synthetic **`Comped`** plan — `subscription.plan_id` is NOT NULL, so V14's grandfather synthetic-plan precedent is followed rather than inventing a nullable plan. Receipts snapshot `payment.list_price_cents` at payment time and **omit** the discount for older NULL rows instead of computing one against today's price. `async_payment_failed` resolves the row to FAILED and emails the member, idempotently. Timezone validated on create + patch; the three booking endpoints return 400 not 500 on a missing `bookingId`; `SuperadminAuditRepository` is append-only **by type** now. Three backlog items were descoped with reasons and one was already fixed by M10.
 
-**Tests:** backend **405** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **26** Playwright (SERIAL — `workers:1`, **`retries: 0`**). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. Remaining polish is in `docs/BACKLOG.md`, which is now organised by DESTINATION (M12/M15/M17/Project 2), not by origin milestone.
+- **M12c production readiness (2026-07-29)** — the gap between "the code is correct" and "what runs on a VPS is correct". No Flyway. **Compose secrets now fail closed**: `env_file` + committed `docker/.env.example` (gitignored `docker/.env`), every `:-` fallback gone. The old file rendered the dev JWT signing key, Stripe encryption key and media link secret in full with no `.env` on disk — compose interpolation resolves *before* Spring sees a placeholder, so `SecretDefaultsTest` could not see it. `BOXHUB_COOKIE_SECURE` was set **nowhere**, so a prod deploy issued `bh_at`/`bh_bt`/`bh_rt` without `Secure` over TLS; it is wired now. `deploy.sh` refuses a `.env` carrying a DEV-ONLY value **or** `SPRING_PROFILES_ACTIVE=dev` — `DevDataSeeder` is the backend's only `@Profile` bean, so that flag alone would seed four demo accounts, one superadmin, on a README-published password into production. **Google SSO reaches Spring at last**: `/oauth2/` and `/login/oauth2/` nginx locations (dead since M8), plus an explicit OAuth `redirectUri` from `BOXHUB_APP_URL` — `CommonOAuth2Provider.GOOGLE`'s default `{baseUrl}` template resolves against the request, which behind nginx is plain http on an internal host. A fake dev client id makes the chain live so e2e can assert the routing. **WebP uploads dropped** rather than patched (no JDK codec, so the decode/re-encode EXIF strip could not run and files were stored byte for byte; TwelveMonkeys is reader-only and would have silently transcoded to JPEG). **Member addresses out of the logs**: `Mailer` masks (`h***@t.io`), `LoginRequest`/`CreateInviteRequest`/`CreatedInviteResponse` redact `email`, and `LogHygieneTest` grew two address assertions with their own vacuous-pass guards.
+
+**Tests:** backend **408** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **27** Playwright (SERIAL — `workers:1`, **`retries: 0`**). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. Remaining polish is in `docs/BACKLOG.md`, which is now organised by DESTINATION (M12/M15/M17/Project 2), not by origin milestone.
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
@@ -109,6 +111,17 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - **The backend suite cannot see cross-feature product regressions.** M12b's comp subscription passed 405
   backend tests and still blocked the admin from recording a member's first payment; only e2e caught it.
   A green unit suite is not evidence the feature works.
+- **No test reads the infrastructure files.** `docker/docker-compose.yml`, `docker/nginx.conf` and
+  `deploy/deploy.sh` are where M12c's two live bugs lived, and both had survived M11's security
+  sweep for exactly that reason: a property enforced in Java can be silently undone one layer up,
+  by the thing that starts the JVM. `SecretDefaultsTest` proved `application.yml` had no usable
+  secret defaults while compose supplied them anyway. When you change one of those three files,
+  the gate is a contrast you run by hand — render the old and the new and diff what leaks.
+- **A one-line config change is not a local change.** M12c's `server.forward-headers-strategy:
+  framework` was one line in `application.yml` to fix an OAuth redirect_uri, and it installed a
+  global Spring filter that rewrote `getRemoteAddr()` from the client-appendable `X-Forwarded-For`,
+  re-opening the rate-limit IP spoofing M1-T9 closed. Neither the design nor the new test saw it;
+  `RateLimitTest` did, as 429 → 401. Run the full suite even when the diff looks trivial.
 
 ## ENVIRONMENT TRAPS (found the hard way in M11 — read before running any gate)
 The repo lives on an **iCloud-synced Desktop**, which is the root of most of these.
@@ -122,6 +135,7 @@ The repo lives on an **iCloud-synced Desktop**, which is the root of most of the
 8. **The Docker build context is the REPO ROOT** (`context: ..` for both services), so everything in the working tree ships to the daemon on every `--build`, and anything a Dockerfile `COPY`s becomes a cache layer. `frontend/.angular/cache` (6.1 GB, git-ignored, grows with every local `ng` run) made `COPY frontend/ .` a **6.55 GB layer re-created on every build** — the build cache reached 117.5 GB. Fixed on both sides: `.dockerignore` is now an allow-list, and `docker/frontend.Dockerfile` copies named inputs instead of the whole directory. **If you add a Dockerfile `COPY`, re-include its path in `.dockerignore` explicitly**, or the build breaks.
 
 ## How to run / test
+- **`cp docker/.env.example docker/.env` first, once.** Since M12c the stack takes its environment from `docker/.env` (gitignored) via `env_file`; compose treats a missing `env_file` path as a hard error and refuses to render anything, which is the point — a deploy that forgot a secret must fail loudly rather than run on a committed dev key. CI does the same `cp` before `up`.
 - Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io` / `super@demo.io` (superadmin, no box), password `boxhub-demo-2026`. Fresh volume seeds Demo Box + a weekly schedule. **Mailpit** (dev/e2e mail) at http://localhost:8025.
 - Backend: `cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Frontend: `cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npm run build`. E2E: stack up, then `cd e2e && npx playwright test`.
 - **`docker compose -f docker/docker-compose.yml down -v` is MANDATORY before an e2e run after a seeder or demo-password change** — the seeder self-skips when the demo box already exists, so a stale Postgres volume silently keeps the old data (cost real debugging time when the M8 demo password changed). Also: `runner`/`tv` specs are not idempotent (fixed-name TV devices accumulate) — they need a fresh stack.
@@ -141,9 +155,11 @@ The repo lives on an **iCloud-synced Desktop**, which is the root of most of the
 
 ## Immediate next step
 
-**M12b is merged and pushed. CI green on `main` (`ci` + `dependency-scan`). Nothing is in flight.**
+**M12c is merged and pushed. CI green on `main` (`ci` + `dependency-scan`). Nothing is in flight.**
 
-Backend **405** / frontend **184** / e2e **26** at `retries: 0`. **Next Flyway is V18** (V16 + V17 used by M12b).
+Backend **408** / frontend **184** / e2e **27** at `retries: 0`. **Next Flyway is V18** — M12c used none.
+
+**Before you run anything: `cp docker/.env.example docker/.env`.** The stack will not start without it.
 
 **Read `docs/BACKLOG.md` top-down — it is organised by destination and tells you what to do next.**
 
@@ -151,13 +167,11 @@ Order of work, decided with the user: **reduce the backlog first, then the UX re
 
 1. ~~**M12a — Test & CI reliability**~~ — DONE. e2e runs at `retries: 0`; a red build means something again.
 2. ~~**M12b — Correctness & data integrity**~~ — DONE. Flyway V16 + V17.
-3. **M12c — Production readiness** ← **START HERE.** Five items, all in `docs/BACKLOG.md`. Two are live bugs:
-   **Google SSO is unreachable behind nginx** (no `/oauth2` location has ever existed, so the login button
-   falls through to the SPA catch-all — invisible in dev because the OAuth2 chain is conditional on an unset
-   client id), and **compose's `:-` secret fallbacks** mean a deploy from that file silently runs on committed
-   dev secrets. Do NOT just delete the `:-`; the fix is `env_file` + `.env.example` so Spring's bare `${VAR}`
-   fails closed.
-4. **M12 — UX/UI rework.** Task 1 is the **Angular 19 → 22** upgrade (19 is EOL). When it lands: flip the
+3. ~~**M12c — Production readiness**~~ — DONE. Spec `docs/superpowers/specs/2026-07-28-m12c-production-readiness-design.md`,
+   plan `docs/superpowers/plans/2026-07-28-m12c-production-readiness.md`. Remaining deploy work
+   (TLS, backups, restore drill, real-Google SSO verification) is filed under **Launch → Production**
+   in `docs/BACKLOG.md`, not in a milestone.
+4. **M12 — UX/UI rework** ← **START HERE.** Task 1 is the **Angular 19 → 22** upgrade (19 is EOL). When it lands: flip the
    per-push npm gate to `--audit-level=high`, drop `continue-on-error` from the nightly step, and fold npm
    back into the OSV gate.
 5. **M15 / M16 / M17** — programming depth, payments depth, platform & accounts. Deliberately *after* the

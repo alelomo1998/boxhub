@@ -951,11 +951,28 @@ logger, forces TRACE, drives seven credential-handling surfaces, and asserts abs
 proving the capture window saw real work. Invariant 3 applies: the existing assertions at lines
 250-264 are not touched.
 
-Two things that will make the new assertion go red, both by design:
+**The test already drives `Mailer` twice — do not add a third send.** An earlier draft of this task
+did, and it was both redundant and subtly broken: `AuthService.register()` (called in the fixture)
+sends its own `template=verify` mail, so a poll waiting on that string was satisfied by the
+*fixture's* send and never waited for the added one. The two sends the fixture already produces,
+proven from a real capture dump, are:
+
+- `mail FAILED: template=verify to=hygiene-<n>@t.io` — from `authService.register(email, ...)`.
+  That recipient is the existing `email` local.
+- `mail FAILED: template=invite to=invitee-<n>@t.io` — from the invite created at the test's step 5.
+
+(Both take the failure branch because the test context has no SMTP server. That is fine: **both**
+branches log the recipient, so coverage is identical either way.)
+
+So asserting on those two addresses covers `Mailer` *and* the request/response DTOs at once, with no
+extra send, no `@Autowired Mailer`, and no async race of its own.
+
+Four sites are expected to go red, but **let the failures name them** — if something outside this
+list appears, report it before fixing:
 
 - `AuthController.LoginRequest.toString()` (line 77) prints `email=` in full. Spring MVC's
-  `RequestResponseBodyMethodProcessor` logs the deserialized argument, so the login the test drives
-  puts the address straight into the log.
+  `RequestResponseBodyMethodProcessor` logs the deserialized argument.
+- `Mailer`'s two log lines, via `to=`.
 - `InviteAdminController.CreateInviteRequest` (line 38) has **no** `toString()` override at all,
   and `CreatedInviteResponse.toString()` (line 48) prints `email=` in full — Spring logs response
   bodies too.
@@ -964,52 +981,40 @@ Two things that will make the new assertion go red, both by design:
 
 In `backend/src/test/java/com/boxhub/security/LogHygieneTest.java`:
 
-Add the field, next to the other `@Autowired`s (after line 100):
+(a) Extract the invitee address so it can be asserted on. Just above the invite-creation block
+(the test's step 5), declare:
 
 ```java
-    @Autowired Mailer mailer;
+        String inviteeEmail = "invitee-" + n + "@t.io";
 ```
 
-and the import for `Mailer`:
+and use `inviteeEmail` in that request body in place of the inline `"invitee-" + n + "@t.io"`.
+Change nothing else about that block.
+
+(b) Immediately before the `// --- now assert on what was actually captured ---` line, add:
 
 ```java
-import com.boxhub.shared.Mailer;
-```
-
-Insert a step 8 immediately before the `// --- now assert on what was actually captured ---` line
-(line 241):
-
-```java
-        // 8. A real mail send. Mailer logs the recipient on BOTH its success and its failure
-        //    branch, and no other surface in this test drives it — without this the PII
-        //    assertion below would not cover the line that prompted the whole item.
-        String recipient = "mail-hygiene-" + n + "@t.io";
-        mailer.send(recipient, "Verify your email", "verify",
-                Map.of("name", "Hygiene", "link", "https://boxhub.test/auth/verify?token=x"));
-        // send() is @Async, so it returns before the log line is written. Poll rather than sleep
-        // a fixed amount; whether the SMTP connection succeeds or is refused, one of the two
-        // Mailer log lines names the template.
+        // Mailer.send is @Async, so the fixture's registration mail and the invite mail above may
+        // not be logged yet when the snapshot below is taken. Poll for both: without them in the
+        // window the two address assertions would pass because nothing had been written, not
+        // because anything was redacted.
         long deadline = System.currentTimeMillis() + 5000;
-        while (System.currentTimeMillis() < deadline && !capturedText().contains("template=verify")) {
+        while (System.currentTimeMillis() < deadline
+                && !(capturedText().contains("template=verify") && capturedText().contains("template=invite"))) {
             Thread.sleep(50);
         }
 ```
 
-with the import:
-
-```java
-import java.util.Map;
-```
-
-Then append after the existing assertion block (after line 264):
+(c) Append after the existing assertion block, touching nothing above it:
 
 ```java
         // --- M12c: PII, not credentials. Same standing-guarantee shape as the assertions above:
         // a future log line that writes a member's address fails the build.
-        assertThat(text).as("Mailer really ran inside the capture window, so the recipient "
-                + "assertion below is not vacuous").contains("template=verify");
-        assertThat(text).as("mail recipient address in logs").doesNotContain(recipient);
-        assertThat(text).as("login request email address in logs").doesNotContain(email);
+        assertThat(text).as("the fixture's registration mail really ran inside the capture window, "
+                + "so the address assertions below are not vacuous").contains("template=verify");
+        assertThat(text).as("the invite mail really ran inside the capture window").contains("template=invite");
+        assertThat(text).as("registered user's email address in logs").doesNotContain(email);
+        assertThat(text).as("invitee's email address in logs").doesNotContain(inviteeEmail);
 ```
 
 - [ ] **Step 2: Run it and record exactly what goes red**
@@ -1019,7 +1024,10 @@ rm -rf backend/target
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=LogHygieneTest
 ```
 
-Expected: FAIL on the `recipient` and/or `email` assertions.
+Expected: FAIL on the address assertions. AssertJ throws on the FIRST failure, so this is
+iterative — run, record the failure verbatim, trace the log line to the class that produced it, fix
+exactly that one, re-run, repeat until green. **Record the whole ordered sequence.** That sequence
+is the evidence for step 4: every address traced to its source before it was redacted.
 
 **Report the full failure output, and identify which log line carried each address.** AssertJ
 prints the containing text, so the source is visible. This is the evidence that the redactions in
@@ -1059,7 +1067,7 @@ and add, below `send`:
     }
 ```
 
-- [ ] **Step 4: Redact the address out of the two implicated DTOs**
+- [ ] **Step 4: Redact the address out of the implicated DTOs**
 
 In `backend/src/main/java/com/boxhub/identity/AuthController.java`, line 77 becomes:
 
@@ -1104,8 +1112,13 @@ rm -rf backend/target
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test -Dtest=LogHygieneTest
 ```
 
-Expected: PASS. Confirm in your report that the vacuous-pass guards still hold — the run must have
-asserted `contains("box_stripe")` and `contains("template=verify")` before claiming any absence.
+Expected: PASS. Confirm in your report that all three vacuous-pass guards still hold — the run must
+have asserted `contains("box_stripe")`, `contains("template=verify")` and `contains("template=invite")`
+before claiming any absence.
+
+Also quote one real post-fix `Mailer` log line from the run, so the masked form (`h***@t.io`) is on
+the record. An operator has to be able to correlate a delivery failure with a member; a mask that
+erased everything would be a different bug, and the only way to see that is to look at the output.
 
 - [ ] **Step 6: Add direct coverage for the masking edge cases**
 
