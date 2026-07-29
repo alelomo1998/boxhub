@@ -45,7 +45,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                   </div>
 
                   <label class="upload">
-                    <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onImage(g, $event)"
+                    <input type="file" accept="image/jpeg,image/png" (change)="onImage(g, $event)"
                            [disabled]="busy()" />
                     {{ busy() ? 'Uploading…' : (g.imagePath ? 'Change class photo' : 'Add class photo') }}
                   </label>

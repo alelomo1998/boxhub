@@ -23,7 +23,7 @@ import { HomeService, Profile } from './home.service';
             <div class="who">
               <span class="nm">{{ p.name }}</span>
               <label class="upload">
-                <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onFile($event)"
+                <input type="file" accept="image/jpeg,image/png" (change)="onFile($event)"
                        [disabled]="uploading()" />
                 {{ uploading() ? 'Uploading…' : (p.avatarPath ? 'Change photo' : 'Add photo') }}
               </label>

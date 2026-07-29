@@ -141,6 +141,26 @@ class MediaApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isUnsupportedMediaType());
     }
 
+    /**
+     * WebP was accepted until M12c and stored byte-for-byte: the JDK has no WebP ImageIO codec,
+     * so the decode/re-encode that strips EXIF everywhere else could not run on it, and GPS
+     * metadata survived upload. Rejecting the format closes that completely — TwelveMonkeys,
+     * the upgrade path the old comment named, is reader-only and would have silently transcoded
+     * the user's file to JPEG.
+     */
+    @Test
+    void rejectsWebpBecauseItsExifCannotBeStripped() throws Exception {
+        // A minimal but structurally real RIFF/WEBP header — the shape the old code let through
+        // on the strength of its magic bytes alone.
+        byte[] webp = new byte[]{'R', 'I', 'F', 'F', 0x1a, 0, 0, 0, 'W', 'E', 'B', 'P',
+                'V', 'P', '8', 'L', 0x0e, 0, 0, 0};
+
+        mvc.perform(multipart("/api/box/media")
+                        .file(new MockMultipartFile("file", "a.webp", "image/webp", webp))
+                        .header("Authorization", "Bearer " + athlete))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
     @Test
     void rejectsNonImagePayload() throws Exception {
         mvc.perform(multipart("/api/box/media")

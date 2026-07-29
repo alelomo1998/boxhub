@@ -22,10 +22,13 @@ import java.util.UUID;
 @Service
 public class MediaStorage {
 
+    // JPEG and PNG only. WebP was dropped in M12c: the JDK ships no WebP ImageIO codec, so the
+    // decode/re-encode below — which is the entire EXIF-strip mechanism — cannot run on it, and
+    // an uploaded WebP kept its GPS metadata. Adding a format here without a working ImageIO
+    // round-trip re-opens that hole.
     private static final Map<String, String> TYPES = Map.of(
             "image/jpeg", "jpg",
-            "image/png", "png",
-            "image/webp", "webp");
+            "image/png", "png");
     static final long MAX_BYTES = 5 * 1024 * 1024;
 
     private final Path root;
@@ -53,30 +56,19 @@ public class MediaStorage {
             throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Max 5 MB");
         String ext = TYPES.get(file.getContentType());
         if (ext == null)
-            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Only JPEG, PNG or WebP");
+            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Only JPEG or PNG");
         try {
             byte[] bytes = file.getBytes();
-            byte[] toStore;
-            if ("webp".equals(ext)) {
-                if (!(bytes.length > 12 && bytes[0] == 'R' && bytes[1] == 'I' && bytes[8] == 'W'))
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not a valid image");
-                // ponytail: the JDK's ImageIO ships no WebP reader/writer, so decode+re-encode
-                // (our EXIF-strip mechanism below) can't run on webp — it passes through as-is.
-                // Ceiling: webp EXIF/GPS survives. Upgrade path: add a WebP ImageIO plugin
-                // (e.g. TwelveMonkeys) if webp uploads with location metadata prove to matter.
-                toStore = bytes;
-            } else {
-                BufferedImage img = ImageIO.read(new java.io.ByteArrayInputStream(bytes));
-                if (img == null)
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not a valid image");
-                // Re-encoding through a fresh BufferedImage strips all metadata (EXIF/GPS
-                // included) — decode keeps pixels only, nothing carries the source's markers
-                // forward into the write.
-                ByteArrayOutputStream reencoded = new ByteArrayOutputStream();
-                if (!ImageIO.write(img, ext, reencoded))
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not a valid image");
-                toStore = reencoded.toByteArray();
-            }
+            BufferedImage img = ImageIO.read(new java.io.ByteArrayInputStream(bytes));
+            if (img == null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not a valid image");
+            // Re-encoding through a fresh BufferedImage strips all metadata (EXIF/GPS
+            // included) — decode keeps pixels only, nothing carries the source's markers
+            // forward into the write.
+            ByteArrayOutputStream reencoded = new ByteArrayOutputStream();
+            if (!ImageIO.write(img, ext, reencoded))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not a valid image");
+            byte[] toStore = reencoded.toByteArray();
             Path dir = root.resolve(boxId.toString());
             Files.createDirectories(dir);
             String name = UUID.randomUUID() + "." + ext;
