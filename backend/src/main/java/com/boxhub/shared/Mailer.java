@@ -54,10 +54,22 @@ public class Mailer {
             helper.setSubject(subject);
             helper.setText(html, true);
             sender.send(msg);
-            log.info("mail sent: template={} to={}", template, to);
+            log.info("mail sent: template={} to={}", template, mask(to));
         } catch (Exception e) {
-            log.error("mail FAILED: template={} to={} — {}", template, to, e.getMessage());
+            log.error("mail FAILED: template={} to={} — {}", template, mask(to), e.getMessage());
         }
+    }
+
+    /**
+     * Enough of an address to correlate a delivery failure with a member, without writing the
+     * identifier itself into a log file that has no retention policy. Mail delivery is the one
+     * place BoxHub logs anything about a person at all.
+     */
+    static String mask(String email) {
+        if (email == null || email.isBlank()) return "(none)";
+        int at = email.indexOf('@');
+        if (at <= 0) return "***";
+        return email.charAt(0) + "***" + email.substring(at);
     }
 
     /** Absolute link into the SPA, e.g. link("/verify?token=abc"). */

@@ -216,9 +216,10 @@ class LogHygieneTest extends AbstractIntegrationTest {
 
         // 5. Invite creation — the response body carries /join/<raw invite token>, a single-use
         //    credential that grants membership, and Spring logs response bodies too.
+        String inviteeEmail = "invitee-" + n + "@t.io";
         String inviteJson = mvc.perform(post("/api/box/invites").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + boxToken)
-                        .content("{\"email\":\"invitee-" + n + "@t.io\",\"role\":\"ATHLETE\"}"))
+                        .content("{\"email\":\"" + inviteeEmail + "\",\"role\":\"ATHLETE\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String inviteToken = inviteJson.replaceAll("(?s).*\"link\"\\s*:\\s*\"/join/([^\"]+)\".*", "$1");
@@ -237,6 +238,16 @@ class LogHygieneTest extends AbstractIntegrationTest {
         //    abstract.
         mvc.perform(get("/api/box/class-templates").header("Authorization", "Bearer " + boxToken))
                 .andExpect(status().isOk());
+
+        // Mailer.send is @Async, so the fixture's registration mail and the invite mail above may
+        // not be logged yet when the snapshot below is taken. Poll for both: without them in the
+        // window the two address assertions would pass because nothing had been written, not
+        // because anything was redacted.
+        long deadline = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < deadline
+                && !(capturedText().contains("template=verify") && capturedText().contains("template=invite"))) {
+            Thread.sleep(50);
+        }
 
         // --- now assert on what was actually captured --------------------------------------------
         String text = capturedText();
@@ -262,6 +273,14 @@ class LogHygieneTest extends AbstractIntegrationTest {
         // check is the only thing standing between a path and the file. Step 7 above drives a
         // response whose DTO runs through MediaSigner, so the signing path is really exercised.
         assertThat(text).as("media link-signing secret in logs").doesNotContain(MEDIA_LINK_SECRET);
+
+        // --- M12c: PII, not credentials. Same standing-guarantee shape as the assertions above:
+        // a future log line that writes a member's address fails the build.
+        assertThat(text).as("the fixture's registration mail really ran inside the capture window, "
+                + "so the address assertions below are not vacuous").contains("template=verify");
+        assertThat(text).as("the invite mail really ran inside the capture window").contains("template=invite");
+        assertThat(text).as("registered user's email address in logs").doesNotContain(email);
+        assertThat(text).as("invitee's email address in logs").doesNotContain(inviteeEmail);
     }
 
     /** Everything the appender saw: formatted messages, arguments, and full throwable chains. */

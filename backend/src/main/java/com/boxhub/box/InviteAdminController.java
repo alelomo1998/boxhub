@@ -35,9 +35,16 @@ public class InviteAdminController {
         this.mailer = mailer;
     }
 
+    /** email redacted — Spring MVC logs the deserialized request body at DEBUG; see
+     *  AuthController.RegisterRequest for the full note. A member's address is PII, and the log
+     *  has no retention policy. */
     record CreateInviteRequest(@NotBlank @Email String email,
                                @NotBlank @Pattern(regexp = "ATHLETE|COACH|BOX_ADMIN") String role,
-                               UUID planId) {}
+                               UUID planId) {
+        @Override public String toString() {
+            return "CreateInviteRequest[email=***, role=" + role + ", planId=" + planId + "]";
+        }
+    }
 
     /** {@code link} embeds the raw invite token — a single-use credential that grants membership.
      *  toString() redacts it because Spring MVC logs the response body at DEBUG
@@ -45,7 +52,7 @@ public class InviteAdminController {
     record CreatedInviteResponse(UUID id, String email, String role, UUID planId,
                                  Instant expiresAt, String link) {
         @Override public String toString() {
-            return "CreatedInviteResponse[id=" + id + ", email=" + email + ", role=" + role
+            return "CreatedInviteResponse[id=" + id + ", email=***, role=" + role
                     + ", planId=" + planId + ", expiresAt=" + expiresAt + ", link=***]";
         }
     }
