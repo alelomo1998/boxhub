@@ -136,6 +136,19 @@ Launch → Production, not left as a comment someone hopes to find.
 - The landing site (M19).
 - Tailwind, Angular Material. The styling architecture stays SCSS + CSS custom properties,
   tokens-only. The gap was never the styling layer; it was the absence of components.
+- **Storybook.** Considered and rejected. It is the industry-standard version of the gallery, and
+  the isolation and documentation arguments are real — but it runs its **own build**, so it exercises
+  neither our nginx, nor the CSP, nor the `sub_filter` nonce injection. It would therefore not have
+  caught the M5.5 P0 where brand fonts 404'd under the real build, which the in-app gallery does
+  catch. A second build pipeline in a project with 11 total dependencies, that still misses the
+  failure class we have actually hit, is not worth it.
+- **Figma / the Figma MCP.** The design language lives in `_tokens.scss` and the gallery; there is
+  no Figma source to convert from, and the MCP requires permission on a file that does not exist.
+  Revisit at M19 if the landing site is designed visually first.
+- **Visual-regression and automated a11y checks.** Both are worth having and both were deliberately
+  cut to keep this milestone tight — M13 already carries three Angular majors, a URL migration, an
+  icon system, a shell and the component library. Filed in `docs/BACKLOG.md` as follow-ups, to be
+  added once the components exist and have stabilised, which is also when baselines stop churning.
 
 ## Gates
 

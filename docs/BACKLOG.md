@@ -42,59 +42,89 @@ entries whose history is still load-bearing.
   `InviteAdminController.InviteDto`. Redacting them blind is untested work; widening the test's
   driven surfaces is the real fix, and it belongs with log retention.
 
-## M12 · UX/UI rework  *(the milestone this all clears the way for)*
+## Post-M13 · Frontend quality gates
 
-**Task 1 is the Angular 19 → 22 upgrade.** Angular 19 is EOL; `npm audit --omit=dev` reports 6 high, all
-cascades of an SSR client-hydration CVE this client-rendered-only app cannot hit. It moves every file's
-baseline, so it must land before the rework, not after. When it does: flip the per-push gate in
-`.github/workflows/ci.yml` to `--audit-level=high`, drop `continue-on-error` from the nightly informational
-step, and fold npm back into the OSV gate.
+*Both cut from M13 to keep it tight, both worth adding once the component library exists and has
+stopped churning. Neither needs a new build pipeline — both ride the Playwright suite we already have.*
 
-**Structure & system**
-- **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become library wods each time, so the library grows unboundedly. Descoped from M12b: the fix is dedupe-or-update-in-place, a design change to this screen's save model.
-- Coach + admin surfaces are still pre-rebuild: raw px type sizes, sub-44px targets, screens re-implementing
-  `bh-*` input styles (wod-builder/calendar/tracks/movements), no loading states.
+- **Visual regression on the component gallery.** Playwright's built-in `toHaveScreenshot()` over
+  every component, both themes, three viewports, baselines committed. Catches unintended visual
+  drift when a token or a shared style changes — exactly what happens during a rework. Deliberately
+  not started in M13: baselines churn while components are still being designed.
+- **Automated WCAG checks.** `@axe-core/playwright` asserting zero WCAG 2.2 AA violations on the
+  gallery and the three shells. Design law v2 already *requires* AA; today it is reviewed by hand,
+  not enforced. Expect the first run to find existing violations — the backlog already records two
+  (`role="radio"` without roving tabindex on the RX/Scaled segmented control, and the sheet discard
+  bar not moving focus on appear).
+
+## The rework program — items by destination milestone
+
+*The old "M12 · UX/UI rework" section is gone: it was one bucket for what is now eight milestones
+(see `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`). Every item below kept its
+wording and gained a home.*
+
+### → M13 Foundations
+- **Angular 19 → 22.** 19 is EOL; `npm audit --omit=dev` reports 6 high, all cascades of an SSR
+  client-hydration CVE this client-rendered-only app cannot hit. When it lands: flip the per-push gate
+  in `.github/workflows/ci.yml` to `--audit-level=high`, drop `continue-on-error` from the nightly
+  informational step, and fold npm back into the OSV gate.
 - Header CSS is ~90% duplicated across three shells; logout/theme placement differs per shell (athlete
   profile sheet vs coach/admin header ⎋). Fold into a shared shell.
 - Unicode glyph icons (⎋ ⌘ ◐) read as a placeholder icon system — adopt a real icon set.
-- Admin tables on phone are scroll-tables, not cards.
-- Mail templates duplicate the `#D7263D` accent hex across 4 files — centralise.
+- Admin tables on phone are scroll-tables, not cards. *(`bh-data-table` card mode.)*
+- RX/Scaled segmented control: `role="radio"` without roving tabindex/arrow keys; sheet discard bar
+  doesn't move focus on appear. *(Fixed once in `bh-segmented` / `bh-sheet` rather than per screen.)*
+- Sheet component: no focus trap beyond native `<dialog>`, no swipe-to-dismiss.
+- Coach + admin surfaces are pre-rebuild: raw px type sizes, sub-44px targets, screens re-implementing
+  `bh-*` input styles, no loading states. *(M13 supplies the components; each surface milestone applies them.)*
 
-**Interaction & flow**
+### → M14 Class model & schedule
+- **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
+  library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
+  change to this screen's save model.
 - **Day pager** (Book + coach Classes): no swipe, chevrons outside the thumb zone, no week-strip with
   availability dots — paging to the next open class can take 13 taps. 14-day bound.
-- Score grid: no auto-advance to the next athlete, no Enter-to-save, no sticky clock while scrolling to
-  Scores, Reset zeroes elapsed with no confirm, no hint text on EMOM/Tabata fields.
-- Score form has no cancel/delete of a logged score (edit-only); no way to delete a lift entry.
-- Booking error renders at the list top, not in the card foot next to the button that caused it.
 - Builder score-type select is still a 5-option decision per scored piece.
 - No coach-facing help for the skeleton → instance → publish flow.
-- `verify.page` does not auto-select a box even with a single membership (pre-existing M8; the M9 e2e
-  routes through `/auth/boxes` to work around it).
+- Drag-and-drop reorder + drag-to-move calendar slots (today: up/down + click-assign).
+
+### → M15 Admin: people
+- `members.page` search fires one request per keystroke — no debounce. *(`bh-search-bar` solves it.)*
+
+### → M16 Admin: commerce
+- `INVALID_PLAN` / `INVALID_MEMBERSHIP` (400 from `POST /api/box/subscriptions`) have no friendly copy.
+- Mail templates duplicate the `#D7263D` accent hex across 4 files — centralise. *(Email clients can't
+  use CSS custom properties, so this needs a build-time or template-fragment answer, not a token.)*
+
+### → M17 Athlete
+- Score form has no cancel/delete of a logged score (edit-only); no way to delete a lift entry.
+- Booking error renders at the list top, not in the card foot next to the button that caused it.
+- Leaderboard button could show score count ("3 posted"); score-save could show your rank ("you're 3rd")
+  as the peak-end beat.
+- `progression-chart` aria conveys count + best only, not per-point data (a table alternative exists below it).
+- Shared leaderboard URL loses the WOD title (query param); leaderboard `track e.rank` breaks on tied ranks
+  if the API ever ties.
+
+### → M18 Superadmin
 - Superadmin console per-row actions share one `queueActionId`/`boxesActionId` signal, so clicking approve
   on row A then reject on row B before A resolves re-enables A mid-flight (internal tool, duplicate-submit
   window).
-- `members.page` search fires one request per keystroke — no debounce.
+
+### → Auth & account screens — NO MILESTONE YET
+*Nine screens with no owner: login, signup, box picker, check-email, verify, forgot, reset, join,
+account/security, account/email. Raised 2026-08-02; needs a destination.*
+- `verify.page` does not auto-select a box even with a single membership (pre-existing M8; the M9 e2e
+  routes through `/auth/boxes` to work around it).
+- join page: accept/register tail duplication; login link is a plain href, not `routerLink`; admin pages
+  use `ngOnInit` without `implements OnInit`.
+
+### → Project 2 The Room
+- Score grid: no auto-advance to the next athlete, no Enter-to-save, no sticky clock while scrolling to
+  Scores, Reset zeroes elapsed with no confirm, no hint text on EMOM/Tabata fields.
 - Coach check-in long-press maps to contextmenu (desktop right-click); verify iOS Safari on a real device.
 - Timer initial-GET has no distinct loading vs empty state.
-- `INVALID_PLAN` / `INVALID_MEMBERSHIP` (400 from `POST /api/box/subscriptions`) have no friendly copy.
-- join page: accept/register tail duplication; login link is a plain href, not `routerLink`; admin pages use
-  `ngOnInit` without `implements OnInit`.
 
-**Delight & polish**
-- Leaderboard button could show score count ("3 posted"); score-save could show your rank ("you're 3rd") as
-  the peak-end beat.
-- Drag-and-drop reorder + drag-to-move calendar slots (today: up/down + click-assign).
-
-**Accessibility**
-- RX/Scaled segmented control: `role="radio"` without roving tabindex/arrow keys; sheet discard bar doesn't
-  move focus on appear.
-- Sheet component: no focus trap beyond native `<dialog>`, no swipe-to-dismiss.
-- `progression-chart` aria conveys count + best only, not per-point data (a table alternative exists below it).
-
-**Bugs surfaced by design review**
-- Shared leaderboard URL loses the WOD title (query param); leaderboard `track e.rank` breaks on tied ranks
-  if the API ever ties.
+### → Unscheduled chore
 - Impeccable detector false-positive: Angular `[src]` bindings inside `@if` guards trip `broken-image` —
   consider a repo-level ignore if the noise annoys.
 
