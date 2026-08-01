@@ -19,6 +19,11 @@ entries whose history is still load-bearing.
 
 *The deploy itself. Not scheduled into a milestone — this is the launch phase on the v1 roadmap.*
 
+- **Remove the component gallery at `/app/dev/components`** (M13). It ships in production unlisted
+  and unlinked, rendering fabricated sample data only — deliberately, so the design system can be
+  checked on a real device against the real CSP and the real font pipeline, which is where M5.5's
+  font P0 hid. It has no place in a launched product. Delete the route, the page and its sample
+  fixtures.
 - TLS/HSTS enforcement, domain, firewall, SSH hardening, Postgres backups **and a restore drill**,
   secrets delivery on the host, log retention, CI deploy on green. When TLS lands, set
   `BOXHUB_COOKIE_SECURE=true` in the host's `.env` (M12c added the variable and wired it through
