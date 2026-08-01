@@ -1,8 +1,8 @@
 # M13a — Baseline (design)
 
-**Date:** 2026-08-02 · **Status:** draft, two open decisions · **Base:** `main` @ `81ae5db`
+**Date:** 2026-08-02 · **Status:** approved · **Base:** `main` @ `81ae5db`
 **Program:** `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`
-**Flyway:** **V18 expected** (user locale — see §3).
+**Flyway:** **V18** — `users.locale` + `boxes.locale` (§3). The only schema change here.
 
 Supersedes `2026-08-02-m13-foundations-design.md`, which mixed plumbing with design work. That file
 is deleted; its component inventory moves to M13c and its auth-screen section to M13d.
@@ -106,32 +106,32 @@ Scope:
 - Per-locale mail templates. Thymeleaf message bundles, resolved from the recipient's locale.
 - English ships as the only complete locale. Italian is a translation job afterwards, not a refactor.
 
-### Open decision 1 — where does locale live?
+### Decided — where locale lives
 
-Mail is sent from a background job with no request context, so the recipient's locale has to be
-*stored*, not inferred from a header. That implies a `users.locale` column (Flyway V18), defaulted
-from `Accept-Language` at registration and changeable in `account/security`.
+**User-level, with the box as the default.** Both levels, not either.
 
-The alternative is box-level locale, which is wrong for a platform serving multiple countries but
-right for a single box whose members share a language — and it is one fewer thing for a member to
-configure.
+- `users.locale` — defaulted from `Accept-Language` at registration, changeable in
+  `account/security`. This is the column `Mailer` reads, and it is why the storage cannot be skipped:
+  mail is sent from an `@Async` job after commit, with no request and therefore no header.
+- `boxes.locale` — the default an invited member inherits. A box sets its language once; a member who
+  differs can override.
 
-**Recommendation: user-level, with the box's locale as the default for invited members.** Both, not
-either: the box sets the default, the member can override.
+Both land in **Flyway V18**, the only schema change in this milestone.
 
-### Open decision 2 — does the URL carry the locale?
+Knock-on: `Mailer.send` currently takes `(to, subject, template, vars)` and resolves nothing about
+the recipient. It needs the locale — which means either the caller passes it or `Mailer` looks it up
+by address. Callers already hold the `User` in most cases; the lapse job and the webhook do not, and
+those are exactly the paths where a wrong language would be most visible.
 
-Angular's standard i18n builds one bundle per locale, served from `/app/en/`, `/app/it/`. That is
-the well-trodden path, and it is fast — no runtime translation cost. But it multiplies the build
-output, complicates the nginx config we are already changing in this milestone, and means a user
-switching language navigates rather than re-renders.
+### Decided — the locale does not appear in the URL
 
-The alternative is a single bundle with runtime locale loading, which keeps one URL and one build at
-the cost of leaving the Angular-blessed path.
+**Single bundle, runtime loading** via `@angular/localize`'s `loadTranslations()`. One URL, one build.
 
-**Recommendation: single bundle, runtime loading.** We ship one locale for now, the nginx config is
-already carrying the `/app` move in this same milestone, and a language switch that reloads the page
-is a worse experience than one that does not.
+Rejected: per-locale bundles at `/app/en/`, `/app/it/`. It is the Angular-blessed path and it is
+faster at runtime, but it multiplies the build output, adds locale routing to an nginx config already
+carrying the `/app` move in this same milestone, and — the deciding factor — it would force every
+emailed link to carry a locale prefix, so `Mailer` would need the recipient's locale to build a *URL*
+rather than only to pick a template. That couples two things this design deliberately keeps apart.
 
 ## Out of scope
 
