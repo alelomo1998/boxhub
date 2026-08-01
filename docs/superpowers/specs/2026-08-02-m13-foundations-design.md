@@ -13,8 +13,9 @@ is no form, table, overlay or chart primitive anywhere. So every screen hand-ass
 each "a line of combo boxes". They are not badly designed screens. They are screens with nothing to
 be built from.
 
-M13 builds the parts. **It redesigns no product screen.** The milestones that follow assemble rather
-than invent, and nothing is paid for twice.
+M13 builds the parts. **It redesigns no product screen — with one stated exception, the auth and
+account set in §6**, which exists to prove the library works in a real screen rather than only in a
+gallery. The milestones that follow assemble rather than invent, and nothing is paid for twice.
 
 It also moves the two baselines that would otherwise invalidate that work: the Angular version, and
 the URL the app lives at.

@@ -8,7 +8,9 @@ section rather than striking items through; the closed-item archive at the botto
 entries whose history is still load-bearing.
 
 **Four kinds of thing live here, and they are not the same:**
-- **Scheduled** — assigned to a milestone (M12a/b/c, M12, M15–M17, Project 2). Real work, real owner.
+- **Scheduled** — assigned to a milestone (M13–M20, Project 2, Launch → Production). Real work, real
+  owner. Numbering was reset on 2026-08-02; see
+  `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`.
 - **Accepted** — a decision, not debt. Do not "fix" without re-opening the decision.
 - **Watch-list** — correct today, revisit when a named trigger fires. Not scheduled on purpose.
 - **Archive** — done or dead. Kept only where the reasoning still matters.
