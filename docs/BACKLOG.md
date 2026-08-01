@@ -110,9 +110,9 @@ wording and gained a home.*
   on row A then reject on row B before A resolves re-enables A mid-flight (internal tool, duplicate-submit
   window).
 
-### → Auth & account screens — NO MILESTONE YET
-*Nine screens with no owner: login, signup, box picker, check-email, verify, forgot, reset, join,
-account/security, account/email. Raised 2026-08-02; needs a destination.*
+### → M13 Foundations (auth & account screens)
+*Ten screens, assigned to M13 on 2026-08-02 as the component library's first real consumer: login, signup, box picker, check-email, verify, forgot, reset, join,*
+*account/security, account/email.*
 - `verify.page` does not auto-select a box even with a single membership (pre-existing M8; the M9 e2e
   routes through `/auth/boxes` to work around it).
 - join page: accept/register tail duplication; login link is a plain href, not `routerLink`; admin pages

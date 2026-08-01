@@ -1,6 +1,6 @@
 # M13 — Foundations (design)
 
-**Date:** 2026-08-02 · **Status:** draft, awaiting review · **Base:** `main` @ `ced0fc6`
+**Date:** 2026-08-02 · **Status:** approved · **Base:** `main` @ `ced0fc6`
 **Program:** `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`
 **Flyway:** none expected. No schema change.
 
@@ -117,7 +117,29 @@ Extracting them fixes that once instead of per screen.
   well-understood enough to build now; a full chart system is not. The `dataviz` skill governs the
   system when it is built.
 
-### 6. Component gallery
+### 6. Auth & account screens — the stated exception
+
+Ten screens: login, signup, box picker, check-email, verify, forgot, reset, join,
+`account/security`, `account/email`.
+
+**This breaks the milestone's own "no product screen is redesigned here" rule, deliberately.** The
+reason it is the right exception rather than scope creep: these screens are shell-less and are
+almost entirely form + button + state, so they are the ideal *first real consumer* of the component
+library — and a genuine end-to-end proof that `bh-form-field`, `bh-state`, `bh-select` and the rest
+work in situ rather than only in a gallery. There is no schema work and no analytics hiding in them.
+They were also, until 2026-08-02, assigned to no milestone at all: a gap found by remapping the
+backlog onto the new numbering, not by design.
+
+Two known defects come along:
+- `verify.page` does not auto-select a box even with a single membership. The M9 e2e routes through
+  `/auth/boxes` to work around it, so fixing this means revisiting that spec's navigation.
+- The join page duplicates its accept/register tail, and its login link is a plain `href` rather than
+  a `routerLink`.
+
+**Every emailed link points at these screens**, so this section and the `/app` migration are coupled:
+change both, verify once, with the e2e that follows a real link out of Mailpit.
+
+### 7. Component gallery
 
 `/app/dev/components` — every component, every state: loading, error, empty, disabled, both themes,
 mobile and desktop. It is the build target, the review surface, the impeccable critique surface and
@@ -131,7 +153,9 @@ Launch → Production, not left as a comment someone hopes to find.
 
 ## Explicitly out of scope
 
-- Any product screen redesign. If a screen changes here, the milestone has failed its purpose.
+- **Any product screen redesign except the auth/account set in §6.** That carve-out is the whole of
+  the exception: no athlete, coach, admin or superadmin screen changes here. If one does, the
+  milestone has failed its purpose.
 - Zoneless change detection.
 - The landing site (M19).
 - Tailwind, Angular Material. The styling architecture stays SCSS + CSS custom properties,
@@ -160,9 +184,21 @@ Standard, plus two specific to this milestone:
   Angular templates, and a major upgrade is exactly when template type-checking tightens.
 - e2e at `retries: 0` on a fresh stack — it is the only gate that sees the `/app` migration at all.
 
-## Open question for review
+## Resolved at review (2026-08-02)
 
-The two deferrals above (`bh-week-calendar`, the chart components) shrink M13 and push work into
-M14/M15. The alternative is building them here against fabricated data. My recommendation is to
-defer; the counter-argument is that M13 is the milestone whose whole job is components, and
-splitting that work makes later milestones carry hidden component cost.
+- **The two deferrals are confirmed.** `bh-week-calendar` → M14, `bh-chart-line`/`bh-chart-bar` → M15.
+- **Auth and account screens join M13** (§6), as the library's first real consumer.
+
+## Size, and where to split if it runs long
+
+This is a large milestone: three Angular majors, a URL migration, an icon system, a shared shell,
+~16 components, a gallery and ten screens. That is acknowledged rather than hidden.
+
+**The natural split, if it needs one:** §1–§4 (upgrade, `/app`, icons, shell) is a coherent
+"baseline moved" unit that could merge on its own; §5–§7 (components, auth screens, gallery) is a
+coherent "design system exists" unit. The split point is clean because nothing in §5–§7 changes
+anything §1–§4 delivered. Do not decide this up front — take it only if the first half is green and
+the second is still far out, since merging early costs nothing here.
+
+**What must not be dropped to save time:** the `BOXHUB_APP_URL` split in §2. A half-done URL
+migration breaks Google SSO or every emailed link, in production, silently.
