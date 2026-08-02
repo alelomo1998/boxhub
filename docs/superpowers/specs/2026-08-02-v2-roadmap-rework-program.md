@@ -66,6 +66,26 @@ cut with a schedule argument, and there is no schedule).
 signup, start-a-box, box picker, check-email, verify, forgot, reset, join, `account/security`,
 `account/email`.
 
+### Staging deploy — immediately after M13a, before M13b
+
+**BoxHub has never been deployed.** `HANDOFF` records "VPS never deployed (only runs locally)", so
+`deploy/deploy.sh` has never successfully run — and M12c added a sentinel guard to a script that has
+never executed.
+
+That matters more than it sounds, because **M13a's riskiest changes have failure modes that cannot
+occur locally**:
+
+- The OAuth `redirect_uri` only breaks against a real `https://` Google console registration. The
+  M12c spec says this in its own words, and M13a changes that same value again.
+- TLS, HSTS, and the `Secure` cookie flag (`BOXHUB_COOKIE_SECURE`, wired in M12c, never exercised).
+- Whether email actually *arrives* — SPF/DKIM/DMARC, not Mailpit.
+- Old-path redirects for emailed links, against a real domain.
+
+A throwaway VPS deployed here converts "I reasoned about it" into "I watched it work", and it does
+so **before** eight milestones are built on top. It is also the natural moment to wire real SMTP.
+
+Not a milestone — a task with a spec-sized checklist, run once M13a is green.
+
 ### M14 — Class model, schedule, and all program schema
 
 Split `class_templates` into `class_type` × `schedule_slot`. That table currently holds a class's
@@ -112,8 +132,21 @@ Home, book, progress, membership, **the WOD board (`athlete/wod`) and the leader
 and athlete profile (`athlete/profile/:membershipId`). Athlete analytics: entries used against the
 plan's entitlement, attendance, whether the membership is being used to its full value.
 
-Carries a known bug: `home.page.ts:38` links the next-booking card to `/athlete/book` instead of
-`/athlete/class/:id`, which already exists.
+Carries two known bugs:
+
+- `home.page.ts:38` links the next-booking card to `/athlete/book` instead of `/athlete/class/:id`,
+  which already exists.
+- **Waitlist promotion is silent.** `BookingService` promotes `WAITLIST` → `BOOKED` at line 85 and
+  contains **zero** Mailer references; there is no `waitlist-promoted` template among the eleven. An
+  athlete gets a spot and is never told — so they either arrive not knowing they are in, or stay away
+  while holding a place someone else wanted. Live since M2, and the entire point of a waitlist is
+  finding out. Fixed here alongside whatever notification strategy this milestone settles on; the
+  house rule applies, mail fires strictly after commit.
+
+Also the milestone where **notifications** get decided at all. Today the product can reach an athlete
+only by email, and only for account events — nothing for a class starting, a coach cancelling, or a
+membership about to lapse. Whether that becomes push, a PWA, or stays email is an open product
+question, not a foregone one.
 
 ### M18 — Superadmin
 

@@ -26,6 +26,22 @@ entries whose history is still load-bearing.
   checked on a real device against the real CSP and the real font pipeline, which is where M5.5's
   font P0 hid. It has no place in a launched product. Delete the route, the page and its sample
   fixtures.
+- **Email deliverability.** Dev uses Mailpit. Production needs a real SMTP provider with SPF, DKIM
+  and DMARC, or verification, password-reset, invite and receipt mail lands in spam. **The entire
+  auth flow depends on mail arriving** — an unverifiable account is an unusable one. Found
+  2026-08-02; it had never been named anywhere.
+- **Error monitoring and uptime.** There is none: no error tracking, no uptime check, no log
+  aggregation. Today the discovery mechanism for a 500 at 6am is the box owner sending an email.
+- **Measure the rate limits against a real class-opening rush.** `application.yml` says verbatim
+  *"It has NOT been measured against a real class-opening rush — do that before launch."* That
+  sentence existed **only in that comment**, in no backlog and no milestone. A whole gym shares one
+  NAT IP, so a false 429 at midnight when classes open is a product failure, not a save.
+- **Terms of service, privacy policy, and a DPA with boxes.** BoxHub is the processor and the box is
+  the controller — documented internally, stated to nobody. EU gyms, real PII (names, emails,
+  attendance, payments), real money. The pages themselves live with M19.
+- **Verify DST transitions.** Box timezone drives week windows, the no-show sweep and day bucketing.
+  Europe/Rome shifts twice a year and none of it is tested; M5.5 already shipped one UTC-vs-local
+  bucketing bug.
 - TLS/HSTS enforcement, domain, firewall, SSH hardening, Postgres backups **and a restore drill**,
   secrets delivery on the host, log retention, CI deploy on green. When TLS lands, set
   `BOXHUB_COOKIE_SECURE=true` in the host's `.env` (M12c added the variable and wired it through
