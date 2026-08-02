@@ -1,4 +1,9 @@
-.superpowers/
+# Process artifacts stay out, but the task->SHA ledger is committed: HANDOFF calls it
+# "the only place some of this survives", and it was living on one disk, unversioned.
+.superpowers/*
+!.superpowers/sdd/
+.superpowers/sdd/*
+!.superpowers/sdd/progress.md
 .DS_Store
 .idea/
 .impeccable/
