@@ -149,6 +149,17 @@ the destination stays empty. Moving with `mv` also forces every evicted file to 
 Copy the gitignored keepers by hand afterwards (`docs/design-md`, `.impeccable`, `docs/reference`,
 `docker/.env`).
 
+### After a fresh clone — `npx playwright install chromium`
+
+`npm ci` in `e2e/` installs Playwright but **not** its browser binary, and the failure is loud but
+easy to misread: every browser-driven spec dies in ~1ms with
+`browserType.launch: Executable doesn't exist`, so a 27-spec suite reports **17 failed, 9 did not
+run, 1 passed**. That looks like the application is catastrophically broken. It isn't.
+
+The single spec that passes is the SSO routing assertion, because it uses Playwright's `request`
+fixture and never opens a browser — which is a useful diagnostic in itself: *only* the
+browserless test passing means the browser, not the app.
+
 ### Still true, and not iCloud's fault
 
 1. **Never pipe a gate through `grep`/`tail`.** The pipeline buffers, so a *working* run produces zero output until it finishes and is indistinguishable from a hang. Write raw output to a file and poll the file.
