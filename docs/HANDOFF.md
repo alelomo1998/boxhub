@@ -123,16 +123,47 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
   re-opening the rate-limit IP spoofing M1-T9 closed. Neither the design nor the new test saw it;
   `RateLimitTest` did, as 429 → 401. Run the full suite even when the diff looks trivial.
 
-## ENVIRONMENT TRAPS (found the hard way in M11 — read before running any gate)
-The repo lives on an **iCloud-synced Desktop**, which is the root of most of these.
-1. **`rm -rf backend/target` before every backend `mvn`.** iCloud writes conflict-copy `.class` files (2620 once, 777 a day later) and classpath scanning then takes **10+ minutes** and looks like a hang. A 40-second suite became 9:59 from forgetting this.
-2. **`ng test` DOES complete here — it just takes about an hour, emitting NOTHING until the end.** Measured 2026-07-27: launched 05:47, finished 06:57, `184 SUCCESS`, rc=0, and the only output ever written was the final summary. `frontend/.angular/cache` DOES exist and is large (6.1 GB measured 2026-07-27) — the earlier claim that iCloud evicts it was wrong; runs are slow for other reasons. It is git-ignored, so nothing surfaces its growth, and it must be kept OUT of the Docker build context (trap 8). **This corrects the earlier claim that it "won't complete"** — that belief is why M11 T5/T7/T8 shipped on `tsc` alone, and it is how two broken console specs reached `main`. Start it in the background early and let it run; don't conclude it is hung from silence.
-3. **Never pipe a gate through `grep`/`tail`.** The pipeline buffers, so a *working* run produces zero output until it finishes and is indistinguishable from a hang. Write raw output to a file and poll the file.
-4. **Never kill a gate that looks stuck.** Killing `ng test` mid-write caused `EPERM` on a karma reporter file on the next run and left orphaned processes that competed with each other — each "fix" manufactured the next symptom. Three separate stalls traced to this.
-5. **Never run the backend suite and Karma concurrently.** It starves `MailerTest`'s `verify(sender, timeout(2000))` on an `@Async` send — it failed at exactly 2.021s, then passed alone. Pure self-inflicted flake.
-6. **macOS has no `timeout` binary.** `timeout N cmd | tail` silently runs *nothing* and reports success from `tail`.
-7. **Fallback when you cannot wait the hour:** `cd frontend && npx tsc --noEmit -p tsconfig.spec.json` (rc=0, fast, no browser). It covers all app source and all specs, which is the realistic failure mode for a rename-style refactor — but it is **blind to anything runtime**, including an unflushed `HttpTestingController` expectation, which is exactly what it missed in M11. Say plainly that Karma did not run — never imply it passed — and treat the CI result as the verdict. CI runs the real Karma gate on Linux, where none of this applies.
-8. **The Docker build context is the REPO ROOT** (`context: ..` for both services), so everything in the working tree ships to the daemon on every `--build`, and anything a Dockerfile `COPY`s becomes a cache layer. `frontend/.angular/cache` (6.1 GB, git-ignored, grows with every local `ng` run) made `COPY frontend/ .` a **6.55 GB layer re-created on every build** — the build cache reached 117.5 GB. Fixed on both sides: `.dockerignore` is now an allow-list, and `docker/frontend.Dockerfile` copies named inputs instead of the whole directory. **If you add a Dockerfile `COPY`, re-include its path in `.dockerignore` explicitly**, or the build breaks.
+## ENVIRONMENT TRAPS — MOSTLY DEAD as of 2026-08-02 (repo moved off iCloud)
+
+**The repo now lives at `~/dev/boxhub`, not `~/Desktop/boxhub`.** It was on an iCloud-synced Desktop
+until 2026-08-02, and that single fact was the root cause of nearly every trap this section used to
+list. They were re-measured after the move rather than assumed dead:
+
+| Trap | On iCloud | Measured at `~/dev` (2026-08-02) |
+|---|---|---|
+| `rm -rf backend/target` before every `mvn` | 40s suite → **9:59** without it | **102s, no clean, no ritual** |
+| `ng test` | **~1 hour**, silent throughout | **13 seconds**, 184/184 |
+| `"* 2.java"` Finder duplicates breaking Docker builds | recurring | **0 files** |
+
+**The `ng test` number is the one that matters.** ~1 hour → 13 seconds is roughly 277×, and the
+slowness was never Karma — it was iCloud materialising dataless files on every read. That belief is
+what this document used to cite as the reason M11 T5/T7/T8 shipped on `tsc` alone, and how two broken
+console specs reached `main`. **The frontend gate was always usable. The filesystem was lying about
+it.** Run `npm test` on every frontend change now; there is no longer any excuse not to.
+
+**Caution for whoever moves a repo off iCloud again:** `find . -name "*.icloud"` returning zero does
+**not** prove the tree is local. Modern macOS uses APFS dataless files carrying the real filename, so
+that check is worthless. The tell is behavioural — during a `mv`, the *source* directory grows while
+the destination stays empty. Moving with `mv` also forces every evicted file to download first, so a
+`git clone` to the new path is far better: it was 7.4 MB against a tree materialising toward 6 GB.
+Copy the gitignored keepers by hand afterwards (`docs/design-md`, `.impeccable`, `docs/reference`,
+`docker/.env`).
+
+### Still true, and not iCloud's fault
+
+1. **Never pipe a gate through `grep`/`tail`.** The pipeline buffers, so a *working* run produces zero output until it finishes and is indistinguishable from a hang. Write raw output to a file and poll the file.
+2. **Never run the backend suite and Karma concurrently.** It starves `MailerTest`'s `verify(sender, timeout(2000))` on an `@Async` send — it failed at exactly 2.021s, then passed alone. Pure self-inflicted flake.
+3. **macOS has no `timeout` binary.** `timeout N cmd | tail` silently runs *nothing* and reports success from `tail`. `brew install coreutils` gives you `gtimeout`.
+4. **The Docker build context is the REPO ROOT** (`context: ..` for both services), so everything in the working tree ships to the daemon on every `--build`, and anything a Dockerfile `COPY`s becomes a cache layer. `frontend/.angular/cache` (git-ignored, grows with every local `ng` run, reached 6.1 GB) once made `COPY frontend/ .` a **6.55 GB layer re-created on every build**, and the build cache reached 117.5 GB. Fixed on both sides: `.dockerignore` is an allow-list, and `docker/frontend.Dockerfile` copies named inputs instead of the whole directory. **If you add a Dockerfile `COPY`, re-include its path in `.dockerignore` explicitly**, or the build breaks.
+
+### Retired
+
+- *"Never kill a gate that looks stuck"* — the three stalls it was written for all traced to iCloud.
+  The general caution stands for real gates, but killing a runaway `mv` on 2026-08-02 was correct and
+  necessary; judgement, not a blanket rule.
+- *"Fallback when you cannot wait the hour: `tsc --noEmit`"* — **deleted deliberately.** There is no
+  hour to wait, so there is no reason to substitute a gate that is blind to template types and to
+  unflushed `HttpTestingController` expectations. `tsc` is not a stand-in for the test suite.
 
 ## How to run / test
 - **`cp docker/.env.example docker/.env` first, once.** Since M12c the stack takes its environment from `docker/.env` (gitignored) via `env_file`; compose treats a missing `env_file` path as a hard error and refuses to render anything, which is the point — a deploy that forgot a secret must fail loudly rather than run on a committed dev key. CI does the same `cp` before `up`.

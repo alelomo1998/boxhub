@@ -431,3 +431,16 @@ M12c Task 4: complete (dbdf9ea..525c2c4, sonnet). Mailer.mask() on both log line
   MASK VERIFIED OPERATOR-USEFUL, not just present: `mail FAILED: template=verify to=h***@t.io`. A mask that erased everything would be a different bug and only looking at the output catches that.
   DELIBERATELY NOT REDACTED: AuthController.RegisterRequest still prints its email in full. The test calls authService.register() directly, never POST /api/auth/register, so no evidence implicated it. Filed with 8 other email-carrying DTOs under Launch -> Production as a named limit of the guarantee — redacting blind is untested work.
   Executor used its own model name in the Co-Authored-By trailer; amended to Claude Fable 5.
+## Repo moved off iCloud — 2026-08-02 (pre-M13a)
+WHY: the iCloud-synced Desktop was the documented root cause of nearly every entry in HANDOFF's ENVIRONMENT TRAPS section. Approved as "the single biggest thing that would let Claude work better".
+MY FIRST ATTEMPT WAS WRONG, AND MEASUREMENT CAUGHT IT. I checked `find . -name "*.icloud"`, got 0, and declared the tree local. That check is worthless: modern macOS uses APFS dataless files carrying the REAL filename, no suffix. `mv` then ran for 5+ minutes with the destination still nonexistent while the SOURCE grew 530M -> 536M — iCloud downloading everything before the move could proceed, including the 6.1 GB .angular cache, i.e. materialising gigabytes of regenerable junk in order to relocate it.
+  Killed the mv (safe: mv = copy-then-unlink, destination never created, source untouched and clean at 4a02184). Replaced with `git clone` to the new path: 7.4 MB versus a tree materialising toward 6 GB. Everything had been pushed first, specifically so the filesystem operation could not cost anything.
+  Gitignored keepers copied by hand: docs/design-md (74 brands), .impeccable, docs/reference, docker/.env.
+  COMMITTING THE LEDGER FIRST PAID OFF WITHIN MINUTES: progress.md came across through git instead of needing rescue from the directory being churned.
+MEASURED AFTER, NOT ASSUMED:
+  backend 2nd run, NO `rm -rf backend/target`: 102s, 408 tests 0/0/0. On iCloud the documented failure was "a 40-second suite became 9:59 from forgetting this". The ritual is dead.
+  conflict-copy "* 2.*" files: 0.
+  `npm test`: 13 SECONDS, 184/184. HANDOFF documented ~1 hour emitting nothing. That is ~277x, and the slowness was NEVER Karma — it was iCloud materialising dataless files on every read.
+THE 13-SECOND NUMBER IS THE FINDING OF THE SESSION. HANDOFF cited the "1 hour" belief as the reason M11 T5/T7/T8 shipped on `tsc --noEmit` alone, and as how two broken console specs reached main. The frontend gate was always usable; the filesystem was lying about it. The tsc-fallback trap entry is DELETED, not softened — there is no hour to wait, so there is no reason to substitute a gate blind to template types and unflushed HttpTestingController expectations.
+KNOCK-ON: the M13a spec had justified Karma->Vitest partly as a speed win. Measurement killed that justification, so the spec now says the migration is a PURE COMPATIBILITY COST (Angular 22 removes Karma) rather than keeping a convenient argument that is no longer true.
+Old tree left at ~/Desktop/boxhub deliberately, untouched, as the fallback until the user deletes it.

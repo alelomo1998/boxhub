@@ -33,10 +33,15 @@ migration, and it gets its own task and its own gate.
   blind to exactly this class of defect, so it cannot stand in as the gate here.
 - The Playwright e2e suite is unaffected; it drives a real browser and knows nothing about the unit
   runner.
-- **This is a large upside, not only a cost.** The current Karma run takes about an hour locally and
-  emits nothing until the end, which is why frontend work on this project has repeatedly shipped on
-  `tsc` alone. Vitest is reported 5–10× faster. Every milestone after this one is frontend-heavy, so
-  a usable frontend gate compounds.
+- **Corrected 2026-08-02.** An earlier draft of this spec justified the migration partly as a speed
+  win, citing Karma's ~1-hour local runtime. **That is no longer true and was never Karma's fault**:
+  after moving the repo off iCloud, the same 184 specs run in **13 seconds**. The slowness was the
+  filesystem, not the runner.
+
+  So the migration is now a **pure compatibility cost, not an upgrade** — we do it because Angular 22
+  removes Karma, full stop. That is a weaker motivation than the first draft claimed, and the spec
+  should say so rather than keep a convenient justification that measurement has killed. Vitest may
+  still prove faster; it is no longer a reason.
 
 zone.js is retained — zoneless is a separate decision, deliberately not taken while crossing three
 majors. **Verify Angular 22 still supports zone.js** before planning on it; if it does not, that is a
