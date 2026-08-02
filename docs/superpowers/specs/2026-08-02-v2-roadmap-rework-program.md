@@ -66,25 +66,52 @@ cut with a schedule argument, and there is no schedule).
 signup, start-a-box, box picker, check-email, verify, forgot, reset, join, `account/security`,
 `account/email`.
 
-### Staging deploy — immediately after M13a, before M13b
+### Local HTTPS check in M13a — the production deploy stays at the end of Project 1
 
-**BoxHub has never been deployed.** `HANDOFF` records "VPS never deployed (only runs locally)", so
-`deploy/deploy.sh` has never successfully run — and M12c added a sentinel guard to a script that has
-never executed.
+**The first real VPS deploy happens when Project 1 is complete**, per the v1 roadmap. That is
+unchanged and deliberate. An earlier draft of this document scheduled a staging deploy after M13a;
+that was corrected on 2026-08-02.
 
-That matters more than it sounds, because **M13a's riskiest changes have failure modes that cannot
-occur locally**:
+What M13a does instead is a **local HTTPS setup** — self-signed certificate plus a hosts entry, so
+the dev stack runs on `https://` — costing an afternoon, no external host, no domain, nothing to
+maintain. It proves three of the four production-only failure modes:
 
-- The OAuth `redirect_uri` only breaks against a real `https://` Google console registration. The
-  M12c spec says this in its own words, and M13a changes that same value again.
-- TLS, HSTS, and the `Secure` cookie flag (`BOXHUB_COOKIE_SECURE`, wired in M12c, never exercised).
-- Whether email actually *arrives* — SPF/DKIM/DMARC, not Mailpit.
-- Old-path redirects for emailed links, against a real domain.
+- `BOXHUB_COOKIE_SECURE`, wired in M12c and **never once exercised**, because dev is plain HTTP.
+- HSTS, and the security headers under TLS.
+- The CSP under TLS.
 
-A throwaway VPS deployed here converts "I reasoned about it" into "I watched it work", and it does
-so **before** eight milestones are built on top. It is also the natural moment to wire real SMTP.
+**Two things it still cannot prove, and they stay open until the real deploy:**
 
-Not a milestone — a task with a spec-sized checklist, run once M13a is green.
+- **The Google OAuth `redirect_uri`.** It only breaks against a real `https://` registration in the
+  Google console. This shipped broken from M8 to M12c, and M13a changes that exact value again.
+- **Whether email arrives.** Mailpit accepts everything. A real provider without SPF/DKIM/DMARC
+  drops verification links into spam and the entire auth flow dies silently. Filed under
+  Launch → Production; revisit when the deploy is planned.
+
+`deploy/deploy.sh` has still never successfully run — M12c added a sentinel guard to a script that
+has never executed. That remains true until the end of Project 1, and whoever runs it first should
+expect to debug the script as well as the deploy.
+
+### The product needs a new name — decide it before M13b
+
+`boxhub.com` and `boxhub.io` are both unavailable, so the product will be renamed. Recorded
+2026-08-02.
+
+**This is a frontal change only.** Measured: **18 user-facing occurrences** — 8 in `frontend/src`
+(the `<title>`, four shells, the login page), 9 across seven mail templates, and one
+`BOXHUB_MAIL_FROM` default in `application.yml`. Plus a logo and the domain in configuration.
+
+**Internal namespaces never change**: `com.boxhub.*`, `BOXHUB_*` env vars, the `bh-*` CSS prefix,
+database and image names. Nobody sees them, and churning them is pure risk for zero gain.
+
+**The timing constraint is real:** M13b re-opens the visual language, and a wordmark is part of it.
+Designing a logotype for a name about to be abandoned is waste, and M13b is the one milestone where
+the brand *is* the deliverable. **The name must be settled before M13b starts.** It does not block
+M13a.
+
+**Mitigation, free, in M13a:** that milestone already extracts every string for i18n. Brand strings
+ride along — one frontend constant, one `boxhub.brand.name` backing the mail templates. The rename
+then costs two values and a logo asset, whenever the name lands.
 
 ### M14 — Class model, schedule, and all program schema
 

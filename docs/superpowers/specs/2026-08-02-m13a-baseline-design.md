@@ -105,6 +105,12 @@ text, since Italian and German run 20–35% longer than English.
 
 Scope:
 - `@angular/localize`, every user-facing string marked for extraction.
+- **The brand name becomes a single value while we are in there.** `boxhub.com` and `boxhub.io` are
+  unavailable, so the product will be renamed (see the roadmap). There are 18 user-facing
+  occurrences today — 8 in `frontend/src`, 9 across seven mail templates, one `BOXHUB_MAIL_FROM`
+  default. Centralising them costs nothing during a pass that touches every string anyway, and makes
+  the eventual rename two values plus a logo. **Internal namespaces are not touched**: `com.boxhub.*`,
+  `BOXHUB_*`, `bh-*`, database and image names all stay.
 - **Locale-aware dates, numbers and currency.** We do not have this either: money is formatted
   `€xx.xx` by hand at the frontend edge today. Integer cents stay the storage format everywhere —
   that rule does not change, only the rendering.
