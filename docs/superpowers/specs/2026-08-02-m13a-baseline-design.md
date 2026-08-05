@@ -134,9 +134,13 @@ Scope:
   default. Centralising them costs nothing during a pass that touches every string anyway, and makes
   the eventual rename two values plus a logo. **Internal namespaces are not touched**: `com.boxhub.*`,
   `BOXHUB_*`, `bh-*`, database and image names all stay.
-- **Locale-aware dates, numbers and currency.** We do not have this either: money is formatted
-  `€xx.xx` by hand at the frontend edge today. Integer cents stay the storage format everywhere —
-  that rule does not change, only the rendering.
+- **Locale-aware dates, numbers and currency.** **Corrected 2026-08-02 by the T9 executor:** this
+  spec claimed money was "formatted `€xx.xx` by hand at the frontend edge". It is not. All 34 `| date`
+  and 10 `| currency` sites already use Angular's locale-aware pipes, and the 8 `€` occurrences are
+  all inside `.spec.ts` files asserting those pipes' correct output. The error was mine — I misread
+  M10's HANDOFF line *"€xx.xx only at the FE edge"* as *hand-formatted* at the edge, when it meant
+  *rendered* at the edge. What was actually missing is the locale to render *against*: `LOCALE_ID`
+  and `registerLocaleData`. Integer cents remain the storage format everywhere regardless.
 - Per-locale mail templates. Thymeleaf message bundles, resolved from the recipient's locale.
 - English ships as the only complete locale. Italian is a translation job afterwards, not a refactor.
 
