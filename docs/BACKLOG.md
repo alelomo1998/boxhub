@@ -96,6 +96,24 @@ wording and gained a home.*
 - Coach + admin surfaces are pre-rebuild: raw px type sizes, sub-44px targets, screens re-implementing
   `bh-*` input styles, no loading states. *(M13 supplies the components; each surface milestone applies them.)*
 
+### → M13c Component library — Angular 22 compatibility shims to revisit
+
+*Created by M13a's `ng update` to Angular 22 on 2026-08-02, accepted deliberately because M13a's
+defining constraint is that nothing changes behaviourally. Both are opt-outs of newer Angular
+defaults, and M13c is rebuilding the component layer anyway — the right moment to drop them.*
+
+- **`ChangeDetectionStrategy.Eager` is now on all 56 components.** Angular 22 shifted its
+  change-detection default; the migration pinned every existing component to the old behaviour. This
+  app is signals-based, so the newer default is very likely what it actually wants. Dropping it is
+  56 files of deletion plus a real performance check.
+- **`withXhr()` is now on `provideHttpClient`** (`app.config.ts` plus ~33 spec files). Angular 22
+  moved the default HTTP transport; this pins the old one. Revisit alongside the above.
+
+*Not filed: the `extendedDiagnostics` suppression the same migration added to `tsconfig.app.json` and
+`tsconfig.spec.json`. It was measured (build with it removed: exit 0, zero violations of
+`nullishCoalescingNotNullable` or `optionalChainNotNullable`) and removed during M13a rather than
+carried, because it hid nothing and would have silently loosened a standard.*
+
 ### → M14 Class model & schedule
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design

@@ -20,13 +20,15 @@ jobs:
       - uses: actions/setup-node@v7
         with: { node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json }
       - run: cd frontend && npm ci
-      # Gated at --audit-level=critical (not high) and --omit=dev on purpose: every high
-      # advisory today is a cascade of Angular 19's SSR-hydration CVE, which this app
-      # cannot hit (client-rendered only, no provideClientHydration/@angular/ssr). The
-      # only fix is Angular 19->22, a breaking major upgrade scheduled for M12 (frontend
-      # rework), not something to force into the last task of a security branch. When
-      # M12 lands, flip this to --audit-level=high and drop --omit=dev.
-      - run: cd frontend && npm audit --audit-level=critical --omit=dev
+      # Tightened from --audit-level=critical to high on 2026-08-02, once M13a's Angular
+      # 19->22 upgrade removed the SSR-hydration CVE cascade that had been holding it open.
+      # Measured before flipping: `npm audit --audit-level=high --omit=dev` exits 0.
+      # --omit=dev is KEPT, deliberately. With dev dependencies included there are still 3
+      # high advisories, all transitive and all dev-only: brace-expansion, fast-uri, and
+      # socket.io-parser (the last arriving via Karma). None of them ships to a user, so
+      # gating every push on them would block real work to no security benefit. The nightly
+      # job in dependency-scan.yml keeps that full list visible.
+      - run: cd frontend && npm audit --audit-level=high --omit=dev
       - run: cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
       - run: cd frontend && npm run build
 
