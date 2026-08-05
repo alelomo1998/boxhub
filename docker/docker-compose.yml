@@ -76,6 +76,30 @@ services:
       backend:
         condition: service_healthy
 
+  # M13a Task 7: opt-in HTTPS, gated behind the "tls" profile so plain `docker compose up` (no
+  # --profile flag) never starts this and never needs a trusted cert. Bring it up alongside the
+  # normal stack with:
+  #   docker compose -f docker/docker-compose.yml --profile tls up -d --build
+  # See README.md for the /etc/hosts entry and the cert-generation command (docker/dev-tls/,
+  # gitignored — it's key material even though it's throwaway).
+  frontend-tls:
+    profiles: ["tls"]
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+    ports:
+      - "443:443"
+    environment:
+      BOXHUB_MEDIA_LINK_SECRET: ${BOXHUB_MEDIA_LINK_SECRET}
+    volumes:
+      - media:/media:ro
+      # Overrides the plain-HTTP template baked into the image, and mounts the self-signed cert.
+      - ./nginx-tls.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./dev-tls:/etc/nginx/tls:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   pgdata:
   media:
