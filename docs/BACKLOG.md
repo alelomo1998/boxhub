@@ -127,6 +127,18 @@ carried, because it hid nothing and would have silently loosened a standard.*
   the copy-from-the-admin-page path is inconsistent. Found by the M13a T6 executor, deliberately left
   out of scope. Fix by having the backend return the `/app`-prefixed path.
 
+### → Chore: unify the two nginx configs
+
+`docker/nginx-tls.conf` (M13a T7) is a 154-line copy of `docker/nginx.conf` differing only in
+`listen 443 ssl` plus two `ssl_*` lines. They must be kept in sync **by hand**, and every milestone
+from M13c on adds locations. TLS is opt-in and rarely run, so drift would sit unnoticed until someone
+next tries to verify cookies under TLS and finds a half-broken app.
+
+Fix: extract the shared server body into a snippet both `include`, the way
+`snippets/security-headers.conf` already works. Deliberately not done inside T7, whose constraint was
+that the default plain-HTTP path must not be touched — this refactor edits it, so it needs its own
+full e2e run.
+
 ### → M14 Class model & schedule
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
