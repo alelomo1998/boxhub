@@ -126,6 +126,17 @@ carried, because it hid nothing and would have silently loosened a standard.*
   is already correct, because it goes through `Mailer.link()` and therefore `AppUrls.appLink()`; only
   the copy-from-the-admin-page path is inconsistent. Found by the M13a T6 executor, deliberately left
   out of scope. Fix by having the backend return the `/app`-prefixed path.
+- **Self-serve box signup (`BoxSignupTx.createOwnerAndBox`) doesn't read `Accept-Language`.** M13a T8
+  wired the header only at `AuthController#register`; the owner created via `/api/auth/signup-box`
+  gets `users.locale = 'en'` unconditionally. Plan named "the registration path" singular — this one
+  was left out deliberately, not missed.
+- **No self-service endpoint for a user to change `users.locale` after registration.** M13a T8 stores
+  the column and seeds it (Accept-Language at registration, the invite's box locale for an invited
+  member) but `/api/me/**` has no generic profile-write route today — only `PATCH /api/me/password`
+  and `POST /api/me/email` exist, both narrower than a settings PATCH. Adding one (e.g.
+  `PATCH /api/me/locale`) needs a `MIN_ROLE` entry in `AuthzConformanceTest`, which is the
+  orchestrator's call, not an executor's — left for whichever task first needs a user-facing
+  language switcher (Task 9/10 or M13d).
 
 ### → Chore: unify the two nginx configs
 

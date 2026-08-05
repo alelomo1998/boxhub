@@ -31,10 +31,10 @@ public class BoxController {
     // (where there is no JWT), so it would have to stay unsigned — while avatarPath/imagePath,
     // which ARE uploads, stay signed and box-members-only.
     record CurrentBoxResponse(UUID id, String name, String slug, String timezone, String logoUrl,
-                              int cancelCutoffMin, int bookingHorizonWeeks, String role) {
+                              int cancelCutoffMin, int bookingHorizonWeeks, String locale, String role) {
         static CurrentBoxResponse of(Box b) {
             return new CurrentBoxResponse(b.getId(), b.getName(), b.getSlug(), b.getTimezone(), b.getLogoUrl(),
-                    b.getCancelCutoffMin(), b.getBookingHorizonWeeks(), TenantContext.role());
+                    b.getCancelCutoffMin(), b.getBookingHorizonWeeks(), b.getLocale(), TenantContext.role());
         }
     }
 
@@ -44,7 +44,8 @@ public class BoxController {
     }
 
     record PatchSettingsRequest(String name, String timezone, String logoUrl,
-                                @Min(0) Integer cancelCutoffMin, @Min(1) Integer bookingHorizonWeeks) {}
+                                @Min(0) Integer cancelCutoffMin, @Min(1) Integer bookingHorizonWeeks,
+                                String locale) {}
 
     @PatchMapping("/api/box/settings")
     public CurrentBoxResponse patchSettings(@Valid @RequestBody PatchSettingsRequest req) {
@@ -60,6 +61,9 @@ public class BoxController {
         if (req.logoUrl() != null) b.setLogoUrl(req.logoUrl().isBlank() ? null : req.logoUrl().trim());
         if (req.cancelCutoffMin() != null) b.setCancelCutoffMin(req.cancelCutoffMin());
         if (req.bookingHorizonWeeks() != null) b.setBookingHorizonWeeks(req.bookingHorizonWeeks());
+        // M13a T8: the box's language, set once here — an invited member's users.locale defaults
+        // to this at registration (AuthService.register / InviteService.boxLocaleForToken).
+        if (req.locale() != null && !req.locale().isBlank()) b.setLocale(req.locale().trim());
         boxes.save(b);
         return CurrentBoxResponse.of(b);
     }

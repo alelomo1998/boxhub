@@ -18,10 +18,12 @@ public class InviteService implements InviteOwnershipProof {
     static final Duration INVITE_TTL = Duration.ofDays(14);
 
     private final InviteRepository invites;
+    private final BoxRepository boxes;
     private final SecureRandom random = new SecureRandom();
 
-    public InviteService(InviteRepository invites) {
+    public InviteService(InviteRepository invites, BoxRepository boxes) {
         this.invites = invites;
+        this.boxes = boxes;
     }
 
     public record CreatedInvite(Invite invite, String rawToken) {}
@@ -70,5 +72,21 @@ public class InviteService implements InviteOwnershipProof {
                 .filter(inv -> inv.getExpiresAt().isAfter(Instant.now()))
                 .filter(inv -> inv.getEmail().equals(normalized))
                 .isPresent();
+    }
+
+    /**
+     * The invite lookup goes through findByTokenHash's native query — same reason as
+     * provesOwnershipOf above: this runs tenant-less, and Invite IS @TenantId, so a
+     * derived/JPQL lookup would silently filter to nothing. The Box lookup that follows needs no
+     * such care: Box isn't @TenantId (it IS the tenant root — docs/TENANCY.md), so a plain
+     * findById is safe here.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> boxLocaleForToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) return java.util.Optional.empty();
+        return invites.findByTokenHash(RefreshTokenService.sha256(rawToken))
+                .flatMap(inv -> boxes.findById(inv.getBoxId()))
+                .map(Box::getLocale);
     }
 }

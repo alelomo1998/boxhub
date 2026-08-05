@@ -55,7 +55,10 @@ class BoxSignupTx {
                             String passwordHash, String boxStatus) {
         // Self-serve box signup never carries an invite token — always unverified; the caller
         // sends the verify mail once this transaction has committed (see BoxSignupService).
-        User owner = registerTx.insertUser(normalizedEmail, passwordHash, ownerName, false);
+        // Self-serve box signup doesn't read Accept-Language here (only AuthController#register
+        // does, per M13a T8's scope) — "en" until this path is wired the same way. See BACKLOG.md
+        // "M13d Auth & account screens".
+        User owner = registerTx.insertUser(normalizedEmail, passwordHash, ownerName, false, "en");
 
         Box box = new Box();
         box.setName(boxName);
