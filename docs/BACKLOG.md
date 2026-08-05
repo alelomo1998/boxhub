@@ -150,6 +150,15 @@ Fix: extract the shared server body into a snippet both `include`, the way
 that the default plain-HTTP path must not be touched — this refactor edits it, so it needs its own
 full e2e run.
 
+### → M16 Admin: commerce — stale user-visible milestone reference
+
+- **`dashboard.page.ts:89` tells box owners "Full analytics … lands with milestone M8."** That is
+  user-visible copy naming a milestone that never meant analytics (M8 was auth & accounts), and it is
+  doubly wrong after the 2026-08-02 renumbering — analytics is now a section of each role's milestone,
+  not one of its own. The javadoc at `dashboard.page.ts:7` repeats it. Spotted during M13a's visual
+  check; deliberately not fixed there, because that milestone's constraint was that nothing changes.
+  Fix when the dashboard is rebuilt.
+
 ### → M14 Class model & schedule
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
