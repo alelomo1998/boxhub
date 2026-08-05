@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PerformanceService, Leaderboard } from './performance.service';
 import { AvatarComponent } from '../../ui/avatar.component';
@@ -42,6 +42,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .board { max-width: 640px; margin: 0 auto; }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);

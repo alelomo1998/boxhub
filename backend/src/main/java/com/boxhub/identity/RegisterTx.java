@@ -32,12 +32,14 @@ public class RegisterTx {
     }
 
     @Transactional
-    public User insertUser(String normalizedEmail, String passwordHash, String name, boolean emailVerified) {
+    public User insertUser(String normalizedEmail, String passwordHash, String name, boolean emailVerified,
+                           String locale) {
         User u = new User();
         u.setEmail(normalizedEmail);
         u.setPasswordHash(passwordHash);
         u.setName(name);
         u.setEmailVerified(emailVerified);
+        u.setLocale(locale == null || locale.isBlank() ? "en" : locale);
         return users.saveAndFlush(u);
     }
 

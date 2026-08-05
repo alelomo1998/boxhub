@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonComponent } from '../../ui/button.component';
 import { ProgrammingService, Benchmark } from './programming.service';
@@ -29,6 +29,7 @@ import { ProgrammingService, Benchmark } from './programming.service';
       </div>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .filters { display: flex; gap: 8px; margin-bottom: var(--sp-4); }
     .f { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);

@@ -1,8 +1,9 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { TvService, TvState } from './tv.service';
 import { renderTimer } from '../../ui/timer';
+import { BRAND_NAME } from '../../core/brand';
 
 // Just a "have I paired before" marker — the actual credential is the httpOnly bh_tv cookie
 // (M11 T5), which JS cannot read and does not need to.
@@ -21,12 +22,12 @@ const PAIRED_KEY = 'boxhub_tv_paired';
       @switch (mode()) {
         @case ('pairing') {
           <section class="pairing">
-            <span class="eyebrow">{{ 'BoxHub · pair this screen' }}</span>
+            <span class="eyebrow">{{ BRAND_NAME }} · pair this screen</span>
             <span class="code num" data-testid="pair-code">{{ code() || '……' }}</span>
             @if (pairWaiting()) {
-              <p class="hint">Reaching BoxHub… this screen will show a code in a moment.</p>
+              <p class="hint">Reaching {{ BRAND_NAME }}… this screen will show a code in a moment.</p>
             } @else {
-              <p class="hint">Enter this code in BoxHub → Admin → TVs</p>
+              <p class="hint">Enter this code in {{ BRAND_NAME }} → Admin → TVs</p>
             }
           </section>
         }
@@ -101,6 +102,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
       }
     </main>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     :host { display: block; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -183,6 +185,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
   `],
 })
 export class TvShellPage implements OnInit, OnDestroy {
+  protected readonly BRAND_NAME = BRAND_NAME;
   private tv = inject(TvService);
 
   readonly railCap = 14; // rows past this clip off a wall screen — show "+N more" instead

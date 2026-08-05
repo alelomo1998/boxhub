@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AdminService, AdminStats } from './admin.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -92,6 +92,7 @@ import { BookingService, ClassTemplate } from '../booking/booking.service';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .dash { max-width: 900px; }
     .stateline { color: var(--bone-dim); }

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BookingService, RosterEntry } from '../booking/booking.service';
@@ -136,6 +136,7 @@ type FetchState = 'loading' | 'error' | 'ready';
       </section>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .runner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-6); }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim); text-decoration: none; }

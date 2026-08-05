@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from './admin.service';
 import { ButtonComponent } from '../../ui/button.component';
@@ -56,6 +56,7 @@ import { PillComponent } from '../../ui/pill.component';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .stateline { color: var(--bone-dim); }
     .stateline.err { color: var(--red); }

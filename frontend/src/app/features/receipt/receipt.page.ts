@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ReceiptService, Receipt } from './receipt.service';
@@ -58,6 +58,7 @@ import { ButtonComponent } from '../../ui/button.component';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .receipt { max-width: 480px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }

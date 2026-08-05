@@ -1,4 +1,4 @@
-import { Component, Input, computed, signal } from '@angular/core';
+import { Component, Input, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 
 /** Athlete/coach avatar: photo when present, initials fallback. Sizes: sm 28, md 44, lg 72, xl 96. */
 @Component({
@@ -11,6 +11,7 @@ import { Component, Input, computed, signal } from '@angular/core';
       <span class="av init {{ size }}" [attr.aria-label]="name">{{ initials() }}</span>
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .av { border-radius: 50%; object-fit: cover; display: inline-grid; place-items: center;
       background: var(--surface-2); border: 1px solid var(--hairline); box-sizing: border-box;

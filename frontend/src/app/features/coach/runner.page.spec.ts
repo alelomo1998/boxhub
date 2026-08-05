@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { RunnerPage } from './runner.page';
@@ -8,7 +8,7 @@ describe('RunnerPage', () => {
   let http: HttpTestingController;
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [RunnerPage],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])] });
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])] });
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());

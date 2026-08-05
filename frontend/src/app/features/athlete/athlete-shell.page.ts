@@ -1,7 +1,8 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
+import { BRAND_NAME } from '../../core/brand';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ProfileSheetComponent } from './profile-sheet.component';
 import { HomeService } from './home.service';
@@ -41,6 +42,7 @@ import { HomeService } from './home.service';
       @if (profileOpen()) { <bh-profile-sheet (avatarChanged)="avatarPath.set($event)" /> }
     </bh-sheet>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .app { display: flex; flex-direction: column; min-height: 100dvh; }
     .top { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-5);
@@ -76,7 +78,7 @@ export class AthleteShellPage implements OnInit {
 
   profileOpen = signal(false);
   avatarPath = signal<string | null>(null);
-  boxName = this.auth.activeBox()?.boxName || 'BoxHub';
+  boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
   userName = '';
 
   tabs = [

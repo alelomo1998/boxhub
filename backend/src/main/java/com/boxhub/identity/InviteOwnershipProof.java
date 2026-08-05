@@ -11,4 +11,12 @@ package com.boxhub.identity;
  */
 public interface InviteOwnershipProof {
     boolean provesOwnershipOf(String rawToken, String email);
+
+    /**
+     * The locale of the invite's box, when the token still names a live invite — empty otherwise.
+     * Callers gate on {@link #provesOwnershipOf} first; this doesn't re-check the email, only the
+     * token, since by the time it's called ownership is already proven (M13a T8: an invited member
+     * inherits {@code boxes.locale} instead of the registrant's {@code Accept-Language}).
+     */
+    java.util.Optional<String> boxLocaleForToken(String rawToken);
 }

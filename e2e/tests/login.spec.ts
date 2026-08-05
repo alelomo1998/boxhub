@@ -12,7 +12,7 @@ test('athlete logs in and lands on athlete shell', async ({ page }) => {
 });
 
 test('admin lands on admin shell', async ({ page }) => {
-  await page.goto('/auth/login');
+  await page.goto('/app/auth/login');
   await page.fill('input[name="email"]', 'admin@demo.io');
   await page.fill('input[name="password"]', 'boxhub-demo-2026');
   await page.click('button[type="submit"]');
@@ -22,7 +22,7 @@ test('admin lands on admin shell', async ({ page }) => {
 });
 
 test('wrong password shows error', async ({ page }) => {
-  await page.goto('/auth/login');
+  await page.goto('/app/auth/login');
   await page.fill('input[name="email"]', 'athlete@demo.io');
   await page.fill('input[name="password"]', 'nope-nope-nope');
   await page.click('button[type="submit"]');

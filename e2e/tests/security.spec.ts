@@ -29,7 +29,7 @@ test('security headers present and no CSP violations across the app', async ({ b
   await expect(athletePage.getByTestId('home-root')).toBeVisible();
 
   // book — a second deep-linked SPA route, served through the same try_files fallback
-  await athletePage.goto('/athlete/book');
+  await athletePage.goto('/app/athlete/book');
   await expect(athletePage.locator('.card', { hasText: 'WOD Class' }).first()).toBeVisible();
 
   await athleteCtx.close();
@@ -41,13 +41,13 @@ test('security headers present and no CSP violations across the app', async ({ b
     if (m.text().includes('Content Security Policy')) violations.push(m.text());
   });
 
-  await adminPage.goto('/auth/login');
+  await adminPage.goto('/app/auth/login');
   await adminPage.fill('input[name="email"]', 'admin@demo.io');
   await adminPage.fill('input[name="password"]', 'boxhub-demo-2026');
   await adminPage.click('button[type="submit"]');
   await expect(adminPage).toHaveURL(/\/admin/);
   await expect(adminPage.getByTestId('kpi-members')).toBeVisible();
-  await adminPage.goto('/admin/settings');
+  await adminPage.goto('/app/admin/settings');
   await expect(adminPage.getByTestId('settings-save')).toBeVisible();
 
   await adminCtx.close();
@@ -68,4 +68,23 @@ test('the Google SSO authorization endpoint is proxied to Spring, not swallowed 
   const location = new URL(res.headers()['location']);
   expect(location.host).toBe('accounts.google.com');
   expect(location.searchParams.get('redirect_uri')).toMatch(/\/login\/oauth2\/code\/google$/);
+});
+
+// M13a: the app moved under /app. Links already sitting in real inboxes point at the OLD paths and
+// carry single-use, time-limited tokens, so a dead link is unrecoverable for that user. nginx keeps
+// permanent redirects, query string and path parameters intact.
+test('old app paths permanently redirect into /app, preserving tokens', async ({ request }) => {
+  const q = await request.get('/auth/verify?token=abc123', { maxRedirects: 0 });
+  expect(q.status()).toBe(301);
+  expect(q.headers()['location']).toBe('/app/auth/verify?token=abc123');
+
+  // /join/<token> is a PATH parameter, not a query parameter — the M8 lesson.
+  const p = await request.get('/join/tok-xyz', { maxRedirects: 0 });
+  expect(p.status()).toBe(301);
+  expect(p.headers()['location']).toBe('/app/join/tok-xyz');
+
+  // The bare root goes to the app until the landing site exists (M19).
+  const r = await request.get('/', { maxRedirects: 0 });
+  expect(r.status()).toBe(301);
+  expect(r.headers()['location']).toBe('/app/');
 });

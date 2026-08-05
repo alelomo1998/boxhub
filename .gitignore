@@ -14,4 +14,7 @@ graphify-out/*
 !graphify-out/GRAPH_REPORT.md
 graphify-out/
 docker/.env
+# M13a Task 7: self-signed dev cert + private key for the opt-in TLS profile. Key material even
+# though it's throwaway — never committed.
+docker/dev-tls/
 docs/design-md/

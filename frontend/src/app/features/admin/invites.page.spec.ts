@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { InvitesPage } from './invites.page';
 import { AuthService } from '../../core/auth/auth.service';
@@ -14,7 +14,7 @@ describe('InvitesPage', () => {
   function setup(boxStatus: string, plans: Plan[] = []) {
     TestBed.configureTestingModule({
       imports: [InvitesPage],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
     const auth = TestBed.inject(AuthService);

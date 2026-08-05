@@ -58,7 +58,13 @@ boxhub:
     # startup, not boot with a guessable/committed link secret that lets every media URL be forged.
     link-secret: ${BOXHUB_MEDIA_LINK_SECRET}
   app-url: ${BOXHUB_APP_URL:http://localhost}
+  # The Angular app lives here; the API (/api) and the OAuth2 callback (/login/oauth2/) stay at the
+  # server root. See AppUrls — prefixing the OAuth redirect-uri breaks Google SSO in production only.
+  app-base: ${BOXHUB_APP_BASE:/app}
   mail:
+    # "BoxHub" here is a literal, not a reference — a YAML default can't read a Java constant.
+    # Keep in sync by hand with Brand.NAME (backend .../shared/Brand.java), the single source
+    # for every other occurrence of the brand name on the backend (mail templates via Mailer).
     from: ${BOXHUB_MAIL_FROM:BoxHub <no-reply@boxhub.local>}
   # No default here — deliberately. ${BOXHUB_STRIPE_ENC_KEYS} with no fallback fails Spring's
   # placeholder resolution at boot if the var is unset, before CryptoService's 32-byte check

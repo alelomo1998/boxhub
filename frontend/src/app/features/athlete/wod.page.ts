@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProgrammingService, MyClass, SessionItem } from '../programming/programming.service';
@@ -102,6 +102,7 @@ import { SheetComponent } from '../../ui/sheet.component';
     </bh-sheet>
 
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .wodpage { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }

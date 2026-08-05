@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 
 @Component({
   selector: 'bh-field',
@@ -10,6 +10,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
              (input)="valueChange.emit($any($event.target).value)" />
       @if (error) { <span class="err">{{ error }}</span> }
     </label>`,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .field { display: flex; flex-direction: column; gap: 6px; }
     .lab { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;

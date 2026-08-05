@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
@@ -187,6 +187,7 @@ interface AuditRow {
       </section>
     </main>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .page { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-6); }
     .head { display: flex; align-items: center; justify-content: space-between; }

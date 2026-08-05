@@ -45,6 +45,13 @@ public class AuthService {
         return register(email, rawPassword, name, null);
     }
 
+    /** No Accept-Language available to this caller — same as
+     *  {@link #register(String, String, String, String, String)} with a null locale, which falls
+     *  back to "en" (or the invite's box locale, when the token proves ownership). */
+    public User register(String email, String rawPassword, String name, String inviteToken) {
+        return register(email, rawPassword, name, inviteToken, null);
+    }
+
     /**
      * Always succeeds from the caller's point of view — returning 409 on a taken address
      * would turn registration into an account-enumeration oracle. If the address is taken,
@@ -55,12 +62,19 @@ public class AuthService {
      * (see {@link #completeReset}). A missing/foreign/expired/garbage token just means no
      * proof was offered; it never fails registration and never leaks whether it was valid.
      *
+     * {@code acceptLanguageLocale}: the caller's {@code Accept-Language}, already reduced to a
+     * bare language tag (or null/blank). Seeds {@code users.locale} — UNLESS the invite proves
+     * ownership, in which case the invited member inherits the invite's box's locale instead
+     * (M13a T8, spec §3 "Decided — where locale lives": a box sets its language once). Either way,
+     * a missing value falls back to "en".
+     *
      * <p>Deliberately NOT {@code @Transactional} — see {@link RegisterTx}'s javadoc. The
      * concurrent-duplicate recovery below re-fetches the winner's row in a transaction separate
      * from the failed insert, which only happens if this method has no ambient transaction of
      * its own for {@code registerTx.insertUser}'s proxy call to join.
      */
-    public User register(String email, String rawPassword, String name, String inviteToken) {
+    public User register(String email, String rawPassword, String name, String inviteToken,
+                         String acceptLanguageLocale) {
         passwordPolicy.check(rawPassword);
         String normalized = email.toLowerCase().trim();
 
@@ -76,10 +90,13 @@ public class AuthService {
         }
 
         boolean provenByInvite = inviteToken != null && inviteProof.provesOwnershipOf(inviteToken, normalized);
+        String locale = provenByInvite
+                ? inviteProof.boxLocaleForToken(inviteToken).orElse(acceptLanguageLocale)
+                : acceptLanguageLocale;
 
         User u;
         try {
-            u = registerTx.insertUser(normalized, hash, name, provenByInvite);
+            u = registerTx.insertUser(normalized, hash, name, provenByInvite, locale);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             // Lost the race to the unique index — same answer as above, no enumeration. Recovers
             // in a FRESH transaction (see RegisterTx javadoc): insertUser's own transaction

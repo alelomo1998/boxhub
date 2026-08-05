@@ -8,7 +8,7 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   // admin creates a weekly class type (capacity 1) -> sessions auto-generate
   await login(page, 'admin@demo.io');
   await expect(page).toHaveURL(/\/admin/);
-  await page.goto('/admin/schedule');
+  await page.goto('/app/admin/schedule');
   await page.fill('[data-testid="template-name"]', className);
   await page.fill('input[name="capacity"]', '1');
   await page.click('[data-testid="template-create"]');
@@ -17,7 +17,7 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   // athlete books the first session of that class from the card list
   await login(page, 'athlete@demo.io');
   await expect(page).toHaveURL(/\/athlete/);
-  await page.goto('/athlete/book');
+  await page.goto('/app/athlete/book');
   await page.locator('.cards, .empty').first().waitFor(); // sessions loaded
   // page shows today; the new weekly class may generate on a later day — page through the pager
   const card = page.locator('.card', { hasText: className }).first();
@@ -30,12 +30,12 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   await expect(card.getByText('Booked')).toBeVisible({ timeout: 10000 });
 
   // Home shows an upcoming booking (the earliest one — may be another class on a shared DB)
-  await page.goto('/athlete/home');
+  await page.goto('/app/athlete/home');
   await expect(page.getByTestId('next-booking')).toBeVisible();
 
   // coach checks the athlete in from the photo grid (classes view is one day — page to it)
   await login(page, 'coach@demo.io');
-  await page.goto('/coach/classes');
+  await page.goto('/app/coach/classes');
   await page.locator('.list, .empty').first().waitFor();
   const row = page.locator('.row', { hasText: className }).filter({ hasText: '1/1' }).first();
   for (let i = 0; i < 14 && !(await row.isVisible().catch(() => false)); i++) {

@@ -104,12 +104,31 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@Valid @RequestBody RegisterRequest req) {
-        authService.register(req.email(), req.password(), req.name(), req.inviteToken());
+    public UserResponse register(@Valid @RequestBody RegisterRequest req, HttpServletRequest http) {
+        authService.register(req.email(), req.password(), req.name(), req.inviteToken(),
+                primaryLanguageTag(http.getHeader(HttpHeaders.ACCEPT_LANGUAGE)));
         // Body must be built from the request only, never the returned entity: on a taken
         // address register() returns the REAL owner, and echoing it would leak their id/name —
         // an enumeration oracle. Normalize the same way the service does so both branches match.
         return new UserResponse(UUID.randomUUID(), req.email().toLowerCase().trim(), req.name());
+    }
+
+    /**
+     * The bare language subtag ("it" out of "it-IT,it;q=0.9,en;q=0.8") a browser sends at
+     * registration — {@code AuthService.register} falls back to "en" for anything null, blank or
+     * unparseable, so this never needs to. Only English ships this milestone (M13a T9 is deferred
+     * territory), but the column is generic — whatever the browser asks for lands on the row.
+     */
+    private static String primaryLanguageTag(String acceptLanguageHeader) {
+        if (acceptLanguageHeader == null || acceptLanguageHeader.isBlank()) return null;
+        try {
+            var ranges = java.util.Locale.LanguageRange.parse(acceptLanguageHeader);
+            if (ranges.isEmpty()) return null;
+            String tag = ranges.get(0).getRange().split("-")[0].toLowerCase();
+            return tag.isBlank() ? null : tag;
+        } catch (IllegalArgumentException malformed) {
+            return null;
+        }
     }
 
     record SignupBoxRequest(@NotBlank @Size(max = 80) String boxName,

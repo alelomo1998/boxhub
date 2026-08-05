@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
@@ -26,6 +26,7 @@ import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
       </div>
     </main>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--sp-4); }
     .card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--hairline);

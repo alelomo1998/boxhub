@@ -1,4 +1,4 @@
-import { Component, Input, computed, signal } from '@angular/core';
+import { Component, Input, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 
 export interface ChartPoint { date: string; load: number; }
 
@@ -18,6 +18,7 @@ export interface ChartPoint { date: string; load: number; }
       </svg>
     } @else { <p class="none">No data yet — log a lift to see progression.</p> }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .chart { width: 100%; height: auto; max-height: 220px; }
     .axis { stroke: var(--hairline); stroke-width: 1; }

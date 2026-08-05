@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 
 /** Day pager: ‹ Weekday d Month ›. Offset is days from today, clamped to [0, max]. */
@@ -13,6 +13,7 @@ import { DatePipe } from '@angular/common';
       <button class="pg" (click)="shift(1)" [disabled]="offset >= max" aria-label="Next day">›</button>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .pager { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-3);
       margin-bottom: var(--sp-4); }

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { MembershipService, MySubscription, PlanSummary } from './membership.service';
@@ -67,6 +67,7 @@ function mapCheckoutError(e: { error?: { detail?: string } }): string {
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .mem { max-width: 560px; }
     .head { margin-bottom: var(--sp-5); }

@@ -1,17 +1,17 @@
 # BoxHub — Session Hand-off
 
-**Updated:** 2026-07-27. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-08-05. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
 
 ## What BoxHub is
-Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 19 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. Repo: `~/Desktop/boxhub`, GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
+Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
 
 ## Authoritative docs (read in this order)
 1. **`CLAUDE.md`** (repo root) — binding rules, loaded every session. Workflow + design + tenancy rules.
 2. **Master spec / roadmap:** `docs/superpowers/specs/2026-07-07-boxhub-design.md` — milestones M0–M7, operating rules.
 3. **Design law:** `docs/superpowers/specs/2026-07-08-design-system-design.md` — binding for ALL frontend.
 4. **Milestone specs+plans:** `docs/superpowers/specs/` and `docs/superpowers/plans/` (one spec + one plan per milestone).
-5. **Backlog:** `docs/BACKLOG.md`. **Progress ledger:** `.superpowers/sdd/progress.md` (git-ignored; the recovery map — commit SHAs per task).
-6. **User memory:** `~/.claude/projects/-Users-alessandrolomonaco-Desktop/memory/` (MEMORY.md index + boxhub-project.md, boxhub-process-pace.md).
+5. **Backlog:** `docs/BACKLOG.md`. **Progress ledger:** `.superpowers/sdd/progress.md` — **now committed** (it was git-ignored until 2026-08-02, i.e. the recovery map lived on one disk, unversioned). Commit SHAs per task.
+6. **Roadmap (current):** `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md` — M13a–M20 + Project 2. It **renumbers everything**; the old M12–M17 sketches are retired there with what absorbed each.
 
 ## Status — done and on `main`
 - **M0 foundations** — auth (JWT access+refresh rotation), per-box role memberships, box-scoped tenant tokens, `TenantContext`, RFC7807 errors, Flyway V1, Angular shells + auth, Docker Compose, CI, deploy script.
@@ -47,7 +47,9 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 - **M12c production readiness (2026-07-29)** — the gap between "the code is correct" and "what runs on a VPS is correct". No Flyway. **Compose secrets now fail closed**: `env_file` + committed `docker/.env.example` (gitignored `docker/.env`), every `:-` fallback gone. The old file rendered the dev JWT signing key, Stripe encryption key and media link secret in full with no `.env` on disk — compose interpolation resolves *before* Spring sees a placeholder, so `SecretDefaultsTest` could not see it. `BOXHUB_COOKIE_SECURE` was set **nowhere**, so a prod deploy issued `bh_at`/`bh_bt`/`bh_rt` without `Secure` over TLS; it is wired now. `deploy.sh` refuses a `.env` carrying a DEV-ONLY value **or** `SPRING_PROFILES_ACTIVE=dev` — `DevDataSeeder` is the backend's only `@Profile` bean, so that flag alone would seed four demo accounts, one superadmin, on a README-published password into production. **Google SSO reaches Spring at last**: `/oauth2/` and `/login/oauth2/` nginx locations (dead since M8), plus an explicit OAuth `redirectUri` from `BOXHUB_APP_URL` — `CommonOAuth2Provider.GOOGLE`'s default `{baseUrl}` template resolves against the request, which behind nginx is plain http on an internal host. A fake dev client id makes the chain live so e2e can assert the routing. **WebP uploads dropped** rather than patched (no JDK codec, so the decode/re-encode EXIF strip could not run and files were stored byte for byte; TwelveMonkeys is reader-only and would have silently transcoded to JPEG). **Member addresses out of the logs**: `Mailer` masks (`h***@t.io`), `LoginRequest`/`CreateInviteRequest`/`CreatedInviteResponse` redact `email`, and `LogHygieneTest` grew two address assertions with their own vacuous-pass guards.
 
-**Tests:** backend **408** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **27** Playwright (SERIAL — `workers:1`, **`retries: 0`**). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. Remaining polish is in `docs/BACKLOG.md`, which is now organised by DESTINATION (M12/M15/M17/Project 2), not by origin milestone.
+- **M13a baseline (2026-08-02)** — the first milestone of the rework program (see `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`, which renumbers everything). Three baselines moved with **zero visual change**, which was the milestone's defining constraint and what made it verifiable at all. **Angular 19.2 → 22.1.0** (+ TypeScript 6.0.3), one major at a time, each fully gated. **Karma and `zone.js` retained** — the planned Vitest migration was *cut* after verifying directly against the published package that `@angular-devkit/build-angular@22.1.2` still ships a `karma` builder with a `karma ^6.3.0` peer dependency; the claim that Angular 22 removes Karma came from a secondary article that had also invented a migration schematic that does not exist. **The app moved under `/app`**, with `AppUrls` splitting `boxhub.app-url` into an origin and an app-base — `Mailer.link()` and the Stripe return URLs take `/app`, the OAuth `redirect_uri` must **not**, because nginx proxies `/login/oauth2/` at the server root and Google matches a console registration. Old app paths keep **permanent 301s** preserving query strings and path parameters, because verification/reset/invite links already in real inboxes carry single-use, time-limited tokens. **Opt-in local HTTPS** (`--profile tls`) finally exercised `BOXHUB_COOKIE_SECURE`, wired in M12c and never once proven: `Secure` present with it true, gone with it false, everything else identical. **Flyway V18** adds `users.locale` + `boxes.locale`. **i18n infrastructure** (`@angular/localize`, runtime `loadTranslations`, `LOCALE_ID`, locale-aware formatting) plus a brand constant on both sides — the ~390 existing strings were deliberately **not** marked, since M13c–M18 rewrite those screens; that obligation is now a binding rule in `CLAUDE.md`.
+
+**Tests:** backend **428** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **28** Playwright (SERIAL — `workers:1`, **`retries: 0`**). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. Remaining polish is in `docs/BACKLOG.md`, which is now organised by DESTINATION (M12/M15/M17/Project 2), not by origin milestone.
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
@@ -197,11 +199,25 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M12c is merged and pushed. CI green on `main` (`ci` + `dependency-scan`). Nothing is in flight.**
+**M13a is merged and pushed. Nothing is in flight.**
 
-Backend **408** / frontend **184** / e2e **27** at `retries: 0`. **Next Flyway is V18** — M12c used none.
+Backend **428** / frontend **184** / e2e **28** at `retries: 0`. **Next Flyway is V19** — M13a used V18.
 
 **Before you run anything: `cp docker/.env.example docker/.env`.** The stack will not start without it.
+
+**The app now lives at `/app`.** `http://localhost/` permanently redirects there; the API stays at
+`/api`, and the OAuth chain at `/oauth2` + `/login/oauth2` — both at the server root, deliberately.
+
+**Optional TLS:** `docker compose -f docker/docker-compose.yml --profile tls up -d --build`, after
+generating a cert into `docker/dev-tls/` and adding a hosts entry. See `README.md`.
+
+**NEXT: M13b — the design language**, and it needs two things from the user before it can start:
+1. **The product's new name.** `boxhub.com` and `boxhub.io` are unavailable. M13b designs a wordmark,
+   so designing one for a name about to be abandoned is waste. `BRAND_NAME` (frontend) and `Brand`
+   (backend) make the swap a two-value change once decided.
+2. **A tour of the coach programming screens** — Types, WOD library, Benchmarks, instance Builder —
+   before **M14** can be specced. Coach was skipped in the 2026-08-02 product tour, then split, and
+   the half that landed in M14 has never been reviewed by anyone.
 
 **Read `docs/BACKLOG.md` top-down — it is organised by destination and tells you what to do next.**
 

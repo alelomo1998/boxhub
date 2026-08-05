@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../ui/avatar.component';
@@ -106,6 +106,7 @@ import { BookingService } from '../booking/booking.service';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .home { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
     .stateline { color: var(--bone-dim); }

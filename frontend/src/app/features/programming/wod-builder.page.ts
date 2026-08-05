@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../ui/button.component';
@@ -77,6 +77,7 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
       </div>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .builder { max-width: 760px; }
     .lab { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;

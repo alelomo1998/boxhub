@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { ReceiptPage } from './receipt.page';
@@ -15,7 +15,7 @@ describe('ReceiptPage', () => {
     TestBed.configureTestingModule({
       imports: [ReceiptPage],
       providers: [
-        provideHttpClient(), provideHttpClientTesting(),
+        provideHttpClient(withXhr()), provideHttpClientTesting(),
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ paymentId: 'pay1' }) } } },
       ],
     });

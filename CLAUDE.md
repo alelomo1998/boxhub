@@ -26,6 +26,13 @@ CrossFit box platform. Angular 19 + Spring Boot 3.5 / Java 21 + Postgres 16. Mul
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.
 - **Numbers are tabular.** Screens are built from shared `bh-*` components; re-implementing a component's markup in a screen is a bug.
 - Type: display = Saira Condensed, body/UI = Archivo, eyebrows = system mono. Embedded as data-URI (CSP blocks font CDNs).
+- **i18n (M13a, binding): every new or rebuilt screen ships i18n-marked.** The infrastructure
+  (`@angular/localize`, runtime locale loading, locale-aware date/number/currency, the brand
+  constant) landed in M13a. The ~390 strings on pre-rework screens were deliberately **not** marked
+  then, because M13c–M18 rewrite those screens and marking twice is the double-work this program
+  exists to avoid. So the obligation moved onto the rewrite: **a screen is not done unless its
+  strings are marked and its dates/money go through locale-aware formatting.** No new hardcoded
+  user-facing string, ever. No new hand-written `€`.
 - **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through impeccable (shape → build → critique ≥28/40, no open P0/P1)**.
 
 ## Communication (binding)

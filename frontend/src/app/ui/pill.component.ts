@@ -1,9 +1,10 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 
 @Component({
   selector: 'bh-pill',
   standalone: true,
   template: `<span class="pill {{ tone }}"><span class="d"></span>{{ label }}</span>`,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
       border-radius: var(--r-full); font-size: 12px; font-weight: 600; border: 1px solid transparent; }

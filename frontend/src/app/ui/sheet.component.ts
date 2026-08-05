@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, signal } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, signal, ChangeDetectionStrategy } from '@angular/core';
 
 /**
  * Bottom sheet on native <dialog>: Esc-dismiss, focus containment and backdrop come free.
@@ -23,6 +23,7 @@ import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, 
       }
     </dialog>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .sheet { border: 1px solid var(--hairline); border-radius: var(--r-lg) var(--r-lg) 0 0;
       background: var(--surface); color: var(--bone);

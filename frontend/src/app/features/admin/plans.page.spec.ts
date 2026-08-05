@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { PlansPage } from './plans.page';
 
@@ -9,7 +9,7 @@ describe('PlansPage', () => {
   function setup() {
     TestBed.configureTestingModule({
       imports: [PlansPage],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(PlansPage);
@@ -71,7 +71,7 @@ describe('PlansPage', () => {
   it('a failed initial fetch shows the error state with a working retry, not a permanently blank page', () => {
     TestBed.configureTestingModule({
       imports: [PlansPage],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(PlansPage);

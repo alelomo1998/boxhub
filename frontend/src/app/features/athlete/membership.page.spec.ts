@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { MembershipPage } from './membership.page';
 
@@ -14,7 +14,7 @@ describe('MembershipPage', () => {
   function setup(mine: object) {
     TestBed.configureTestingModule({
       imports: [MembershipPage],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(MembershipPage);

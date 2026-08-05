@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BookingService, RosterEntry, SessionDetail } from '../booking/booking.service';
@@ -66,6 +66,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .chk { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }

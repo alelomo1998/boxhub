@@ -7,7 +7,7 @@ test('full invite flow: create -> join -> visible in members', async ({ page, co
 
   await login(page, 'admin@demo.io');
   await expect(page).toHaveURL(/\/admin/);
-  await page.goto('/admin/invites');
+  await page.goto('/app/admin/invites');
   await page.fill('[data-testid="invite-email"]', inviteeEmail);
   // the demo box has priced plans, so the invite form now requires an explicit plan choice (M10
   // review fix) — pick "No plan (bill manually)" since this spec isn't exercising billing.
@@ -30,7 +30,7 @@ test('full invite flow: create -> join -> visible in members', async ({ page, co
   await invitee.close();
 
   // admin sees the new member
-  await page.goto('/admin/members');
+  await page.goto('/app/admin/members');
   await page.fill('[data-testid="member-search"]', inviteeEmail);
   await expect(page.locator(`[data-testid="member-${inviteeEmail}"]`)).toBeVisible();
 });

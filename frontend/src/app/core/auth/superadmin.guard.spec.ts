@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter, UrlTree } from '@angular/router';
 import { superadminGuard } from './superadmin.guard';
 import { AuthService } from './auth.service';
@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 describe('superadminGuard', () => {
   beforeEach(() => {
     localStorage.clear();
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideRouter([])] });
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withXhr()), provideRouter([])] });
   });
 
   it('redirects to login when anonymous', () => {

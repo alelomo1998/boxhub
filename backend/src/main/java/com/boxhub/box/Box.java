@@ -15,6 +15,7 @@ public class Box {
     @Column(name = "booking_horizon_weeks", nullable = false) private int bookingHorizonWeeks = 2;
     @Column(nullable = false) private String status = "ACTIVE";
     @Column(name = "created_at", insertable = false, updatable = false) private java.time.Instant createdAt;
+    @Column(nullable = false) private String locale = "en";
 
     public UUID getId() { return id; }
     public String getName() { return name; }
@@ -32,4 +33,6 @@ public class Box {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public java.time.Instant getCreatedAt() { return createdAt; }
+    public String getLocale() { return locale; }
+    public void setLocale(String locale) { this.locale = locale; }
 }

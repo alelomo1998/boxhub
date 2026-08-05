@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe, Location } from '@angular/common';
@@ -156,6 +156,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
       </div>
     </bh-sheet>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .page { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-8); }
     .back { align-self: flex-start; min-height: var(--tap); padding: 0 var(--sp-2); background: transparent;

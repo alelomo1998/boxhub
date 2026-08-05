@@ -20,7 +20,7 @@ public class MeController {
         this.authService = authService;
     }
 
-    record MeResponse(UUID id, String email, String name, boolean superadmin,
+    record MeResponse(UUID id, String email, String name, String locale, boolean superadmin,
                       List<AuthController.MembershipDto> memberships) {}
 
     @GetMapping("/api/me")
@@ -31,6 +31,6 @@ public class MeController {
                         m.getBox().getSlug(), m.getRole(), m.getBox().getStatus()))
                 .toList();
         boolean superadmin = jwt != null && Boolean.TRUE.equals(jwt.getClaim("superadmin"));
-        return new MeResponse(u.getId(), u.getEmail(), u.getName(), superadmin, mems);
+        return new MeResponse(u.getId(), u.getEmail(), u.getName(), u.getLocale(), superadmin, mems);
     }
 }

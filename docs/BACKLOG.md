@@ -82,10 +82,13 @@ stopped churning. Neither needs a new build pipeline — both ride the Playwrigh
 wording and gained a home.*
 
 ### → M13 Foundations
-- **Angular 19 → 22.** 19 is EOL; `npm audit --omit=dev` reports 6 high, all cascades of an SSR
-  client-hydration CVE this client-rendered-only app cannot hit. When it lands: flip the per-push gate
-  in `.github/workflows/ci.yml` to `--audit-level=high`, drop `continue-on-error` from the nightly
-  informational step, and fold npm back into the OSV gate.
+
+*~~Angular 19 → 22~~ — **DONE in M13a** (2026-08-02), now at 22.1.0 with TypeScript 6.0.3. The
+per-push npm gate tightened to `--audit-level=high --omit=dev`. `continue-on-error` on the nightly
+step was **kept**, against the plan: without `--omit=dev` it still exits 1 on three transitive
+dev-only advisories (`brace-expansion`, `fast-uri`, `socket.io-parser` via Karma), and a permanently
+red nightly job is how a scan stops being read. Folding npm into the OSV gate is therefore still open.*
+
 - Header CSS is ~90% duplicated across three shells; logout/theme placement differs per shell (athlete
   profile sheet vs coach/admin header ⎋). Fold into a shared shell.
 - Unicode glyph icons (⎋ ⌘ ◐) read as a placeholder icon system — adopt a real icon set.
@@ -95,6 +98,66 @@ wording and gained a home.*
 - Sheet component: no focus trap beyond native `<dialog>`, no swipe-to-dismiss.
 - Coach + admin surfaces are pre-rebuild: raw px type sizes, sub-44px targets, screens re-implementing
   `bh-*` input styles, no loading states. *(M13 supplies the components; each surface milestone applies them.)*
+
+### → M13c Component library — Angular 22 compatibility shims to revisit
+
+*Created by M13a's `ng update` to Angular 22 on 2026-08-02, accepted deliberately because M13a's
+defining constraint is that nothing changes behaviourally. Both are opt-outs of newer Angular
+defaults, and M13c is rebuilding the component layer anyway — the right moment to drop them.*
+
+- **`ChangeDetectionStrategy.Eager` is now on all 56 components.** Angular 22 shifted its
+  change-detection default; the migration pinned every existing component to the old behaviour. This
+  app is signals-based, so the newer default is very likely what it actually wants. Dropping it is
+  56 files of deletion plus a real performance check.
+- **`withXhr()` is now on `provideHttpClient`** (`app.config.ts` plus ~33 spec files). Angular 22
+  moved the default HTTP transport; this pins the old one. Revisit alongside the above.
+
+*Not filed: the `extendedDiagnostics` suppression the same migration added to `tsconfig.app.json` and
+`tsconfig.spec.json`. It was measured (build with it removed: exit 0, zero violations of
+`nullishCoalescingNotNullable` or `optionalChainNotNullable`) and removed during M13a rather than
+carried, because it hid nothing and would have silently loosened a standard.*
+
+### → M13d Auth & account screens
+
+- **The admin-facing invite link takes a redirect hop.** `InviteAdminController.java:76` returns the
+  raw `/join/<token>` path and `invites.page.ts:109` builds the displayed/copied link as
+  `location.origin + inv.link`. After M13a's `/app` move that still works — `/join/` is one of the
+  permanently-redirected prefixes — but it lands via a 301 instead of directly. The *emailed* invite
+  is already correct, because it goes through `Mailer.link()` and therefore `AppUrls.appLink()`; only
+  the copy-from-the-admin-page path is inconsistent. Found by the M13a T6 executor, deliberately left
+  out of scope. Fix by having the backend return the `/app`-prefixed path.
+- **Self-serve box signup (`BoxSignupTx.createOwnerAndBox`) doesn't read `Accept-Language`.** M13a T8
+  wired the header only at `AuthController#register`; the owner created via `/api/auth/signup-box`
+  gets `users.locale = 'en'` unconditionally. Plan named "the registration path" singular — this one
+  was left out deliberately, not missed.
+- **No self-service endpoint for a user to change `users.locale` after registration.** M13a T8 stores
+  the column and seeds it (Accept-Language at registration, the invite's box locale for an invited
+  member) but `/api/me/**` has no generic profile-write route today — only `PATCH /api/me/password`
+  and `POST /api/me/email` exist, both narrower than a settings PATCH. Adding one (e.g.
+  `PATCH /api/me/locale`) needs a `MIN_ROLE` entry in `AuthzConformanceTest`, which is the
+  orchestrator's call, not an executor's — left for whichever task first needs a user-facing
+  language switcher (Task 9/10 or M13d).
+
+### → Chore: unify the two nginx configs
+
+`docker/nginx-tls.conf` (M13a T7) is a 154-line copy of `docker/nginx.conf` differing only in
+`listen 443 ssl` plus two `ssl_*` lines. They must be kept in sync **by hand**, and every milestone
+from M13c on adds locations. TLS is opt-in and rarely run, so drift would sit unnoticed until someone
+next tries to verify cookies under TLS and finds a half-broken app.
+
+Fix: extract the shared server body into a snippet both `include`, the way
+`snippets/security-headers.conf` already works. Deliberately not done inside T7, whose constraint was
+that the default plain-HTTP path must not be touched — this refactor edits it, so it needs its own
+full e2e run.
+
+### → M16 Admin: commerce — stale user-visible milestone reference
+
+- **`dashboard.page.ts:89` tells box owners "Full analytics … lands with milestone M8."** That is
+  user-visible copy naming a milestone that never meant analytics (M8 was auth & accounts), and it is
+  doubly wrong after the 2026-08-02 renumbering — analytics is now a section of each role's milestone,
+  not one of its own. The javadoc at `dashboard.page.ts:7` repeats it. Spotted during M13a's visual
+  check; deliberately not fixed there, because that milestone's constraint was that nothing changes.
+  Fix when the dashboard is rebuilt.
 
 ### → M14 Class model & schedule
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
@@ -354,3 +417,18 @@ now would be speculative work with no load data behind it.*
 **Closed in M0/M1:** box-token renewal on refresh (M1-T10) · auth rate limiting (M1-T9) · memberships FK
 on-delete (M1-T1) · refresh discarding memberships (M1-T14) · invite email delivery (M8-T11) ·
 server-side logout/revocation (M8 + M11-T8).
+
+## Watch-list addition — Karma → Vitest
+
+**Trigger: the Angular release that actually removes the karma builder.** Not Angular 22 — verified
+2026-08-02 that `@angular-devkit/build-angular@22.1.2` ships `karma` with a `karma ^6.3.0` peer
+dependency. A secondary article claimed 22 removed it; the same article also named a migration
+schematic (`ng generate @angular/core:karma-to-vitest`) that does not exist, which is what prompted
+checking the package directly.
+
+When the trigger fires: 43 spec files, 30 using `HttpTestingController`, 7 using `spyOn`, 4 using
+`fakeAsync`, 2 using `tick`. `@angular/build`'s vitest runner carries no Jasmine compatibility shim,
+so those need real translation rather than a config flip. Do it with a supported migration path, not
+the experimental hidden `refactor-jasmine-vitest` schematic.
+
+**Not a performance argument.** Karma runs the 184 specs in ~4 seconds.

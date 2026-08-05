@@ -1,4 +1,4 @@
-import { Component, HostListener, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, HostListener, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -114,6 +114,7 @@ interface PieceDraft {
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .ib { max-width: 1100px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }

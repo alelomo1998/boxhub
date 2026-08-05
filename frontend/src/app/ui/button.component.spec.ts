@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { ButtonComponent } from './button.component';
 
 @Component({ standalone: true, imports: [ButtonComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `<bh-button [variant]="v">Go</bh-button>` })
 class Host { v: 'primary' | 'ghost' = 'primary'; }
 

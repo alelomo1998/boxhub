@@ -14,6 +14,7 @@ public class User {
     @Column(name = "failed_attempts", nullable = false) private int failedAttempts = 0;
     @Column(name = "throttled_until") private java.time.Instant throttledUntil;
     @Column(name = "anonymized_at") private java.time.Instant anonymizedAt;
+    @Column(nullable = false) private String locale = "en";
 
     public UUID getId() { return id; }
     public String getEmail() { return email; }
@@ -30,4 +31,6 @@ public class User {
     public void setThrottledUntil(java.time.Instant throttledUntil) { this.throttledUntil = throttledUntil; }
     public java.time.Instant getAnonymizedAt() { return anonymizedAt; }
     public void setAnonymizedAt(java.time.Instant anonymizedAt) { this.anonymizedAt = anonymizedAt; }
+    public String getLocale() { return locale; }
+    public void setLocale(String locale) { this.locale = locale; }
 }

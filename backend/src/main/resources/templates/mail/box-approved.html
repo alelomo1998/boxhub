@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{mail/layout :: html}">
 <th:block th:fragment="content">
-  <p th:text="${boxName} + ' is live — invite your members.'">Box is live.</p>
-  <p>Your box has been approved on BoxHub. Head in and start setting up your schedule.</p>
+  <p th:text="#{boxApproved.title(${boxName})}">Box is live.</p>
+  <p th:text="#{boxApproved.body(${brand})}">Your box has been approved on BoxHub. Head in and start setting up your schedule.</p>
   <p style="padding:16px 0;">
-    <a th:href="${link}" style="background:#D7263D;color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;display:inline-block;font-weight:600;">Go to BoxHub</a>
+    <a th:href="${link}" th:text="#{boxApproved.cta(${brand})}" style="background:#D7263D;color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;display:inline-block;font-weight:600;">Go to BoxHub</a>
   </p>
 </th:block>
 </html>

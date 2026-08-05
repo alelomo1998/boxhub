@@ -1,10 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { SheetComponent } from './sheet.component';
 
 @Component({
   standalone: true,
   imports: [SheetComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `<bh-sheet [open]="open" [confirmClose]="confirmClose" title="Test sheet"
     (closed)="closedCount = closedCount + 1">hello</bh-sheet>`,
 })

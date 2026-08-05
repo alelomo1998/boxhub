@@ -1,5 +1,7 @@
 package com.boxhub.shared;
 
+import com.boxhub.identity.User;
+import com.boxhub.identity.UserRepository;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +14,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -20,6 +23,18 @@ import java.util.Map;
  * A failed send is logged, never rethrown: every mail BoxHub sends is user-recoverable
  * (resend verification, forgot password), so an SMTP hiccup must not fail the request that
  * triggered it. That is also why there is no outbox table.
+ * <p>
+ * <b>Locale (M13a T10).</b> {@code send} looks the recipient's locale up itself, from
+ * {@code users.locale}, by email address — it does NOT take a locale parameter. That was a
+ * choice between two options: caller-passes-locale, or Mailer-looks-up-by-address. Looks-up won,
+ * because {@code send}'s six call sites are not uniform in what they hold: some (verify, reset,
+ * the payment/lapse mails) resolve through a real {@link User}, but the invite path only ever
+ * has an {@code Invite} row (the recipient has not registered yet) and the box-approved/rejected
+ * path only has a bare email string off a {@code TransitionResult} record — neither carries a
+ * {@code User} to read a locale off. A single lookup inside {@code send} handles all six
+ * uniformly, with no signature change and no risk of a caller passing a stale locale. A
+ * registered recipient gets their stored locale; an unregistered one (invite) or a lookup miss
+ * falls back to English — the only locale that ships, so this is not user-visible today.
  */
 @Component
 public class Mailer {
@@ -29,22 +44,25 @@ public class Mailer {
     private final JavaMailSender sender;
     private final TemplateEngine templates;
     private final String from;
-    private final String appUrl;
+    private final AppUrls appUrls;
+    private final UserRepository users;
 
     public Mailer(JavaMailSender sender, TemplateEngine templates,
                   @Value("${boxhub.mail.from}") String from,
-                  @Value("${boxhub.app-url}") String appUrl) {
+                  AppUrls appUrls, UserRepository users) {
         this.sender = sender;
         this.templates = templates;
         this.from = from;
-        this.appUrl = appUrl;
+        this.appUrls = appUrls;
+        this.users = users;
     }
 
     @Async
     public void send(String to, String subject, String template, Map<String, Object> vars) {
         try {
-            Context ctx = new Context();
+            Context ctx = new Context(resolveLocale(to));
             vars.forEach(ctx::setVariable);
+            ctx.setVariable("brand", Brand.NAME);
             String html = templates.process("mail/" + template, ctx);
 
             MimeMessage msg = sender.createMimeMessage();
@@ -74,6 +92,19 @@ public class Mailer {
 
     /** Absolute link into the SPA, e.g. link("/verify?token=abc"). */
     public String link(String path) {
-        return appUrl.endsWith("/") ? appUrl.substring(0, appUrl.length() - 1) + path : appUrl + path;
+        return appUrls.appLink(path);
+    }
+
+    /**
+     * A registered user's stored locale, or English if the address is not a registered user
+     * (an invitee before they accept) or does not resolve to one at all. Never throws — a
+     * lookup miss is routine, not an error, and must not turn into a swallowed send failure.
+     */
+    Locale resolveLocale(String email) {
+        if (email == null || email.isBlank()) return Locale.ENGLISH;
+        return users.findByEmail(email.toLowerCase().trim())
+                .map(User::getLocale)
+                .map(Locale::forLanguageTag)
+                .orElse(Locale.ENGLISH);
     }
 }

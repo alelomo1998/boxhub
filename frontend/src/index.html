@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <!-- Pre-boot fallback only — AppComponent overwrites this from the single BRAND_NAME constant
+       (src/app/core/brand.ts) once Angular starts. Raw HTML can't read a TS constant, so keep
+       this literal in sync by hand if the brand ever changes. -->
   <title>BoxHub</title>
-  <base href="/">
+  <base href="/app/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>

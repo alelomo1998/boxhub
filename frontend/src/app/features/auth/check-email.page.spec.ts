@@ -1,5 +1,5 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute } from '@angular/router';
 import { CheckEmailPage } from './check-email.page';
@@ -11,7 +11,7 @@ describe('CheckEmailPage', () => {
     TestBed.configureTestingModule({
       imports: [CheckEmailPage],
       providers: [
-        provideHttpClient(), provideHttpClientTesting(),
+        provideHttpClient(withXhr()), provideHttpClientTesting(),
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => email } } } },
       ],
     });

@@ -17,7 +17,7 @@ export function runId(): string {
 
 /** Was copy-pasted verbatim into 8 spec files. */
 export async function login(page: Page, email: string, password = 'boxhub-demo-2026'): Promise<void> {
-  await page.goto('/auth/login');
+  await page.goto('/app/auth/login');
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', password);
   await page.click('button[type="submit"]');
