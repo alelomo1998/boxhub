@@ -1,12 +1,12 @@
 package com.boxhub.box;
 
+import com.boxhub.shared.AppUrls;
 import com.boxhub.shared.CryptoService;
 import com.boxhub.shared.TenantContext;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.checkout.SessionCreateParams;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -39,17 +39,17 @@ public class StripeCheckoutService {
     private final PaymentRepository payments;
     private final BoxStripeRepository boxStripe;
     private final CryptoService crypto;
-    private final String appUrl;
+    private final AppUrls appUrls;
 
     public StripeCheckoutService(PlanRepository plans, SubscriptionRepository subscriptions,
                                   PaymentRepository payments, BoxStripeRepository boxStripe,
-                                  CryptoService crypto, @Value("${boxhub.app-url}") String appUrl) {
+                                  CryptoService crypto, AppUrls appUrls) {
         this.plans = plans;
         this.subscriptions = subscriptions;
         this.payments = payments;
         this.boxStripe = boxStripe;
         this.crypto = crypto;
-        this.appUrl = appUrl;
+        this.appUrls = appUrls;
     }
 
     /** Returns the hosted Checkout URL the caller should redirect to. */
@@ -132,6 +132,6 @@ public class StripeCheckoutService {
 
     /** Absolute link into the SPA, same convention as Mailer.link(). */
     private String link(String path) {
-        return appUrl.endsWith("/") ? appUrl.substring(0, appUrl.length() - 1) + path : appUrl + path;
+        return appUrls.appLink(path);
     }
 }

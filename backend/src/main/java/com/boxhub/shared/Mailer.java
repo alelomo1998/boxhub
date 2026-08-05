@@ -29,15 +29,15 @@ public class Mailer {
     private final JavaMailSender sender;
     private final TemplateEngine templates;
     private final String from;
-    private final String appUrl;
+    private final AppUrls appUrls;
 
     public Mailer(JavaMailSender sender, TemplateEngine templates,
                   @Value("${boxhub.mail.from}") String from,
-                  @Value("${boxhub.app-url}") String appUrl) {
+                  AppUrls appUrls) {
         this.sender = sender;
         this.templates = templates;
         this.from = from;
-        this.appUrl = appUrl;
+        this.appUrls = appUrls;
     }
 
     @Async
@@ -74,6 +74,6 @@ public class Mailer {
 
     /** Absolute link into the SPA, e.g. link("/verify?token=abc"). */
     public String link(String path) {
-        return appUrl.endsWith("/") ? appUrl.substring(0, appUrl.length() - 1) + path : appUrl + path;
+        return appUrls.appLink(path);
     }
 }
