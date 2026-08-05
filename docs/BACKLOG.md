@@ -60,6 +60,30 @@ entries whose history is still load-bearing.
   `InviteAdminController.InviteDto`. Redacting them blind is untested work; widening the test's
   driven surfaces is the real fix, and it belongs with log retention.
 
+## Open flake — `runner.spec` data-timer half, first seen 2026-08-05
+
+**M12a predicted this exact case and said to revisit if it happened. It happened.**
+
+On the M13a merge commit, CI's e2e job failed at `runner.spec.ts:45`:
+`expect(tv-stream).toHaveAttribute('data-timer','RUNNING')` → **received `"none"`**, 27 passed / 1
+failed. **Re-running the same commit passed.** Non-deterministic, and therefore not an M13a
+regression — but a flake at `retries: 0` erodes exactly what M12a bought when it removed retries.
+
+What is already known, so the next investigation does not redo it:
+- M12a *measured* local SSE delivery at **2.34s ±18ms against a 15s budget** — latency was never the
+  local constraint, and it ruled out a cause without explaining CI.
+- The assertion is deliberately split in two so a failure names which half broke. This is the **first
+  half**: the SSE frame carrying a running timer, not the clock render. So the frame never showed
+  `RUNNING` within 15s.
+- CI is ~2.6× slower than local overall (53.3s vs 20.4s for the suite), which does not obviously
+  exhaust a 15s budget.
+- The `/app` move is **not** implicated: `TvService.stream()` uses `new EventSource('/api/tv/stream')`
+  — an absolute path, unaffected by `<base href>`. Checked.
+
+Next step is to capture `data-frames` alongside `data-timer` on failure, which distinguishes "no frame
+arrived at all" from "frames arrived carrying no timer" — those have completely different causes
+(transport vs. the backend never publishing `TvStateChanged`).
+
 ## Post-M13 · Frontend quality gates
 
 *Both cut from M13 to keep it tight, both worth adding once the component library exists and has

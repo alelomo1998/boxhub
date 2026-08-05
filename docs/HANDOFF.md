@@ -199,7 +199,12 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13a is merged and pushed. Nothing is in flight.**
+**M13a is merged and pushed. CI green on `main` — but see the flake note below. Nothing is in flight.**
+
+**One known flake, filed in `docs/BACKLOG.md`:** the M13a merge commit's CI run failed once at
+`runner.spec.ts:45` (`data-timer` expected `RUNNING`, got `none`) and **passed on re-run of the same
+commit**. Non-deterministic, not an M13a regression, and the `/app` move is ruled out (the SSE URL is
+absolute). M12a predicted this specific half failing and left the split assertion as the diagnostic.
 
 Backend **428** / frontend **184** / e2e **28** at `retries: 0`. **Next Flyway is V19** — M13a used V18.
 
