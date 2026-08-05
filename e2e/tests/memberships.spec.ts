@@ -33,7 +33,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   // admin publishes a priced, unlimited-entitlement plan
   await login(page, 'admin@demo.io');
   await expect(page).toHaveURL(/\/admin/);
-  await page.goto('/admin/plans');
+  await page.goto('/app/admin/plans');
   await page.fill('[data-testid="plan-name"]', planName);
   await page.fill('[data-testid="plan-price"]', '89');
   await page.click(btn('plan-create'));
@@ -43,7 +43,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
 
   // admin creates a class for the athlete to book once entitled (capacity 1 — same isolation
   // convention as booking-flow.spec.ts's "E2E WOD")
-  await page.goto('/admin/schedule');
+  await page.goto('/app/admin/schedule');
   await page.fill('[data-testid="template-name"]', className);
   await page.fill('input[name="capacity"]', '1');
   await page.click(btn('template-create'));
@@ -52,7 +52,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   // admin invites a fresh athlete (plan-less invite -> no subscription created on accept) — the
   // invite form now requires an EXPLICIT choice once plans exist (M10 review fix), so pick the
   // explicit "No plan (bill manually)" option rather than relying on a silent default.
-  await page.goto('/admin/invites');
+  await page.goto('/app/admin/invites');
   await page.fill('[data-testid="invite-email"]', athleteEmail);
   await page.selectOption('[data-testid="invite-plan"]', { label: 'No plan (bill manually)' });
   await page.click(btn('invite-create'));
@@ -69,7 +69,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   await expect(joinPage).toHaveURL(/\/athlete/);
 
   // admin records a CASH subscription for the athlete at a discounted agreed price
-  await page.goto('/admin/subscriptions');
+  await page.goto('/app/admin/subscriptions');
   await page.fill('[data-testid="rp-search"]', athleteEmail);
   await selectByOptionText(page, 'rp-member', athleteEmail);
   await selectByOptionText(page, 'rp-plan', planName);
@@ -92,7 +92,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   await expect(page.locator('.paper')).toContainText('CASH');
 
   // the athlete now has an active subscription — entitlement gate passes and the booking succeeds
-  await joinPage.goto('/athlete/book');
+  await joinPage.goto('/app/athlete/book');
   await joinPage.locator('.cards, .empty').first().waitFor();
   const card = joinPage.locator('.card', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await card.isVisible().catch(() => false)); i++) {

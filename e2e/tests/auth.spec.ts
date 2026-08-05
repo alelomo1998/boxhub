@@ -72,7 +72,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
   });
 
   test('sign up with a fresh address lands on check-email', async () => {
-    await page.goto('/auth/signup');
+    await page.goto('/app/auth/signup');
     await page.fill('[data-testid="signup-name"]', 'E2E Tester');
     await page.fill('[data-testid="signup-email"]', EMAIL);
     await page.fill('[data-testid="signup-password"]', PASSWORD);
@@ -87,7 +87,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
     await page.goto(link);
     // Verify logs the account straight in — wait for the app to leave the verify page, since the
     // POST that sets the session cookies is async.
-    await page.waitForURL(url => !url.pathname.startsWith('/auth/verify'));
+    await page.waitForURL(url => !url.pathname.startsWith('/app/auth/verify'));
     const me = await page.request.get('/api/me');
     expect(me.ok()).toBeTruthy();
     expect((await me.json()).email).toBe(EMAIL);
@@ -97,7 +97,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
     await page.request.post('/api/auth/logout', { headers: await xsrfHeaders(page) });
     expect((await page.request.get('/api/me')).status()).toBe(401);
 
-    await page.goto('/auth/login');
+    await page.goto('/app/auth/login');
     await page.fill('input[name="email"]', EMAIL);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
@@ -106,7 +106,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
   });
 
   test('forgot password: the reset link in the inbox sets a new password and logs in', async () => {
-    await page.goto('/auth/forgot');
+    await page.goto('/app/auth/forgot');
     await page.fill('[data-testid="forgot-email"]', EMAIL);
     await page.click(btn('forgot-submit'));
     await expect(page.getByTestId('forgot-confirm')).toBeVisible();
@@ -115,14 +115,14 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
     await page.goto(link);
     await page.fill('[data-testid="reset-password"]', NEW_PASSWORD);
     await page.click(btn('reset-submit'));
-    await page.waitForURL(url => !url.pathname.startsWith('/auth/reset'));
+    await page.waitForURL(url => !url.pathname.startsWith('/app/auth/reset'));
 
     expect((await page.request.get('/api/me')).ok()).toBeTruthy();
   });
 
   test('the old password no longer works', async () => {
     await page.request.post('/api/auth/logout', { headers: await xsrfHeaders(page) });
-    await page.goto('/auth/login');
+    await page.goto('/app/auth/login');
     await page.fill('input[name="email"]', EMAIL);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
@@ -141,7 +141,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
     // directly, independent of the boxless account also failing the route guard's box check.
     expect((await page.request.get('/api/me')).status()).toBe(401);
 
-    await page.goto('/athlete');
+    await page.goto('/app/athlete');
     await expect(page).toHaveURL(/auth\/login/);
   });
 });

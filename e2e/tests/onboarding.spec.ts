@@ -65,7 +65,7 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
   });
 
   test('signing up opens a box and lands on check-email', async () => {
-    await page.goto('/auth/start');
+    await page.goto('/app/auth/start');
     // signupMode() resolves async — wait for the open-mode form rather than the loading state.
     await expect(page.getByTestId('start-form')).toBeVisible();
     await page.fill('[data-testid="start-box-name"]', BOX_NAME);
@@ -80,18 +80,18 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     const link = await mailLinkTo(OWNER_EMAIL, '/auth/verify');
     // Absolute link straight from the mail — a real user clicks exactly this, no rewriting.
     await page.goto(link);
-    await page.waitForURL(url => !url.pathname.startsWith('/auth/verify'));
+    await page.waitForURL(url => !url.pathname.startsWith('/app/auth/verify'));
 
     // Verify doesn't select a box (see box-picker.page.ts / login.page.ts — that's a UI-flow
     // step, not something bootstrap does automatically), so pick it explicitly like a real
     // user would from the box picker.
-    await page.goto('/auth/boxes');
+    await page.goto('/app/auth/boxes');
     await page.locator('.box', { hasText: BOX_NAME }).click();
     await expect(page).toHaveURL(/\/admin/);
 
     await expect(page.getByTestId('pending-banner')).toBeVisible();
 
-    await page.goto('/admin/invites');
+    await page.goto('/app/admin/invites');
     await expect(page.getByTestId('invites-pending')).toContainText('Available once your box is approved.');
   });
 
@@ -99,14 +99,14 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     await page.click('button[aria-label="Log out"]');
     await expect(page).toHaveURL(/auth\/login/);
 
-    await page.goto('/auth/login');
+    await page.goto('/app/auth/login');
     await page.fill('input[name="email"]', SUPERADMIN_EMAIL);
     await page.fill('input[name="password"]', SUPERADMIN_PASSWORD);
     await page.click('button[type="submit"]');
     // Superadmin carries no box membership — login lands on the box picker, not a shell.
     await expect(page).toHaveURL(/auth\/boxes/);
 
-    await page.goto('/superadmin');
+    await page.goto('/app/superadmin');
     const row = page.locator('[data-testid^="queue-row-"]', { hasText: BOX_NAME });
     await expect(row).toBeVisible();
     await row.getByRole('button', { name: 'Approve' }).click();
@@ -123,7 +123,7 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     await page.click(btn('console-logout'));
     await expect(page).toHaveURL(/auth\/login/);
 
-    await page.goto('/auth/login');
+    await page.goto('/app/auth/login');
     await page.fill('input[name="email"]', OWNER_EMAIL);
     await page.fill('input[name="password"]', OWNER_PASSWORD);
     await page.click('button[type="submit"]');
@@ -131,7 +131,7 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     await expect(page).toHaveURL(/\/admin/);
     await expect(page.getByTestId('pending-banner')).toHaveCount(0);
 
-    await page.goto('/admin/invites');
+    await page.goto('/app/admin/invites');
     await expect(page.getByTestId('invites-pending')).toHaveCount(0);
     await page.fill('[data-testid="invite-email"]', ATHLETE_EMAIL);
     await page.click(btn('invite-create'));

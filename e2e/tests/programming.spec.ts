@@ -6,7 +6,7 @@ test('coach fills a class instance from the builder and publishes it', async ({ 
   const pieceTitle = 'E2E Metcon ' + stamp;
 
   await login(page, 'coach@demo.io');
-  await page.goto('/coach/classes');
+  await page.goto('/app/coach/classes');
   // build "Burn It", not the first class: today's first class is the WOD Class that
   // tracking.spec scores against (Fran), and republishing it here would wipe that.
   const burnRow = page.locator('.row', { hasText: 'Burn It' }).first();
@@ -22,6 +22,6 @@ test('coach fills a class instance from the builder and publishes it', async ({ 
   await expect(page.locator('.prog.pub')).toBeVisible();
 
   // the classes list shows the instance as Published
-  await page.goto('/coach/classes');
+  await page.goto('/app/coach/classes');
   await expect(page.locator('.prog.pub').first()).toBeVisible();
 });

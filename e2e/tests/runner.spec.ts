@@ -5,7 +5,7 @@ test('coach runs a class: arms a timer, logs a score, TV shows the clock', async
   // TV pairs first
   const tvCtx = await browser.newContext();
   const tv = await tvCtx.newPage();
-  await tv.goto('/tv');
+  await tv.goto('/app/tv');
   const codeEl = tv.getByTestId('pair-code');
   await expect(codeEl).toHaveText(/^\d{6}$/, { timeout: 10000 });
   const code = (await codeEl.textContent())!.trim();
@@ -18,7 +18,7 @@ test('coach runs a class: arms a timer, logs a score, TV shows the clock', async
   const adminCtx = await browser.newContext();
   const admin = await adminCtx.newPage();
   await login(admin, 'admin@demo.io');
-  await admin.goto('/admin/tvs');
+  await admin.goto('/app/admin/tvs');
   await admin.getByTestId('tv-code').fill(code);
   const tvName = `Runner TV ${runId()}`;
   await admin.getByTestId('tv-name').fill(tvName);
@@ -26,7 +26,7 @@ test('coach runs a class: arms a timer, logs a score, TV shows the clock', async
   await expect(admin.locator('.row', { hasText: tvName })).toBeVisible();
 
   // coach opens the runner for today's class, arms an AMRAP, then starts it
-  await coach.goto('/coach/classes');
+  await coach.goto('/app/coach/classes');
   await coach.locator('.list, .empty').first().waitFor();
   await coach.locator('[data-testid="run-link"]').first().click();
   await expect(coach.getByTestId('runner')).toBeVisible();

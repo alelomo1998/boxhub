@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('app boots dark and login renders on warm ground', async ({ page }) => {
-  await page.goto('/auth/login');
+  await page.goto('/app/auth/login');
   const theme = await page.evaluate(() => document.documentElement.dataset.theme);
   expect(theme).toBe('dark');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
@@ -10,7 +10,7 @@ test('app boots dark and login renders on warm ground', async ({ page }) => {
 });
 
 test('brand fonts load (guards the nginx /media/ collision)', async ({ page }) => {
-  await page.goto('/auth/login');
+  await page.goto('/app/auth/login');
   // poll: on a cold nginx the woff2 fetch can lag the first paint
   await expect.poll(() => page.evaluate(async () => {
     await document.fonts.ready;
