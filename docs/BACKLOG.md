@@ -354,3 +354,18 @@ now would be speculative work with no load data behind it.*
 **Closed in M0/M1:** box-token renewal on refresh (M1-T10) · auth rate limiting (M1-T9) · memberships FK
 on-delete (M1-T1) · refresh discarding memberships (M1-T14) · invite email delivery (M8-T11) ·
 server-side logout/revocation (M8 + M11-T8).
+
+## Watch-list addition — Karma → Vitest
+
+**Trigger: the Angular release that actually removes the karma builder.** Not Angular 22 — verified
+2026-08-02 that `@angular-devkit/build-angular@22.1.2` ships `karma` with a `karma ^6.3.0` peer
+dependency. A secondary article claimed 22 removed it; the same article also named a migration
+schematic (`ng generate @angular/core:karma-to-vitest`) that does not exist, which is what prompted
+checking the package directly.
+
+When the trigger fires: 43 spec files, 30 using `HttpTestingController`, 7 using `spyOn`, 4 using
+`fakeAsync`, 2 using `tick`. `@angular/build`'s vitest runner carries no Jasmine compatibility shim,
+so those need real translation rather than a config flip. Do it with a supported migration path, not
+the experimental hidden `refactor-jasmine-vitest` schematic.
+
+**Not a performance argument.** Karma runs the 184 specs in ~4 seconds.
