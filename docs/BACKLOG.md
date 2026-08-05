@@ -82,10 +82,13 @@ stopped churning. Neither needs a new build pipeline — both ride the Playwrigh
 wording and gained a home.*
 
 ### → M13 Foundations
-- **Angular 19 → 22.** 19 is EOL; `npm audit --omit=dev` reports 6 high, all cascades of an SSR
-  client-hydration CVE this client-rendered-only app cannot hit. When it lands: flip the per-push gate
-  in `.github/workflows/ci.yml` to `--audit-level=high`, drop `continue-on-error` from the nightly
-  informational step, and fold npm back into the OSV gate.
+
+*~~Angular 19 → 22~~ — **DONE in M13a** (2026-08-02), now at 22.1.0 with TypeScript 6.0.3. The
+per-push npm gate tightened to `--audit-level=high --omit=dev`. `continue-on-error` on the nightly
+step was **kept**, against the plan: without `--omit=dev` it still exits 1 on three transitive
+dev-only advisories (`brace-expansion`, `fast-uri`, `socket.io-parser` via Karma), and a permanently
+red nightly job is how a scan stops being read. Folding npm into the OSV gate is therefore still open.*
+
 - Header CSS is ~90% duplicated across three shells; logout/theme placement differs per shell (athlete
   profile sheet vs coach/admin header ⎋). Fold into a shared shell.
 - Unicode glyph icons (⎋ ⌘ ◐) read as a placeholder icon system — adopt a real icon set.
