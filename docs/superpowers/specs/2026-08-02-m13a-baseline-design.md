@@ -126,8 +126,13 @@ Built now because retrofitting after a component library and 40 redesigned scree
 times more than building it in — and because M13b's type scale has to be chosen against translated
 text, since Italian and German run 20–35% longer than English.
 
-Scope:
-- `@angular/localize`, every user-facing string marked for extraction.
+Scope — **narrowed 2026-08-02, after measuring**:
+- `@angular/localize` installed and wired, with runtime `loadTranslations()`. **The ~390 existing
+  strings are deliberately NOT marked here.** M13c rebuilds the component library, M13d rebuilds 11
+  auth screens, and M14–M18 rebuild essentially every remaining screen — marking now means marking
+  again after the rewrite, which is the double-work this program is ordered around. The obligation
+  moved onto the rewrite as a **binding rule in `CLAUDE.md`**: every new or rebuilt screen ships
+  i18n-marked. What lands here is only the durable half, which every later screen consumes.
 - **The brand name becomes a single value while we are in there.** `boxhub.com` and `boxhub.io` are
   unavailable, so the product will be renamed (see the roadmap). There are 18 user-facing
   occurrences today — 8 in `frontend/src`, 9 across seven mail templates, one `BOXHUB_MAIL_FROM`
