@@ -114,6 +114,16 @@ defaults, and M13c is rebuilding the component layer anyway — the right moment
 `nullishCoalescingNotNullable` or `optionalChainNotNullable`) and removed during M13a rather than
 carried, because it hid nothing and would have silently loosened a standard.*
 
+### → M13d Auth & account screens
+
+- **The admin-facing invite link takes a redirect hop.** `InviteAdminController.java:76` returns the
+  raw `/join/<token>` path and `invites.page.ts:109` builds the displayed/copied link as
+  `location.origin + inv.link`. After M13a's `/app` move that still works — `/join/` is one of the
+  permanently-redirected prefixes — but it lands via a 301 instead of directly. The *emailed* invite
+  is already correct, because it goes through `Mailer.link()` and therefore `AppUrls.appLink()`; only
+  the copy-from-the-admin-page path is inconsistent. Found by the M13a T6 executor, deliberately left
+  out of scope. Fix by having the backend return the `/app`-prefixed path.
+
 ### → M14 Class model & schedule
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
