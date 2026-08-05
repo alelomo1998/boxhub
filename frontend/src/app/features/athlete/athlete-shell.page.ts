@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@ang
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
+import { BRAND_NAME } from '../../core/brand';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ProfileSheetComponent } from './profile-sheet.component';
 import { HomeService } from './home.service';
@@ -77,7 +78,7 @@ export class AthleteShellPage implements OnInit {
 
   profileOpen = signal(false);
   avatarPath = signal<string | null>(null);
-  boxName = this.auth.activeBox()?.boxName || 'BoxHub';
+  boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
   userName = '';
 
   tabs = [

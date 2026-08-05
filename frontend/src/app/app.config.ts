@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideZoneChangeDetection, provideAppInitializer, inject } from '@angular/core';
+import { ApplicationConfig, LOCALE_ID, provideZoneChangeDetection, provideAppInitializer, inject } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration, withXhr } from '@angular/common/http';
 import { routes } from './app.routes';
@@ -8,6 +8,10 @@ import { ThemeService } from './core/theme/theme.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    // Every `date`/`number`/`currency` pipe in the app resolves its formatting locale through
+    // this token. 'en-US' matches what main.ts's initLocale() resolves today (English is the
+    // only locale that ships) — this is the seam a future resolved user/box locale plugs into.
+    { provide: LOCALE_ID, useValue: 'en-US' },
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(withXhr(), 

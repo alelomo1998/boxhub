@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
+import { BRAND_NAME } from '../../core/brand';
 
 /** Admin: SaaS shell on desktop (side nav + top bar), bottom tabs + More sheet on mobile. */
 @Component({
@@ -110,7 +111,7 @@ export class AdminShellPage {
   theme = inject(ThemeService);
   auth = inject(AuthService);
   private router = inject(Router);
-  boxName = this.auth.activeBox()?.boxName || 'BoxHub';
+  boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
   moreOpen = signal(false);
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }

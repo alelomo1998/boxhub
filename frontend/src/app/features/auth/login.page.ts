@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { redirectForRole } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
+import { BRAND_NAME } from '../../core/brand';
 
 @Component({
   selector: 'bh-login',
@@ -13,7 +14,7 @@ import { ButtonComponent } from '../../ui/button.component';
   template: `
     <main class="auth">
       <form class="card" (ngSubmit)="submit()" data-testid="login-form">
-        <div class="brand"><span class="mark">B</span><span class="bn">BoxHub</span></div>
+        <div class="brand"><span class="mark">B</span><span class="bn">{{ BRAND_NAME }}</span></div>
         <label class="f"><span>EMAIL</span>
           <input name="email" type="email" [(ngModel)]="email" required placeholder="you@email.com" /></label>
         <label class="f"><span>PASSWORD</span>
@@ -58,6 +59,7 @@ import { ButtonComponent } from '../../ui/button.component';
   `],
 })
 export class LoginPage implements OnInit {
+  protected readonly BRAND_NAME = BRAND_NAME;
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);

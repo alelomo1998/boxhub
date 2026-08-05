@@ -2,6 +2,7 @@ import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { BRAND_NAME } from '../../core/brand';
 
 /** Coach shell: header nav on desktop, floating pill dock on mobile. */
 @Component({
@@ -72,7 +73,7 @@ export class CoachShellPage {
   theme = inject(ThemeService);
   private auth = inject(AuthService);
   private router = inject(Router);
-  boxName = this.auth.activeBox()?.boxName || 'BoxHub';
+  boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
 
   tabs = [
     { link: 'classes', label: 'Classes', glyph: '▮▮' },
