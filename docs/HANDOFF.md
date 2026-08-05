@@ -1,17 +1,17 @@
 # BoxHub — Session Hand-off
 
-**Updated:** 2026-07-27. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-08-05. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
 
 ## What BoxHub is
-Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 19 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. Repo: `~/Desktop/boxhub`, GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
+Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
 
 ## Authoritative docs (read in this order)
 1. **`CLAUDE.md`** (repo root) — binding rules, loaded every session. Workflow + design + tenancy rules.
 2. **Master spec / roadmap:** `docs/superpowers/specs/2026-07-07-boxhub-design.md` — milestones M0–M7, operating rules.
 3. **Design law:** `docs/superpowers/specs/2026-07-08-design-system-design.md` — binding for ALL frontend.
 4. **Milestone specs+plans:** `docs/superpowers/specs/` and `docs/superpowers/plans/` (one spec + one plan per milestone).
-5. **Backlog:** `docs/BACKLOG.md`. **Progress ledger:** `.superpowers/sdd/progress.md` (git-ignored; the recovery map — commit SHAs per task).
-6. **User memory:** `~/.claude/projects/-Users-alessandrolomonaco-Desktop/memory/` (MEMORY.md index + boxhub-project.md, boxhub-process-pace.md).
+5. **Backlog:** `docs/BACKLOG.md`. **Progress ledger:** `.superpowers/sdd/progress.md` — **now committed** (it was git-ignored until 2026-08-02, i.e. the recovery map lived on one disk, unversioned). Commit SHAs per task.
+6. **Roadmap (current):** `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md` — M13a–M20 + Project 2. It **renumbers everything**; the old M12–M17 sketches are retired there with what absorbed each.
 
 ## Status — done and on `main`
 - **M0 foundations** — auth (JWT access+refresh rotation), per-box role memberships, box-scoped tenant tokens, `TenantContext`, RFC7807 errors, Flyway V1, Angular shells + auth, Docker Compose, CI, deploy script.
