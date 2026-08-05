@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, signal, OnInit } from '@angular/core';
+import { Component, EventEmitter, Output, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
@@ -56,6 +56,7 @@ import { HomeService, Profile } from './home.service';
       }
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .stateline { color: var(--bone-dim); }
     .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }

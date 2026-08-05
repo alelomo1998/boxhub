@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonComponent } from '../../ui/button.component';
 import { ProgrammingService, Wod } from './programming.service';
@@ -35,6 +35,7 @@ import { ProgrammingService, Wod } from './programming.service';
       </div>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-4); }
     .search { width: 100%; max-width: 340px; margin-bottom: var(--sp-4); background: var(--surface-2);

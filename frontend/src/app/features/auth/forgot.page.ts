@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { ButtonComponent } from '../../ui/button.component';
@@ -29,6 +29,7 @@ import { ButtonComponent } from '../../ui/button.component';
       </div>
     </main>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--sp-4); }
     .card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--hairline);

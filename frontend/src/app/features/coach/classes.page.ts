@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
@@ -51,6 +51,7 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .cls { max-width: 860px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }

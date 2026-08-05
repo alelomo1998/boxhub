@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -57,6 +57,7 @@ import { SheetComponent } from '../../ui/sheet.component';
       </div>
     </bh-sheet>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .admin { display: grid; grid-template-columns: 210px 1fr; grid-template-rows: auto 1fr;
       grid-template-areas: "top top" "side content"; min-height: 100dvh; }

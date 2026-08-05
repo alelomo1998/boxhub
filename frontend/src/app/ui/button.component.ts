@@ -1,9 +1,10 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 
 @Component({
   selector: 'bh-button',
   standalone: true,
   template: `<button [type]="type" [class]="'btn ' + variant + ' ' + size" [disabled]="disabled"><ng-content /></button>`,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .btn { border: none; border-radius: var(--edge); font-family: var(--font-body);
       font-weight: 700; font-size: 14px; letter-spacing: 0.01em; cursor: pointer;

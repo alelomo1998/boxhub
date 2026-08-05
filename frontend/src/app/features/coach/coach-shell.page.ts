@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -36,6 +36,7 @@ import { AuthService } from '../../core/auth/auth.service';
       </nav>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .app { display: flex; flex-direction: column; min-height: 100dvh; }
     .top { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-5);

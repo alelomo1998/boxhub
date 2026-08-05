@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
@@ -69,6 +69,7 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .book { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }

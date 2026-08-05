@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from './admin.service';
 import { ButtonComponent } from '../../ui/button.component';
@@ -21,6 +21,7 @@ import { ButtonComponent } from '../../ui/button.component';
       </form>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .form form { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 420px; }
     .f { display: flex; flex-direction: column; gap: 6px; }

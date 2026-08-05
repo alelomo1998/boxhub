@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -65,6 +65,7 @@ type Mode = 'loading' | 'open' | 'full' | 'error';
       </div>
     </main>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--sp-4); }
     .card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--hairline);

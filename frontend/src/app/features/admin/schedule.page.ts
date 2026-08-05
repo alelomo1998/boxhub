@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { BookingService, ClassTemplate, SessionView } from '../booking/booking.service';
@@ -58,6 +58,7 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       </div>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
     .tm { max-width: 120px; } .dur { max-width: 90px; }

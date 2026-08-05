@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { AdminService, Invite, Plan } from './admin.service';
@@ -55,6 +55,7 @@ import { AuthService } from '../../core/auth/auth.service';
       </ul>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
     .linkbox { display: flex; align-items: center; gap: var(--sp-3); padding: 12px 14px;

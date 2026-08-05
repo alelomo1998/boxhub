@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent } from '../../ui/button.component';
 import { PerformanceService, Score, ScoreInput } from './performance.service';
@@ -75,6 +75,7 @@ let uid = 0;
       </div>
     </form>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .sform { display: flex; flex-direction: column; gap: var(--sp-4); }
     .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;

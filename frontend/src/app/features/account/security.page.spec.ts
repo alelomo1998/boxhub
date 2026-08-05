@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
 import { SecurityPage } from './security.page';
@@ -12,7 +12,7 @@ describe('SecurityPage', () => {
   function setup() {
     TestBed.configureTestingModule({
       imports: [SecurityPage],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
     auth = TestBed.inject(AuthService);
@@ -139,7 +139,7 @@ describe('SecurityPage', () => {
   it('shows an error state when sessions fail to load', () => {
     TestBed.configureTestingModule({
       imports: [SecurityPage],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(SecurityPage);

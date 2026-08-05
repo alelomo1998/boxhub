@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
@@ -66,6 +66,7 @@ type CellStatus = 'idle' | 'saving' | 'saved' | 'error';
       <p class="empty">No athletes checked in yet.</p>
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .grid { display: flex; flex-direction: column; gap: var(--sp-2); }
     .row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3);

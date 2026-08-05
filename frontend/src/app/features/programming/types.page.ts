@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BookingService, ClassTemplate } from '../booking/booking.service';
 import { ProgrammingService, SkeletonPiece, PIECE_TYPES } from './programming.service';
@@ -80,6 +80,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .types { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -66,6 +66,7 @@ import { PillComponent } from '../../ui/pill.component';
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .count { font-family: var(--font-mono); font-size: 12px; color: var(--faint); text-transform: none; letter-spacing: 0.06em; margin-left: 10px; }
     .bh-section-head .bh-input { max-width: 240px; }

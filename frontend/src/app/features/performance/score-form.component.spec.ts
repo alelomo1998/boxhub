@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ScoreFormComponent } from './score-form.component';
 
@@ -9,7 +9,7 @@ describe('ScoreFormComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [ScoreFormComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
   });

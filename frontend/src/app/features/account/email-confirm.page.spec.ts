@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute } from '@angular/router';
 import { provideRouter } from '@angular/router';
@@ -12,7 +12,7 @@ describe('EmailConfirmPage', () => {
     TestBed.configureTestingModule({
       imports: [EmailConfirmPage],
       providers: [
-        provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
+        provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]),
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => token } } } },
       ],
     });

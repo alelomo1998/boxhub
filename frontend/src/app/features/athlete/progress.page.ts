@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent } from '../../ui/button.component';
@@ -99,6 +99,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .prog { max-width: 720px; margin: 0 auto; }
     .head { margin-bottom: var(--sp-4); }
