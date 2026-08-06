@@ -264,25 +264,57 @@ translates the brand.
 `bh-*` CSS prefix, database and Docker image names, the `boxhub_tv_paired` storage key. Nobody sees
 them and churning them is pure risk for zero gain.
 
-### 10.2 The wordmark
+### 10.2 The wordmark and mark — decided 2026-08-06
 
-Typographic, built from the two faces. No illustration, no mark-plus-wordmark lockup where the mark is
-a picture of something.
+Purely typographic, cut from JetBrains Mono outlines. **No invented shape.** An invented mark has to
+earn its meaning over years; a letterform arrives already meaning something, and it cannot drift
+off-brand because it *is* the product's typeface.
 
-**The direction to build first:** `rx` set in JetBrains Mono, `ed` marked with the highlighter — a
-volt fill with `--on-volt` text, tight to the letterforms. It reads the name as the verb it is, and it
-is the same inversion device that runs through the entire product, so the logo is not a separate
-visual idea bolted on.
+**Wordmark:** `rxed`, lowercase, tight tracking. `rx` plain, **`ed` set inside the volt highlighter
+block** with `--on-volt` text. The highlighter lands on the suffix, so the logo reads the name as the
+verb it is — and it is the same inversion device (§4.1) that runs through the whole product rather
+than a separate visual idea bolted on.
 
-Deliverables:
-- **wordmark**, SVG, volt-on-ground and a mono-ground variant for use on volt
-- **square mark** for favicon, TV corner and email header — the highlighted `ed` alone, or `rx` in a
-  volt box; decided by drawing both
-- **favicon** at the sizes `index.html` actually references
+**Square mark:** `rx` in a volt block, for the favicon, the app icon, the TV corner and the email
+header. It is a crop of the wordmark's container, not of its letters, so it may highlight `rx` while
+the wordmark highlights `ed` — the two are never seen at the same size.
 
-`.app` is not part of the lockup.
+Below roughly 24px the mark needs **looser tracking and a heavier weight** than the wordmark; that is
+a separate optical cut, not the same file scaled down.
 
-Both are rendered for approval before anything else in M13b is built.
+`.app` is not part of any lockup.
+
+#### The accent rule applies to the logo, and it is the reason there are two colour variants
+
+A volt-filled logo sitting in the app header on every screen is a second volt element competing with
+the screen's actual primary action, which §2.3 forbids. The logo does not get an exemption:
+
+- **App chrome (athlete, coach and admin headers): the wordmark renders in `--bone`, monochrome, with
+  no volt at all.** The logo is chrome, not accent.
+- **Volt variant only where the logo is the subject:** the login and signup screens, the mail header,
+  the landing site, and the TV idle screen.
+
+#### Deliverables
+
+- **wordmark** SVG in both variants — bone-on-ground for chrome, volt-on-ground where it is the hero,
+  plus a ground-on-volt cut for placement on a volt field
+- **square mark** SVG, same two treatments, with the small-size optical cut
+- **favicon** replacing `public/favicon.ico` (currently the only icon asset — verified 2026-08-06:
+  `index.html` references exactly one, `<link rel="icon" type="image/x-icon" href="favicon.ico">`,
+  and there is no apple-touch-icon, web manifest or `theme-color`). Adding those is not in scope; if
+  the mark makes them worth having, they are filed, not smuggled in.
+
+#### Explored and rejected, so it is not re-litigated
+
+A drawn **℞ monogram** — the real prescription symbol, with its crossbar overshooting the descender
+so the glyph and the highlighter were the same stroke — was the only *invented* candidate with a
+genuine idea in it, and it was rejected on one ground: out of context ℞ reads pharmacy, not gym. It
+survives inside the sport, where "I Rx'd it" is spoken vocabulary, but the M19 landing site has to
+work on people who have never set foot in a box.
+
+Also drawn and rejected: a struck `x` (merges to a blob at 16px, and "struck through" reads as
+*cancelled* — the wrong verb), and a checkbox (semantically exact, visually indistinguishable from
+every to-do app ever shipped).
 
 ### 10.3 The rename is four values, not eighteen
 
