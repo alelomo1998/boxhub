@@ -1,69 +1,70 @@
+/* rxed design tokens — design law v3, docs/superpowers/specs/2026-08-06-m13b-design-language-design.md
+   This is the ONLY file where raw colour / size / duration values may live.
+   Dark only, deliberately: there is no light theme (spec §2.1 records the re-open trigger). */
 :root {
-  /* DARK — home theme. Warm espresso near-black, never cold blue-black. */
-  --ground: #17120d;
-  --surface: #201a13;
-  --surface-2: #2a231a;
-  --hairline: #3a3124;
-  --bone: #ece3d2;
-  --bone-dim: #a99d86;
-  /* WCAG AA: >=4.5:1 on --ground (was #6f6552 @ ~3.3:1) */
-  --faint: #90846c;
-  --red: #ec4326;
-  --on-red: #ffffff;
-  --red-glow: rgba(236, 67, 38, 0.38);
-  --scrim: rgba(10, 7, 4, 0.55);
-  --good: #63a45f;
-  --warn: #e0a32e;
+  /* Fixes native date/time pickers, scrollbars, form controls and Chrome's autofill
+     in one declaration. Unconditional because there is no other theme to branch on. */
+  color-scheme: dark;
 
-  --font-display: "Saira Condensed", system-ui, sans-serif;
+  /* GROUND — chalkboard black. A trace of green; never warm, never pure #000. */
+  --ground: #0d110e;
+  --surface: #151a16;
+  --surface-2: #1d231e;
+  --hairline: #2a322c;
+
+  --bone: #f2f4ef;      /* 17.2:1 on --ground */
+  --bone-dim: #a7b0a6;  /*  8.4:1 */
+  --faint: #7c8779;     /*  5.1:1 */
+
+  /* VOLT — the only accent. live / now / primary / winning. Never decorative.
+     16.9:1 on --ground, and identically 16.9:1 inverted, so inversion is contrast-neutral. */
+  --volt: #dfff4e;
+  --on-volt: #0d110e;
+
+  /* Semantics stay quiet. Every hue is deliberately far from volt's ~72deg chartreuse:
+     a status colour next to the accent reads as a weak accent, not as a status. */
+  --good: #3fcf8e;
+  --warn: #f0883e;
+  --danger: #e5484d;
+  /* 2.4:1 — WCAG 1.4.3 exempts inactive controls, and a disabled control that passes
+     4.5:1 does not read as disabled. This is correct; do not "fix" it. */
+  --disabled: #4a5249;
+
+  --scrim: rgba(6, 9, 7, 0.62);
+  --focus: var(--volt);       /* focus ring on any non-volt surface */
+  --focus-inv: var(--ground); /* focus ring ON a volt surface — see spec §11.2 */
+
+  /* TRANSITIONAL — deleted in Task 5 once all 53 call-site files are migrated.
+     They exist so the app never renders uncoloured between Task 1 and Task 5. */
+  --red: var(--volt);
+  --on-red: var(--on-volt);
+  --red-glow: rgba(223, 255, 78, 0.30);
+
+  --font-display: "Archivo", system-ui, -apple-system, sans-serif;
   --font-body: "Archivo", system-ui, -apple-system, sans-serif;
-  --font-mono: "SF Mono", ui-monospace, "Menlo", monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Radius scale (M5.5): rounder, personality kept. --edge stays as the control alias
-     so all existing reads pick up the new language. */
-  --r-ctl: 10px;   /* controls: buttons, inputs, selects, small chips */
-  --r-card: 14px;  /* cards, panels, pieces, list rows-as-cards */
-  --r-lg: 20px;    /* sheets, dialogs, hero containers */
-  --r-full: 999px; /* pills, dock, segmented controls */
-  --edge: var(--r-ctl);
-  --shadow-float: 0 8px 28px rgba(10, 7, 4, 0.45); /* floating dock/sheet lift */
+  /* Radius — squarer than M5.5's 10/14/20. --r-lg shares --r-card's value on purpose;
+     the names stay separate so a future divergence costs one line. */
+  --r-xs: 4px;
+  --r-ctl: 8px;
+  --r-card: 12px;
+  --r-lg: 12px;
+  --r-full: 999px;
+  --edge: var(--r-ctl); /* legacy alias, 48 call sites, kept deliberately */
+  --shadow-float: 0 8px 28px rgba(3, 5, 4, 0.55);
+
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
   --sp-5: 20px; --sp-6: 24px; --sp-8: 40px; --sp-10: 64px;
 
-  /* Type scale (fixed rem; product register). Screens read these, never raw px. */
-  --fs-hero: 2.5rem;      /* 40 — screen titles (display) */
-  --fs-display: 1.75rem;  /* 28 — WOD names, PR numbers (display) */
-  --fs-h2: 1.25rem;       /* 20 — section headings */
-  --fs-body: 0.9375rem;   /* 15 — body/UI */
-  --fs-sm: 0.8125rem;     /* 13 — secondary */
-  --fs-meta: 0.6875rem;   /* 11 — mono eyebrows/meta */
+  --fs-hero: 2.5rem;      /* 40 */
+  --fs-display: 1.75rem;  /* 28 */
+  --fs-h2: 1.25rem;       /* 20 */
+  --fs-body: 0.9375rem;   /* 15 */
+  --fs-sm: 0.8125rem;     /* 13 */
+  --fs-meta: 0.6875rem;   /* 11 */
 
-  /* Interaction */
-  --tap: 44px;            /* minimum touch target */
+  --tap: 44px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur: 200ms;
 }
-
-@mixin light-tokens {
-  --ground: #f1ece0;
-  --surface: #f9f5ea;
-  --surface-2: #eee7d6;
-  --hairline: #d9d0be;
-  --bone: #1a1712;
-  --bone-dim: #5f5849;
-  /* WCAG AA: >=4.5:1 on light --ground (was #8a806c @ ~3.3:1) */
-  --faint: #6f6552;
-  --red: #d5351d;
-  --red-glow: rgba(213, 53, 29, 0.16);
-  --scrim: rgba(26, 23, 18, 0.4);
-  /* WCAG AA as text on light --ground (dark values fail ~2.5:1 / ~1.9:1 here) */
-  --good: #3e7a3b;
-  --warn: #8a6210;
-  --shadow-float: 0 8px 28px rgba(26, 23, 18, 0.18);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) { @include light-tokens; }
-}
-:root[data-theme="light"] { @include light-tokens; }
-:root[data-theme="dark"] { /* dark base already on :root; explicit wins over OS */ }

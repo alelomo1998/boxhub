@@ -36,12 +36,12 @@
               }
             ],
             "styles": [
-              "node_modules/@fontsource/saira-condensed/600.css",
-              "node_modules/@fontsource/saira-condensed/700.css",
-              "node_modules/@fontsource/saira-condensed/800.css",
               "node_modules/@fontsource/archivo/400.css",
               "node_modules/@fontsource/archivo/500.css",
               "node_modules/@fontsource/archivo/700.css",
+              "node_modules/@fontsource/archivo/800.css",
+              "node_modules/@fontsource/jetbrains-mono/400.css",
+              "node_modules/@fontsource/jetbrains-mono/700.css",
               "src/styles.scss"
             ],
             "scripts": []
