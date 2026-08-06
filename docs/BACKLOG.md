@@ -141,6 +141,58 @@ defaults, and M13c is rebuilding the component layer anyway — the right moment
 `nullishCoalescingNotNullable` or `optionalChainNotNullable`) and removed during M13a rather than
 carried, because it hid nothing and would have silently loosened a standard.*
 
+### → M13c Component library — raised by M13b (2026-08-06)
+
+- **`bh-stat` has zero call sites.** `grep -rn 'bh-stat' frontend/src/app` returns only its own
+  definition. It is in the design law's component inventory and nothing renders it. **Decide build
+  vs delete before restyling it** — restyling a component nothing uses is the purest form of the
+  work this program exists to avoid.
+- **The 4 kB `anyComponentStyle` budget pulls against the tokens-only rule.** `var(--fs-meta)` is
+  eleven characters longer than `11px`, and M13b's admin-members proof went *over* budget purely by
+  replacing two raw values with their tokens. It was resolved by cutting a genuine redundancy, but
+  ~22 components will hit this repeatedly. Either the budget rises with a written reason, or
+  components get split — decide once, deliberately, rather than per component under pressure.
+- **Inline `style=""` in template markup does not count toward `anyComponentStyle` at all.** A real
+  hole in that gate. Recorded before someone discovers it as a workaround rather than as a fact.
+- **Three standing budget warnings**: `instance-builder.page.ts` (+456 B), `tv-shell.page.ts`
+  (+256 B), `progress.page.ts` (+17 B). All pre-date M13b; the 8 kB *error* budget is not breached,
+  so the build is green. Each screen is rebuilt in its own milestone (M14, Project 2, M17), so **the
+  fix is the rebuild, not a bigger budget**. Filed because a build printing three warnings nobody has
+  written down is a build that teaches people to stop reading warnings.
+
+### → M16 Admin: commerce — email subject lines are not translatable (M13a debt, found in M13b)
+
+Six subject lines are Java literals passed straight to `Mailer.send(to, subject, …)` →
+`helper.setSubject()`. Unlike the template *bodies*, they never pass through `messages.properties`,
+so **a German recipient gets an English subject above a German body**: `SubscriptionLapseJob:103`,
+`PaymentReceipts:52` and `:68`, `InviteAdminController:72`, `SuperadminBoxController:67` and `:75`.
+
+M13b routed them through `Brand.NAME` (`aa75673`) so the rename is complete, but that is branding,
+not i18n. `Mailer` **already resolves a per-recipient locale** for the template, so the plumbing
+exists and only the wiring and six bundle keys are missing.
+
+Worth noting how this survived M13a's i18n sweep: subject strings do not look like brand strings or
+like template content, so a search framed around either misses them entirely.
+
+### → M16 Admin: commerce — the categorical chart palette does not exist
+
+**The palette as it stands cannot draw a chart**, and M16 and M18 both ship analytics. There is one
+accent (`--volt`) and three semantic hues, and **all three semantics already mean something** —
+charting a five-series breakdown in volt / green / orange / red tells the reader that one series is
+an error and another is a warning.
+
+Constraints for whoever designs it: a categorical ramp must be **new hues**, must not reuse
+`--good` / `--warn` / `--danger`, must hold **4.5:1 against `--ground`**, and must stay
+distinguishable from volt. Deliberately not invented in M13b — a ramp designed against imaginary
+data is a ramp that gets redesigned. Recorded in design law v3 §17. **This is the one open gap large
+enough to change the base palette later.**
+
+### → Launch → Production — icon assets beyond the favicon
+
+M13b ships `public/favicon.svg` only. `index.html` references exactly one icon and there is no
+`apple-touch-icon`, no web manifest, and no `theme-color`. Deliberately not smuggled into the design
+milestone. Decide when the marketing site (M19) or the pilot forces it.
+
 ### → M13d Auth & account screens
 
 - **The admin-facing invite link takes a redirect hop.** `InviteAdminController.java:76` returns the
@@ -198,8 +250,12 @@ full e2e run.
 
 ### → M16 Admin: commerce
 - `INVALID_PLAN` / `INVALID_MEMBERSHIP` (400 from `POST /api/box/subscriptions`) have no friendly copy.
-- Mail templates duplicate the `#D7263D` accent hex across 4 files — centralise. *(Email clients can't
-  use CSS custom properties, so this needs a build-time or template-fragment answer, not a token.)*
+- Mail templates duplicate the accent hex — now `#dfff4e` with `#0d110e` text, across **8** CTA
+  buttons, not 4 (M13b swapped them off the retired `#D7263D`). Centralise. *(Email clients can't use
+  CSS custom properties, so this needs a build-time or template-fragment answer, not a token.)*
+  **Carry the contrast reason with it:** the buttons previously set `color:#fff` on the accent, and
+  white on volt is 1.1:1. Whoever centralises this must centralise the text colour too, or the next
+  accent change silently reintroduces an unreadable button.
 
 ### → M17 Athlete
 - Score form has no cancel/delete of a logged score (edit-only); no way to delete a lift entry.
