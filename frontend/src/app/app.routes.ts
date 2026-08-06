@@ -4,6 +4,9 @@ import { superadminGuard } from './core/auth/superadmin.guard';
 import { unsavedGuard } from './core/unsaved.guard';
 
 export const routes: Routes = [
+  // Unguarded on purpose — fabricated data, no API call, needs to be reachable on a real device
+  // against the real CSP. Unlisted, unlinked; deletion at launch is filed in docs/BACKLOG.md.
+  { path: 'dev/components', loadComponent: () => import('./features/dev/dev-gallery.page').then(m => m.DevGalleryPage) },
   { path: 'auth/login', loadComponent: () => import('./features/auth/login.page').then(m => m.LoginPage) },
   { path: 'auth/boxes', loadComponent: () => import('./features/auth/box-picker.page').then(m => m.BoxPickerPage) },
   { path: 'auth/signup', loadComponent: () => import('./features/auth/signup.page').then(m => m.SignupPage) },
