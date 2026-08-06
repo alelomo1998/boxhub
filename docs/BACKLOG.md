@@ -60,9 +60,35 @@ entries whose history is still load-bearing.
   `InviteAdminController.InviteDto`. Redacting them blind is untested work; widening the test's
   driven surfaces is the real fix, and it belongs with log retention.
 
-## `main` IS RED — `runner.spec` data-timer, and it is not a flake (updated 2026-08-06)
+## QUARANTINED — the TV never learns a timer started (`runner.spec`, 2026-08-06)
 
-**Read this before anything else in this file.** `main` has been red since 2026-08-05.
+**Status: the bug is real and unfixed; the test is `test.fixme()`d so it stops holding the build
+red.** `e2e/tests/runner.spec.ts`, "TV shows the clock when a coach starts a timer".
+
+**Why quarantine rather than fix:** the TV is **Project 2 (The Room)** and Project 1 does not ship
+it, so a Project 2 defect should not gate Project 1's build. That is a scope decision taken
+deliberately with the user on 2026-08-06 — **not** a judgement that the bug is minor. It is a real
+defect in shipped code, and the board on the wall is this product's stated wedge.
+
+**What was preserved rather than thrown away:** the original test did three things and only the third
+was broken. It is now split, so `coach arms a timer from the runner and starts it` **still runs and
+still gates** — the coach writes server-authoritative timer state and reads it back, with no SSE
+involved. Only the TV's observation of that state is quarantined. Suite is 28 passed + 1 skipped.
+
+`fixme` rather than `skip` on purpose: it stays visible in every run's output as unfinished work,
+instead of quietly disappearing the way a skip does.
+
+**RE-ENABLE WHEN** Project 2 starts, or `compose()`'s timer lookup is fixed — whichever comes first.
+Delete the `fixme`; **do not soften the assertions.** They are correct and the product is not.
+
+Verified after quarantining: 28 passed on a `down -v` stack **and** on an immediate second run
+against that same stack — which is the exact condition that reproduced the failure.
+
+---
+
+### The evidence, kept because the next person should not have to re-derive it
+
+`main` was red from 2026-08-05 until this quarantine.
 
 ```
 2026-08-06  21aab79  failure   <- M13b merge

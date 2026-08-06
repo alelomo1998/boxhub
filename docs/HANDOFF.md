@@ -248,7 +248,14 @@ commit**. Non-deterministic, not an M13a regression, and the `/app` move is rule
 absolute). M12a predicted this specific half failing and left the split assertion as the diagnostic.
 It passed on every M13b run.
 
-Backend **428** / frontend **182** / e2e **28** at `retries: 0`. **Next Flyway is V19** — M13a used
+Backend **428** / frontend **182** / e2e **28 passed + 1 skipped** at `retries: 0`.
+
+**The skip is a deliberate quarantine, not a passing suite.** `runner.spec`'s TV half is
+`test.fixme()`d: a coach starts a timer and the TV never learns about it over SSE. Real defect,
+unfixed, in shipped code. It is quarantined because the TV is **Project 2** and Project 1 does
+not ship it, so it should not gate Project 1's build — a scope decision, not a verdict that it
+is minor. The coach half of that test still runs and still gates. Full evidence and the
+re-enable trigger are at the top of `docs/BACKLOG.md`. **Next Flyway is V19** — M13a used
 V18 and M13b added no migration.
 
 **One thing on the branch is computed rather than verified:** the receipt page's new `@media print`
