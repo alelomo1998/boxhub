@@ -123,7 +123,7 @@ interface AdminMemberRow {
                     text-overflow: ellipsis; white-space: nowrap"
                   >Alex Kirov</span
                 >
-                <span style="color: var(--faint); font-size: 11px" i18n="@@dev.members.userRole">Box admin</span>
+                <span style="color: var(--faint); font-size: var(--fs-meta)" i18n="@@dev.members.userRole">Box admin</span>
               </span>
             }
           </div>
@@ -256,7 +256,7 @@ interface AdminMemberRow {
     .sidebar { width: 208px; flex-shrink: 0; border-right: 1px solid var(--hairline);
       background: var(--ground); }
     .sidebar.collapsed { width: 56px; }
-    .sidebar.collapsed .side-head { flex-direction: column; gap: 4px; padding: var(--sp-2); }
+    .sidebar.collapsed .side-head { flex-direction: column; gap: var(--sp-1); padding: var(--sp-2); }
     .sidebar.collapsed .section-label { display: none; }
 
     .badge { display: grid; place-items: center; width: 28px; height: 28px;
@@ -282,8 +282,8 @@ interface AdminMemberRow {
     .s-item.active { color: var(--bone); }
 
     /* Nested items: indent guide is a hairline rule, not a background. */
-    .subnav { list-style: none; margin: 0 0 var(--sp-1); padding: 0 0 0 var(--sp-4);
-      border-left: 1px solid var(--hairline); margin-left: var(--sp-4); gap: 2px; }
+    .subnav { list-style: none; margin: 0 0 var(--sp-1) var(--sp-4); padding: 0 0 0 var(--sp-4);
+      border-left: 1px solid var(--hairline); gap: 2px; }
     .sub-item { min-height: 32px; padding: 0 var(--sp-2); border-radius: var(--r-xs);
       color: var(--faint); text-decoration: none; font-size: var(--fs-sm); }
     .sub-item.active, .sub-item:hover { color: var(--bone); }
@@ -312,7 +312,7 @@ interface AdminMemberRow {
     .num-col { text-align: right; }
 
     .member-cell { gap: var(--sp-3); min-width: 0; }
-    .memail { color: var(--faint); font-family: var(--font-mono); font-size: 11px; }
+    .memail { color: var(--faint); font-family: var(--font-mono); font-size: var(--fs-meta); }
 
     .status { gap: var(--sp-1); font-size: var(--fs-sm); color: var(--status-c); }
     .status .dot { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--status-c); }
