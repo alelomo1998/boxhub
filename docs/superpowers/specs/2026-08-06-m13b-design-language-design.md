@@ -81,11 +81,23 @@ All values are dark-theme values because there is only one theme.
 | `--faint` | `#7C8779` | tertiary text, placeholders — 5.1:1 on ground |
 | `--volt` | `#DFFF4E` | **the accent.** live / now / primary / winning. 16.9:1 on ground |
 | `--on-volt` | `#0D110E` | text on volt — 16.9:1, identical to the inverse |
-| `--good` | `#7FBF6A` | positive status (active, paid, checked in) |
+| `--good` | `#3FCF8E` | positive status (active, paid, checked in) |
 | `--warn` | `#F0883E` | caution (expiring, lapsing) |
 | `--danger` | `#E5484D` | destructive actions, errors, validation failures |
+| `--disabled` | `#4A5249` | disabled control text and icons |
 | `--scrim` | `rgba(6, 9, 7, 0.62)` | overlay scrim behind sheets and dialogs |
-| `--focus` | `#DFFF4E` | focus ring colour — the same volt, used as a solid outline |
+| `--focus` | `#DFFF4E` | focus ring on any non-volt surface |
+| `--focus-inv` | `#0D110E` | focus ring **on a volt surface** — see §11.2 |
+
+`--disabled` sits at 2.4:1 on ground and that is correct: WCAG 1.4.3 exempts inactive controls, and a
+disabled control that meets 4.5:1 does not read as disabled. It is called out here so nobody "fixes"
+it later.
+
+**Every semantic hue is deliberately far from volt on the colour wheel.** Volt is a chartreuse at
+roughly 72°. `--warn` moved from the old `#E0A32E` amber to orange, and `--good` from a leaf green to
+an emerald at roughly 155°, for the same reason: a status colour that is a near-neighbour of the
+accent reads as a *weak accent* rather than as a status, and at 11px on a table row the two are
+indistinguishable. This was the single most common self-inflicted error in the previous palette.
 
 **Contrast**: the ratios above are computed against `--ground` and are binding minimums, not targets.
 Every value must be re-verified in the browser during implementation, and every text token must clear
@@ -105,6 +117,34 @@ weak volt; it becomes orange so that caution and accent cannot be confused at a 
 **Semantic colours stay quiet.** They are never a fill for a whole row or card — they colour a dot, a
 label, or a thin left rule. Volt is the only colour permitted to fill.
 
+### 3.2 The browser paints things we do not, and dark-only makes that visible
+
+A dark-only product still renders native UI that defaults to light. Every item below is chrome the
+design does not control unless it says so, and each is ugly rather than broken — which is why they
+survive review and get noticed by users first.
+
+- **`color-scheme: dark` on `:root`.** One declaration, and it fixes the native date and time pickers
+  (`<input type="date">` renders a light popover otherwise), scrollbars, form-control defaults and
+  Chrome's autofill background in one go. Deleting the light theme is what makes this unconditional
+  and therefore free — there is no branch to write.
+- **`::selection`** — volt background with `--on-volt` text. The browser default is a blue that exists
+  nowhere else in the product.
+- **`--danger` is what a native validation bubble should approximate**, but browsers render their own.
+  Form validation is ours, in-page, never the native bubble.
+
+**Print is already broken, and dark-only is what removes the excuse.** `/receipts/:paymentId` is a
+printable page, shipped in M10 and used by boxes for bookkeeping. Verified 2026-08-06: its entire
+print handling is one line — `receipt.page.ts:82`, `@media print { .no-print { display: none; } }` —
+which hides the buttons and nothing else. Browsers drop background colours when printing by default,
+so the dark ground vanishes and the page prints `--bone` text, which is nearly white, onto white
+paper. **That is today's behaviour, in the light theme's presence, and nobody noticed.**
+
+Deleting the light theme does not cause this bug; it removes the imaginary workaround ("the user could
+switch themes first") that let it stay unexamined. **The receipt page gets a real `@media print` block
+that inverts to ink-on-paper**, verified by printing to PDF rather than by reading the stylesheet.
+This is not a theme returning through the back door: it is one document, printed, and it is the only
+place the product touches paper.
+
 ## 4. The three devices
 
 The entire visual language is three devices. Everything else on a screen is neutral.
@@ -112,6 +152,13 @@ The entire visual language is three devices. Everything else on a screen is neut
 **1. Inversion.** A volt fill with `--on-volt` text. This is how the design says *this one*. It marks
 the current line of a workout, the leading row of a leaderboard, the primary button, the live
 indicator, the selected segment. Nothing else inverts.
+
+**Volt is bounded by area, not only by count.** "One volt element per screen" does not stop that
+element being a whole panel, and a high-chroma chartreuse at 16.9:1 filling a large region causes
+afterimages — the reference material uses it in two-second broadcast bursts and in small chips, not as
+a field. **A volt fill may be a row, a chip, a button, a bar or a badge. It is never a card, a panel,
+a page background or a sheet.** The leaderboard's inverted leader row is the largest sanctioned fill,
+and it is one row of many.
 
 **2. The hard rule.** A 1px `--hairline` divides; a 2px `--volt` border promotes a panel to *the
 subject of the screen*. At most one 2px volt border is on screen at a time. This replaces the previous
@@ -141,6 +188,22 @@ Depth is a **surface ladder plus hairlines**. `--ground` → `--surface` → `--
 
 The one exception is **things that physically float**: the mobile dock, `bh-sheet`, and dialogs. Those
 keep `--shadow-float`, retuned to the new ground. A shadow anywhere else is a bug.
+
+**Hover is a rung on the ladder, not a colour.** With glow deleted and inversion reserved for
+live/primary, an interactive surface hovers by climbing one step — `--surface` → `--surface-2`, or
+`--ground` → `--surface` for a row on the page. Volt never appears on hover; a thing that turns volt
+has *become live*, and hovering it has not.
+
+### 5.1 Loading, without a gradient
+
+The standard skeleton shimmer is a moving linear-gradient, and §2.4 bans gradients. That is a real
+collision, not a technicality — loading states are mandatory under §11.6, so the ban has to come with
+a replacement rather than an exception.
+
+**A skeleton is a `--surface-2` block that pulses opacity** between roughly 1 and 0.55 on the
+`--dur`/`--ease-out` curve. No sweep, no gradient, no direction. Under `prefers-reduced-motion` it
+holds at the dimmer value and does not animate at all, which is a legitimate resting state rather than
+a degraded one.
 
 ## 6. Type
 
@@ -198,6 +261,18 @@ at 15px breaks the line length.
 
 The scale is unchanged from M13a in values. It is re-stated here because the faces changed under it,
 and because §12 constrains it.
+
+**Tabular figures are not automatic.** JetBrains Mono is monospaced, so its digits already align.
+Archivo does not, and any Archivo number that could line up in a column needs
+`font-variant-numeric: tabular-nums` explicitly. The `.num` utility already exists for this and stays.
+
+**Mono drops its tracking at table density.** `--fs-meta` carries `0.18em` tracking and uppercase,
+which is right for an eyebrow standing alone and wrong for six column headers on a laptop: mono is
+already ~15% wider than Archivo, uppercase adds more, and §12's German strings add 20–35% on top. A
+uppercase, tracked, monospaced `MITGLIEDSCHAFTSSTATUS` is a column that eats the table. **In a table
+header, mono keeps its case and its family but drops to `0.06em`**, and the header wraps to two lines
+rather than truncating. This is the one place the eyebrow treatment is deliberately weakened, and it
+is weakened because the alternative is a horizontal scrollbar on the admin's primary screen.
 
 ## 7. Space and shape
 
@@ -355,7 +430,8 @@ violation of §2.1's tokens-only rule, and it is why the backlog item to central
 ## 11. Accessibility (retained from design law v2, unchanged)
 
 1. **Text contrast ≥ 4.5:1**, verified in the browser, not asserted from a table.
-2. **`:focus-visible` rings everywhere** — now a solid 2px `--focus` outline at 2px offset.
+2. **`:focus-visible` rings everywhere** — a solid 2px outline at 2px offset. See §11.2, because the
+   naive version of this rule is invisible on the most important control in the product.
 3. **Labels wired to inputs.** Every input has a programmatic label.
 4. **`prefers-reduced-motion` alternative for every animation.**
 5. **`--tap` 44px minimum** for every interactive target.
@@ -364,6 +440,22 @@ violation of §2.1's tokens-only rule, and it is why the backlog item to central
 
 **Colour is never the only signal.** Volt marks the live line, but the live line also carries a label;
 `--good` / `--warn` / `--danger` always accompany text or an icon, never stand alone.
+
+### 11.1 Every interactive component owes seven states
+
+Carried forward from the previous law's §9, which was right about this: **default, hover, focus,
+active, disabled, loading, error.** A component that ships with three of them is not done. Restated
+here explicitly because the state list was the easiest thing to lose in a rewrite, and losing it is
+how "state is never silent" quietly stops being true.
+
+### 11.2 The focus ring on a volt surface
+
+`--focus` is volt. The primary button is volt-filled. **A volt ring on a volt button is invisible** —
+this is the single highest-traffic control in the product, and the obvious rule breaks it.
+
+The rule: **the focus ring is `--focus` on any non-volt surface, and `--focus-inv` on a volt one.**
+Practically, that is one extra selector on the button and the segmented control. Verified by
+keyboard-tabbing the proof screens, not by reading the CSS.
 
 ## 12. i18n constrains the type scale
 
@@ -412,6 +504,9 @@ becomes live *inverts*, and the inversion may cross-fade.
 9. **`CLAUDE.md` updated** — its design-rules block currently states warm dark, race red, rationed
    glow, and a first-class light theme. All four are now wrong.
 10. **`PRODUCT.md`** checked for brand and palette references.
+11. **The receipt print block** (§3.2). A pre-existing bug this milestone stops being able to ignore.
+12. **`color-scheme: dark`, `::selection`, and the skeleton treatment** (§3.2, §5.1) — three small
+    global rules that only became necessary because the light theme went away.
 
 ## 15. What M13b does NOT ship
 
@@ -455,9 +550,41 @@ illegible, not that every pre-rework screen looks designed.
 
 ## 17. Open, and deliberately not decided here
 
-- **The square mark's form** — decided by drawing both candidates in §10.2, not by argument.
+- **The categorical chart palette.** This palette has one accent and three semantic hues, and *all
+  three semantics already mean something* — charting a five-series breakdown in volt / green / orange
+  / red would tell a reader that one series is an error and another is a warning. So the palette as it
+  stands cannot draw a chart, and M16 and M18 both ship analytics.
+
+  **This is filed, not solved, and it is the one gap in this spec big enough to change the base
+  palette later.** The constraint to carry forward: a categorical ramp must be *new* hues, must not
+  reuse `--good`/`--warn`/`--danger`, and must hold at 4.5:1 against `--ground` while staying
+  distinguishable from volt. It is not invented here because M13b ships no chart, and a ramp designed
+  against imaginary data is a ramp that gets redesigned.
 - **Whether `--fs-hero` at 40px is enough** for the TV, which is viewed from across a room and today
   overrides sizes locally. The TV is Project 2's surface; M13b does not retune it, but the token file
   should not assume a phone is the only viewer.
 - **Icon set.** The backlog records that Unicode glyphs (⎋ ⌘ ◐) read as a placeholder icon system.
   Choosing a real one is M13c's job, with the components that consume it.
+
+## 18. What the critique pass changed
+
+The first draft of this document was reviewed against itself before any code was planned. Nine
+Ten findings survived; all are folded into the sections above rather than appended as errata, and they
+are listed here only so the reasoning is not lost.
+
+| # | Finding | Where it landed |
+|---|---|---|
+| 1 | **The focus ring was invisible on the primary button.** `--focus` is volt; the primary button is volt-filled. The single highest-traffic control in the product had no visible focus state. | §11.2, `--focus-inv` |
+| 2 | **`--good` was a near-neighbour of volt.** The old palette's amber `--warn` was moved away from chartreuse for exactly this reason, and then a leaf green was left sitting closer still. Same error, uncorrected. | §3, `--good` → emerald |
+| 3 | **The seven-state component contract was dropped in the rewrite.** The previous law required default/hover/focus/active/disabled/loading/error; the new draft silently lost it. | §11.1 |
+| 4 | **No hover state was defined at all.** With glow deleted and inversion reserved, nothing said what hovering looks like. | §5 |
+| 5 | **Skeletons need a gradient and gradients are banned.** Loading states are mandatory, so the ban needed a replacement, not an exception. | §5.1 |
+| 6 | **Volt was bounded by count but not by area.** "One volt element" permits a full volt panel, which at 16.9:1 causes afterimages. | §4 |
+| 7 | **Printing is already broken today**, not by this milestone. The receipt page's whole print stylesheet hides buttons; it has always printed near-white text onto white paper. Dark-only only removes the "switch themes first" excuse. | §3.2 |
+| 8 | **Native browser chrome stays light** — date pickers, scrollbars, autofill, selection — unless `color-scheme` says otherwise. | §3.2 |
+| 9 | **Mono column headers collide with German.** Monospaced, uppercase, `0.18em`-tracked headers plus a 20–35% translation penalty is a horizontal scrollbar on the admin's main screen. | §6.3 |
+| 10 | **There is no categorical palette and analytics need one.** Not solvable here without inventing a ramp against imaginary data. | §17, filed |
+
+Findings 1, 3 and 7 would each have shipped a real defect. Finding 2 is the more interesting one: the
+same mistake was identified, fixed in one colour, and left standing in its neighbour — which is what a
+critique catches and a checklist does not.
