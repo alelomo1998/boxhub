@@ -1,7 +1,8 @@
 import { ApplicationConfig, LOCALE_ID, provideZoneChangeDetection, provideAppInitializer, inject } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, TitleStrategy } from '@angular/router';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration, withXhr } from '@angular/common/http';
 import { routes } from './app.routes';
+import { PageTitleStrategy } from './core/page-title.strategy';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthService } from './core/auth/auth.service';
 
@@ -13,6 +14,7 @@ export const appConfig: ApplicationConfig = {
     { provide: LOCALE_ID, useValue: 'en-US' },
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
+    { provide: TitleStrategy, useClass: PageTitleStrategy },
     provideHttpClient(withXhr(), 
       withInterceptors([authInterceptor]),
       withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }),
