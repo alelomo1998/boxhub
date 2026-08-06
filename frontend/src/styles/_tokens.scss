@@ -26,6 +26,9 @@
   --good: #3fcf8e;
   --warn: #f0883e;
   --danger: #e5484d;
+  /* Text on a filled --danger control. Dark, not white: #fff on --danger is 3.9:1 and fails AA,
+     the same trap --on-volt exists for. */
+  --on-danger: #0d110e;
   /* 2.4:1 — WCAG 1.4.3 exempts inactive controls, and a disabled control that passes
      4.5:1 does not read as disabled. This is correct; do not "fix" it. */
   --disabled: #4a5249;

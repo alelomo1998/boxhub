@@ -13,6 +13,9 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
     .btn.md { padding: 0 17px; }
     .btn.primary { background: var(--volt); color: var(--on-volt); }
     .btn.ghost { background: transparent; color: var(--bone); border: 1px solid var(--hairline); }
+    /* Destructive confirms only — the click you least want. Never the action that merely OPENS a
+       destroy flow; that one is a danger-bordered ghost, so the pair reads as an escalation. */
+    .btn.danger { background: var(--danger); color: var(--on-danger); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .btn.primary:focus-visible { outline-color: var(--focus-inv); }
@@ -21,7 +24,7 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
   `],
 })
 export class ButtonComponent {
-  @Input() variant: 'primary' | 'ghost' = 'primary';
+  @Input() variant: 'primary' | 'ghost' | 'danger' = 'primary';
   @Input() size: 'md' | 'sm' = 'md';
   @Input() type: 'button' | 'submit' = 'button';
   @Input() disabled = false;

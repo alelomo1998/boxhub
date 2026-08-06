@@ -150,7 +150,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
 
         @if (deleteError()) { <p class="err" data-testid="delete-error">{{ deleteError() }}</p> }
 
-        <bh-button variant="ghost" class="deletebtn" [disabled]="!canDelete() || deletePending()" (click)="submitDelete()" data-testid="delete-submit">
+        <bh-button variant="danger" [disabled]="!canDelete() || deletePending()" (click)="submitDelete()" data-testid="delete-submit">
           {{ deletePending() ? 'Deleting…' : 'Delete my account' }}
         </bh-button>
       </div>
