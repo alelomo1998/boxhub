@@ -84,6 +84,32 @@ Next step is to capture `data-frames` alongside `data-timer` on failure, which d
 arrived at all" from "frames arrived carrying no timer" — those have completely different causes
 (transport vs. the backend never publishing `TvStateChanged`).
 
+### 2026-08-06, during M13b — that diagnostic fired, and there is now a reliable reproduction
+
+Playwright's call log on the failure reads:
+
+```
+ 8 × data-frames="0" data-timer="none"
+26 × data-frames="1" data-timer="none"
+```
+
+**A frame arrived and carried no timer.** That answers M12a's open question and eliminates transport:
+it is not SSE delivery, and it is not the 15s budget. The remaining candidates are the backend never
+publishing `TvStateChanged` for that transition, or `TvStateService.compose()` snapshotting before the
+timer write is visible.
+
+**More useful still: this is reproducible on demand.** It failed *deterministically* — twice, including
+a solo re-run — on a stack that had **already run the e2e suite once**, and then passed 28/28 on a
+`down -v` rebuilt stack. So the trigger correlates with accumulated state, not with chance.
+
+Two consequences worth holding separately:
+- Whoever investigates no longer has to wait for CI to flake. Run the suite twice against one stack.
+- **It may not be a flake at all.** "Non-deterministic" was inferred from one CI failure that passed on
+  re-run; state accumulation across a re-run would produce exactly that pattern. CI does start fresh,
+  so the CI failure is not *obviously* the same phenomenon — but the two should be reconciled rather
+  than assumed distinct, and the fixed-name TV devices the `runner`/`tv` specs leave behind are the
+  first thing to look at.
+
 ## Post-M13 · Frontend quality gates
 
 *Both cut from M13 to keep it tight, both worth adding once the component library exists and has
