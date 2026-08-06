@@ -678,7 +678,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - [ ] **Step 1: Write the component**
 
 ```ts
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { BRAND_NAME } from '../core/brand';
 
 /**
@@ -698,7 +698,7 @@ import { BRAND_NAME } from '../core/brand';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <span class="wm" [class.hero]="variant() === 'hero'" [attr.data-size]="size()">
+    <span class="wm" [class.hero]="variant === 'hero'" [attr.data-size]="size">
       <span class="a">rx</span><span class="b">ed</span>
       <span class="sr">{{ brand }}</span>
     </span>
@@ -719,8 +719,8 @@ import { BRAND_NAME } from '../core/brand';
   `],
 })
 export class WordmarkComponent {
-  readonly variant = input<'chrome' | 'hero'>('chrome');
-  readonly size = input<'sm' | 'md' | 'lg'>('sm');
+  @Input() variant: 'chrome' | 'hero' = 'chrome';
+  @Input() size: 'sm' | 'md' | 'lg' = 'sm';
   protected readonly brand = BRAND_NAME;
 }
 ```
@@ -729,11 +729,19 @@ The visually-hidden `<span class="sr">` carries the brand name for screen reader
 
 **`BRAND_NAME` is `'BoxHub'` until Task 7 changes it.** That is correct ordering: this component reads the constant rather than hardcoding, so Task 7 fixes it everywhere at once. The visible glyphs are deliberately literal — the wordmark is a drawn shape that happens to be made of letters, not a rendering of a variable.
 
-- [ ] **Step 2: Verify `ChangeDetectionStrategy` matches the codebase**
+- [ ] **Step 2: Confirm the component conventions still hold**
 
-Run: `graphify query "component change detection strategy"` and open two existing `ui/` components.
+These were measured at `4063ea6`, so the code above already matches them — this step is a check, not a decision:
 
-M13a's Angular 22 migration pinned all 56 components to `ChangeDetectionStrategy.Eager`. **If the existing components use `Eager`, use `Eager` here too** and note it in the task report — matching the surrounding code matters more than being right ahead of schedule, and dropping the pin is a filed M13c task covering all 56 at once. **Do not mix the two.**
+```bash
+cd frontend/src/app && grep -rl '@Input()' . | wc -l && grep -rl 'input<\|= input(' . | wc -l && grep -rho 'ChangeDetectionStrategy\.[A-Za-z]*' . | sort | uniq -c
+```
+
+Expected: **11** files using `@Input()`, **0** using signal `input()`, and **56** components all on `ChangeDetectionStrategy.Eager`.
+
+`Eager` is M13a's Angular 22 migration pin, and dropping it is a filed M13c task that covers all 56 components at once with a real performance check. Matching the surrounding code matters more than being right ahead of schedule. **Do not mix the two input styles**, and do not introduce the first signal input in the codebase inside a wordmark.
+
+*(An earlier draft of this task wrote the component with signal inputs. The codebase says otherwise, 11 to 0 — corrected before dispatch.)*
 
 - [ ] **Step 3: Draw the favicon**
 
