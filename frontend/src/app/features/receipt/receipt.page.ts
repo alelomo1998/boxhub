@@ -79,7 +79,24 @@ import { ButtonComponent } from '../../ui/button.component';
     .line.total dt, .line.total dd { font-weight: 700; font-size: var(--fs-h2); color: var(--bone); border: none; }
     .line.total { border-bottom: none; }
     .no-print { margin-top: var(--sp-5); }
-    @media print { .no-print { display: none; } }
+    /* A receipt is the one thing this product puts on paper, and printing it has been broken since
+       M10: hiding the buttons was the whole print stylesheet, so the dark ground dropped out (as
+       browsers drop backgrounds) and --bone printed near-white on white. Boxes use this page for
+       bookkeeping.
+
+       The overrides are scoped to :host, never :root. A print rule reaching :root is the light
+       theme returning through the back door, and dark-only was a deliberate decision. This is one
+       document, printed. See design law v3 §3.2. */
+    @media print {
+      .no-print { display: none; }
+      :host {
+        --ground: #ffffff; --surface: #ffffff; --surface-2: #ffffff;
+        --hairline: #b0b0b0; --bone: #000000; --bone-dim: #2b2b2b; --faint: #4a4a4a;
+        /* Volt on paper is illegible, and a receipt has nothing live to mark. */
+        --volt: #000000; --on-volt: #ffffff; --danger: #000000;
+      }
+      :host, .receipt { background: #ffffff; color: #000000; }
+    }
   `],
 })
 export class ReceiptPage implements OnInit {
