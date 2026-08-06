@@ -33,7 +33,7 @@ import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
       border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-3); }
     .title { font-size: 40px; margin: 0 0 var(--sp-4); }
     .empty { color: var(--bone-dim); font-size: 14px; }
-    .error { color: var(--volt); font-size: 13px; margin: 0; }
+    .error { color: var(--danger); font-size: 13px; margin: 0; }
     .list { display: flex; flex-direction: column; gap: var(--sp-2); }
     .box { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3);
       background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);

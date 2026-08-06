@@ -46,7 +46,7 @@ import { ButtonComponent } from '../../ui/button.component';
     form { display: flex; flex-direction: column; gap: var(--sp-4); }
     .f { display: flex; flex-direction: column; gap: 6px; }
     .f span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
-    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .alt { font-size: var(--fs-sm); margin: 0; }
   `],
 })

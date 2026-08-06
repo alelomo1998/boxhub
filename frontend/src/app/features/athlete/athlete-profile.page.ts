@@ -77,7 +77,7 @@ import { HomeService, Profile } from './home.service';
   styles: [`
     .prof { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--volt); }
+    .stateline.err { color: var(--danger); }
     .back { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone-dim);
       border: none; border-radius: var(--edge); font-size: var(--fs-body); cursor: pointer; margin-bottom: var(--sp-3); }
     .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

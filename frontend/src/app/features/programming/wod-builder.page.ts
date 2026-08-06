@@ -94,7 +94,7 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
     .sm { padding: 7px 9px; font-size: 13px; }
     .mini { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); font-size: 12px; padding: 6px 10px; cursor: pointer; }
-    .mini.danger { color: var(--volt); }
+    .mini.danger { color: var(--danger); }
     .mini.add { color: var(--faint); margin-top: 4px; }
     .actions { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-5); }
   `],

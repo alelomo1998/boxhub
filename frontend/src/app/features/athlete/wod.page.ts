@@ -106,7 +106,7 @@ import { SheetComponent } from '../../ui/sheet.component';
   styles: [`
     .wodpage { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--volt); }
+    .stateline.err { color: var(--danger); }
     .retry, .quiet { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); font-size: var(--fs-sm); cursor: pointer; }
     .retry:focus-visible, .quiet:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

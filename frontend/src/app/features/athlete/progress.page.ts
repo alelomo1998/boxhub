@@ -108,7 +108,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
     .stateline { color: var(--bone-dim); font-size: var(--fs-body); }
-    .err { color: var(--volt); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
 
     .quicklog { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-5); }

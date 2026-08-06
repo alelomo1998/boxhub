@@ -34,11 +34,6 @@
   --focus: var(--volt);       /* focus ring on any non-volt surface */
   --focus-inv: var(--ground); /* focus ring ON a volt surface — see spec §11.2 */
 
-  /* TRANSITIONAL — deleted in Task 5 once all 53 call-site files are migrated.
-     They exist so the app never renders uncoloured between Task 1 and Task 5. */
-  --red: var(--volt);
-  --on-red: var(--on-volt);
-
   --font-display: "Archivo", system-ui, -apple-system, sans-serif;
   --font-body: "Archivo", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;

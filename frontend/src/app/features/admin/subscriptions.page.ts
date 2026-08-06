@@ -117,7 +117,7 @@ function mapRecordError(e: { status?: number; error?: { detail?: string } }): st
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--volt); }
+    .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 420px; }
@@ -128,7 +128,7 @@ function mapRecordError(e: { status?: number; error?: { detail?: string } }): st
     .cancel-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--hairline); border-radius: var(--r-card);
       background: var(--surface-2); font-size: var(--fs-sm); color: var(--bone-dim); }
-    .err { color: var(--volt); font-size: var(--fs-sm); }
+    .err { color: var(--danger); font-size: var(--fs-sm); }
     .confirm { margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline);
       border-radius: var(--r-card); background: var(--surface-2); color: var(--good); font-size: var(--fs-sm); }
     .receipt-link { display: inline-block; margin-left: var(--sp-3); color: var(--bone); text-decoration: underline; }

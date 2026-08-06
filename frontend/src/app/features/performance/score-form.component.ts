@@ -113,7 +113,7 @@ let uid = 0;
     .switch input:checked:focus-visible + .knob { outline-color: var(--focus-inv); }
     .hint { color: var(--faint); }
     .done { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
-    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     @media (prefers-reduced-motion: reduce) { .knob, .knob::after, .segbtn { transition: none; } }
   `],
 })

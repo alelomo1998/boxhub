@@ -73,7 +73,7 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
   styles: [`
     .book { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .err { color: var(--volt); font-size: var(--fs-sm); }
+    .err { color: var(--danger); font-size: var(--fs-sm); }
 
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
     .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);

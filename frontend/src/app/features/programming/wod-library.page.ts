@@ -47,7 +47,7 @@ import { ProgrammingService, Wod } from './programming.service';
     .right { text-align: right; white-space: nowrap; }
     .mini { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); font-size: 12px; padding: 5px 9px; margin-left: 6px; cursor: pointer; }
-    .mini.danger { color: var(--volt); }
+    .mini.danger { color: var(--danger); }
     .muted { color: var(--bone-dim); padding: var(--sp-4); }
   `],
 })

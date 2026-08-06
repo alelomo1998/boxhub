@@ -54,7 +54,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; text-wrap: balance; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--volt); }
+    .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--r-ctl); cursor: pointer; margin-left: var(--sp-2); }
     .retry:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

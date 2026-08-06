@@ -150,7 +150,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
 
         @if (deleteError()) { <p class="err" data-testid="delete-error">{{ deleteError() }}</p> }
 
-        <bh-button variant="primary" [disabled]="!canDelete() || deletePending()" (click)="submitDelete()" data-testid="delete-submit">
+        <bh-button variant="ghost" class="deletebtn" [disabled]="!canDelete() || deletePending()" (click)="submitDelete()" data-testid="delete-submit">
           {{ deletePending() ? 'Deleting…' : 'Delete my account' }}
         </bh-button>
       </div>
@@ -170,9 +170,9 @@ type SessionsState = 'loading' | 'error' | 'ready';
       text-transform: uppercase; color: var(--faint); }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .ok { color: var(--good); font-size: var(--fs-sm); margin: 0; }
-    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
-    .stateline.err { color: var(--volt); }
+    .stateline.err { color: var(--danger); }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: var(--sp-2) 0; border-bottom: 1px solid var(--hairline); }
@@ -181,7 +181,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
     .who b { font-weight: 600; font-size: var(--fs-body); }
     .who .meta { color: var(--faint); font-size: var(--fs-meta); font-family: var(--font-mono); }
     .danger { padding-top: var(--sp-4); border-top: 1px solid var(--hairline); }
-    .deletebtn { color: var(--volt); border-color: var(--volt); }
+    .deletebtn { color: var(--danger); border-color: var(--danger); }
     .del { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
     .explain { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
   `],

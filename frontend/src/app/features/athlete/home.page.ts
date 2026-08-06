@@ -110,7 +110,7 @@ import { BookingService } from '../booking/booking.service';
   styles: [`
     .home { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--volt); }
+    .stateline.err { color: var(--danger); }
     .retry { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); min-height: var(--tap); padding: 0 var(--sp-4); margin-left: var(--sp-2); cursor: pointer; }
 

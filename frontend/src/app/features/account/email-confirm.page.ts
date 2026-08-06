@@ -51,7 +51,7 @@ type Status = 'pending' | 'done' | 'expired' | 'error';
       border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-4); }
     .title { font-size: var(--fs-hero); margin: 0 0 var(--sp-2); }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
-    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .alt { font-size: var(--fs-sm); margin: 0; }
   `],
 })

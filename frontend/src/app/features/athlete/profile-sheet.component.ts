@@ -52,7 +52,7 @@ import { HomeService, Profile } from './home.service';
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .stateline { color: var(--bone-dim); }
-    .stateline.err, .err { color: var(--volt); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--danger); font-size: var(--fs-sm); }
     .head { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-4); }
     .who { display: flex; flex-direction: column; gap: 6px; }
     .nm { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2); text-transform: uppercase; }

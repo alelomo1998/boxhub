@@ -20,7 +20,7 @@ import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from 
       font-family: var(--font-body); font-size: 15px; }
     .input::placeholder { color: var(--faint); }
     .input:focus { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
-    .err { color: var(--volt); font-size: 12px; }
+    .err { color: var(--danger); font-size: 12px; }
   `],
 })
 export class FieldComponent {

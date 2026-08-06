@@ -84,7 +84,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   styles: [`
     .types { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .err { color: var(--volt); font-size: var(--fs-sm); }
+    .err { color: var(--danger); font-size: var(--fs-sm); }
     .head { margin-bottom: var(--sp-4); }
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); }
@@ -131,7 +131,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     .mini { min-width: var(--tap); min-height: var(--tap); background: transparent;
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone); cursor: pointer; }
     .mini:disabled { opacity: 0.35; }
-    .mini.danger { color: var(--volt); }
+    .mini.danger { color: var(--danger); }
     .mini:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .add { min-height: var(--tap); background: transparent; border: 1px dashed var(--hairline);
       border-radius: var(--edge); color: var(--bone-dim); cursor: pointer; }

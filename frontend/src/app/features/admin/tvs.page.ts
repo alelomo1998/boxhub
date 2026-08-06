@@ -65,7 +65,7 @@ import { AuthService } from '../../core/auth/auth.service';
       text-transform: uppercase; color: var(--faint); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
-    .stateline { color: var(--bone-dim); } .stateline.err, .err { color: var(--volt); font-size: var(--fs-sm); }
+    .stateline { color: var(--bone-dim); } .stateline.err, .err { color: var(--danger); font-size: var(--fs-sm); }
 
     .claim { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); }

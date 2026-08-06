@@ -50,7 +50,7 @@ import { BRAND_NAME } from '../../core/brand';
     .f input { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       padding: 11px 13px; color: var(--bone); font-family: var(--font-body); font-size: 15px; }
     .f input:focus { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
-    .error { color: var(--volt); font-size: 13px; margin: 0; }
+    .error { color: var(--danger); font-size: 13px; margin: 0; }
     .alt { font-size: var(--fs-sm); margin: 0; }
     .google { display: flex; align-items: center; justify-content: center; min-height: var(--tap);
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);

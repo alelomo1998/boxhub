@@ -118,7 +118,7 @@ interface PieceDraft {
   styles: [`
     .ib { max-width: 1100px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err, .err { color: var(--volt); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--danger); font-size: var(--fs-sm); }
     .ok { color: var(--good); font-size: var(--fs-sm); font-family: var(--font-mono);
       text-transform: uppercase; letter-spacing: 0.06em; }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);
@@ -162,7 +162,7 @@ interface PieceDraft {
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);
       font-size: 14px; cursor: pointer; }
     .mini:disabled { opacity: 0.35; }
-    .mini.danger { color: var(--volt); }
+    .mini.danger { color: var(--danger); }
     .mini:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);

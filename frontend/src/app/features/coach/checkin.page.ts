@@ -70,7 +70,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
   styles: [`
     .chk { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err, .err { color: var(--volt); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--danger); font-size: var(--fs-sm); }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);
       text-decoration: none; margin-bottom: var(--sp-2); }
     .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
