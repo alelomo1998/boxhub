@@ -18,12 +18,16 @@ interface WodBoardLeaderboardRow {
  * The hero half of M13b's proof — a WOD board rendered against the new language inside the real
  * app shell. Everything below is fabricated for this screen; nothing here talks to an API.
  *
- * Three things invert to volt on this panel (the score-cap chip, the live line, the leaderboard
- * leader row) and design law v3 §4 device 1 names all three as sanctioned inversion sites — the
- * chip states what's prescribed, the live line states where the class is now, the leader row
- * states who's winning. The gate that actually matters is `data-live`: exactly one line ever
- * carries it, because "where is the class right now" is the one meaning that must never be
- * ambiguous. See spec §4 and Task 9 step 5.
+ * Two things invert to volt: the live line ("where is the class now") and the leaderboard leader
+ * row ("who is winning"). Different questions, different zones — which is what design law v3 §2.3
+ * permits, and what it forbids is two inversions answering the SAME question.
+ *
+ * The score-type chip deliberately does NOT invert, though an earlier draft of this screen had it
+ * volt-filled. "For time · 12:00 cap" is taxonomy: it is not live, not now, not primary and not
+ * winning, so spending the accent on it breaks the one rule volt has. It is quiet instead.
+ *
+ * The gate that actually matters is `data-live`: exactly one line ever carries it, because "where
+ * is the class right now" is the one meaning that must never be ambiguous.
  */
 @Component({
   selector: 'bh-proof-wod-board',
@@ -33,7 +37,9 @@ interface WodBoardLeaderboardRow {
     <section class="board" data-proof="wod-board">
       <header class="head">
         <p class="t-eyebrow" i18n="Board eyebrow: class day and time">Thu Aug 6 · 06:00 class</p>
-        <h2 class="t-display name" i18n="WOD name, gym vocabulary — a proper noun, not translated prose">Fran</h2>
+        <!-- Not i18n-marked, deliberately: "Fran" is a benchmark WOD's name, a proper noun.
+             Marking proper nouns puts them in the translation catalogue for someone to mistranslate. -->
+        <h2 class="t-display name">Fran</h2>
         <span class="cap t-figure" i18n="Score type and time cap">For time · 12:00 cap</span>
       </header>
       <ol class="lines">
@@ -65,8 +71,10 @@ interface WodBoardLeaderboardRow {
     .head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2);
       margin-bottom: var(--sp-5); }
     .head .name { font-size: var(--fs-hero); color: var(--bone); margin: 0; }
-    .cap { display: inline-block; background: var(--volt); color: var(--on-volt);
-      padding: var(--sp-1) var(--sp-3); border-radius: var(--r-xs); font-size: var(--fs-sm); }
+    /* Taxonomy, not emphasis — see the class doc. Quiet on purpose. */
+    .cap { display: inline-block; background: var(--surface-2); color: var(--bone-dim);
+      border: 1px solid var(--hairline); padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--r-xs); font-size: var(--fs-sm); }
     .lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
       gap: var(--sp-1); }
     .line { display: flex; align-items: baseline; gap: var(--sp-3); font-family: var(--font-mono);
@@ -99,8 +107,10 @@ export class ProofWodBoardComponent {
   ];
 
   protected readonly fabricatedLeaderboard: readonly WodBoardLeaderboardRow[] = [
-    { rank: 1, name: $localize`:@@dev.wodBoard.leader1:Mara Vance`, score: '3:12' },
-    { rank: 2, name: $localize`:@@dev.wodBoard.leader2:Theo Ridge`, score: '3:19' },
-    { rank: 3, name: $localize`:@@dev.wodBoard.leader3:Sami Okafor`, score: '3:24' },
+    // People's names are never translated. In the real screen these come from the API; here they
+    // are plain literals so they do not enter the translation catalogue.
+    { rank: 1, name: 'Mara Vance', score: '3:12' },
+    { rank: 2, name: 'Theo Ridge', score: '3:19' },
+    { rank: 3, name: 'Sami Okafor', score: '3:24' },
   ];
 }

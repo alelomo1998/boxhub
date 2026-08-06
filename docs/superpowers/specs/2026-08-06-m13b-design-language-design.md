@@ -39,8 +39,24 @@ treatment bled into plumbing screens that should have stayed calm.
    is a bug. (The one sanctioned exception is HTML email — see §10.4.)
 2. **Dark only.** There is no light theme. `#0D110E` is the ground, everywhere, always.
 3. **Volt is the only accent, and it always means one thing:** *live · now · primary · winning.*
-   Two volt elements competing for attention on one screen is a bug. Volt is never decorative and
-   never a status fill.
+   Volt is never decorative, never a status fill, and never a label.
+
+   **Clarified 2026-08-06, after the WOD board proof exposed the ambiguity.** The original wording
+   was "two volt elements competing for attention on one screen is a bug", which reads as a hard
+   count and is not one. The real rule is about *questions*:
+
+   - **Plumbing screens get exactly one volt element** — the primary action. That is a count.
+   - **A hero screen may mark one thing per distinct question.** The WOD board legitimately answers
+     "where is the class right now" (the live line) and "who is winning" (the leader row). Those do
+     not compete; they are different questions in different zones.
+   - **Two volt elements answering the same question is the bug**, and so is one volt element
+     answering *no* question.
+
+   That last case is what the proof caught. The board's score-type chip — "For time · 12:00 cap" —
+   was drawn volt-filled in this document's own first mockup. It is taxonomy: not live, not now, not
+   primary, not winning. Spending the accent on a label is the exact failure this rule exists to
+   prevent, and it survived into a plan and into an implementation before anyone noticed, because a
+   rule phrased as a count invites you to check the count.
 4. **No glow. No gradients. No drop shadows on flat surfaces. No fake textures** (chalk, paper, metal,
    grunge). No skeuomorphism. Depth is a surface ladder plus hairlines.
 5. **Identity lives in hero screens, not plumbing.** Buttons, forms and tables stay conventional and
@@ -488,6 +504,23 @@ same size. Both facts bite the same place: control sizing.
 - Buttons and labels wrap rather than truncate. Truncation with an ellipsis is allowed only where the
   full value is available another way (a title attribute, a detail view).
 - Numeric-only mono content is immune to all of this, which is most of where mono is used.
+
+### 12.1 The marker convention, established here because M13b wrote the first marked screen
+
+M13a built the i18n infrastructure and deliberately marked nothing, since M13c–M18 rewrite every
+screen. The WOD board proof is therefore genuinely the first marked screen in the codebase, and the
+convention it sets is the one ~22 components inherit in M13c:
+
+- **Explicit ids, always: `@@<feature>.<screen>.<element>`** — for example `@@dev.wodBoard.thrusters`.
+  Angular's auto-generated ids are content hashes, so editing the English silently orphans every
+  translation of that string. Explicit ids survive a copy edit, which is the whole point.
+- **Template text uses the `i18n` attribute; strings that live in TypeScript use `$localize`.** An
+  `i18n` attribute cannot translate content arriving through a binding.
+- **Proper nouns are not marked.** People's names, box names, and benchmark WOD names ("Fran",
+  "Murph") are vocabulary, not prose. Marking them puts them in the catalogue for a translator to
+  helpfully mistranslate.
+- **Units and movement names ARE marked.** "Pull-ups" is Italian "Trazioni"; a gym in Milan does not
+  read English movement names just because CrossFit is American.
 
 ## 13. Motion
 
