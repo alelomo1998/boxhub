@@ -12,4 +12,14 @@ describe('DevGalleryPage', () => {
     // The accent budget, asserted rather than trusted: exactly one line is live.
     expect(el.querySelectorAll('[data-live="true"]').length).toBe(1);
   });
+
+  it('keeps the members proof calm — at most one volt element on the whole screen', async () => {
+    await TestBed.configureTestingModule({ imports: [DevGalleryPage] }).compileComponents();
+    const fixture = TestBed.createComponent(DevGalleryPage);
+    fixture.detectChanges();
+    const proof: HTMLElement = fixture.nativeElement.querySelector('[data-proof="admin-members"]');
+
+    expect(proof).toBeTruthy();
+    expect(proof.querySelectorAll('[data-accent="volt"]').length).toBeLessThanOrEqual(1);
+  });
 });

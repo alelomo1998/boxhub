@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { WordmarkComponent } from '../../ui/wordmark.component';
+import { ProofAdminMembersComponent } from './proof-admin-members.component';
 import { ProofWodBoardComponent } from './proof-wod-board.component';
 
 /**
@@ -15,7 +16,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
 @Component({
   selector: 'bh-dev-gallery',
   standalone: true,
-  imports: [WordmarkComponent, ProofWodBoardComponent],
+  imports: [WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="gallery">
@@ -25,15 +26,24 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
       </header>
       <section>
         <h2 class="t-eyebrow" i18n="Section label above the WOD board proof">WOD board</h2>
-        <bh-proof-wod-board />
+        <div class="board-wrap">
+          <bh-proof-wod-board />
+        </div>
+      </section>
+      <section>
+        <h2 class="t-eyebrow" i18n="Section label above the admin members proof">Admin members</h2>
+        <bh-proof-admin-members />
       </section>
     </div>
   `,
   styles: [`
-    .gallery { max-width: 720px; margin: 0 auto; padding: var(--sp-6) var(--sp-4);
+    /* Wide enough for the admin members proof's sidebar + table; the WOD board keeps its own
+       narrower rhythm via .board-wrap so widening this container doesn't stretch Task 9's hero. */
+    .gallery { max-width: 1100px; margin: 0 auto; padding: var(--sp-6) var(--sp-4);
       display: flex; flex-direction: column; gap: var(--sp-6); }
     .gallery-head { display: flex; align-items: center; gap: var(--sp-4); }
     .gallery-head h1 { margin: 0; color: var(--bone); }
+    .board-wrap { max-width: 640px; }
   `],
 })
 export class DevGalleryPage {}
