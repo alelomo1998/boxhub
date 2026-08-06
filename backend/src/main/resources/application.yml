@@ -62,7 +62,7 @@ boxhub:
   # server root. See AppUrls — prefixing the OAuth redirect-uri breaks Google SSO in production only.
   app-base: ${BOXHUB_APP_BASE:/app}
   mail:
-    # "BoxHub" here is a literal, not a reference — a YAML default can't read a Java constant.
+    # "rxed" here is a literal, not a reference — a YAML default can't read a Java constant.
     # Keep in sync by hand with Brand.NAME (backend .../shared/Brand.java), the single source
     # for every other occurrence of the brand name on the backend (mail templates via Mailer).
     from: ${BOXHUB_MAIL_FROM:rxed <no-reply@rxed.app>}

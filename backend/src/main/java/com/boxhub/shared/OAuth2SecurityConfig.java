@@ -62,7 +62,7 @@ public class OAuth2SecurityConfig {
         // "{baseUrl}/login/oauth2/code/{registrationId}" template. Behind nginx the request
         // Spring sees is plain http on an internal host, so the template yields an http://
         // redirect_uri that cannot match an https:// registration in the Google console, and
-        // Google rejects the callback. Every other absolute URL BoxHub emits already comes from
+        // Google rejects the callback. Every other absolute URL rxed emits already comes from
         // BOXHUB_APP_URL (Mailer.link, the Stripe checkout return URLs); this makes OAuth2 the
         // same. Deliberately NOT solved with server.forward-headers-strategy: that installs
         // ForwardedHeaderFilter globally, which rewrites getRemoteAddr() from the

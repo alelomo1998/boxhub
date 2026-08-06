@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * The single place that knows where BoxHub's URLs point.
+ * The single place that knows where rxed's URLs point.
  *
  * Two methods, deliberately named so the choice is obvious at every call site:
  *

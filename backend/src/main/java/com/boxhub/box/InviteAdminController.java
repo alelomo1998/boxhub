@@ -1,5 +1,6 @@
 package com.boxhub.box;
 
+import com.boxhub.shared.Brand;
 import com.boxhub.shared.Mailer;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
@@ -69,7 +70,7 @@ public class InviteAdminController {
             throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown plan");
         var created = inviteService.create(req.email(), req.role(), req.planId());
         Invite i = created.invite();
-        mailer.send(i.getEmail(), box.getName() + " invited you to BoxHub", "invite",
+        mailer.send(i.getEmail(), box.getName() + " invited you to " + Brand.NAME, "invite",
                 Map.of("boxName", box.getName(), "role", i.getRole(),
                         "link", mailer.link("/join/" + created.rawToken())));
         return new CreatedInviteResponse(i.getId(), i.getEmail(), i.getRole(), i.getPlanId(),

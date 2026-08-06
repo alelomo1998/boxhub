@@ -2,6 +2,7 @@ package com.boxhub.box;
 
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.shared.Brand;
 import com.boxhub.shared.Mailer;
 import org.springframework.stereotype.Component;
 
@@ -49,7 +50,7 @@ public class PaymentReceipts {
         // a mismatched path here has previously shipped a dead emailed link.
         vars.put("link", mailer.link("/receipts/" + payment.getId()));
 
-        mailer.send(member.getUser().getEmail(), "Your BoxHub payment receipt", "payment-receipt", vars);
+        mailer.send(member.getUser().getEmail(), "Your " + Brand.NAME + " payment receipt", "payment-receipt", vars);
     }
 
     /** A delayed-notification payment (SEPA debit, bank transfer) bounced. Nothing was granted, so
@@ -65,6 +66,6 @@ public class PaymentReceipts {
         vars.put("currency", payment.getCurrency());
         vars.put("link", mailer.link("/membership"));
 
-        mailer.send(member.getUser().getEmail(), "Your BoxHub payment did not go through", "payment-failed", vars);
+        mailer.send(member.getUser().getEmail(), "Your " + Brand.NAME + " payment did not go through", "payment-failed", vars);
     }
 }

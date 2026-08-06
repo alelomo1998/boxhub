@@ -2,6 +2,7 @@ package com.boxhub.box;
 
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.UserRepository;
+import com.boxhub.shared.Brand;
 import com.boxhub.shared.Mailer;
 import com.boxhub.shared.PlatformSettings;
 import com.boxhub.shared.TenantContext;
@@ -64,7 +65,7 @@ public class SuperadminBoxController {
     public BoxRow approve(@PathVariable UUID id) {
         BoxLifecycleTx.TransitionResult r = lifecycleTx.approve(id);
         // mail after the transition committed — never from inside the open tx
-        if (r.ownerEmail() != null) mailer.send(r.ownerEmail(), "Your box is live on BoxHub", "box-approved",
+        if (r.ownerEmail() != null) mailer.send(r.ownerEmail(), "Your box is live on " + Brand.NAME, "box-approved",
                 Map.of("boxName", r.box().getName(), "link", mailer.link("/auth/login")));
         return toRow(r);
     }
@@ -72,7 +73,7 @@ public class SuperadminBoxController {
     @PostMapping("/boxes/{id}/reject")
     public BoxRow reject(@PathVariable UUID id) {
         BoxLifecycleTx.TransitionResult r = lifecycleTx.reject(id);
-        if (r.ownerEmail() != null) mailer.send(r.ownerEmail(), "About your BoxHub application", "box-rejected",
+        if (r.ownerEmail() != null) mailer.send(r.ownerEmail(), "About your " + Brand.NAME + " application", "box-rejected",
                 Map.of("boxName", r.box().getName()));
         return toRow(r);
     }

@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * Renders a Thymeleaf template and sends it.
  *
- * A failed send is logged, never rethrown: every mail BoxHub sends is user-recoverable
+ * A failed send is logged, never rethrown: every mail rxed sends is user-recoverable
  * (resend verification, forgot password), so an SMTP hiccup must not fail the request that
  * triggered it. That is also why there is no outbox table.
  * <p>
@@ -81,7 +81,7 @@ public class Mailer {
     /**
      * Enough of an address to correlate a delivery failure with a member, without writing the
      * identifier itself into a log file that has no retention policy. Mail delivery is the one
-     * place BoxHub logs anything about a person at all.
+     * place rxed logs anything about a person at all.
      */
     static String mask(String email) {
         if (email == null || email.isBlank()) return "(none)";
