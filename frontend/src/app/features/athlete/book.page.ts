@@ -79,7 +79,7 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
     .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       overflow: hidden; }
     .body { display: flex; align-items: stretch; gap: var(--sp-3); text-decoration: none; color: var(--bone); }
-    .body:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--red-glow); }
+    .body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     .img { width: 96px; min-height: 84px; object-fit: cover; flex-shrink: 0;
       border-radius: var(--r-card) 0 0 var(--r-card); }
     .img.ph { display: grid; place-items: center; background: var(--surface-2);

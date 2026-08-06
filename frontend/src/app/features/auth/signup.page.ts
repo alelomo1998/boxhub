@@ -49,7 +49,7 @@ import { ButtonComponent } from '../../ui/button.component';
     .google { display: flex; align-items: center; justify-content: center; min-height: var(--tap);
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);
       font-family: var(--font-body); font-weight: 700; font-size: var(--fs-sm); text-decoration: none; }
-    .google:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .google:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   `],
 })
 export class SignupPage implements OnInit {

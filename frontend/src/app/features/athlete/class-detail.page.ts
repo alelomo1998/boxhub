@@ -100,7 +100,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: var(--sp-3); }
     .cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--sp-2);
       border-radius: var(--edge); text-decoration: none; color: var(--bone); text-align: center; }
-    .cell:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .cell-name { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; max-width: 100%;
       white-space: nowrap; }
     .cell-in { font-family: var(--font-mono); font-size: 10px; color: var(--good); }

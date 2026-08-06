@@ -82,7 +82,7 @@ import { AuthService } from '../../core/auth/auth.service';
       box-sizing: border-box; width: 100%; }
     .in.num { width: 130px; text-align: center; font-family: var(--font-display); font-weight: 800;
       font-size: var(--fs-h2); font-variant-numeric: tabular-nums; letter-spacing: 0.1em; }
-    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .list { display: flex; flex-direction: column; gap: var(--sp-3); }
     .row { display: flex; align-items: center; gap: var(--sp-3); border: 1px solid var(--hairline);

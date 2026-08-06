@@ -11,11 +11,11 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
       min-height: var(--tap); }
     .btn.sm { padding: 0 13px; font-size: 13px; }
     .btn.md { padding: 0 17px; }
-    .btn.primary { background: var(--volt); color: var(--on-volt); transition: box-shadow var(--dur) var(--ease-out); }
-    .btn.primary:hover:not(:disabled) { box-shadow: 0 6px 24px var(--red-glow); }
+    .btn.primary { background: var(--volt); color: var(--on-volt); }
     .btn.ghost { background: transparent; color: var(--bone); border: 1px solid var(--hairline); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
-    .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .btn.primary:focus-visible { outline-color: var(--focus-inv); }
     :host(.full) { display: block; }
     :host(.full) .btn { width: 100%; }
   `],

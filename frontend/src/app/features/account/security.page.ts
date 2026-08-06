@@ -161,7 +161,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
     .page { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-8); }
     .back { align-self: flex-start; min-height: var(--tap); padding: 0 var(--sp-2); background: transparent;
       border: none; color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .title { font-size: var(--fs-hero); margin: 0 0 var(--sp-2); }
     .bh-section { gap: var(--sp-3); }
     form { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; }

@@ -122,7 +122,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
-    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
     .in.n { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 20px;
       font-variant-numeric: tabular-nums; min-height: 52px; }
     .qsave { grid-column: 1 / -1; }
@@ -160,7 +160,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .mvbtn { background: none; border: none; padding: 0; color: var(--bone); font: inherit; font-weight: 600;
       cursor: pointer; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 3px;
       min-height: var(--tap); }
-    .mvbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); border-radius: var(--edge); }
+    .mvbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--edge); }
     tr.sel { background: var(--surface-2); }
     .strong { font-weight: 700; }
 

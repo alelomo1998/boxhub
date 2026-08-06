@@ -121,8 +121,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
     .board { display: grid; grid-template-columns: 4fr 1fr; min-height: 100vh; }
     .main { padding: 4vh 4vw; min-width: 0; }
     .head { margin-bottom: 3vh; }
-    .livedot { width: 1.2vh; height: 1.2vh; border-radius: var(--r-full); background: var(--volt);
-      box-shadow: 0 0 12px var(--red-glow); display: inline-block;
+    .livedot { width: 1.2vh; height: 1.2vh; border-radius: var(--r-full); background: var(--volt); display: inline-block;
       animation: pulse 1.6s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
     @media (prefers-reduced-motion: reduce) { .livedot { animation: none; } }

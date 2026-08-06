@@ -20,7 +20,7 @@ import { DatePipe } from '@angular/common';
     .pg { min-width: var(--tap); min-height: var(--tap); background: var(--surface); color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--r-full); font-size: 20px; cursor: pointer; }
     .pg:disabled { opacity: 0.35; cursor: default; }
-    .pg:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .pg:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .pg-date { text-align: center; font-family: var(--font-display); font-weight: 700;
       font-size: var(--fs-h2); text-transform: uppercase; }
   `],

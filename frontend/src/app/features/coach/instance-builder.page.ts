@@ -123,7 +123,7 @@ interface PieceDraft {
       text-transform: uppercase; letter-spacing: 0.06em; }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);
       text-decoration: none; margin-bottom: var(--sp-2); }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .mut { color: var(--faint); font-size: var(--fs-sm); }
 
     .two-pane { display: grid; grid-template-columns: 260px 1fr; gap: var(--sp-5); align-items: start; }
@@ -137,7 +137,7 @@ interface PieceDraft {
       background: transparent; border: none; border-radius: var(--edge); padding: 8px 10px;
       color: var(--bone); cursor: pointer; text-align: left; min-height: var(--tap); }
     .lib-item:hover { background: var(--surface-2); }
-    .lib-item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .lib-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .li-type { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; color: var(--faint);
       text-transform: uppercase; }
     .li-title { font-size: var(--fs-sm); font-weight: 600; }
@@ -163,18 +163,18 @@ interface PieceDraft {
       font-size: 14px; cursor: pointer; }
     .mini:disabled { opacity: 0.35; }
     .mini.danger { color: var(--volt); }
-    .mini:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .mini:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
-    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
     .in.type { width: auto; min-width: 130px; text-transform: capitalize; }
     .typetag { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--bone-dim); padding: 6px 12px;
       border: 1px solid var(--hairline); border-radius: var(--r-full); }
     .unlock { background: none; border: none; min-height: var(--tap); color: var(--faint);
       font-size: var(--fs-sm); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-    .unlock:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); border-radius: var(--r-ctl); }
+    .unlock:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-ctl); }
     .in.st { width: auto; }
     .area { min-height: 76px; padding: 10px 12px; resize: vertical; }
     .p-foot { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
@@ -186,7 +186,7 @@ interface PieceDraft {
     .add { margin: var(--sp-3) 0; min-height: var(--tap); width: 100%; background: transparent;
       border: 1px dashed var(--hairline); border-radius: var(--edge); color: var(--bone-dim);
       font-size: var(--fs-body); cursor: pointer; }
-    .add:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .actions { display: flex; gap: var(--sp-3); }
 
     @media (max-width: 899px) {

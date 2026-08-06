@@ -44,7 +44,7 @@ import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, 
       border: 1px solid var(--hairline); background: transparent; color: var(--bone);
       font-size: var(--fs-sm); cursor: pointer; }
     .d-drop { color: var(--volt); border-color: var(--volt); }
-    .d-keep:focus-visible, .d-drop:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .d-keep:focus-visible, .d-drop:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     @keyframes rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
     @media (min-width: 720px) {
       .sheet { border-radius: var(--r-lg); margin: auto; padding-bottom: var(--sp-5); }

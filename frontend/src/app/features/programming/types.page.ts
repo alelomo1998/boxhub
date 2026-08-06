@@ -97,7 +97,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     .t-head { display: flex; align-items: center; gap: var(--sp-3); width: 100%; background: none;
       border: none; padding: var(--sp-2) var(--sp-3); color: var(--bone); cursor: pointer;
       min-height: 64px; text-align: left; }
-    .t-head:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--red-glow); }
+    .t-head:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     .t-img { width: 48px; height: 48px; border-radius: var(--edge); object-fit: cover; flex-shrink: 0; }
     .t-img.ph { display: grid; place-items: center; background: var(--surface-2);
       font-family: var(--font-display); font-weight: 800; color: var(--faint); text-transform: uppercase; }
@@ -116,7 +116,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       padding: 0 var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--edge);
       font-size: var(--fs-sm); color: var(--bone); cursor: pointer; }
     .upload input { display: none; }
-    .upload:focus-within { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .upload:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .sk-h { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); margin: var(--sp-2) 0 0; }
@@ -127,12 +127,12 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-size: var(--fs-body);
       box-sizing: border-box; width: 100%; }
     .in.st { width: auto; }
-    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
     .mini { min-width: var(--tap); min-height: var(--tap); background: transparent;
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone); cursor: pointer; }
     .mini:disabled { opacity: 0.35; }
     .mini.danger { color: var(--volt); }
-    .mini:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .mini:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .add { min-height: var(--tap); background: transparent; border: 1px dashed var(--hairline);
       border-radius: var(--edge); color: var(--bone-dim); cursor: pointer; }
     .empty { padding: var(--sp-8) 0; }

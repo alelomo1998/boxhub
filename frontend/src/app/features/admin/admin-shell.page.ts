@@ -73,14 +73,14 @@ import { BRAND_NAME } from '../../core/brand';
     .theme { min-width: var(--tap); min-height: var(--tap); display: inline-flex; align-items: center;
       justify-content: center; font-size: 16px; color: var(--faint); text-decoration: none;
       background: transparent; border: none; border-radius: var(--edge); cursor: pointer; }
-    .theme:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .theme:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .side { grid-area: side; border-right: 1px solid var(--hairline); padding: var(--sp-5) var(--sp-4);
       display: flex; flex-direction: column; gap: 3px; }
     .s-item { display: flex; align-items: center; min-height: var(--tap); padding: 0 12px;
       border-radius: var(--edge); color: var(--bone-dim); font-size: 14px; font-weight: 500; }
     .s-item.active { background: var(--surface-2); color: var(--bone); }
-    .s-item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .s-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .content { grid-area: content; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     .tabs { display: none; }
@@ -94,7 +94,7 @@ import { BRAND_NAME } from '../../core/brand';
       color: var(--bone); text-decoration: none; border-bottom: 1px solid var(--hairline);
       font-size: var(--fs-body); }
     .m-item:last-child { border-bottom: none; }
-    .m-item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .m-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .asbtn { background: none; border-left: none; border-right: none; border-top: 1px solid var(--hairline);
       width: 100%; text-align: left; cursor: pointer; font: inherit; }
 

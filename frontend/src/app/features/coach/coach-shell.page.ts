@@ -53,13 +53,13 @@ import { BRAND_NAME } from '../../core/brand';
       text-decoration: none; }
     .hitem.active { background: var(--surface-2); color: var(--bone); }
     .hitem:hover:not(.active) { color: var(--bone); }
-    .hitem:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .hitem:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .acts { display: flex; gap: 2px; margin-left: auto; }
     .iconbtn { min-width: var(--tap); min-height: var(--tap); display: inline-flex; align-items: center;
       justify-content: center; font-size: 16px; color: var(--faint); text-decoration: none;
       background: transparent; border: none; border-radius: var(--r-full); cursor: pointer; }
     .iconbtn:hover { color: var(--bone); }
-    .iconbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .iconbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .content { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     @media (max-width: 719px) {
       .hnav { display: none; }

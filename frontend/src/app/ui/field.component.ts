@@ -19,7 +19,7 @@ import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from 
       border-radius: var(--edge); padding: 11px 13px; color: var(--bone);
       font-family: var(--font-body); font-size: 15px; }
     .input::placeholder { color: var(--faint); }
-    .input:focus { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .input:focus { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
     .err { color: var(--volt); font-size: 12px; }
   `],
 })

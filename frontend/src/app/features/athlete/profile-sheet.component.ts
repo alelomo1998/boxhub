@@ -69,7 +69,7 @@ import { HomeService, Profile } from './home.service';
     .rh { grid-area: h; color: var(--faint); font-size: var(--fs-sm); }
     .row input { grid-area: c; width: 22px; height: 22px; accent-color: var(--volt); }
     .actions { margin-top: var(--sp-4); }
-    .row:focus-visible, .upload:focus-within { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .row:focus-visible, .upload:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
   `],
 })
 export class ProfileSheetComponent implements OnInit {

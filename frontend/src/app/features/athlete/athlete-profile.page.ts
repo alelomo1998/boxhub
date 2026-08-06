@@ -80,7 +80,7 @@ import { HomeService, Profile } from './home.service';
     .stateline.err { color: var(--volt); }
     .back { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone-dim);
       border: none; border-radius: var(--edge); font-size: var(--fs-body); cursor: pointer; margin-bottom: var(--sp-3); }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .head { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
       margin-bottom: var(--sp-5); text-align: center; }

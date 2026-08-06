@@ -60,11 +60,11 @@ import { HomeService } from './home.service';
       text-decoration: none; }
     .hitem.active { background: var(--surface-2); color: var(--bone); }
     .hitem:hover:not(.active) { color: var(--bone); }
-    .hitem:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .hitem:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .me { min-width: var(--tap); min-height: var(--tap); display: grid; place-items: center;
       background: transparent; border: none; border-radius: var(--r-full); cursor: pointer;
       margin-left: auto; }
-    .me:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .me:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .content { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     @media (max-width: 719px) {
       .hnav { display: none; }

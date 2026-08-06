@@ -140,7 +140,7 @@ type FetchState = 'loading' | 'error' | 'ready';
   styles: [`
     .runner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-6); }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim); text-decoration: none; }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
     .zone { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4);
@@ -157,7 +157,7 @@ type FetchState = 'loading' | 'error' | 'ready';
       padding: var(--sp-2); background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--r-ctl); color: var(--bone); cursor: pointer; min-height: var(--tap); }
     .chip.in { border-color: var(--good); }
-    .chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .chip-nm { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);

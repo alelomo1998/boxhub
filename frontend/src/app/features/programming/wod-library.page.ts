@@ -41,7 +41,7 @@ import { ProgrammingService, Wod } from './programming.service';
     .search { width: 100%; max-width: 340px; margin-bottom: var(--sp-4); background: var(--surface-2);
       border: 1px solid var(--hairline); border-radius: var(--edge); padding: 9px 12px;
       color: var(--bone); font-family: var(--font-body); font-size: 14px; }
-    .search:focus { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .search:focus { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
     .link { color: var(--volt); font-weight: 600; }
     .tag { font-family: var(--font-mono); font-size: 11px; color: var(--faint); text-transform: uppercase; }
     .right { text-align: right; white-space: nowrap; }

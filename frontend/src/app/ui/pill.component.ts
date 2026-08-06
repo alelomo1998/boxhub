@@ -17,7 +17,7 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
     .warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 34%, transparent);
       background: color-mix(in srgb, var(--warn) 14%, transparent); }
     .warn .d { background: var(--warn); }
-    .live { color: var(--on-volt); background: var(--volt); box-shadow: 0 0 14px var(--red-glow); }
+    .live { color: var(--on-volt); background: var(--volt); }
     .live .d { background: var(--on-volt); animation: pulse 1.6s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
   `],

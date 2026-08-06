@@ -119,7 +119,7 @@ import { BookingService } from '../booking/booking.service';
 
     .card { display: block; border: 1px solid var(--hairline); border-radius: var(--r-card);
       background: var(--surface); padding: var(--sp-4); color: var(--bone); text-decoration: none; }
-    .card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .k { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); }
 
