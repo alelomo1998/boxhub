@@ -250,6 +250,22 @@ event appears to have been dropped. `ng build --configuration production` passed
 asset ships to `dist`. **The next push to `main` will cover it** — check that run rather than
 assuming.
 
+### CI STOPPED RUNNING — almost certainly exhausted Actions minutes (2026-08-06)
+
+**Do not read "no red build" as "green".** Two consecutive pushes to `main` (`7f3af3a`, `e4d789f`)
+produced **no workflow run at all**. Verified, so the next person does not re-check it: both commits
+are on the remote, `ci.yml` triggers on `push: branches: [main]` with **no path filter**, and
+`gh api .../actions/workflows` reports both workflows `active` with `permissions.enabled=true`.
+
+The repo is **private on a free User plan** and burned a lot of Actions minutes on 2026-08-06.
+Exhausted included minutes is exactly this: GitHub silently stops scheduling and creates nothing —
+no run, no failure, no notification. Billing could not be confirmed from here (`gh` lacks the `user`
+scope; `gh auth refresh -h github.com -s user` would grant it).
+
+**Consequence for whoever picks this up:** the last commit CI actually verified is **`0fd89a1`**.
+Everything after it is verified locally only. Check the Actions tab / billing before trusting any
+future "CI is green" claim, and re-run the gates locally until runs resume.
+
 Backend **428** / frontend **182** / e2e **28 passed + 1 skipped** at `retries: 0`.
 **Next Flyway is V19** — M13a used V18 and M13b added no migration.
 
