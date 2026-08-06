@@ -70,7 +70,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
   styles: [`
     .detail { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .quiet { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); font-size: var(--fs-sm); cursor: pointer; }
     .aslink { display: inline-flex; align-items: center; text-decoration: none; margin-left: var(--sp-2); }
@@ -100,7 +100,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: var(--sp-3); }
     .cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--sp-2);
       border-radius: var(--edge); text-decoration: none; color: var(--bone); text-align: center; }
-    .cell:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .cell-name { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; max-width: 100%;
       white-space: nowrap; }
     .cell-in { font-family: var(--font-mono); font-size: 10px; color: var(--good); }

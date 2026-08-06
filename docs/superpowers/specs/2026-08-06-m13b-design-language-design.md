@@ -39,8 +39,24 @@ treatment bled into plumbing screens that should have stayed calm.
    is a bug. (The one sanctioned exception is HTML email — see §10.4.)
 2. **Dark only.** There is no light theme. `#0D110E` is the ground, everywhere, always.
 3. **Volt is the only accent, and it always means one thing:** *live · now · primary · winning.*
-   Two volt elements competing for attention on one screen is a bug. Volt is never decorative and
-   never a status fill.
+   Volt is never decorative, never a status fill, and never a label.
+
+   **Clarified 2026-08-06, after the WOD board proof exposed the ambiguity.** The original wording
+   was "two volt elements competing for attention on one screen is a bug", which reads as a hard
+   count and is not one. The real rule is about *questions*:
+
+   - **Plumbing screens get exactly one volt element** — the primary action. That is a count.
+   - **A hero screen may mark one thing per distinct question.** The WOD board legitimately answers
+     "where is the class right now" (the live line) and "who is winning" (the leader row). Those do
+     not compete; they are different questions in different zones.
+   - **Two volt elements answering the same question is the bug**, and so is one volt element
+     answering *no* question.
+
+   That last case is what the proof caught. The board's score-type chip — "For time · 12:00 cap" —
+   was drawn volt-filled in this document's own first mockup. It is taxonomy: not live, not now, not
+   primary, not winning. Spending the accent on a label is the exact failure this rule exists to
+   prevent, and it survived into a plan and into an implementation before anyone noticed, because a
+   rule phrased as a count invites you to check the count.
 4. **No glow. No gradients. No drop shadows on flat surfaces. No fake textures** (chalk, paper, metal,
    grunge). No skeuomorphism. Depth is a surface ladder plus hairlines.
 5. **Identity lives in hero screens, not plumbing.** Buttons, forms and tables stay conventional and
@@ -84,6 +100,7 @@ All values are dark-theme values because there is only one theme.
 | `--good` | `#3FCF8E` | positive status (active, paid, checked in) |
 | `--warn` | `#F0883E` | caution (expiring, lapsing) |
 | `--danger` | `#E5484D` | destructive actions, errors, validation failures |
+| `--on-danger` | `#0D110E` | text on a **filled** danger control — 4.9:1; white would be 3.9:1 and fail |
 | `--disabled` | `#4A5249` | disabled control text and icons |
 | `--scrim` | `rgba(6, 9, 7, 0.62)` | overlay scrim behind sheets and dialogs |
 | `--focus` | `#DFFF4E` | focus ring on any non-volt surface |
@@ -114,8 +131,26 @@ takes red back for destructive actions and errors only.
 `--warn` also moves. At `#E0A32E` it is amber, which is a neighbour of chartreuse and would read as a
 weak volt; it becomes orange so that caution and accent cannot be confused at a glance.
 
-**Semantic colours stay quiet.** They are never a fill for a whole row or card — they colour a dot, a
-label, or a thin left rule. Volt is the only colour permitted to fill.
+**Semantic colours stay quiet.** They colour a dot, a label, or a thin left rule. They are **never a
+fill for a row, a card, a panel or a page region** — that is the flooding this rule exists to prevent.
+
+**Amended 2026-08-06, during M13b's execution.** The original wording ended "volt is the only colour
+permitted to fill", which overreached: a *control* is not a row or a card, and the rule as written
+forbade the one thing every product does with red. **`--danger` may fill a button or a chip.** It may
+still never fill anything larger.
+
+The case that forced it was the delete-account confirm. Under the literal rule it had to be a
+danger-bordered ghost, which is quieter than the action deserves and quieter than users' muscle
+memory expects — GitHub, Stripe and Linear all fill their destroy confirms. The escalation now reads
+correctly: the control that *opens* a destroy flow is a danger-bordered ghost, and the control that
+*executes* it is filled.
+
+`--on-danger` (`#0d110e`) is the text colour on a filled danger control. Dark, not white: `#fff` on
+`--danger` is 3.9:1 and fails AA. That is the same trap `--on-volt` exists for, and it is why "fill
+it with red and put white on it" is not a decision anyone should make by eye.
+
+A volt focus ring on a filled danger button is 3.5:1, which clears WCAG 2.2 SC 1.4.11's 3:1 for
+non-text indicators, so `--focus` needs no inverse here — unlike volt-on-volt, which needed §11.2.
 
 ### 3.2 The browser paints things we do not, and dark-only makes that visible
 
@@ -469,6 +504,23 @@ same size. Both facts bite the same place: control sizing.
 - Buttons and labels wrap rather than truncate. Truncation with an ellipsis is allowed only where the
   full value is available another way (a title attribute, a detail view).
 - Numeric-only mono content is immune to all of this, which is most of where mono is used.
+
+### 12.1 The marker convention, established here because M13b wrote the first marked screen
+
+M13a built the i18n infrastructure and deliberately marked nothing, since M13c–M18 rewrite every
+screen. The WOD board proof is therefore genuinely the first marked screen in the codebase, and the
+convention it sets is the one ~22 components inherit in M13c:
+
+- **Explicit ids, always: `@@<feature>.<screen>.<element>`** — for example `@@dev.wodBoard.thrusters`.
+  Angular's auto-generated ids are content hashes, so editing the English silently orphans every
+  translation of that string. Explicit ids survive a copy edit, which is the whole point.
+- **Template text uses the `i18n` attribute; strings that live in TypeScript use `$localize`.** An
+  `i18n` attribute cannot translate content arriving through a binding.
+- **Proper nouns are not marked.** People's names, box names, and benchmark WOD names ("Fran",
+  "Murph") are vocabulary, not prose. Marking them puts them in the catalogue for a translator to
+  helpfully mistranslate.
+- **Units and movement names ARE marked.** "Pull-ups" is Italian "Trazioni"; a gym in Milan does not
+  read English movement names just because CrossFit is American.
 
 ## 13. Motion
 

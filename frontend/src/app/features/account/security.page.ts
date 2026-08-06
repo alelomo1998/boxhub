@@ -8,6 +8,7 @@ import { passwordErrorMessage } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { PillComponent } from '../../ui/pill.component';
+import { BRAND_NAME } from '../../core/brand';
 
 type SessionsState = 'loading' | 'error' | 'ready';
 
@@ -150,7 +151,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
 
         @if (deleteError()) { <p class="err" data-testid="delete-error">{{ deleteError() }}</p> }
 
-        <bh-button variant="primary" [disabled]="!canDelete() || deletePending()" (click)="submitDelete()" data-testid="delete-submit">
+        <bh-button variant="danger" [disabled]="!canDelete() || deletePending()" (click)="submitDelete()" data-testid="delete-submit">
           {{ deletePending() ? 'Deleting…' : 'Delete my account' }}
         </bh-button>
       </div>
@@ -161,7 +162,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
     .page { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-8); }
     .back { align-self: flex-start; min-height: var(--tap); padding: 0 var(--sp-2); background: transparent;
       border: none; color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .title { font-size: var(--fs-hero); margin: 0 0 var(--sp-2); }
     .bh-section { gap: var(--sp-3); }
     form { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; }
@@ -170,9 +171,9 @@ type SessionsState = 'loading' | 'error' | 'ready';
       text-transform: uppercase; color: var(--faint); }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .ok { color: var(--good); font-size: var(--fs-sm); margin: 0; }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: var(--sp-2) 0; border-bottom: 1px solid var(--hairline); }
@@ -181,7 +182,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
     .who b { font-weight: 600; font-size: var(--fs-body); }
     .who .meta { color: var(--faint); font-size: var(--fs-meta); font-family: var(--font-mono); }
     .danger { padding-top: var(--sp-4); border-top: 1px solid var(--hairline); }
-    .deletebtn { color: var(--red); border-color: var(--red); }
+    .deletebtn { color: var(--danger); border-color: var(--danger); }
     .del { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
     .explain { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
   `],
@@ -335,7 +336,7 @@ export class SecurityPage implements OnInit {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `boxhub-data-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `${BRAND_NAME.toLowerCase()}-data-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
       },

@@ -106,10 +106,11 @@ import { SheetComponent } from '../../ui/sheet.component';
   styles: [`
     .wodpage { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .retry, .quiet { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); font-size: var(--fs-sm); cursor: pointer; }
-    .retry:focus-visible, .quiet:focus-visible, .log:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .retry:focus-visible, .quiet:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .log:focus-visible { outline: 2px solid var(--focus-inv); outline-offset: 2px; }
     .aslink { display: inline-flex; align-items: center; text-decoration: none; }
 
     .head { margin-bottom: var(--sp-4); }
@@ -141,11 +142,9 @@ import { SheetComponent } from '../../ui/sheet.component';
     .scaling { font-size: var(--fs-sm); color: var(--faint); margin-top: var(--sp-2); }
 
     .p-actions { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); flex-wrap: wrap; }
-    .log { flex: 1; min-height: 48px; background: var(--red); color: var(--on-red); border: none;
+    .log { flex: 1; min-height: 48px; background: var(--volt); color: var(--on-volt); border: none;
       border-radius: var(--edge); font-family: var(--font-display); font-weight: 800; font-size: 17px;
-      text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
-      transition: box-shadow var(--dur) var(--ease-out); }
-    .log:hover { box-shadow: 0 6px 24px var(--red-glow); }
+      text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; }
     .logged { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--good); }
 
     .empty { padding: var(--sp-8) 0; }

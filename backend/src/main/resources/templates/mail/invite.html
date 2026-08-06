@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{mail/layout :: html}">
 <th:block th:fragment="content">
-  <p th:text="#{invite.title(${boxName},${brand})}">Box invited you to join them on BoxHub.</p>
+  <p th:text="#{invite.title(${boxName},${brand})}">Box invited you to join them on rxed.</p>
   <p style="padding:16px 0;">
-    <a th:href="${link}" th:text="#{invite.cta}" style="background:#D7263D;color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;display:inline-block;font-weight:600;">Accept invite</a>
+    <a th:href="${link}" th:text="#{invite.cta}" style="background:#dfff4e;color:#0d110e;text-decoration:none;padding:14px 24px;border-radius:10px;display:inline-block;font-weight:600;">Accept invite</a>
   </p>
 </th:block>
 </html>

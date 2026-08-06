@@ -47,23 +47,23 @@ import { AvatarComponent } from '../../ui/avatar.component';
     .board { max-width: 640px; margin: 0 auto; }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);
       text-decoration: none; }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .head { margin-bottom: var(--sp-5); }
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; text-wrap: balance; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--r-ctl); cursor: pointer; margin-left: var(--sp-2); }
-    .retry:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .retry:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .rows { display: flex; flex-direction: column; }
     .row { display: grid; grid-template-columns: 56px auto 1fr auto; gap: var(--sp-4); align-items: center;
       padding: var(--sp-3) var(--sp-2); border-bottom: 1px solid var(--hairline); }
     .rank { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
       color: var(--faint); text-align: center; }
-    .row.win .rank { color: var(--red); }
+    .row.win .rank { color: var(--volt); }
     .row.win { border-bottom: 2px solid var(--bone); }
     .who { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
     .nm { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);

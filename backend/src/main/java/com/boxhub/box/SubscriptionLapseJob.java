@@ -2,6 +2,7 @@ package com.boxhub.box;
 
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.shared.Brand;
 import com.boxhub.shared.Mailer;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
@@ -100,7 +101,7 @@ public class SubscriptionLapseJob {
         vars.put("name", member.getUser().getName());
         vars.put("planName", plan == null ? "" : plan.getName());
         vars.put("link", mailer.link("/membership"));
-        mailer.send(member.getUser().getEmail(), "Your BoxHub membership has lapsed", "subscription-lapsed", vars);
+        mailer.send(member.getUser().getEmail(), "Your " + Brand.NAME + " membership has lapsed", "subscription-lapsed", vars);
     }
 
     /** Mirrors StripeWebhookController/SessionGenerator/TvStreamService's runAsBox exactly. */

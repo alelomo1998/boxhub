@@ -70,10 +70,10 @@ import { AvatarComponent } from '../../ui/avatar.component';
   styles: [`
     .chk { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--danger); font-size: var(--fs-sm); }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);
       text-decoration: none; margin-bottom: var(--sp-2); }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .head { margin-bottom: var(--sp-4); position: relative; }
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
@@ -89,7 +89,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
       color: var(--bone); cursor: pointer; text-align: center; min-height: 130px;
       touch-action: manipulation; -webkit-touch-callout: none; user-select: none;
       transition: border-color var(--dur) var(--ease-out); }
-    .cell:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .ring { border-radius: 50%; padding: 2px; border: 2px solid transparent; display: inline-flex;
       transition: border-color var(--dur) var(--ease-out); }
     .cell.in .ring { border-color: var(--good); }

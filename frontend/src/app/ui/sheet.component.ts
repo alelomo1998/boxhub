@@ -43,8 +43,8 @@ import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, 
     .d-keep, .d-drop { min-height: var(--tap); padding: 0 var(--sp-3); border-radius: var(--r-ctl);
       border: 1px solid var(--hairline); background: transparent; color: var(--bone);
       font-size: var(--fs-sm); cursor: pointer; }
-    .d-drop { color: var(--red); border-color: var(--red); }
-    .d-keep:focus-visible, .d-drop:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .d-drop { color: var(--danger); border-color: var(--danger); }
+    .d-keep:focus-visible, .d-drop:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     @keyframes rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
     @media (min-width: 720px) {
       .sheet { border-radius: var(--r-lg); margin: auto; padding-bottom: var(--sp-5); }

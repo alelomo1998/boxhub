@@ -108,7 +108,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
     .stateline { color: var(--bone-dim); font-size: var(--fs-body); }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
 
     .quicklog { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-5); }
@@ -122,7 +122,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
-    .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
     .in.n { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 20px;
       font-variant-numeric: tabular-nums; min-height: 52px; }
     .qsave { grid-column: 1 / -1; }
@@ -133,14 +133,14 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     }
 
     .pr-moment { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-      border: 1px solid var(--red); border-radius: var(--r-card); padding: var(--sp-4);
+      border: 1px solid var(--volt); border-radius: var(--r-card); padding: var(--sp-4);
       margin-bottom: var(--sp-5); animation: prpop 350ms var(--ease-out); }
     .pr-kicker { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.16em;
-      text-transform: uppercase; color: var(--red); }
+      text-transform: uppercase; color: var(--volt); }
     .pr-line { display: flex; align-items: baseline; gap: var(--sp-3); }
     .pr-mv { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); text-transform: uppercase; }
     .pr-load { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
-      color: var(--red); font-variant-numeric: tabular-nums; }
+      color: var(--volt); font-variant-numeric: tabular-nums; }
     @keyframes prpop { from { transform: scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
     @media (prefers-reduced-motion: reduce) { .pr-moment { animation: none; } }
 
@@ -160,7 +160,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
     .mvbtn { background: none; border: none; padding: 0; color: var(--bone); font: inherit; font-weight: 600;
       cursor: pointer; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 3px;
       min-height: var(--tap); }
-    .mvbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); border-radius: var(--edge); }
+    .mvbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--edge); }
     tr.sel { background: var(--surface-2); }
     .strong { font-weight: 700; }
 
@@ -171,7 +171,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
       font-variant-numeric: tabular-nums; }
     .h-reps { color: var(--bone-dim); font-variant-numeric: tabular-nums; }
     .h-date { flex: 1; color: var(--faint); font-size: var(--fs-sm); }
-    .h-pr { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; color: var(--red); }
+    .h-pr { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; color: var(--volt); }
   `],
 })
 export class ProgressPage implements OnInit {

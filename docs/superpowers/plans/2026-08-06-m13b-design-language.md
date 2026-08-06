@@ -281,7 +281,20 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Modify: `frontend/src/app/features/admin/admin-shell.page.ts` (line 3 import, line 18 button, line 111 `inject`, plus the `.theme` CSS rule)
 - Modify: `frontend/src/app/features/coach/coach-shell.page.ts` (line 3 import, line 22 button, line 73 `inject`)
 - Modify: `frontend/src/app/features/athlete/profile-sheet.component.ts` (line 5 import, line 40 button, line 85 `inject`)
+- Modify: `frontend/src/app/features/tv/tv-shell.page.ts` (line 18 `data-theme="dark"` attribute, line 210 `setAttribute` call and its comment)
 - Modify: `frontend/src/app/features/admin/admin-shell.page.spec.ts` if it references the toggle
+
+**Corrected 2026-08-06 during execution.** `tv-shell.page.ts` was missing from this list — it appeared
+in the orienting grep and was dropped when the list was written. It never used `ThemeService`; it
+force-writes `data-theme="dark"` directly, because the wall screen had to opt out of a user's light
+preference. With no light preference to opt out of, that code has no subject, and after Task 1 no
+`[data-theme]` selector survives to read it. Both lines are deleted with no replacement, in **this**
+task's commit rather than a follow-up: Step 5's grep is the task's own definition of done, and a
+write-only attribute is worse than inert — it advertises a mechanism that no longer exists, and the
+next reader will design around a phantom.
+
+`admin-shell.page.spec.ts` turned out **not** to reference the toggle, so that conditional step is a
+verified no-op rather than an open question.
 
 **Interfaces:**
 - Consumes: Task 1's `_tokens.scss`, which already has no light values and no `data-theme` selectors.
@@ -371,7 +384,11 @@ Purely mechanical, and verifiable by a grep that must return nothing. Kept separ
 cd frontend && grep -rho -- '--red[a-z-]*\|--on-red' src | sort | uniq -c
 ```
 
-Expected, as measured on 2026-08-06: `100 --red`, `57 --red-glow`, `11 --on-red`. **If these numbers differ, stop and escalate** — the tree has moved since the plan was written and the rest of the task's assumptions need re-checking.
+Expected: **`95 --red`, `54 --red-glow`, `11 --on-red`**, across **52 files** outside `_tokens.scss`.
+
+These are re-measured at `63726f4`, i.e. **after Tasks 1 and 2**. They are lower than the `100 / 57 / 11` this plan was originally written against, and the drift is accounted for: Task 1 collapsed two `--red-glow` definitions into one alias, and Task 2's three toggle-button removals took the rest with them.
+
+**If the numbers differ from 95 / 54 / 11, stop and escalate** — the tree has moved again and the task's assumptions need re-checking.
 
 - [ ] **Step 2: Rename, longest token first**
 
@@ -399,7 +416,9 @@ Leave `_tokens.scss` exactly as Task 1 wrote it. Its aliases are deleted in Task
 cd frontend && grep -rho -- '--red[a-z-]*\|--on-red\|--volt\|--on-volt' src | sort | uniq -c
 ```
 
-Expected: `--red` appears **exactly twice** and `--on-red` **exactly once** — all three are the alias lines inside `_tokens.scss`, which this task deliberately did not touch (`--on-red:` contains `--red` as a substring, which is why the count is two and not one). `--red-glow` is still **57**. `--volt` and `--on-volt` carry the counts `--red` and `--on-red` had.
+Expected: `--red` appears **exactly once** and `--on-red` **exactly once** — both are the alias lines inside `_tokens.scss`, which this task deliberately did not touch. `--red-glow` is still **54**. `--volt` and `--on-volt` carry the counts `--red` and `--on-red` had.
+
+*(An earlier draft of this step predicted `--red` twice, on the reasoning that `--on-red` contains `--red` as a substring. It does not: `--on-red` has a single dash before `red`, so a search for the literal `--red` never matches inside it. Corrected during execution — the executor measured one and was right.)*
 
 Then confirm the alias block is intact and did **not** become self-referential:
 
@@ -468,19 +487,20 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 cd frontend && grep -rho '[^;{]*--red-glow[^;]*' src | sed 's/^ *//' | sort | uniq -c | sort -rn
 ```
 
-Expected, as measured on 2026-08-06:
+Expected, re-measured at `63726f4` (after Tasks 1 and 2):
 
 ```
-  47 box-shadow: 0 0 0 3px var(--red-glow)
-   4 box-shadow: inset 0 0 0 3px var(--red-glow)
-   2 box-shadow: 0 6px 24px var(--red-glow)
-   1 box-shadow: 0 0 14px var(--red-glow)
-   1 box-shadow: 0 0 12px var(--red-glow)
-   1 --red-glow: rgba(236, 67, 38, 0.38)   <- becomes the Task 1 alias line
-   1 --red-glow: rgba(213, 53, 29, 0.16)   <- gone with the light theme in Task 1
+  46 box-shadow: 0 0 0 3px var(--red-glow)          <- outer focus rings
+   3 box-shadow: inset 0 0 0 3px var(--red-glow)    <- inset focus rings
+   2 box-shadow: 0 6px 24px var(--red-glow)         <- decorative, delete
+   1 box-shadow: 0 0 14px var(--red-glow)           <- decorative, delete
+   1 box-shadow: 0 0 12px var(--red-glow)           <- decorative, delete
+   1 --red-glow: rgba(223, 255, 78, 0.30)           <- the Task 1 alias line itself
 ```
 
-**If the shapes differ, stop and escalate.**
+So: **49 focus rings and 4 decorative glows.** The original plan said 51 and 4 — Task 2's toggle-button removals took two focus rings with them.
+
+**If the shapes differ from this, stop and escalate.** A shape this plan does not list means somebody used the glow for something neither of us has looked at.
 
 - [ ] **Step 2: Replace the 47 outer focus rings**
 
@@ -658,7 +678,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - [ ] **Step 1: Write the component**
 
 ```ts
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { BRAND_NAME } from '../core/brand';
 
 /**
@@ -678,7 +698,7 @@ import { BRAND_NAME } from '../core/brand';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <span class="wm" [class.hero]="variant() === 'hero'" [attr.data-size]="size()">
+    <span class="wm" [class.hero]="variant === 'hero'" [attr.data-size]="size">
       <span class="a">rx</span><span class="b">ed</span>
       <span class="sr">{{ brand }}</span>
     </span>
@@ -699,8 +719,8 @@ import { BRAND_NAME } from '../core/brand';
   `],
 })
 export class WordmarkComponent {
-  readonly variant = input<'chrome' | 'hero'>('chrome');
-  readonly size = input<'sm' | 'md' | 'lg'>('sm');
+  @Input() variant: 'chrome' | 'hero' = 'chrome';
+  @Input() size: 'sm' | 'md' | 'lg' = 'sm';
   protected readonly brand = BRAND_NAME;
 }
 ```
@@ -709,11 +729,19 @@ The visually-hidden `<span class="sr">` carries the brand name for screen reader
 
 **`BRAND_NAME` is `'BoxHub'` until Task 7 changes it.** That is correct ordering: this component reads the constant rather than hardcoding, so Task 7 fixes it everywhere at once. The visible glyphs are deliberately literal — the wordmark is a drawn shape that happens to be made of letters, not a rendering of a variable.
 
-- [ ] **Step 2: Verify `ChangeDetectionStrategy` matches the codebase**
+- [ ] **Step 2: Confirm the component conventions still hold**
 
-Run: `graphify query "component change detection strategy"` and open two existing `ui/` components.
+These were measured at `4063ea6`, so the code above already matches them — this step is a check, not a decision:
 
-M13a's Angular 22 migration pinned all 56 components to `ChangeDetectionStrategy.Eager`. **If the existing components use `Eager`, use `Eager` here too** and note it in the task report — matching the surrounding code matters more than being right ahead of schedule, and dropping the pin is a filed M13c task covering all 56 at once. **Do not mix the two.**
+```bash
+cd frontend/src/app && grep -rl '@Input()' . | wc -l && grep -rl 'input<\|= input(' . | wc -l && grep -rho 'ChangeDetectionStrategy\.[A-Za-z]*' . | sort | uniq -c
+```
+
+Expected: **11** files using `@Input()`, **0** using signal `input()`, and **56** components all on `ChangeDetectionStrategy.Eager`.
+
+`Eager` is M13a's Angular 22 migration pin, and dropping it is a filed M13c task that covers all 56 components at once with a real performance check. Matching the surrounding code matters more than being right ahead of schedule. **Do not mix the two input styles**, and do not introduce the first signal input in the codebase inside a wordmark.
+
+*(An earlier draft of this task wrote the component with signal inputs. The codebase says otherwise, 11 to 0 — corrected before dispatch.)*
 
 - [ ] **Step 3: Draw the favicon**
 
@@ -1246,6 +1274,13 @@ Record the **real** test counts from the final run. Frontend is no longer 184: T
 - The Launch → Production entry for deleting `/app/dev/components` is now real rather than forward-looking — the route exists.
 - File **the categorical chart palette** (spec §17) against M16, with its constraints: new hues, must not reuse `--good`/`--warn`/`--danger`, 4.5:1 on `--ground`, distinguishable from volt.
 - File `apple-touch-icon` / web manifest / `theme-color` as a small Launch item.
+- File the **three standing `anyComponentStyle` budget warnings** found during Task 1 and confirmed
+  pre-existing: `instance-builder.page.ts` (+456 B), `tv-shell.page.ts` (+256 B) and
+  `progress.page.ts` (+17 B) all exceed the 4 kB component-style warning budget (the 8 kB *error*
+  budget is not breached, which is why the build is green). Each of those screens is rebuilt in a
+  later milestone — M14, Project 2 and M17 respectively — so the fix is not to raise the budget but
+  to let the rebuild shrink them. Filed because a build that prints three warnings nobody has
+  recorded is a build that trains people to stop reading warnings.
 - The M16 entry about mail templates duplicating `#D7263D` updates to the volt hex.
 
 - [ ] **Step 5: Update the progress ledger**

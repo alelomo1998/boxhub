@@ -96,7 +96,7 @@ import { BookingService, ClassTemplate } from '../booking/booking.service';
   styles: [`
     .dash { max-width: 900px; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .head { margin-bottom: var(--sp-5); }
@@ -109,7 +109,7 @@ import { BookingService, ClassTemplate } from '../booking/booking.service';
     .kpi { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); display: flex; flex-direction: column; gap: 4px;
       color: var(--bone); text-decoration: none; }
-    .kpi:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .kpi:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .kpi.hot { border-color: var(--warn); }
     .k-val { font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 1;
       font-variant-numeric: tabular-nums; }
@@ -125,7 +125,7 @@ import { BookingService, ClassTemplate } from '../booking/booking.service';
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);
       text-decoration: none; font-size: var(--fs-sm); }
     .cut:hover { background: var(--surface-2); }
-    .cut:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .cut:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .note { margin-top: var(--sp-6); color: var(--faint); font-size: var(--fs-sm); }
 
     .setup { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
@@ -135,7 +135,7 @@ import { BookingService, ClassTemplate } from '../booking/booking.service';
     .step { display: flex; align-items: center; gap: var(--sp-3); }
     .dot { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-full);
       border: 1px solid var(--hairline); color: var(--faint); font-size: var(--fs-meta); flex-shrink: 0; }
-    .step.done .dot { background: var(--good); border-color: var(--good); color: var(--on-red); }
+    .step.done .dot { background: var(--good); border-color: var(--good); color: var(--on-volt); }
     .s-body { font-size: var(--fs-sm); color: var(--bone); }
     .s-body a { color: var(--bone); }
     .step.locked .s-body { color: var(--faint); }

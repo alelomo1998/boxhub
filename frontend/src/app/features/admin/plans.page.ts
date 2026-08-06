@@ -55,13 +55,13 @@ import { ButtonComponent } from '../../ui/button.component';
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
     .dur { max-width: 100px; }
     .price { max-width: 100px; }
-    .err { color: var(--red); font-size: 13px; margin: 0; }
+    .err { color: var(--danger); font-size: 13px; margin: 0; }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: 12px 4px; border-bottom: 1px solid var(--hairline); }

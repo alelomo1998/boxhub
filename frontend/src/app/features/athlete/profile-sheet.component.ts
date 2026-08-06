@@ -2,7 +2,6 @@ import { Component, EventEmitter, Output, inject, signal, OnInit, ChangeDetectio
 import { Router, RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
-import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { MediaService } from '../../core/media.service';
 import { HomeService, Profile } from './home.service';
@@ -37,12 +36,6 @@ import { HomeService, Profile } from './home.service';
             <input type="checkbox" [checked]="p.isPrivate" (change)="togglePrivacy($any($event.target).checked)" />
           </label>
 
-          <button class="row asbtn" (click)="theme.toggle()">
-            <span class="rl">Theme</span>
-            <span class="rh">Switch dark / light</span>
-            <span aria-hidden="true">◐</span>
-          </button>
-
           <a class="row asbtn" routerLink="/account/security" data-testid="profile-security-link">
             <span class="rl">Security</span>
             <span class="rh">Password, email, sessions</span>
@@ -59,7 +52,7 @@ import { HomeService, Profile } from './home.service';
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .stateline { color: var(--bone-dim); }
-    .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--danger); font-size: var(--fs-sm); }
     .head { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-4); }
     .who { display: flex; flex-direction: column; gap: 6px; }
     .nm { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2); text-transform: uppercase; }
@@ -74,15 +67,14 @@ import { HomeService, Profile } from './home.service';
       width: 100%; text-align: left; color: var(--bone); font: inherit; text-decoration: none; }
     .rl { grid-area: l; font-weight: 600; font-size: var(--fs-body); }
     .rh { grid-area: h; color: var(--faint); font-size: var(--fs-sm); }
-    .row input { grid-area: c; width: 22px; height: 22px; accent-color: var(--red); }
+    .row input { grid-area: c; width: 22px; height: 22px; accent-color: var(--volt); }
     .actions { margin-top: var(--sp-4); }
-    .row:focus-visible, .upload:focus-within { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .row:focus-visible, .upload:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
   `],
 })
 export class ProfileSheetComponent implements OnInit {
   @Output() avatarChanged = new EventEmitter<string | null>();
 
-  theme = inject(ThemeService);
   private auth = inject(AuthService);
   private router = inject(Router);
   private media = inject(MediaService);

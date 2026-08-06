@@ -1,6 +1,5 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
 import { BRAND_NAME } from '../../core/brand';
@@ -13,9 +12,8 @@ import { BRAND_NAME } from '../../core/brand';
   template: `
     <div class="admin">
       <header class="top">
-        <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }}</span></div>
+        <div class="brand"><span class="mark">{{ boxInitial }}</span><span class="bn">{{ boxName }}</span></div>
         <span class="area">Admin</span>
-        <button class="theme" (click)="theme.toggle()" aria-label="Toggle theme">◐</button>
         <a class="theme" routerLink="/account/security" aria-label="Security" title="Security" data-testid="admin-security-link">⚙</a>
         <button class="theme" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
       </header>
@@ -65,7 +63,7 @@ import { BRAND_NAME } from '../../core/brand';
     .top { grid-area: top; display: flex; align-items: center; gap: var(--sp-3);
       padding: var(--sp-2) var(--sp-5); border-bottom: 1px solid var(--hairline); }
     .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .mark { width: 30px; height: 30px; border-radius: var(--edge); background: var(--red); color: var(--on-red);
+    .mark { width: 30px; height: 30px; border-radius: var(--edge); background: var(--volt); color: var(--on-volt);
       display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 17px;
       flex-shrink: 0; }
     .bn { font-family: var(--font-display); font-weight: 800; font-size: 17px; text-transform: uppercase;
@@ -75,14 +73,14 @@ import { BRAND_NAME } from '../../core/brand';
     .theme { min-width: var(--tap); min-height: var(--tap); display: inline-flex; align-items: center;
       justify-content: center; font-size: 16px; color: var(--faint); text-decoration: none;
       background: transparent; border: none; border-radius: var(--edge); cursor: pointer; }
-    .theme:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .theme:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .side { grid-area: side; border-right: 1px solid var(--hairline); padding: var(--sp-5) var(--sp-4);
       display: flex; flex-direction: column; gap: 3px; }
     .s-item { display: flex; align-items: center; min-height: var(--tap); padding: 0 12px;
       border-radius: var(--edge); color: var(--bone-dim); font-size: 14px; font-weight: 500; }
     .s-item.active { background: var(--surface-2); color: var(--bone); }
-    .s-item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .s-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .content { grid-area: content; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     .tabs { display: none; }
@@ -96,7 +94,7 @@ import { BRAND_NAME } from '../../core/brand';
       color: var(--bone); text-decoration: none; border-bottom: 1px solid var(--hairline);
       font-size: var(--fs-body); }
     .m-item:last-child { border-bottom: none; }
-    .m-item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .m-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .asbtn { background: none; border-left: none; border-right: none; border-top: 1px solid var(--hairline);
       width: 100%; text-align: left; cursor: pointer; font: inherit; }
 
@@ -108,10 +106,13 @@ import { BRAND_NAME } from '../../core/brand';
   `],
 })
 export class AdminShellPage {
-  theme = inject(ThemeService);
   auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
+  /* The badge beside a box's name is the box's own initial. It used to be a hardcoded "B"
+     for BoxHub, which survived the rename because a single letter does not look like a
+     brand string — the same way the mail subject lines did. */
+  boxInitial = (this.auth.activeBox()?.boxName || BRAND_NAME).trim().charAt(0).toUpperCase();
   moreOpen = signal(false);
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }

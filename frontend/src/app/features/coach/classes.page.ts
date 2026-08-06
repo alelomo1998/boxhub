@@ -55,7 +55,7 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
   styles: [`
     .cls { max-width: 860px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .head { margin-bottom: var(--sp-4); }
@@ -80,7 +80,7 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
     .act { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-3);
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);
       font-size: var(--fs-sm); text-decoration: none; }
-    .act:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .empty { padding: var(--sp-8) 0; }
     .e1 { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
       text-transform: uppercase; color: var(--bone-dim); margin: 0 0 var(--sp-2); }

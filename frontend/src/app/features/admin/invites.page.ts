@@ -72,7 +72,7 @@ import { AuthService } from '../../core/auth/auth.service';
     .empty { color: var(--bone-dim); font-size: 14px; }
     .pending-card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-2);
       padding: var(--sp-4); color: var(--bone-dim); font-size: var(--fs-sm); }
-    .err { color: var(--red); font-size: var(--fs-sm); }
+    .err { color: var(--danger); font-size: var(--fs-sm); }
   `],
 })
 export class InvitesPage implements OnInit {

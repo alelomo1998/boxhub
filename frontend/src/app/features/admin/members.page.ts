@@ -70,7 +70,7 @@ import { PillComponent } from '../../ui/pill.component';
   styles: [`
     .count { font-family: var(--font-mono); font-size: 12px; color: var(--faint); text-transform: none; letter-spacing: 0.06em; margin-left: 10px; }
     .bh-section-head .bh-input { max-width: 240px; }
-    .failed { color: var(--red); font-size: 12px; font-family: var(--font-mono); margin-left: 8px; }
+    .failed { color: var(--danger); font-size: 12px; font-family: var(--font-mono); margin-left: 8px; }
     .no-plan { color: var(--faint); text-decoration: underline; font-size: var(--fs-sm); }
     .pager { display: flex; align-items: center; gap: var(--sp-3); }
   `],

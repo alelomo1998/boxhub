@@ -73,13 +73,13 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
   styles: [`
     .book { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .err { color: var(--red); font-size: var(--fs-sm); }
+    .err { color: var(--danger); font-size: var(--fs-sm); }
 
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
     .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       overflow: hidden; }
     .body { display: flex; align-items: stretch; gap: var(--sp-3); text-decoration: none; color: var(--bone); }
-    .body:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--red-glow); }
+    .body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     .img { width: 96px; min-height: 84px; object-fit: cover; flex-shrink: 0;
       border-radius: var(--r-card) 0 0 var(--r-card); }
     .img.ph { display: grid; place-items: center; background: var(--surface-2);

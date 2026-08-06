@@ -78,7 +78,7 @@ type CellStatus = 'idle' | 'saving' | 'saved' | 'error';
       min-height: var(--tap); width: 64px; padding: 0 var(--sp-2); color: var(--bone);
       font-family: var(--font-body); font-size: var(--fs-body); box-sizing: border-box; text-align: center; }
     .in.wide { width: 100px; }
-    .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
     .colon { color: var(--faint); font-weight: 700; }
     .done-lab { color: var(--faint); font-size: var(--fs-sm); }
     .num { font-variant-numeric: tabular-nums; }

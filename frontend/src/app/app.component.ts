@@ -1,8 +1,5 @@
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
-import { Title } from '@angular/platform-browser';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { ThemeService } from './core/theme/theme.service';
-import { BRAND_NAME } from './core/brand';
 
 @Component({
   selector: 'app-root',
@@ -12,13 +9,10 @@ import { BRAND_NAME } from './core/brand';
   template: `<router-outlet />`,
 })
 export class AppComponent {
-  private theme = inject(ThemeService);
-
-  // index.html's static <title> is what renders before this component ever runs (unavoidable —
-  // raw HTML can't read a TS constant) and is kept in sync with BRAND_NAME by hand. This call
-  // makes BRAND_NAME the source of truth from here on, so a rename only requires editing one file
-  // plus the pre-boot fallback in index.html.
-  constructor() {
-    inject(Title).setTitle(BRAND_NAME);
-  }
+  // The tab title belongs to PageTitleStrategy (core/page-title.strategy.ts), which runs on every
+  // navigation and renders "Page · rxed". This component used to call setTitle(BRAND_NAME) once in
+  // its constructor, which is exactly why every screen in the product shared one tab title.
+  //
+  // index.html's static <title> still renders before Angular boots — raw HTML cannot read a TS
+  // constant — and stays in sync with BRAND_NAME by hand.
 }

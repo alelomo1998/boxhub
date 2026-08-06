@@ -1,6 +1,5 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { BRAND_NAME } from '../../core/brand';
 
@@ -12,14 +11,13 @@ import { BRAND_NAME } from '../../core/brand';
   template: `
     <div class="app">
       <header class="top">
-        <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }} · Coach</span></div>
+        <div class="brand"><span class="mark">{{ boxInitial }}</span><span class="bn">{{ boxName }} · Coach</span></div>
         <nav class="hnav" aria-label="Coach">
           @for (t of tabs; track t.link) {
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
           }
         </nav>
         <div class="acts">
-          <button class="iconbtn" (click)="theme.toggle()" aria-label="Toggle theme">◐</button>
           <a class="iconbtn" routerLink="/account/security" aria-label="Security" title="Security" data-testid="coach-security-link">⚙</a>
           <button class="iconbtn" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
         </div>
@@ -44,7 +42,7 @@ import { BRAND_NAME } from '../../core/brand';
       border-bottom: 1px solid var(--hairline); position: sticky; top: 0; z-index: 20;
       background: var(--ground); }
     .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .mark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--red); color: var(--on-red);
+    .mark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt); color: var(--on-volt);
       display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 17px;
       flex-shrink: 0; }
     .bn { font-family: var(--font-display); font-weight: 800; font-size: 17px; text-transform: uppercase;
@@ -55,13 +53,13 @@ import { BRAND_NAME } from '../../core/brand';
       text-decoration: none; }
     .hitem.active { background: var(--surface-2); color: var(--bone); }
     .hitem:hover:not(.active) { color: var(--bone); }
-    .hitem:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .hitem:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .acts { display: flex; gap: 2px; margin-left: auto; }
     .iconbtn { min-width: var(--tap); min-height: var(--tap); display: inline-flex; align-items: center;
       justify-content: center; font-size: 16px; color: var(--faint); text-decoration: none;
       background: transparent; border: none; border-radius: var(--r-full); cursor: pointer; }
     .iconbtn:hover { color: var(--bone); }
-    .iconbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .iconbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .content { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     @media (max-width: 719px) {
       .hnav { display: none; }
@@ -70,10 +68,13 @@ import { BRAND_NAME } from '../../core/brand';
   `],
 })
 export class CoachShellPage {
-  theme = inject(ThemeService);
   private auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
+  /* The badge beside a box's name is the box's own initial. It used to be a hardcoded "B"
+     for BoxHub, which survived the rename because a single letter does not look like a
+     brand string — the same way the mail subject lines did. */
+  boxInitial = (this.auth.activeBox()?.boxName || BRAND_NAME).trim().charAt(0).toUpperCase();
 
   tabs = [
     { link: 'classes', label: 'Classes', glyph: '▮▮' },

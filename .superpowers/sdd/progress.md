@@ -522,3 +522,138 @@ M13a MERGED to main as f894004, pushed, branch deleted. 23 commits.
   I CHECKED THE OBVIOUS SUSPECT BEFORE CONCLUDING FLAKE: the /app move changed <base href> from / to /app/, which would break any RELATIVE EventSource URL. TvService.stream() uses `new EventSource('/api/tv/stream')` — absolute, leading slash, unaffected by base href. Ruled out by reading the code, not by assuming.
   THIS IS THE CASE M12a EXPLICITLY PREDICTED. Its ledger: "The split assertion is now the diagnostic — the next CI failure names which half broke (frame absent vs render broken). Revisit only if CI fails on the data-timer half." It failed on the data-timer half. Filed in BACKLOG with everything already known, so the next investigation does not redo M12a's measurements: local delivery is 2.34s +/-18ms against a 15s budget, CI is ~2.6x slower overall, and the next diagnostic step is capturing data-frames alongside data-timer to separate "no frame arrived" from "frame arrived carrying no timer" — different causes entirely.
   A FLAKE AT retries:0 MATTERS. M12a removed retries specifically so a red build would mean something; a test that passes on re-run erodes exactly that. Not fixed here because it is not this milestone's regression, but it is not a shrug either.
+
+## M13b design language — 2026-08-06 — branch m13b-design-language, base 2ea5e41
+
+Spec `docs/superpowers/specs/2026-08-06-m13b-design-language-design.md` (design law v3, supersedes
+2026-07-08 in full). Plan `docs/superpowers/plans/2026-08-06-m13b-design-language.md`, 12 tasks.
+Product renamed **BoxHub → rxed** (`rxed.app`). No Flyway; next is still V19.
+
+M13b-T1: tokens, faces, globals (0e2a616, sonnet). Chalkboard #0d110e + volt #DFFF4E. Saira out,
+  JetBrains Mono in, no net font weight. Token NAMES preserved, so 53 files recoloured untouched.
+  --red/--on-red/--red-glow kept as transitional aliases so the app never renders uncoloured between
+  T1 and T5. 184 specs, build clean.
+M13b-T2: light theme + ThemeService deleted (63726f4, sonnet). 180 specs (-4).
+  EXECUTOR STOPPED TWICE, BOTH CORRECT. (1) app.config.spec.ts was NOT a theme test — its only
+  assertion was that a sync provideAppInitializer completes before an async one, using data-theme as
+  the observable proxy for a flash-of-unthemed-content fix. Ruled: delete. The bug is now
+  STRUCTURALLY IMPOSSIBLE, not untested — dark is unconditional on :root in the global stylesheet, so
+  the browser paints before any JS runs. Rewriting it around a synthetic proxy would have left a test
+  asserting Angular's own initializer ordering, which no production code depends on any more.
+  (2) tv-shell.page.ts was MISSING FROM MY FILES LIST. It never used ThemeService — it wrote
+  data-theme directly, so the wall screen could opt out of a user's light preference — and fell
+  through a search framed around the wrong noun. It was in the grep I ran BEFORE writing the plan and
+  I dropped it. Step 5's "this grep returns nothing" gate caught it. THAT IS THE ARGUMENT FOR WRITING
+  A GATE AS A COMMAND THAT MUST COME BACK EMPTY rather than as a list of files to change: the first
+  knows about what you forgot.
+  MY ERROR, MECHANICAL: I ran `git add <docs> && git commit` while the executor had three files
+  git rm'd into the index, and git commit takes the whole index. A commit labelled "docs" contained
+  89 lines of deleted TypeScript. Rewrote both commits on the unpushed branch, verified the resulting
+  tree byte-identical. Every later brief carries a git-hygiene rule.
+M13b-T3: --red → --volt (dfbb916, sonnet). 51 files, 94 lines each way, every changed line a token
+  name. The sed had to EXCLUDE _tokens.scss: a blind pass rewrites `--red: var(--volt)` into
+  `--volt: var(--volt)`, a self-referential property that resolves to nothing, drains every colour in
+  the product, and keeps both gates green.
+  EXECUTOR CAUGHT A REASONING ERROR IN MY PLAN. I predicted --red would appear twice after the
+  rename because "--on-red contains --red as a substring". It does not — --on-red has a single dash
+  before red. Real count is one. Fixed the plan text: a bare number that is off by one gets
+  re-measured, but A WRONG NUMBER WITH CONFIDENT REASONING ATTACHED GETS BELIEVED.
+M13b-T4: focus rings become outlines (a0c9fc2, sonnet). 49 rings converted, 4 decorative glows
+  deleted, zero `outline: none` left in frontend/src (main had them across 30 files).
+  THE EXECUTOR'S FIRST REGEX PASS MISSED 10 SITES where `border-color: var(--volt)` sat between the
+  `outline: none` and the box-shadow. Those rules would have kept a live `outline: none` beside the
+  new outline — NO FOCUS INDICATOR AT ALL, green in every gate. Found only by grepping the whole tree
+  after the pass instead of trusting it.
+  BETTER THAN MY SPEC: for the score-form toggle it split the rule by state, so the ring is volt on
+  the dark unchecked knob and dark on the volt checked one. Inverting unconditionally — what I
+  specified — would have made that ring invisible half the time.
+M13b-T5: errors → --danger (77891aa, sonnet). volt 101 → 48 uses, --danger 0 → 54. Completion grep
+  for --red/--on-red/saira across src, angular.json, package.json returns zero bytes.
+  Under the old law --red was BOTH the brand accent and the only warm signal, so errors borrowed the
+  brand colour: `color: var(--red)` appeared 84 times. Red now means danger and nothing else, which
+  is the first time in this codebase it has meant anything at all.
+M13b-T5b: --danger may fill a control (4063ea6, orchestrator). USER DECISION. Spec §3 originally
+  ended "volt is the only colour permitted to fill", which overreached — a control is not a row or a
+  card, and the rule forbade the one thing every product does with red. Amended: --danger may fill a
+  button or chip, never a row/card/panel. The control that OPENS a destroy flow is a danger-bordered
+  ghost; the one that EXECUTES it is filled. --on-danger is DARK: white on --danger is 3.9:1 and
+  fails AA, the same trap --on-volt exists for.
+M13b-T6: wordmark + favicon (fba9313, orchestrator inline — the executor died on a session limit
+  before writing anything, tree was clean). The logo is TYPE, not an asset: a component rendering in
+  the product's own webfont, so there is no export pipeline to keep in sync. favicon.svg is
+  hand-drawn because an SVG favicon cannot load a webfont and <text> would fall back to whatever mono
+  the browser picks. favicon.ico deleted rather than kept as a fallback — it would have shipped the
+  retired brand to any client preferring .ico.
+  PLAN CORRECTED BEFORE DISPATCH: I had written the component with signal inputs. Measured, the
+  codebase is @Input() in 11 files to 0, all 56 components on ChangeDetectionStrategy.Eager.
+  Introducing the repo's first signal input inside a wordmark is a framework migration smuggled in as
+  a brand asset.
+M13b-T7: rename to rxed (50da546, sonnet) + subject lines (aa75673, orchestrator). 428/0/0.
+  THE BEST CATCH OF THE MILESTONE. The roadmap said 18 user-facing occurrences; the spec's own §10.3
+  audit said four values. BOTH MISSED SIX EMAIL SUBJECT LINES — Java literals passed straight to
+  Mailer.send(to, subject, …) → helper.setSubject(), so unlike the template bodies they never touch
+  messages.properties or Brand.NAME. They are the MOST user-facing strings in the whole rename: a
+  lapsed membership, a receipt, a failed payment, an invite, a box approval, a box rejection. Every
+  one would have arrived in a real inbox announcing a product that no longer exists.
+  The executor did NOT fix them — out of its declared scope, and changing production copy
+  unilaterally is what the escalation rule exists to stop. Correct call.
+  FILED, NOT FIXED: those subjects bypass messages.properties entirely, so a German recipient gets an
+  English subject above a German body. M13a debt; Mailer already resolves a per-recipient locale, so
+  only the wiring and six bundle keys are missing.
+M13b-T8: mail accent (2eb26e2, orchestrator). 8 CTA buttons off #D7263D. NOT a find-and-replace:
+  every one set color:#fff on the accent and white on volt is 1.1:1. Swapping only the background
+  ships eight blank-looking buttons in the most important mail the product sends, verification
+  included. NOT VERIFIED IN MAILPIT — templates render and the suite passes, but nobody looked at a
+  message. Contrast here is arithmetic, not judgement.
+M13b-T9: WOD board proof (a2f9987, sonnet) + fixes (0a7f31f, orchestrator). 181 specs.
+  FONTS CONFIRMED LOADING through the real nginx container from /app/bundle-media/ — the exact path
+  class that 404'd for a whole milestone in M5.5. That check alone justifies the proof being a route
+  rather than a picture.
+  EXECUTOR FOUND A REAL BUG BY LOOKING: a bare `.name` class is scoped to the component, not the
+  nesting, so the WOD title's --fs-hero was also hitting leaderboard athlete names. Build green
+  throughout.
+  IT ALSO FLAGGED A CONTRADICTION THAT WAS MINE. The board rendered "For time · 12:00 cap" as a VOLT
+  FILL. That is taxonomy — not live, not now, not primary, not winning — so it breaks the only rule
+  volt has, and it came from my own first mockup, survived into the plan, and was built exactly as
+  specified. Spec §2.3 rewritten from a COUNT to a rule about QUESTIONS: plumbing gets one volt
+  element; a hero screen may mark one thing per distinct question; two answering the same question is
+  a bug, and so is one answering none. A RULE PHRASED AS A COUNT INVITES YOU TO CHECK THE COUNT AND
+  STOP THINKING.
+  i18n CONVENTION SET HERE (spec §12.1), since this is genuinely the codebase's first marked screen
+  and M13c inherits it across ~22 components: explicit @@feature.screen.element ids, because
+  Angular's generated ids are content hashes and editing the English silently orphans every
+  translation. Proper nouns unmarked — three athlete names and "Fran" were being sent to the
+  translation catalogue. Movement names marked; a gym in Milan reads "Trazioni".
+M13b-T10: admin members proof (60b4141 + 802124d, sonnet). 182 specs. The PLUMBING half, and the
+  harder claim: a hero screen cannot demonstrate that a language stays calm, and "editorial treatment
+  bled into ordinary screens" was one of the three stated reasons the previous direction was retired.
+  Verified live at 1440/768/375, keyboard-tabbed, one volt element asserted in the DOM.
+  I INTRODUCED A BUDGET FAILURE AND FIXED IT PROPERLY: replacing `font-size: 11px` with
+  `var(--fs-meta)` pushed the component 12 bytes over its 4 kB style budget — THE BUDGET WAS QUIETLY
+  ARGUING FOR THE TOKEN VIOLATION. Cut a genuine redundancy (margin and margin-left set separately on
+  one rule) rather than raising the limit. Also learned: inline style="" in template markup does not
+  count toward anyComponentStyle at all.
+M13b-T11: receipt print (fb05962, orchestrator). PRE-EXISTING BUG, OLDER THAN THIS MILESTONE: the
+  page's entire print stylesheet hid the buttons, so with backgrounds dropped it printed near-white
+  --bone onto white paper. Boxes use this page for bookkeeping. Dark-only does not cause it — it
+  removes the "switch themes first" excuse that kept it unexamined. Overrides scoped to :host, never
+  :root; a print rule reaching :root is the light theme returning through the back door.
+  NOT VERIFIED BY PRINTING TO PDF. Computed, not seen. Recorded in the hand-off.
+M13b-T12: docs + full gate (orchestrator; the executor died on a session limit partway through
+  DESIGN.md/CLAUDE.md/PRODUCT.md/HANDOFF.md, which I reviewed and completed).
+  MILESTONE GATE: backend 428/0/0 · frontend 182 SUCCESS · production build exit 0 with the three
+  known pre-existing budget warnings · e2e 28/28 at retries:0 against a `down -v` rebuilt stack.
+  THE E2E RUN EARNED ITS KEEP TWICE (c147c58). theme.spec.ts failed CORRECTLY — it pinned the retired
+  warm ground rgb(23,18,13) and the deleted data-theme attribute. Rewriting it exposed that its
+  SIBLING WAS HOLLOW: the font guard written after M5.5's P0 called
+  document.fonts.check('800 20px "Saira Condensed"'), and .check() returns true whenever the string
+  is renderable INCLUDING BY A FALLBACK. It passed for the entire milestone while asserting a
+  typeface deleted in M13b's first commit, and it could never have detected the bug it existed to
+  catch. Replaced with document.fonts.load(), which resolves to an EMPTY ARRAY for an undeclared
+  family, plus a permanent negative control asserting Saira Condensed returns zero faces — so the
+  test proves its own discrimination on every run instead of relying on someone having broken it once.
+  THIS IS THE HANDOFF'S OWN LESSON LANDING ON THE HANDOFF'S OWN EXAMPLE: "a test that has never been
+  seen to fail proves nothing", sitting inside the test written to prevent this project's most
+  expensive frontend bug.
+  PROCESS NOTE: five of six executors returned a real finding, and every one was caught because
+  briefs tell them to stop rather than improvise. Three of those findings were errors in MY briefs.

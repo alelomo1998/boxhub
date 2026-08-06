@@ -1,9 +1,33 @@
-/* @fontsource css (woff2, self-hosted) is added via angular.json styles.
-   Type-scale utility classes — used by components/screens, all token-driven. */
-.t-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--faint); }
-.t-display { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; letter-spacing: -0.03em; line-height: 0.9; }
-.t-h2 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 30px; letter-spacing: -0.01em; }
-.t-h3 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 20px; letter-spacing: -0.005em; }
-.t-figure { font-family: var(--font-body); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* @fontsource css (woff2, self-hosted) is added via angular.json styles — the CSP blocks font CDNs.
+   Type-scale utility classes, all token-driven. Screens read these, never raw px. */
+
+/* Mono is the prescription voice: eyebrows, meta, codes. Uppercase and tracked. */
+.t-eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--faint); }
+
+/* Same voice at table density. Mono is ~15% wider than Archivo, uppercase adds more, and German
+   adds 20-35% on top — 0.18em on six column headers is a horizontal scrollbar. See spec §6.3. */
+.t-eyebrow-tight { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--faint); }
+
+/* Archivo carries anything written or named. NOT uppercase: names read better in mixed case,
+   and German uppercase is punishingly long. Uppercase now belongs to the mono eyebrows only. */
+.t-display { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em;
+  line-height: 1.02; text-wrap: balance; }
+.t-h2 { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);
+  letter-spacing: -0.01em; }
+.t-h3 { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-body);
+  letter-spacing: -0.005em; }
 .t-body { font-family: var(--font-body); font-weight: 400; }
+
+/* Figures are mono, so their digits already align. */
+.t-figure { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Archivo digits do NOT align by default — any number in a column needs this. */
 .num { font-variant-numeric: tabular-nums; }
+
+/* Loading. The usual skeleton shimmer is a moving gradient and gradients are banned (spec §5.1),
+   so this pulses opacity instead. Under reduced motion it rests at the dim value. */
+.bh-skel { background: var(--surface-2); border-radius: var(--r-xs);
+  animation: bh-pulse 1.2s var(--ease-out) infinite; }
+@keyframes bh-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .bh-skel { animation: none; opacity: 0.55; } }

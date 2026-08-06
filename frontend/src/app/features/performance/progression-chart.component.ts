@@ -22,8 +22,8 @@ export interface ChartPoint { date: string; load: number; }
   styles: [`
     .chart { width: 100%; height: auto; max-height: 220px; }
     .axis { stroke: var(--hairline); stroke-width: 1; }
-    .ln { fill: none; stroke: var(--red); stroke-width: 2; vector-effect: non-scaling-stroke; }
-    .dot { fill: var(--red); }
+    .ln { fill: none; stroke: var(--volt); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .dot { fill: var(--volt); }
     .lab { fill: var(--faint); font-family: var(--font-mono); font-size: 10px; }
     .none { color: var(--bone-dim); font-size: 13px; }
   `],

@@ -1,6 +1,6 @@
 # BoxHub — project instructions
 
-CrossFit box platform. Angular 19 + Spring Boot 3.5 / Java 21 + Postgres 16. Multi-tenant.
+CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16. Multi-tenant.
 
 ## Authoritative docs (read before working)
 - **Master spec / roadmap:** `docs/superpowers/specs/2026-07-07-boxhub-design.md` — milestones M0–M7, the operating rules.
@@ -18,14 +18,16 @@ CrossFit box platform. Angular 19 + Spring Boot 3.5 / Java 21 + Postgres 16. Mul
 - **Mail fires strictly AFTER commit; an audit row is written strictly INSIDE the transaction.** Both exist so the record matches reality: a mail sent in a tx that rolls back is a lie, and an audit row surviving a rolled-back transition is also a lie.
 - Conventional commits. `JAVA_HOME=/opt/homebrew/opt/openjdk@21` for backend builds (system JDK is 26, too new).
 
-## Design rules (binding — see design law doc for detail)
-- **Tokens only.** No component or screen hardcodes a color / font / radius / spacing. Everything reads a CSS custom property. A raw hex outside `frontend/src/styles/_tokens.scss` is a bug.
-- **Warm dark is the home theme** (`--ground: #17120D`, never cold blue-black). Light theme is first-class but dark is default.
-- **Race red (`--red`) is the only accent** — marks live / primary / winning only. Never decorative, never a status fill.
-- **Glow is rationed** — primary-button hover, live indicator, focus ring. Nowhere else. No gradients, no fake textures, no skeuomorphism.
+## Design rules (binding — see `docs/superpowers/specs/2026-08-06-m13b-design-language-design.md` for detail)
+- **Tokens only.** No component or screen hardcodes a color / font / radius / spacing. Everything reads a CSS custom property. A raw hex outside `frontend/src/styles/_tokens.scss` is a bug (the one sanctioned exception is the HTML mail templates, which cannot read custom properties).
+- **Dark only** (`--ground: #0d110e`, chalkboard black, never warm, never pure black). No light theme, no `data-theme`, no `prefers-color-scheme`, no `ThemeService` — all deleted in M13b. Re-open trigger, recorded rather than implied: a pilot box asks for it, or an accessibility need surfaces.
+- **Volt (`--volt`) is the only accent, and means live / now / primary / winning — nothing else.** Never decorative, never a status fill, never a label. The rule is about *questions*: a plumbing screen gets exactly one volt element; a hero screen may mark one thing per distinct question it answers. Volt is also bounded by area — a row, chip, button, bar or badge, **never a card, panel, page background or sheet**.
+- **`--danger` may fill a button or a chip** (never a row/card/panel) — the control that *opens* a destructive flow is a danger-bordered ghost, the control that *executes* it is filled. `--on-danger` is dark, not white (white on `--danger` fails AA).
+- **No glow, no gradients, no shadows on flat surfaces, no fake textures, no skeuomorphism.** Shadows are permitted only on things that physically float (the dock, `bh-sheet`, dialogs). The focus ring is a solid 2px outline, and **inverts to `--focus-inv` on a volt surface** — a volt ring on the volt primary button is invisible.
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.
+- **Mono (JetBrains Mono) is the prescription voice** — anything measured, prescribed or counted (scores, loads, clocks, eyebrows, table meta, codes) — and is **banned from prose**. Archivo carries anything written or named.
 - **Numbers are tabular.** Screens are built from shared `bh-*` components; re-implementing a component's markup in a screen is a bug.
-- Type: display = Saira Condensed, body/UI = Archivo, eyebrows = system mono. Embedded as data-URI (CSP blocks font CDNs).
+- Type: display/body/UI = Archivo (400/500/700/800), prescription/numeric = JetBrains Mono (400/700). Self-hosted via `@fontsource` (CSP blocks font CDNs).
 - **i18n (M13a, binding): every new or rebuilt screen ships i18n-marked.** The infrastructure
   (`@angular/localize`, runtime locale loading, locale-aware date/number/currency, the brand
   constant) landed in M13a. The ~390 strings on pre-rework screens were deliberately **not** marked

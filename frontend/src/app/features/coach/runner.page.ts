@@ -140,7 +140,7 @@ type FetchState = 'loading' | 'error' | 'ready';
   styles: [`
     .runner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-6); }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim); text-decoration: none; }
-    .back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
     .zone { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4);
@@ -148,7 +148,7 @@ type FetchState = 'loading' | 'error' | 'ready';
     .zone-h { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); margin: 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
-    .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--danger); font-size: var(--fs-sm); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
 
@@ -157,7 +157,7 @@ type FetchState = 'loading' | 'error' | 'ready';
       padding: var(--sp-2); background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--r-ctl); color: var(--bone); cursor: pointer; min-height: var(--tap); }
     .chip.in { border-color: var(--good); }
-    .chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
+    .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .chip-nm { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
@@ -172,7 +172,7 @@ type FetchState = 'loading' | 'error' | 'ready';
     .errslot { min-height: var(--tap); display: flex; align-items: center; }
     .clock { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3);
       border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4); }
-    .clock.on { border-color: var(--red); }
+    .clock.on { border-color: var(--volt); }
     .clock.paused { border-color: var(--warn); }
     .clock-piece { flex: 1 1 100%; font-family: var(--font-mono); font-size: var(--fs-meta);
       letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }

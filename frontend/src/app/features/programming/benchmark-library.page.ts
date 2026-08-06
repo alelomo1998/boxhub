@@ -34,7 +34,7 @@ import { ProgrammingService, Benchmark } from './programming.service';
     .filters { display: flex; gap: 8px; margin-bottom: var(--sp-4); }
     .f { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--faint); font-size: 13px; padding: 6px 12px; cursor: pointer; }
-    .f.on { color: var(--bone); border-color: var(--red); }
+    .f.on { color: var(--bone); border-color: var(--volt); }
     .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-4); }
     .card { border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-4);
       display: flex; flex-direction: column; gap: var(--sp-3); }

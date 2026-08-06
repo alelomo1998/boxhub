@@ -1,6 +1,6 @@
-# BoxHub — Session Hand-off
+# rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-05. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-08-06. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -49,7 +49,46 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 
 - **M13a baseline (2026-08-02)** — the first milestone of the rework program (see `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`, which renumbers everything). Three baselines moved with **zero visual change**, which was the milestone's defining constraint and what made it verifiable at all. **Angular 19.2 → 22.1.0** (+ TypeScript 6.0.3), one major at a time, each fully gated. **Karma and `zone.js` retained** — the planned Vitest migration was *cut* after verifying directly against the published package that `@angular-devkit/build-angular@22.1.2` still ships a `karma` builder with a `karma ^6.3.0` peer dependency; the claim that Angular 22 removes Karma came from a secondary article that had also invented a migration schematic that does not exist. **The app moved under `/app`**, with `AppUrls` splitting `boxhub.app-url` into an origin and an app-base — `Mailer.link()` and the Stripe return URLs take `/app`, the OAuth `redirect_uri` must **not**, because nginx proxies `/login/oauth2/` at the server root and Google matches a console registration. Old app paths keep **permanent 301s** preserving query strings and path parameters, because verification/reset/invite links already in real inboxes carry single-use, time-limited tokens. **Opt-in local HTTPS** (`--profile tls`) finally exercised `BOXHUB_COOKIE_SECURE`, wired in M12c and never once proven: `Secure` present with it true, gone with it false, everything else identical. **Flyway V18** adds `users.locale` + `boxes.locale`. **i18n infrastructure** (`@angular/localize`, runtime `loadTranslations`, `LOCALE_ID`, locale-aware formatting) plus a brand constant on both sides — the ~390 existing strings were deliberately **not** marked, since M13c–M18 rewrite those screens; that obligation is now a binding rule in `CLAUDE.md`.
 
-**Tests:** backend **428** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **28** Playwright (SERIAL — `workers:1`, **`retries: 0`**). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. Remaining polish is in `docs/BACKLOG.md`, which is now organised by DESTINATION (M12/M15/M17/Project 2), not by origin milestone.
+**Tests (M13a, 2026-08-02):** backend **428** (Testcontainers Postgres, 0 skips), frontend **184** Karma specs, e2e **28** Playwright (SERIAL — `workers:1`, **`retries: 0`**). All green. Impeccable critiques M5.5 **28/40** · M6 **32/40** · M7 (runner+TV timer) in `.impeccable/critique/` — zero open P0/P1. Remaining polish is in `docs/BACKLOG.md`, which is now organised by DESTINATION (M12/M15/M17/Project 2), not by origin milestone.
+
+- **M13b design language (2026-08-06)** — chalkboard-black-and-volt replaces the warm-broadcast
+  identity, **dark only**, and the product is renamed **BoxHub → rxed** (`rxed.app`). Design law v3:
+  `docs/superpowers/specs/2026-08-06-m13b-design-language-design.md`, which supersedes the M5 design
+  law in full (its accessibility/process rules — state never silent, WCAG AA, `bh-sheet` overlays, the
+  impeccable gate — survive verbatim in §11–§12). Token *names* are unchanged, so every existing
+  screen recoloured automatically; only `--red`/`--on-red`/`--red-glow` were renamed to
+  `--volt`/`--on-volt`/`--focus` across 53 files, and error states were split off onto a new
+  `--danger` (may fill a button or chip, never a row/card/panel). `ThemeService`, `data-theme`,
+  `prefers-color-scheme` and the light theme are **deleted** — re-open trigger: a pilot box asks, or
+  an accessibility need surfaces. Faces: Saira Condensed deleted; Archivo (400/500/700/800) +
+  JetBrains Mono (400/700), where mono is now the "prescription voice" and is **banned from prose**.
+  Focus rings became solid 2px outlines, inverting to `--focus-inv` on volt-filled controls (a volt
+  ring on the volt primary button is invisible). The wordmark is type, not an asset (`bh-wordmark`
+  component), plus a hand-drawn SVG favicon. Two proof screens — the WOD board and the admin members
+  table — prove both halves of the language at a new dev-only route, `/app/dev/components`, with an
+  automated spec asserting the "one volt element" rule rather than trusting it by eye. **No product
+  screen was redesigned**; existing screens recolour automatically and some look wrong on purpose,
+  fixed in their own rebuild milestones (M13c–M18). The receipt page's print stylesheet, broken since
+  M10 (prints near-white text on white paper), now inverts to ink-on-paper. Two clarifications landed
+  mid-milestone, both in the spec: §2.3 ("volt is the only accent") was reworded from a raw count to a
+  rule about *questions*, after the WOD board proof caught volt being spent on a score-type label; §3.1
+  was amended so `--danger` may fill a button or chip after all, for the delete-account confirm case.
+  **Tests:** backend **428** / frontend **182** (down from 184 — Task 2 deleted `theme.service.spec.ts`
+  and `app.config.spec.ts`'s theme assertions; Tasks 9–10 each added one proof spec) / production build
+  clean, with three pre-existing `anyComponentStyle` budget warnings (`instance-builder.page.ts`,
+  `tv-shell.page.ts`, `progress.page.ts`, filed in `docs/BACKLOG.md`, fixed by each screen's own
+  rebuild milestone, not by raising the budget). **e2e 28/28** at `retries: 0` against a
+  `down -v` rebuilt stack.
+
+  **The e2e run earned its keep twice.** `theme.spec.ts` failed correctly — it pinned the retired
+  warm ground and the deleted `data-theme` attribute — and rewriting it exposed that its *sibling*
+  had been hollow all along. The font guard added after M5.5's P0 (brand faces 404'd in production
+  for a whole milestone) called `document.fonts.check('800 20px "Saira Condensed"')`, and that call
+  returns true whenever the string is renderable **including by a fallback**. It passed for the
+  entire milestone while asserting a typeface deleted in M13b's first commit, and it could never
+  have detected the bug it was written to catch. Now uses `document.fonts.load()`, which resolves to
+  an empty array for an undeclared family, with a permanent negative control asserting Saira
+  Condensed returns zero faces.
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
@@ -89,7 +128,7 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - **Backend:** modular monolith, package = module boundary under `com.boxhub`: `identity` (users/auth/memberships), `box` (boxes/plans/invites/templates/sessions/bookings), `shared` (tenancy/errors/RoleGuard/rate-limit/seeder). `programming`, `performance`, `display` packages will come with M3–M5.
 - **Multi-tenancy:** single DB, `box_id` on every tenant table, Hibernate 6 `@TenantId` discriminator resolved from the JWT `box_id` claim via `shared/TenantIdentifierResolver` + `TenantContext`. Null tenant = fail-OPEN "root" (documented in ADR-001 amendment) — safe only because `/api/box/**` requires `SCOPE_box`. Every box endpoint has happy + auth-denied + cross-tenant-denied tests (mandatory).
 - **Auth:** stateless JWT (HS256), user token → box token (after ACTIVE-membership check) → box-scoped requests. Superadmin via config allowlist claim.
-- **Frontend:** Angular standalone + signals. `src/styles/_tokens.scss` = ONLY place raw color/type/spacing live. `src/app/ui/` = `bh-*` components (button, field, pill, tag, stat, board-row, panel, rail/nav; `.bh-table` styles). Screens in `src/app/features/{auth,admin,athlete,coach,tv,join,booking}`. `core/auth` (AuthService+interceptor+guards), `core/theme`.
+- **Frontend:** Angular standalone + signals. `src/styles/_tokens.scss` = ONLY place raw color/type/spacing live. `src/app/ui/` = `bh-*` components (button, field, pill, tag, stat, board-row, panel, rail/nav, wordmark; `.bh-table` styles). Screens in `src/app/features/{auth,admin,athlete,coach,tv,join,booking,dev}`. `core/auth` (AuthService+interceptor+guards). **No `core/theme`** — `ThemeService` and the light theme were deleted in M13b; dark only.
 - **Booking engine** (`box/BookingService`): every state transition `@Transactional` under `ClassSessionRepository.findWithLockById` (SELECT … FOR UPDATE). Cancel = DELETE the booking row (not a CANCELLED status); CHECKED_IN/NO_SHOW persist. Reason codes returned as `ResponseStatusException(409, "CODE")` → problem+json `detail`.
 
 ## CRITICAL gotchas (these bit us repeatedly)
@@ -192,21 +231,30 @@ browserless test passing means the browser, not the app.
 - **Milestone lock:** work only the active milestone; out-of-scope ideas → `docs/BACKLOG.md`, don't build them.
 - **Superpowers flow per milestone:** brainstorming (design spec + user approval gate) → writing-plans → execute → finishing-a-development-branch. Design/creative work starts with brainstorming.
 - **Process pace = JUDGMENT, lean (user insisted 3×):** DEFAULT to INLINE execution by the main thread (write files, run tests+build, commit). Do NOT spin up implementer+reviewer subagents per task for mechanical/well-specified work — that was too slow/expensive in M0/M1. Spawn ONE agent (implementer, optionally one review) ONLY for genuinely parallel, high-uncertainty, or high-risk work (security, tenancy, concurrency e.g. the booking engine, money). Tests + build + targeted greps are the gate. Commit in batches. Track in `.superpowers/sdd/progress.md`.
-- **Design (binding):** tokens only — a raw hex outside `_tokens.scss` is a bug. Warm dark is home theme; race red (`--red`) is the only accent (live/primary/winning); glow rationed (primary hover, live dot, focus ring); no gradients/fake-textures; numbers tabular; identity lives in HERO screens (WOD board, leaderboard, PR page, live runner, TV), plumbing stays conventional; screens built from `bh-*` components. Fonts self-hosted via @fontsource (Saira Condensed display + Archivo body).
+- **Design (binding, design law v3 since M13b):** tokens only — a raw hex outside `_tokens.scss` is a bug. **Dark only**, no light theme; volt (`--volt`) is the only accent (live/now/primary/winning, bounded by area — never a card/panel/page background); `--danger` may fill a button or chip only; no glow/gradients/shadows-on-flat-surfaces; focus ring is a solid outline, inverting on volt surfaces; mono (JetBrains Mono) is the prescription voice and is banned from prose; numbers tabular; identity lives in HERO screens (WOD board, leaderboard, PR page, live runner, TV), plumbing stays conventional; screens built from `bh-*` components. Fonts self-hosted via @fontsource (Archivo + JetBrains Mono). Full detail: `docs/superpowers/specs/2026-08-06-m13b-design-language-design.md`.
 - **Tenancy (binding):** resolve tenant ONLY from `TenantContext`; every box endpoint gets cross-tenant-denied test; @TenantId tenant-agnostic queries = native SQL.
 - **Commits:** conventional; end body with `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. Never commit `.DS_Store`. Commit/push only what the user's flow implies (they've been fine with push after merge).
 - **Communication:** caveman + ponytail plugins are active (terse prose, laziest-correct code) — code/commits/security written normally.
 
 ## Immediate next step
 
-**M13a is merged and pushed. CI green on `main` — but see the flake note below. Nothing is in flight.**
+**M13b is complete on branch `m13b-design-language`, not yet merged.** All twelve plan tasks are
+done and every gate is green locally. **CI has not run on it — check the run before merging; a local
+green is not the gate**, and M13a passed 28/28 locally then went red on CI.
 
 **One known flake, filed in `docs/BACKLOG.md`:** the M13a merge commit's CI run failed once at
 `runner.spec.ts:45` (`data-timer` expected `RUNNING`, got `none`) and **passed on re-run of the same
 commit**. Non-deterministic, not an M13a regression, and the `/app` move is ruled out (the SSE URL is
 absolute). M12a predicted this specific half failing and left the split assertion as the diagnostic.
+It passed on every M13b run.
 
-Backend **428** / frontend **184** / e2e **28** at `retries: 0`. **Next Flyway is V19** — M13a used V18.
+Backend **428** / frontend **182** / e2e **28** at `retries: 0`. **Next Flyway is V19** — M13a used
+V18 and M13b added no migration.
+
+**One thing on the branch is computed rather than verified:** the receipt page's new `@media print`
+block (`receipt.page.ts`) was never printed to PDF and looked at. The CSS is scoped to `:host` and
+the token overrides are straightforward, but the plan called for opening the PDF and nobody did.
+Worth one manual print before merge.
 
 **Before you run anything: `cp docker/.env.example docker/.env`.** The stack will not start without it.
 
@@ -216,13 +264,25 @@ Backend **428** / frontend **184** / e2e **28** at `retries: 0`. **Next Flyway i
 **Optional TLS:** `docker compose -f docker/docker-compose.yml --profile tls up -d --build`, after
 generating a cert into `docker/dev-tls/` and adding a hosts entry. See `README.md`.
 
-**NEXT: M13b — the design language**, and it needs two things from the user before it can start:
-1. **The product's new name.** `boxhub.com` and `boxhub.io` are unavailable. M13b designs a wordmark,
-   so designing one for a name about to be abandoned is waste. `BRAND_NAME` (frontend) and `Brand`
-   (backend) make the swap a two-value change once decided.
-2. **A tour of the coach programming screens** — Types, WOD library, Benchmarks, instance Builder —
-   before **M14** can be specced. Coach was skipped in the 2026-08-02 product tour, then split, and
-   the half that landed in M14 has never been reviewed by anyone.
+**NEXT: M13c — the component library.** ~22 `bh-*` components rebuilt against design law v3, the
+dev gallery at `/app/dev/components` (**which now exists** — M13b created it early for the proof
+screens, and M13c grows it into the full gallery), plus visual-regression and axe-core WCAG checks.
+
+Read `docs/superpowers/specs/2026-08-06-m13b-design-language-design.md` first. It is binding, and
+§12.1 sets the i18n marker convention those ~22 components inherit.
+
+**Still owed by the user, and it blocks M14's spec:** a tour of the coach programming screens —
+Types, WOD library, Benchmarks, instance Builder. Coach was skipped in the 2026-08-02 product tour,
+then split, and the half that landed in M14 has never been reviewed by anyone. **The brand-name
+blocker is gone** — the product is `rxed`, settled 2026-08-06.
+
+**Two decisions M13c inherits, both recorded rather than left to be rediscovered:**
+- `bh-stat` has **zero call sites**. Decide whether to build it or delete it; do not restyle a
+  component nothing renders.
+- The 4 kB `anyComponentStyle` budget and the tokens-only rule pull against each other —
+  `var(--fs-meta)` is eleven characters longer than `11px`, and M13b's members proof went over
+  budget purely by replacing a raw value with its token. Note also that inline `style=""` in
+  template markup does **not** count toward that budget at all.
 
 **Read `docs/BACKLOG.md` top-down — it is organised by destination and tells you what to do next.**
 

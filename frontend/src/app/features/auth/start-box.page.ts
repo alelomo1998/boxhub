@@ -73,11 +73,11 @@ type Mode = 'loading' | 'open' | 'full' | 'error';
     .title { font-size: var(--fs-hero); margin: 0 0 var(--sp-2); }
     .f { display: flex; flex-direction: column; gap: 6px; }
     .f span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .ok { color: var(--good); font-size: var(--fs-sm); margin: 0; }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--danger); }
     .alt { font-size: var(--fs-sm); margin: 0; }
   `],
 })
