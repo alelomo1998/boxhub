@@ -62,7 +62,7 @@ import { ButtonComponent } from '../../ui/button.component';
   styles: [`
     .receipt { max-width: 480px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--volt); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .paper { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);

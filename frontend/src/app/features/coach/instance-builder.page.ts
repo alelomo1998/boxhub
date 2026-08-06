@@ -118,7 +118,7 @@ interface PieceDraft {
   styles: [`
     .ib { max-width: 1100px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--volt); font-size: var(--fs-sm); }
     .ok { color: var(--good); font-size: var(--fs-sm); font-family: var(--font-mono);
       text-transform: uppercase; letter-spacing: 0.06em; }
     .back { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--bone-dim);
@@ -162,12 +162,12 @@ interface PieceDraft {
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);
       font-size: 14px; cursor: pointer; }
     .mini:disabled { opacity: 0.35; }
-    .mini.danger { color: var(--red); }
+    .mini.danger { color: var(--volt); }
     .mini:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
-    .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
     .in.type { width: auto; min-width: 130px; text-transform: capitalize; }
     .typetag { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--bone-dim); padding: 6px 12px;
@@ -180,7 +180,7 @@ interface PieceDraft {
     .p-foot { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
     .chk { display: flex; align-items: center; gap: 8px; min-height: var(--tap); font-size: var(--fs-sm);
       cursor: pointer; }
-    .chk input { width: 20px; height: 20px; accent-color: var(--red); }
+    .chk input { width: 20px; height: 20px; accent-color: var(--volt); }
     .linked { font-family: var(--font-mono); font-size: 10px; color: var(--faint); }
 
     .add { margin: var(--sp-3) 0; min-height: var(--tap); width: 100%; background: transparent;

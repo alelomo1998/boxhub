@@ -148,7 +148,7 @@ type FetchState = 'loading' | 'error' | 'ready';
     .zone-h { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); margin: 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
-    .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
+    .stateline.err, .err { color: var(--volt); font-size: var(--fs-sm); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
 
@@ -172,7 +172,7 @@ type FetchState = 'loading' | 'error' | 'ready';
     .errslot { min-height: var(--tap); display: flex; align-items: center; }
     .clock { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3);
       border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4); }
-    .clock.on { border-color: var(--red); }
+    .clock.on { border-color: var(--volt); }
     .clock.paused { border-color: var(--warn); }
     .clock-piece { flex: 1 1 100%; font-family: var(--font-mono); font-size: var(--fs-meta);
       letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }

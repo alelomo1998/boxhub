@@ -63,7 +63,7 @@ import { BRAND_NAME } from '../../core/brand';
     .top { grid-area: top; display: flex; align-items: center; gap: var(--sp-3);
       padding: var(--sp-2) var(--sp-5); border-bottom: 1px solid var(--hairline); }
     .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .mark { width: 30px; height: 30px; border-radius: var(--edge); background: var(--red); color: var(--on-red);
+    .mark { width: 30px; height: 30px; border-radius: var(--edge); background: var(--volt); color: var(--on-volt);
       display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 17px;
       flex-shrink: 0; }
     .bn { font-family: var(--font-display); font-weight: 800; font-size: 17px; text-transform: uppercase;

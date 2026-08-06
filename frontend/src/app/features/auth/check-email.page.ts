@@ -33,7 +33,7 @@ const RESEND_COOLDOWN_MS = 60_000;
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .muted strong { color: var(--bone); }
     .ok { color: var(--good); font-size: var(--fs-sm); margin: 0; }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
     .alt { font-size: var(--fs-sm); margin: 0; }
   `],
 })

@@ -84,7 +84,7 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
       text-transform: uppercase; color: var(--faint); margin: var(--sp-4) 0 6px; }
     .in { width: 100%; background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--edge); padding: 9px 12px; color: var(--bone); font-family: var(--font-body); font-size: 14px; }
-    .in:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
     .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-3); }
     .area { min-height: 72px; resize: vertical; }
     .blocks { margin-top: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -94,7 +94,7 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
     .sm { padding: 7px 9px; font-size: 13px; }
     .mini { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); font-size: 12px; padding: 6px 10px; cursor: pointer; }
-    .mini.danger { color: var(--red); }
+    .mini.danger { color: var(--volt); }
     .mini.add { color: var(--faint); margin-top: 4px; }
     .actions { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-5); }
   `],

@@ -97,7 +97,7 @@ let uid = 0;
     .in.big { width: 116px; min-height: 64px; text-align: center; font-family: var(--font-display);
       font-weight: 800; font-size: var(--fs-display); font-variant-numeric: tabular-nums; }
     .in.big.wide { width: 100%; max-width: 240px; align-self: center; }
-    .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
     .switch { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--tap);
       font-size: var(--fs-sm); color: var(--bone); cursor: pointer; position: relative; }
     .sw-lab { flex: 1; }
@@ -107,12 +107,12 @@ let uid = 0;
       transition: background var(--dur) var(--ease-out); }
     .knob::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
       border-radius: var(--r-full); background: var(--bone-dim); transition: transform var(--dur) var(--ease-out); }
-    .switch input:checked + .knob { background: var(--red); border-color: var(--red); }
-    .switch input:checked + .knob::after { transform: translateX(18px); background: var(--on-red); }
+    .switch input:checked + .knob { background: var(--volt); border-color: var(--volt); }
+    .switch input:checked + .knob::after { transform: translateX(18px); background: var(--on-volt); }
     .switch input:focus-visible + .knob { box-shadow: 0 0 0 3px var(--red-glow); }
     .hint { color: var(--faint); }
     .done { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
     @media (prefers-reduced-motion: reduce) { .knob, .knob::after, .segbtn { transition: none; } }
   `],
 })

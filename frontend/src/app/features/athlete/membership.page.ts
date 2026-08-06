@@ -76,7 +76,7 @@ function mapCheckoutError(e: { error?: { detail?: string } }): string {
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--volt); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
@@ -87,7 +87,7 @@ function mapCheckoutError(e: { error?: { detail?: string } }): string {
     .card .meta { color: var(--faint); font-size: var(--fs-sm); }
     .sh { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);
       text-transform: uppercase; margin: 0 0 var(--sp-3); }
-    .err { color: var(--red); font-size: var(--fs-sm); }
+    .err { color: var(--volt); font-size: var(--fs-sm); }
     .plans { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .plans li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: 12px 4px; border-bottom: 1px solid var(--hairline); }

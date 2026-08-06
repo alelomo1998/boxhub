@@ -121,7 +121,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
     .board { display: grid; grid-template-columns: 4fr 1fr; min-height: 100vh; }
     .main { padding: 4vh 4vw; min-width: 0; }
     .head { margin-bottom: 3vh; }
-    .livedot { width: 1.2vh; height: 1.2vh; border-radius: var(--r-full); background: var(--red);
+    .livedot { width: 1.2vh; height: 1.2vh; border-radius: var(--r-full); background: var(--volt);
       box-shadow: 0 0 12px var(--red-glow); display: inline-block;
       animation: pulse 1.6s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -140,7 +140,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
     .tvtimer { display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 2vh; margin-top: 4vh; text-align: center; }
     .tt-clock { font-family: var(--font-display); font-weight: 800; font-size: 28vh; line-height: 1; }
-    .tvtimer.urgent .tt-clock { color: var(--red); }
+    .tvtimer.urgent .tt-clock { color: var(--volt); }
     .tt-phase { font-family: var(--font-mono); font-size: 2.2vh; letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); }
     .tt-piece { margin-top: 2vh; }
@@ -163,7 +163,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
     .rank { font-family: var(--font-display); font-weight: 800; font-size: 2.6vh; color: var(--faint);
       text-align: center; }
     .rank.dot { color: var(--hairline); }
-    .row.win .rank { color: var(--red); }
+    .row.win .rank { color: var(--volt); }
     .nm { font-family: var(--font-display); font-weight: 700; font-size: 2.2vh; text-transform: uppercase;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .val { font-family: var(--font-display); font-weight: 800; font-size: 2.4vh; }

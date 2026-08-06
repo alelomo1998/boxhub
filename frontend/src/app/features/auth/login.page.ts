@@ -42,15 +42,15 @@ import { BRAND_NAME } from '../../core/brand';
     .card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--hairline);
       border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-4); }
     .brand { display: flex; align-items: center; gap: 10px; margin-bottom: var(--sp-2); }
-    .mark { width: 34px; height: 34px; border-radius: var(--edge); background: var(--red); color: var(--on-red);
+    .mark { width: 34px; height: 34px; border-radius: var(--edge); background: var(--volt); color: var(--on-volt);
       display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 21px; }
     .bn { font-family: var(--font-display); font-weight: 800; font-size: 19px; text-transform: uppercase; letter-spacing: 0.02em; }
     .f { display: flex; flex-direction: column; gap: 6px; }
     .f span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
     .f input { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       padding: 11px 13px; color: var(--bone); font-family: var(--font-body); font-size: 15px; }
-    .f input:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
-    .error { color: var(--red); font-size: 13px; margin: 0; }
+    .f input:focus { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .error { color: var(--volt); font-size: 13px; margin: 0; }
     .alt { font-size: var(--fs-sm); margin: 0; }
     .google { display: flex; align-items: center; justify-content: center; min-height: var(--tap);
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);

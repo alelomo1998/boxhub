@@ -110,7 +110,7 @@ import { BookingService } from '../booking/booking.service';
   styles: [`
     .home { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--volt); }
     .retry { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); min-height: var(--tap); padding: 0 var(--sp-4); margin-left: var(--sp-2); cursor: pointer; }
 
@@ -137,7 +137,7 @@ import { BookingService } from '../booking/booking.service';
     .pals { display: flex; gap: 4px; margin-top: var(--sp-3); }
 
     .empty-cta .cta-line { display: block; margin-top: var(--sp-2); font-family: var(--font-display);
-      font-weight: 700; font-size: var(--fs-h2); text-transform: uppercase; color: var(--red); }
+      font-weight: 700; font-size: var(--fs-h2); text-transform: uppercase; color: var(--volt); }
 
     .teaser .pieces { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
     .piece { border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 5px 12px;

@@ -59,14 +59,14 @@ import { PillComponent } from '../../ui/pill.component';
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--volt); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-3); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .status-row { display: flex; align-items: center; gap: var(--sp-3); }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 420px; margin-top: var(--sp-5); }
     .f { display: flex; flex-direction: column; gap: 6px; }
     .f span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
     .actions { display: flex; align-items: center; gap: var(--sp-3); }
     .ok { color: var(--good); font-size: 13px; font-weight: 600; }
   `],

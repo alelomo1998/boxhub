@@ -193,8 +193,8 @@ interface AuditRow {
     .head { display: flex; align-items: center; justify-content: space-between; }
     .title { font-size: var(--fs-hero); margin: 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
-    .stateline.err { color: var(--red); }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: var(--sp-1) 0 0; }
+    .stateline.err { color: var(--volt); }
+    .err { color: var(--volt); font-size: var(--fs-sm); margin: var(--sp-1) 0 0; }
     .actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);

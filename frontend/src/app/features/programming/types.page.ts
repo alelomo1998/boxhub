@@ -84,7 +84,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   styles: [`
     .types { max-width: 720px; margin: 0 auto; }
     .stateline { color: var(--bone-dim); }
-    .err { color: var(--red); font-size: var(--fs-sm); }
+    .err { color: var(--volt); font-size: var(--fs-sm); }
     .head { margin-bottom: var(--sp-4); }
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); }
@@ -127,11 +127,11 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-size: var(--fs-body);
       box-sizing: border-box; width: 100%; }
     .in.st { width: auto; }
-    .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
     .mini { min-width: var(--tap); min-height: var(--tap); background: transparent;
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone); cursor: pointer; }
     .mini:disabled { opacity: 0.35; }
-    .mini.danger { color: var(--red); }
+    .mini.danger { color: var(--volt); }
     .mini:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--red-glow); }
     .add { min-height: var(--tap); background: transparent; border: 1px dashed var(--hairline);
       border-radius: var(--edge); color: var(--bone-dim); cursor: pointer; }

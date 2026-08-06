@@ -44,7 +44,7 @@ import { ButtonComponent } from '../../ui/button.component';
     .title { font-size: var(--fs-hero); margin: 0 0 var(--sp-2); }
     .f { display: flex; flex-direction: column; gap: 6px; }
     .f span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
     .alt { font-size: var(--fs-sm); margin: 0; }
     .google { display: flex; align-items: center; justify-content: center; min-height: var(--tap);
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);

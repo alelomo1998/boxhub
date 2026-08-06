@@ -49,7 +49,7 @@ import { HomeService } from './home.service';
       border-bottom: 1px solid var(--hairline); position: sticky; top: 0; z-index: 20;
       background: var(--ground); }
     .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .mark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--red); color: var(--on-red);
+    .mark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt); color: var(--on-volt);
       display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 17px;
       flex-shrink: 0; }
     .bn { font-family: var(--font-display); font-weight: 800; font-size: 17px; text-transform: uppercase;

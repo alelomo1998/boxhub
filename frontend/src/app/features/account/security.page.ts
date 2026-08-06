@@ -170,9 +170,9 @@ type SessionsState = 'loading' | 'error' | 'ready';
       text-transform: uppercase; color: var(--faint); }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .ok { color: var(--good); font-size: var(--fs-sm); margin: 0; }
-    .err { color: var(--red); font-size: var(--fs-sm); margin: 0; }
+    .err { color: var(--volt); font-size: var(--fs-sm); margin: 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--volt); }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: var(--sp-2) 0; border-bottom: 1px solid var(--hairline); }
@@ -181,7 +181,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
     .who b { font-weight: 600; font-size: var(--fs-body); }
     .who .meta { color: var(--faint); font-size: var(--fs-meta); font-family: var(--font-mono); }
     .danger { padding-top: var(--sp-4); border-top: 1px solid var(--hairline); }
-    .deletebtn { color: var(--red); border-color: var(--red); }
+    .deletebtn { color: var(--volt); border-color: var(--volt); }
     .del { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
     .explain { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
   `],

@@ -19,8 +19,8 @@ import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from 
       border-radius: var(--edge); padding: 11px 13px; color: var(--bone);
       font-family: var(--font-body); font-size: 15px; }
     .input::placeholder { color: var(--faint); }
-    .input:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
-    .err { color: var(--red); font-size: 12px; }
+    .input:focus { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
+    .err { color: var(--volt); font-size: 12px; }
   `],
 })
 export class FieldComponent {

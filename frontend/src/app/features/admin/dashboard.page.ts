@@ -96,7 +96,7 @@ import { BookingService, ClassTemplate } from '../booking/booking.service';
   styles: [`
     .dash { max-width: 900px; }
     .stateline { color: var(--bone-dim); }
-    .stateline.err { color: var(--red); }
+    .stateline.err { color: var(--volt); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .head { margin-bottom: var(--sp-5); }
@@ -135,7 +135,7 @@ import { BookingService, ClassTemplate } from '../booking/booking.service';
     .step { display: flex; align-items: center; gap: var(--sp-3); }
     .dot { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-full);
       border: 1px solid var(--hairline); color: var(--faint); font-size: var(--fs-meta); flex-shrink: 0; }
-    .step.done .dot { background: var(--good); border-color: var(--good); color: var(--on-red); }
+    .step.done .dot { background: var(--good); border-color: var(--good); color: var(--on-volt); }
     .s-body { font-size: var(--fs-sm); color: var(--bone); }
     .s-body a { color: var(--bone); }
     .step.locked .s-body { color: var(--faint); }

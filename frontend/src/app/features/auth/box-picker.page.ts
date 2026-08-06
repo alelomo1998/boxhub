@@ -33,12 +33,12 @@ import { redirectForRole, MembershipDto } from '../../core/auth/auth.models';
       border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-3); }
     .title { font-size: 40px; margin: 0 0 var(--sp-4); }
     .empty { color: var(--bone-dim); font-size: 14px; }
-    .error { color: var(--red); font-size: 13px; margin: 0; }
+    .error { color: var(--volt); font-size: 13px; margin: 0; }
     .list { display: flex; flex-direction: column; gap: var(--sp-2); }
     .box { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3);
       background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       padding: 14px 16px; cursor: pointer; text-align: left; transition: border-color .15s; }
-    .box:hover { border-color: var(--red); }
+    .box:hover { border-color: var(--volt); }
     .bn { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 20px;
       letter-spacing: -0.01em; color: var(--bone); }
     .role { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; color: var(--faint); text-transform: uppercase; }

@@ -65,7 +65,7 @@ import { AuthService } from '../../core/auth/auth.service';
       text-transform: uppercase; color: var(--faint); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; }
-    .stateline { color: var(--bone-dim); } .stateline.err, .err { color: var(--red); font-size: var(--fs-sm); }
+    .stateline { color: var(--bone-dim); } .stateline.err, .err { color: var(--volt); font-size: var(--fs-sm); }
 
     .claim { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-4) var(--sp-5); }
@@ -82,7 +82,7 @@ import { AuthService } from '../../core/auth/auth.service';
       box-sizing: border-box; width: 100%; }
     .in.num { width: 130px; text-align: center; font-family: var(--font-display); font-weight: 800;
       font-size: var(--fs-h2); font-variant-numeric: tabular-nums; letter-spacing: 0.1em; }
-    .in:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+    .in:focus-visible { outline: none; border-color: var(--volt); box-shadow: 0 0 0 3px var(--red-glow); }
 
     .list { display: flex; flex-direction: column; gap: var(--sp-3); }
     .row { display: flex; align-items: center; gap: var(--sp-3); border: 1px solid var(--hairline);

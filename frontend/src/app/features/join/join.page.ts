@@ -54,7 +54,7 @@ import { ButtonComponent } from '../../ui/button.component';
     .f { display: flex; flex-direction: column; gap: 6px; }
     .f span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
     .alt { font-size: 13px; margin: var(--sp-2) 0 0; }
-    .err { color: var(--red); font-size: 13px; margin: 0; }
+    .err { color: var(--volt); font-size: 13px; margin: 0; }
   `],
 })
 export class JoinPage implements OnInit {
