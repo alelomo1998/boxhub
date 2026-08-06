@@ -5,16 +5,17 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { redirectForRole } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
+import { WordmarkComponent } from '../../ui/wordmark.component';
 import { BRAND_NAME } from '../../core/brand';
 
 @Component({
   selector: 'bh-login',
   standalone: true,
-  imports: [FormsModule, ButtonComponent],
+  imports: [FormsModule, ButtonComponent, WordmarkComponent],
   template: `
     <main class="auth">
       <form class="card" (ngSubmit)="submit()" data-testid="login-form">
-        <div class="brand"><span class="mark">B</span><span class="bn">{{ BRAND_NAME }}</span></div>
+        <div class="brand"><bh-wordmark variant="hero" size="md" /></div>
         <label class="f"><span>EMAIL</span>
           <input name="email" type="email" [(ngModel)]="email" required placeholder="you@email.com" /></label>
         <label class="f"><span>PASSWORD</span>

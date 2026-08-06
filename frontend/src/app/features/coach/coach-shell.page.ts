@@ -11,7 +11,7 @@ import { BRAND_NAME } from '../../core/brand';
   template: `
     <div class="app">
       <header class="top">
-        <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }} · Coach</span></div>
+        <div class="brand"><span class="mark">{{ boxInitial }}</span><span class="bn">{{ boxName }} · Coach</span></div>
         <nav class="hnav" aria-label="Coach">
           @for (t of tabs; track t.link) {
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
@@ -71,6 +71,10 @@ export class CoachShellPage {
   private auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
+  /* The badge beside a box's name is the box's own initial. It used to be a hardcoded "B"
+     for BoxHub, which survived the rename because a single letter does not look like a
+     brand string — the same way the mail subject lines did. */
+  boxInitial = (this.auth.activeBox()?.boxName || BRAND_NAME).trim().charAt(0).toUpperCase();
 
   tabs = [
     { link: 'classes', label: 'Classes', glyph: '▮▮' },

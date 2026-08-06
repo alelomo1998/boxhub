@@ -8,6 +8,7 @@ import { passwordErrorMessage } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { PillComponent } from '../../ui/pill.component';
+import { BRAND_NAME } from '../../core/brand';
 
 type SessionsState = 'loading' | 'error' | 'ready';
 
@@ -335,7 +336,7 @@ export class SecurityPage implements OnInit {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `boxhub-data-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `${BRAND_NAME.toLowerCase()}-data-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
       },

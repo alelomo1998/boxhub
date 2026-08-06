@@ -12,7 +12,7 @@ import { BRAND_NAME } from '../../core/brand';
   template: `
     <div class="admin">
       <header class="top">
-        <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }}</span></div>
+        <div class="brand"><span class="mark">{{ boxInitial }}</span><span class="bn">{{ boxName }}</span></div>
         <span class="area">Admin</span>
         <a class="theme" routerLink="/account/security" aria-label="Security" title="Security" data-testid="admin-security-link">⚙</a>
         <button class="theme" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
@@ -109,6 +109,10 @@ export class AdminShellPage {
   auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
+  /* The badge beside a box's name is the box's own initial. It used to be a hardcoded "B"
+     for BoxHub, which survived the rename because a single letter does not look like a
+     brand string — the same way the mail subject lines did. */
+  boxInitial = (this.auth.activeBox()?.boxName || BRAND_NAME).trim().charAt(0).toUpperCase();
   moreOpen = signal(false);
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }

@@ -23,7 +23,7 @@ import { AuthService } from '../../core/auth/auth.service';
       } @else {
         <div class="claim">
           <h2 class="ch">Pair a TV</h2>
-          <p class="hint">Open <strong>boxhub/tv</strong> on the TV's browser, then enter the code it shows.</p>
+          <p class="hint">Open <strong>{{ tvUrl }}</strong> on the TV's browser, then enter the code it shows.</p>
           <form class="cform" (ngSubmit)="claim()">
             <label class="qf"><span class="qlab">Code</span>
               <input class="in num" [(ngModel)]="code" name="code" inputmode="numeric" maxlength="6"
@@ -53,7 +53,7 @@ import { AuthService } from '../../core/auth/auth.service';
             </div>
           } @empty {
             <div class="empty"><p class="e1">No TVs paired.</p>
-              <p class="e2">Open boxhub/tv on the gym screen and pair it above.</p></div>
+              <p class="e2">Open {{ tvUrl }} on the gym screen and pair it above.</p></div>
           }
         </div>
       }
@@ -101,6 +101,12 @@ import { AuthService } from '../../core/auth/auth.service';
   `],
 })
 export class TvsPage implements OnInit {
+  /* What to type on the TV, taken from the origin actually being served rather than written down.
+     This was the literal "boxhub/tv" until the rename: an instruction telling a human to type a URL
+     for a product that no longer exists. Deriving it means it stays right on localhost, on a gym's
+     LAN and in production, with nobody maintaining it. */
+  readonly tvUrl = location.host + '/tv';
+
   private admin = inject(AdminService);
   private auth = inject(AuthService);
 

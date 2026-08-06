@@ -18,8 +18,11 @@ import { BRAND_NAME } from '../core/brand';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
+    <!-- The visible glyphs are split across two elements purely so the highlighter can sit behind
+         "ed", so they are hidden from assistive tech and the accessible name comes from the one
+         visually-hidden span. Without aria-hidden a screen reader announces the name twice. -->
     <span class="wm" [class.hero]="variant === 'hero'" [attr.data-size]="size">
-      <span class="a">rx</span><span class="b">ed</span>
+      <span class="a" aria-hidden="true">rx</span><span class="b" aria-hidden="true">ed</span>
       <span class="sr">{{ brand }}</span>
     </span>
   `,
