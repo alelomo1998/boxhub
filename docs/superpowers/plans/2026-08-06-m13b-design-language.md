@@ -1246,6 +1246,13 @@ Record the **real** test counts from the final run. Frontend is no longer 184: T
 - The Launch → Production entry for deleting `/app/dev/components` is now real rather than forward-looking — the route exists.
 - File **the categorical chart palette** (spec §17) against M16, with its constraints: new hues, must not reuse `--good`/`--warn`/`--danger`, 4.5:1 on `--ground`, distinguishable from volt.
 - File `apple-touch-icon` / web manifest / `theme-color` as a small Launch item.
+- File the **three standing `anyComponentStyle` budget warnings** found during Task 1 and confirmed
+  pre-existing: `instance-builder.page.ts` (+456 B), `tv-shell.page.ts` (+256 B) and
+  `progress.page.ts` (+17 B) all exceed the 4 kB component-style warning budget (the 8 kB *error*
+  budget is not breached, which is why the build is green). Each of those screens is rebuilt in a
+  later milestone — M14, Project 2 and M17 respectively — so the fix is not to raise the budget but
+  to let the rebuild shrink them. Filed because a build that prints three warnings nobody has
+  recorded is a build that trains people to stop reading warnings.
 - The M16 entry about mail templates duplicating `#D7263D` updates to the volt hex.
 
 - [ ] **Step 5: Update the progress ledger**
