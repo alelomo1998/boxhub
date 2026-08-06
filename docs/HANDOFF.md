@@ -238,30 +238,61 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13b is complete on branch `m13b-design-language`, not yet merged.** All twelve plan tasks are
-done and every gate is green locally. **CI has not run on it — check the run before merging; a local
-green is not the gate**, and M13a passed 28/28 locally then went red on CI.
+**M13b is MERGED and PUSHED.** `main` is at `7f3af3a`. Nothing is in flight; no branch is open.
 
-**One known flake, filed in `docs/BACKLOG.md`:** the M13a merge commit's CI run failed once at
-`runner.spec.ts:45` (`data-timer` expected `RUNNING`, got `none`) and **passed on re-run of the same
-commit**. Non-deterministic, not an M13a regression, and the `/app` move is ruled out (the SSE URL is
-absolute). M12a predicted this specific half failing and left the split assertion as the diagnostic.
-It passed on every M13b run.
+**CI is green** — `21aab79` (the merge) went red, and `0fd89a1` (the quarantine, below) is the first
+fully clean `ci` run since 2026-08-02: backend, frontend, e2e and dependency-scan all pass.
+
+**One caveat, stated precisely.** `7f3af3a` — a one-file favicon redraw on top of `0fd89a1` — has
+**no CI run at all**. GitHub never created one: the commit is on the remote, `ci.yml` triggers on
+push to `main` with no path filter, and both workflows report `active`. It is not a red build; the
+event appears to have been dropped. `ng build --configuration production` passed locally and the
+asset ships to `dist`. **The next push to `main` will cover it** — check that run rather than
+assuming.
 
 Backend **428** / frontend **182** / e2e **28 passed + 1 skipped** at `retries: 0`.
+**Next Flyway is V19** — M13a used V18 and M13b added no migration.
 
-**The skip is a deliberate quarantine, not a passing suite.** `runner.spec`'s TV half is
-`test.fixme()`d: a coach starts a timer and the TV never learns about it over SSE. Real defect,
-unfixed, in shipped code. It is quarantined because the TV is **Project 2** and Project 1 does
-not ship it, so it should not gate Project 1's build — a scope decision, not a verdict that it
-is minor. The coach half of that test still runs and still gates. Full evidence and the
-re-enable trigger are at the top of `docs/BACKLOG.md`. **Next Flyway is V19** — M13a used
-V18 and M13b added no migration.
+### The skip is a quarantine, and `main` was red for four days before it
 
-**One thing on the branch is computed rather than verified:** the receipt page's new `@media print`
-block (`receipt.page.ts`) was never printed to PDF and looked at. The CSS is scoped to `:host` and
-the token overrides are straightforward, but the plan called for opening the PDF and nobody did.
-Worth one manual print before merge.
+`runner.spec`'s TV half is `test.fixme()`d. A coach starts a timer and the TV never learns about it
+over SSE — frames arrive carrying `data-timer="none"`. **Real defect, unfixed, in shipped code.**
+
+It is quarantined because the TV is **Project 2** and Project 1 does not ship it, so a Project 2
+defect should not hold Project 1's build red. **Scope decision, taken deliberately with the user** —
+not a verdict that the bug is minor. The coach half of that test still runs and still gates.
+
+**It was never a flake.** That label came from one re-run passing. Two of the three `ci` runs before
+the quarantine failed, on different commits, with an identical signature. Full evidence, the
+reproduction recipe (run the e2e suite **twice against one stack**), a hypothesis that was checked
+and **disproved**, and the re-enable trigger are at the **top of `docs/BACKLOG.md`**. Read that
+before touching the runner or the TV.
+
+### Landed after the merge, in response to user review
+
+- **The rename had missed three user-facing things**, all of which slipped through because they do
+  not look like brand strings: a hardcoded `<span class="mark">B</span>` monogram in four shells (a
+  single letter is not the word "BoxHub", so no search could find it); the TV pairing screen telling
+  admins to open `boxhub/tv`, which is an instruction to *type a URL* and so was wrong rather than
+  stale; and the GDPR export downloading as `boxhub-data-<date>.json`. Login now renders the real
+  wordmark, the shells render the **box's own initial**.
+- **The tab title follows the route** (`PageTitleStrategy`, `core/page-title.strategy.ts`).
+  `AppComponent` set it once at boot, so all 42 screens shared one title. All 42 component routes
+  carry `$localize`'d titles with explicit `@@route.*` ids.
+- **The favicon was redrawn on a 16-unit grid.** The original was drawn at 32 and nothing landed on
+  a whole pixel: rasterised to 16px and magnified, the `r` was grey fringing and the `x` was mush.
+  The fix was a **thinner** `x` stroke, not a thicker one. 16px is measured; larger sizes are
+  reasoned, not re-rendered.
+- **A wordmark accessibility bug**: the visible glyphs are split across two elements so the
+  highlighter can sit behind `ed`, and without `aria-hidden` the accessible name computed as
+  `"rxedrxed"`.
+
+### Still computed rather than verified
+
+The receipt page's `@media print` block (`receipt.page.ts`) was **never printed to PDF and looked
+at**. The CSS is scoped to `:host` and the overrides are straightforward, but the plan called for
+opening the PDF and nobody did. The mail accent was likewise never opened in Mailpit. Both are
+low-risk and both are unverified — those are different claims from "done".
 
 **Before you run anything: `cp docker/.env.example docker/.env`.** The stack will not start without it.
 
