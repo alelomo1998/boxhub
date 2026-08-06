@@ -18,3 +18,4 @@ docker/.env
 # though it's throwaway — never committed.
 docker/dev-tls/
 docs/design-md/
+docs/design-ref/
