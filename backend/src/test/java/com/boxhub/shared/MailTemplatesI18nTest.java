@@ -57,7 +57,7 @@ class MailTemplatesI18nTest {
         SpringTemplateEngine engine = engineWith(messages);
 
         String before = render(engine, "mail/verify");
-        assertThat(before).contains("Confirm your email address to finish setting up your BoxHub account.");
+        assertThat(before).contains("Confirm your email address to finish setting up your rxed account.");
 
         // Mutate ONLY the bundle. Nothing about the template, the engine, or Mailer changes.
         messages.addMessage("verify.body", Locale.ENGLISH, "NEGATIVE CONTROL — bundle value changed");
@@ -65,7 +65,7 @@ class MailTemplatesI18nTest {
         String after = render(engine, "mail/verify");
 
         assertThat(after).contains("NEGATIVE CONTROL — bundle value changed");
-        assertThat(after).doesNotContain("Confirm your email address to finish setting up your BoxHub account.");
+        assertThat(after).doesNotContain("Confirm your email address to finish setting up your rxed account.");
         assertThat(after).isNotEqualTo(before);
     }
 

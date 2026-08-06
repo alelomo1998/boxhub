@@ -65,7 +65,7 @@ boxhub:
     # "BoxHub" here is a literal, not a reference — a YAML default can't read a Java constant.
     # Keep in sync by hand with Brand.NAME (backend .../shared/Brand.java), the single source
     # for every other occurrence of the brand name on the backend (mail templates via Mailer).
-    from: ${BOXHUB_MAIL_FROM:BoxHub <no-reply@boxhub.local>}
+    from: ${BOXHUB_MAIL_FROM:rxed <no-reply@rxed.app>}
   # No default here — deliberately. ${BOXHUB_STRIPE_ENC_KEYS} with no fallback fails Spring's
   # placeholder resolution at boot if the var is unset, before CryptoService's 32-byte check
   # ever runs. A committed default would be a real usable master key sitting in git history;
