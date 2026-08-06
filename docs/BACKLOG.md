@@ -60,6 +60,64 @@ entries whose history is still load-bearing.
   `InviteAdminController.InviteDto`. Redacting them blind is untested work; widening the test's
   driven surfaces is the real fix, and it belongs with log retention.
 
+## `main` IS RED — `runner.spec` data-timer, and it is not a flake (updated 2026-08-06)
+
+**Read this before anything else in this file.** `main` has been red since 2026-08-05.
+
+```
+2026-08-06  21aab79  failure   <- M13b merge
+2026-08-05  2ea5e41  failure
+2026-08-05  f894004  success   <- a RE-RUN of a commit that had already failed
+2026-08-02  3d0824d  failure
+```
+
+Every failure is the same single assertion, `runner.spec.ts:45`, with 27 of 28 passing. **M13b did
+not cause it** — it was already failing on `2ea5e41`, before the milestone branched — but M13b
+merged onto a red `main` and `main` is still red.
+
+**The "non-deterministic flake" label was wrong**, and it came from one re-run passing. Two of the
+last three runs failed, on different commits, with the same signature.
+
+### What is now established
+
+The `data-frames` counter M12a added is doing its job. Across three failures:
+
+| Where | frames observed | data-timer |
+|---|---|---|
+| CI `2ea5e41` | 0 → 1 | `none` throughout |
+| CI `21aab79` | 0 → 1 → **2** | `none` throughout |
+| Local, dirty stack | 0 → 1 | `none` throughout |
+
+**Frames arrive and carry no timer.** That eliminates SSE transport, the 15s budget and the `/app`
+move — all previously suspected. The bug is that the composed `TvState` has no running timer at a
+point where the coach has already started one.
+
+**It reproduces locally on demand**: run the e2e suite twice against one stack. It failed twice in a
+row that way, including a solo re-run, and passed 28/28 on a `down -v` rebuilt stack. Nobody needs to
+wait for CI any more.
+
+### A hypothesis that was checked and does NOT hold
+
+`TimerService.act()` is `@Transactional` and publishes `TvStateChanged` **inside** the transaction
+(`TimerService.java:65`), which looks exactly like the inverse of this project's "mail strictly after
+commit" rule. It was checked and it does not explain the failure: `TvStreamService.onChange`
+(`TvStreamService.java:63`) is a plain `@EventListener`, so it runs **synchronously on the calling
+thread**, and `TvStateService.compose()` is `@Transactional(readOnly = true)` with default
+propagation — it joins the caller's transaction and therefore *should* see the uncommitted write.
+
+Recorded so the next person does not spend the same hour confirming it. It is still worth re-checking
+against `runAsBox`, which swaps the security context before composing, since a *new* transaction
+opened there would see a different picture — that was not verified either way.
+
+### Next step
+
+Add logging inside `compose()` for the timer lookup specifically, then reproduce with the
+two-runs-one-stack recipe. The question to answer is narrow: at the moment a frame is composed, does
+`timers.findBySessionId(...)` return an empty result, a `PENDING` row, or a `RUNNING` row that is
+lost later in the mapping?
+
+---
+
 ## Open flake — `runner.spec` data-timer half, first seen 2026-08-05
 
 **M12a predicted this exact case and said to revisit if it happened. It happened.**
