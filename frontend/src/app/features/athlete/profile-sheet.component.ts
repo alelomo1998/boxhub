@@ -2,7 +2,6 @@ import { Component, EventEmitter, Output, inject, signal, OnInit, ChangeDetectio
 import { Router, RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
-import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { MediaService } from '../../core/media.service';
 import { HomeService, Profile } from './home.service';
@@ -36,12 +35,6 @@ import { HomeService, Profile } from './home.service';
             <span class="rh">Others see only your photo and name</span>
             <input type="checkbox" [checked]="p.isPrivate" (change)="togglePrivacy($any($event.target).checked)" />
           </label>
-
-          <button class="row asbtn" (click)="theme.toggle()">
-            <span class="rl">Theme</span>
-            <span class="rh">Switch dark / light</span>
-            <span aria-hidden="true">◐</span>
-          </button>
 
           <a class="row asbtn" routerLink="/account/security" data-testid="profile-security-link">
             <span class="rl">Security</span>
@@ -82,7 +75,6 @@ import { HomeService, Profile } from './home.service';
 export class ProfileSheetComponent implements OnInit {
   @Output() avatarChanged = new EventEmitter<string | null>();
 
-  theme = inject(ThemeService);
   private auth = inject(AuthService);
   private router = inject(Router);
   private media = inject(MediaService);

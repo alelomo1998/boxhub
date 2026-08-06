@@ -1,6 +1,5 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { BRAND_NAME } from '../../core/brand';
 
@@ -19,7 +18,6 @@ import { BRAND_NAME } from '../../core/brand';
           }
         </nav>
         <div class="acts">
-          <button class="iconbtn" (click)="theme.toggle()" aria-label="Toggle theme">◐</button>
           <a class="iconbtn" routerLink="/account/security" aria-label="Security" title="Security" data-testid="coach-security-link">⚙</a>
           <button class="iconbtn" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
         </div>
@@ -70,7 +68,6 @@ import { BRAND_NAME } from '../../core/brand';
   `],
 })
 export class CoachShellPage {
-  theme = inject(ThemeService);
   private auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;

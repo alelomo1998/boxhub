@@ -1,6 +1,5 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
 import { BRAND_NAME } from '../../core/brand';
@@ -15,7 +14,6 @@ import { BRAND_NAME } from '../../core/brand';
       <header class="top">
         <div class="brand"><span class="mark">B</span><span class="bn">{{ boxName }}</span></div>
         <span class="area">Admin</span>
-        <button class="theme" (click)="theme.toggle()" aria-label="Toggle theme">◐</button>
         <a class="theme" routerLink="/account/security" aria-label="Security" title="Security" data-testid="admin-security-link">⚙</a>
         <button class="theme" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
       </header>
@@ -108,7 +106,6 @@ import { BRAND_NAME } from '../../core/brand';
   `],
 })
 export class AdminShellPage {
-  theme = inject(ThemeService);
   auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;

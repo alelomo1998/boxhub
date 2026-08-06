@@ -15,7 +15,7 @@ const PAIRED_KEY = 'boxhub_tv_paired';
   standalone: true,
   imports: [DatePipe, AvatarComponent],
   template: `
-    <main class="tv" data-theme="dark">
+    <main class="tv">
       <span class="sr-only" data-testid="tv-stream"
             [attr.data-frames]="frames()"
             [attr.data-timer]="state()?.timer?.status ?? 'none'"></span>
@@ -207,7 +207,6 @@ export class TvShellPage implements OnInit, OnDestroy {
   private es: EventSource | null = null;
 
   ngOnInit() {
-    document.documentElement.setAttribute('data-theme', 'dark'); // TV is always dark
     this.clockTimer = setInterval(() => this.now.set(new Date()), 1000);
     const paired = localStorage.getItem(PAIRED_KEY);
     if (paired) { this.mode.set('live'); this.openStream(); }
