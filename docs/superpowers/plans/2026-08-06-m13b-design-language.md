@@ -384,7 +384,11 @@ Purely mechanical, and verifiable by a grep that must return nothing. Kept separ
 cd frontend && grep -rho -- '--red[a-z-]*\|--on-red' src | sort | uniq -c
 ```
 
-Expected, as measured on 2026-08-06: `100 --red`, `57 --red-glow`, `11 --on-red`. **If these numbers differ, stop and escalate** — the tree has moved since the plan was written and the rest of the task's assumptions need re-checking.
+Expected: **`95 --red`, `54 --red-glow`, `11 --on-red`**, across **52 files** outside `_tokens.scss`.
+
+These are re-measured at `63726f4`, i.e. **after Tasks 1 and 2**. They are lower than the `100 / 57 / 11` this plan was originally written against, and the drift is accounted for: Task 1 collapsed two `--red-glow` definitions into one alias, and Task 2's three toggle-button removals took the rest with them.
+
+**If the numbers differ from 95 / 54 / 11, stop and escalate** — the tree has moved again and the task's assumptions need re-checking.
 
 - [ ] **Step 2: Rename, longest token first**
 
@@ -481,19 +485,20 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 cd frontend && grep -rho '[^;{]*--red-glow[^;]*' src | sed 's/^ *//' | sort | uniq -c | sort -rn
 ```
 
-Expected, as measured on 2026-08-06:
+Expected, re-measured at `63726f4` (after Tasks 1 and 2):
 
 ```
-  47 box-shadow: 0 0 0 3px var(--red-glow)
-   4 box-shadow: inset 0 0 0 3px var(--red-glow)
-   2 box-shadow: 0 6px 24px var(--red-glow)
-   1 box-shadow: 0 0 14px var(--red-glow)
-   1 box-shadow: 0 0 12px var(--red-glow)
-   1 --red-glow: rgba(236, 67, 38, 0.38)   <- becomes the Task 1 alias line
-   1 --red-glow: rgba(213, 53, 29, 0.16)   <- gone with the light theme in Task 1
+  46 box-shadow: 0 0 0 3px var(--red-glow)          <- outer focus rings
+   3 box-shadow: inset 0 0 0 3px var(--red-glow)    <- inset focus rings
+   2 box-shadow: 0 6px 24px var(--red-glow)         <- decorative, delete
+   1 box-shadow: 0 0 14px var(--red-glow)           <- decorative, delete
+   1 box-shadow: 0 0 12px var(--red-glow)           <- decorative, delete
+   1 --red-glow: rgba(223, 255, 78, 0.30)           <- the Task 1 alias line itself
 ```
 
-**If the shapes differ, stop and escalate.**
+So: **49 focus rings and 4 decorative glows.** The original plan said 51 and 4 — Task 2's toggle-button removals took two focus rings with them.
+
+**If the shapes differ from this, stop and escalate.** A shape this plan does not list means somebody used the glow for something neither of us has looked at.
 
 - [ ] **Step 2: Replace the 47 outer focus rings**
 
