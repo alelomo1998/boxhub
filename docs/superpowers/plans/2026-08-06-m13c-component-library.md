@@ -2178,7 +2178,23 @@ Expected: FAIL — `Expected 'AL' to be 'GH'`. **This failure is the whole point
 
 - [ ] **Step 3: Convert the three components to signal inputs**
 
-`avatar.component.ts` — `path`, `name`, `size` become `input()`; `broken` stays a plain `signal`; `initials` stays a `computed()` and now actually tracks `this.name()`. Drop `ChangeDetectionStrategy.Eager`. Replace the raw `font-size` values (`11px`, `16px`, `24px`, `32px`) — this component is one of the 18 `ui/` sites in the raw-px gate. `.sm` and `.md` map to `var(--fs-meta)` and `var(--fs-body)`; `.lg` and `.xl` have no token at their size, so use `--fs-display` for `.lg` and `--fs-hero` for `.xl`, which are 28px and 40px against the current 24 and 32. **Look at the result at `xl` before committing** — this is a real size change on the athlete profile.
+`avatar.component.ts` — `path`, `name`, `size` become `input()`; `broken` stays a plain `signal`; `initials` stays a `computed()` and now actually tracks `this.name()`. Drop `ChangeDetectionStrategy.Eager`.
+
+**The four raw `font-size` values (`11px`, `16px`, `24px`, `32px`) become ONE ratio, not four tokens.** Decided at pre-flight, because the obvious fix was a redesign in disguise: `.lg` is 24px and `.xl` is 32px, and **no token is either size** — the scale is 40/28/20/15/13/11. Mapping them onto `--fs-display` (28) and `--fs-hero` (40) would visibly enlarge the initials on the athlete profile and the class-detail avatar grid, which is precisely the move Task 10 refuses to make for the 51 off-scale feature values.
+
+An initials badge is not type on the type scale — it is a glyph filling a circle, and it should scale *with that circle*:
+
+```css
+.av  { font-size: 36%; }        /* one rule, all four sizes; % of the box, not of the type scale */
+.sm  { width: 28px; height: 28px; }
+.md  { width: 44px; height: 44px; }
+.lg  { width: 72px; height: 72px; }
+.xl  { width: 96px; height: 96px; }
+```
+
+`36%` of 28 / 44 / 72 / 96 is 10.1 / 15.8 / 25.9 / 34.6 against today's 11 / 16 / 24 / 32 — within a pixel at the two small sizes, and slightly larger at `lg` and `xl`. **Tune the percentage until all four match today's rendering as closely as one number can, then look at all four in the gallery before committing.** A fifth avatar size later needs no new number at all.
+
+This is neither a raw px nor a type token, and that is correct: the raw-px gate exists to stop hardcoded *type sizes*, and a ratio is not one.
 
 `pill.component.ts` — signal inputs; add a `danger` tone (law §3.1 permits `--danger` to fill a chip). Keep the `live` tone's volt fill and its pulsing dot, and keep the reduced-motion alternative.
 

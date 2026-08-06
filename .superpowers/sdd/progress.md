@@ -657,3 +657,12 @@ M13b-T12: docs + full gate (orchestrator; the executor died on a session limit p
   expensive frontend bug.
   PROCESS NOTE: five of six executors returned a real finding, and every one was caught because
   briefs tell them to stop rather than improvise. Three of those findings were errors in MY briefs.
+
+## M13c component library — 2026-08-06 — branch m13c-component-library, base 8eb2819
+
+Spec `docs/superpowers/specs/2026-08-06-m13c-component-library-design.md`.
+Plan `docs/superpowers/plans/2026-08-06-m13c-component-library.md`, 14 tasks.
+18 components: 6 rebuilt, 12 built, 3 deleted. No Flyway; next is still V19.
+Gate baselines measured on main at 70a7565 (must all reach zero):
+  79 global-CSS class sites · 20 global defs · 18 raw px in ui/ · 36 on-scale px in features
+  · 9 Eager in ui/ · 35 decorators in ui/ · 3 dead components · 0 raw hex (standing, already zero)
