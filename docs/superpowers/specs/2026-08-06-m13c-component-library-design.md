@@ -70,7 +70,7 @@ The roadmap's "~22 components" is an estimate written before any inventory. It i
 
 | Component | Call sites | What changes, beyond design law v3 |
 |---|---|---|
-| `bh-button` | 32 | **No loading state exists.** §11.1 owes seven states; it has four. Loading is the one that matters — every save in the product is a button that must show pending (§11.6). |
+| `bh-button` | 32 | **No loading state exists.** §11.1 owes seven states; it has four. Loading is the one that matters — every save in the product is a button that must show pending (§11.6). Also gains `variant="icon"`, absorbing the shells' `.iconbtn` / `.theme` (§3.6). |
 | `bh-avatar` | 10 | The stale-`computed()` defect, §3.5. Signal inputs make it structurally impossible. |
 | `bh-pill` | 6 | Tones re-mapped onto `--good` / `--warn` / `--danger`; `--danger` may now fill a chip (law §3.1). |
 | `bh-sheet` | 4 | Two filed a11y defects: no focus trap beyond native `<dialog>`, and the discard bar does not move focus when it appears. Its three strings are unmarked for i18n. |
@@ -86,9 +86,9 @@ The roadmap's "~22 components" is an estimate written before any inventory. It i
 | `bh-panel` | Rule 2 — M13d's screens are cards. 12 lines; kept rather than deleted because the consumer is one milestone away, not hypothetical. |
 | `bh-alert` | Rule 1 and 2 — `class="err"` appears **42 times** across features, and every M13d status screen (check-email, verify, forgot, reset) renders a standing message. |
 | `bh-empty` | Rule 1 — `class="empty"` appears **13 times**. |
-| `bh-skeleton` | Rule 3 — law §5.1 prescribes an opacity pulse specifically because gradients are banned, and §11.6 makes loading states mandatory. Nothing implements it. |
 | `bh-icon` | Rule 3 — BACKLOG: "Unicode glyph icons (⎋ ⌘ ◐) read as a placeholder icon system." §5. |
-| `bh-app-shell` | Rule 3 — BACKLOG: "Header CSS is ~90% duplicated across three shells." Three consumers. §6.3. |
+| `bh-shell-header` | Rule 3 — BACKLOG: "Header CSS is ~90% duplicated across three shells." Three consumers. §3.6. |
+| `bh-dock` | Rule 1 — `.bh-dock` global CSS, three consumers. §3.6. |
 | `bh-data-table` | Rule 1 and 3 — `.bh-table` has 7 consumers; BACKLOG: "Admin tables on phone are scroll-tables, not cards." |
 | `bh-segmented` | Rule 1 and 3 — `score-form.component.ts:16,18` uses `role="radio"` with no roving tabindex or arrow keys. Filed. |
 | `bh-switch` | Rule 1 — `score-form.component.ts:33,63`, two hand-rolled `.switch` toggles. |
@@ -136,6 +136,46 @@ avatar grid paging to another class — and the initials are stale while the pho
 Invisible to every gate: it type-checks, it renders, and a spec that constructs the component once
 passes. **This is the argument for §4's signal inputs**, and the same shape (`computed()` reading a
 decorator input) is worth grepping for during the milestone.
+
+### 3.6 Two corrections made while planning, from reading the files
+
+**`bh-skeleton` is cut. The count stays 18.** `.bh-skel` already exists in `_fonts.scss` — M13b added
+it to satisfy law §5.1 — and it works: `--surface-2` block, opacity pulse, resting dim under
+`prefers-reduced-motion`. A component wrapper around it would still need an inline `style=""` to
+carry width and height, so it buys nothing and adds the one thing the budget cannot see (§8.3). The
+spec's original justification, "nothing implements it", was **wrong**; the utility exists and the
+proof screen uses it five times. Screens get skeletons in their own rebuilds, using the class.
+
+**`bh-app-shell` splits into `bh-shell-header` + `bh-dock`.** Reading the three shells, the
+duplication is real but it is not a whole shell. Athlete and coach are `flex column`; **admin is a
+CSS grid with a side nav, a top bar and a PENDING banner** — forcing three different page layouts
+into one component is the abstraction that fits none of them. What is genuinely triplicated:
+
+- the `.brand` block (`.mark` + `.bn`) — identical in all three, including the four-line
+  `boxName` / `boxInitial` derivation copied verbatim with its comment
+- the `.top` header bar rules
+- `.bh-dock` + `.bh-dock-item`, driven by a `tabs` array in all three
+- `.iconbtn` (coach) and `.theme` (admin), which are the same control under two names
+
+So: `bh-shell-header` owns the bar (brand + optional area label + projected nav + projected actions),
+`bh-dock` owns the mobile dock, each shell keeps its own page layout, and the icon button becomes a
+**`variant="icon"` on `bh-button`** rather than a fourth component — it already exists, it already
+owns the focus ring, and a third button component would be the speculative build §2 forbids.
+
+### 3.7 What "migrate the call sites" covers, precisely
+
+§6.1's mechanical migration is **global CSS only** — the 79 measured call sites of `.bh-input`,
+`.bh-select`, `.bh-table`, `.bh-dock`. Those classes live in `styles.scss` and `_table.scss`, they
+are being deleted, and a screen still referencing a deleted class is broken.
+
+It does **not** cover per-component classes that merely look alike. The 42 `class="err"` and 13
+`class="empty"` sites are each defined locally in their own component's `styles` block; nothing
+breaks if they stay. `bh-alert` and `bh-empty` are therefore built and shown in the gallery, and
+their first real consumer is **M13d**, whose eleven screens all render standing messages. The 55
+existing sites belong to each screen's own rebuild.
+
+The distinction matters because without it "migrate the call sites" quietly authorises editing
+thirty screens.
 
 ## 4. Conventions — decided once, so eighteen briefs do not each decide
 
@@ -210,8 +250,9 @@ and `.bh-section*`.
 
 These are the milestone's risk, and each gets its own dispatch and its own diff review:
 
-- **`bh-app-shell` across athlete, coach and admin.** All three are e2e-covered. It is the only
-  component that cannot be proven in the gallery, because its failure modes are compositional.
+- **`bh-shell-header` + `bh-dock` across athlete, coach and admin.** All three are e2e-covered. They
+  are the only components that cannot be fully proven in the gallery, because their failure modes are
+  compositional. Admin keeps its grid layout and its PENDING banner; only the bar and the dock move.
 - **`bh-data-table` across 7 screens** — `members`, `movements`, `schedule`, `wod-library`,
   `progress`, `athlete-profile`, `superadmin/console`.
 - **`bh-segmented` + `bh-switch` in `score-form`.** Score-form lives inside a `bh-sheet` behind a
