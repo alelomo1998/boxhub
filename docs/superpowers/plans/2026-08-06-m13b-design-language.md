@@ -281,7 +281,20 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Modify: `frontend/src/app/features/admin/admin-shell.page.ts` (line 3 import, line 18 button, line 111 `inject`, plus the `.theme` CSS rule)
 - Modify: `frontend/src/app/features/coach/coach-shell.page.ts` (line 3 import, line 22 button, line 73 `inject`)
 - Modify: `frontend/src/app/features/athlete/profile-sheet.component.ts` (line 5 import, line 40 button, line 85 `inject`)
+- Modify: `frontend/src/app/features/tv/tv-shell.page.ts` (line 18 `data-theme="dark"` attribute, line 210 `setAttribute` call and its comment)
 - Modify: `frontend/src/app/features/admin/admin-shell.page.spec.ts` if it references the toggle
+
+**Corrected 2026-08-06 during execution.** `tv-shell.page.ts` was missing from this list — it appeared
+in the orienting grep and was dropped when the list was written. It never used `ThemeService`; it
+force-writes `data-theme="dark"` directly, because the wall screen had to opt out of a user's light
+preference. With no light preference to opt out of, that code has no subject, and after Task 1 no
+`[data-theme]` selector survives to read it. Both lines are deleted with no replacement, in **this**
+task's commit rather than a follow-up: Step 5's grep is the task's own definition of done, and a
+write-only attribute is worse than inert — it advertises a mechanism that no longer exists, and the
+next reader will design around a phantom.
+
+`admin-shell.page.spec.ts` turned out **not** to reference the toggle, so that conditional step is a
+verified no-op rather than an open question.
 
 **Interfaces:**
 - Consumes: Task 1's `_tokens.scss`, which already has no light values and no `data-theme` selectors.
