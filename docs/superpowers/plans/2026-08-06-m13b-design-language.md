@@ -416,7 +416,9 @@ Leave `_tokens.scss` exactly as Task 1 wrote it. Its aliases are deleted in Task
 cd frontend && grep -rho -- '--red[a-z-]*\|--on-red\|--volt\|--on-volt' src | sort | uniq -c
 ```
 
-Expected: `--red` appears **exactly twice** and `--on-red` **exactly once** — all three are the alias lines inside `_tokens.scss`, which this task deliberately did not touch (`--on-red:` contains `--red` as a substring, which is why the count is two and not one). `--red-glow` is still **57**. `--volt` and `--on-volt` carry the counts `--red` and `--on-red` had.
+Expected: `--red` appears **exactly once** and `--on-red` **exactly once** — both are the alias lines inside `_tokens.scss`, which this task deliberately did not touch. `--red-glow` is still **54**. `--volt` and `--on-volt` carry the counts `--red` and `--on-red` had.
+
+*(An earlier draft of this step predicted `--red` twice, on the reasoning that `--on-red` contains `--red` as a substring. It does not: `--on-red` has a single dash before `red`, so a search for the literal `--red` never matches inside it. Corrected during execution — the executor measured one and was right.)*
 
 Then confirm the alias block is intact and did **not** become self-referential:
 
