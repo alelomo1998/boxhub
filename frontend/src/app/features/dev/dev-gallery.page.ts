@@ -7,6 +7,7 @@ import { EmptyComponent } from '../../ui/empty.component';
 import { FieldComponent } from '../../ui/field.component';
 import { ICON_NAMES, IconComponent } from '../../ui/icon.component';
 import { PanelComponent } from '../../ui/panel.component';
+import { SearchBarComponent } from '../../ui/search-bar.component';
 import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SelectComponent } from '../../ui/select.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
@@ -32,7 +33,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
-    ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent,
+    ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -410,6 +411,29 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           Hover isn't shown statically — the button has no hover treatment of its own; tab to it for
           a solid 2px --focus ring against the sheet surface (it stays --focus rather than inverting,
           since the ring sits on the button, not the volt track).
+        </p>
+      </section>
+
+      <section class="gsec" data-gallery="search-bar">
+        <h2 class="t-h2" i18n="@@dev.gallery.searchBar.heading">Search bar</h2>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-search-bar label="Search members" i18n-label="@@dev.gallery.searchBar.label"
+                           placeholder="Search…" i18n-placeholder="@@dev.gallery.searchBar.placeholder" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.filled">Filled</span>
+            <!-- Sample name: fabricated data, not prose — not i18n-marked. -->
+            <bh-search-bar label="Search members" i18n-label="@@dev.gallery.searchBar.label"
+                           placeholder="Search…" value="Priya" />
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.searchBar.note">
+          Debounces its search output at 250ms — the bound value updates on every keystroke so the
+          field never lags, only the emitted search term is delayed and deduped, and an unchanged
+          term is never re-emitted. No disabled or error state of its own; the focus ring lives on
+          the pill, not the inner input, so the control reads as one thing.
         </p>
       </section>
     </div>

@@ -7,17 +7,19 @@ import { Role } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
 import { DataTableComponent } from '../../ui/data-table.component';
+import { SearchBarComponent } from '../../ui/search-bar.component';
 
 @Component({
   selector: 'bh-admin-members',
   standalone: true,
-  imports: [FormsModule, DatePipe, RouterLink, ButtonComponent, PillComponent, DataTableComponent],
+  imports: [FormsModule, DatePipe, RouterLink, ButtonComponent, PillComponent, DataTableComponent, SearchBarComponent],
   template: `
     <section class="bh-section">
       <div class="bh-section-head">
         <h2 class="t-h2">Members <span class="count">{{ page().totalElements }} total</span></h2>
-        <input class="bh-input" placeholder="Search name or email" [ngModel]="search()" name="search"
-               (ngModelChange)="onSearch($event)" data-testid="member-search" />
+        <bh-search-bar placeholder="Search name or email" label="Search members"
+                       i18n-label="@@admin.members.searchLabel"
+                       [value]="search()" (search)="onSearch($event)" testId="member-search" />
       </div>
       <bh-data-table>
         <thead>
@@ -68,7 +70,6 @@ import { DataTableComponent } from '../../ui/data-table.component';
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .count { font-family: var(--font-mono); font-size: 12px; color: var(--faint); text-transform: none; letter-spacing: 0.06em; margin-left: 10px; }
-    .bh-section-head .bh-input { max-width: 240px; }
     .failed { color: var(--danger); font-size: 12px; font-family: var(--font-mono); margin-left: 8px; }
     .no-plan { color: var(--faint); text-decoration: underline; font-size: var(--fs-sm); }
     .pager { display: flex; align-items: center; gap: var(--sp-3); }
