@@ -721,3 +721,36 @@ M13c-T2: complete (9a71be6..b5423c7, sonnet). bh-button rebuilt: signal inputs, 
   --dur is 200ms with an ease-out bezier — right for a transition, and it would make a continuous
   spin a stutter. Added --dur-spin instead, which satisfies tokens-only properly.
   Re-reviewer mutation-tested BOTH new guards rather than reading them, then restored and re-ran.
+M13c-T3: complete (c555afe..8ff4a1c, sonnet x3 — build, escalation ruling, review fixes). 201 specs.
+  bh-field rewritten, bh-select new, bh-panel to signal inputs. NO screen migrated — see below.
+  EXECUTOR STOPPED AND WAS RIGHT, AND THIS ONE WAS ARCHITECTURAL. My spec §6.1 called the
+  .bh-input/.bh-select migration "mechanical". It is not, for two structural reasons it proved
+  rather than asserted: (1) 13 of 16 files wrap inputs in a template-driven <form> with
+  required/minlength/name/[(ngModel)], and bh-field is not a ControlValueAccessor, so ngModel does
+  not misbehave on it — it does not work at all; (2) nearly all 54 sites carry a data-testid the
+  e2e suite drives with Playwright .fill(), which requires the node to BE an <input>, and an
+  attribute on <bh-field> lands on the HOST. Same host-vs-inner-element failure review caught on
+  bh-button's aria-label in T2 — twice in one milestone, so it is a pattern, not an accident.
+  USER RULING: defer. The decisive fact was OWNERSHIP, which I had not checked when writing the
+  spec — all 16 files are rebuilt by a later milestone, SEVEN by M13d. Migrating now designs a
+  ControlValueAccessor contract against template-driven forms M13d is about to delete: the exact
+  double work this program exists to prevent, arriving through a lint rule. Spec §3.8 records it;
+  the gate became a CAP (must not exceed 54) rather than a zero, so new code must use the component
+  while old code has a scheduled death. Whether bh-field becomes a CVA is M13d's call.
+  .bh-table and .bh-dock are unaffected — not form controls, no ngModel, no .fill(). Both proceed.
+  REVIEW FOUND A CRITICAL BUG AND REPRODUCED IT RATHER THAN REASONING ABOUT IT. bh-select's
+  [value] does NOT stick when <option>s arrive asynchronously: the native select keeps the browser's
+  first-option default and stays wrong — silently, permanently, no error. The reviewer wrote a
+  throwaway spec with options behind a signal that starts empty, got `Expected 'a' to be 'b'`, then
+  deleted it and re-ran clean. That is the exact shape M13d/M16/M18 plan and box pickers will use,
+  and it would have picked the wrong plan.
+  MY SUGGESTED FIX WAS WRONG — SEVENTH BRIEF ERROR. I proposed viewChild + afterRenderEffect. The
+  executor tried it, still failed identically, and read Angular 22's source: afterRenderEffect is
+  signal-dependency-gated like effect(), so it never reruns when a parent merely repopulates
+  projected <option>s — nothing signal-typed changed. It then tried ngDoCheck (fires, but too early
+  — still saw an empty option list) and landed on ngAfterContentChecked, which Angular defines as
+  running after projected content is checked. Writes only when the element's value differs, so no
+  feedback loop against the user's own selection.
+  Also: dead `computed` import removed; spacing snapped onto the token scale (13px -> var(--sp-3),
+  6px -> var(--sp-1)) in BOTH components, free because nothing renders them yet. The only px left
+  are 1px borders and 2px focus outlines, which design law prescribes verbatim.
