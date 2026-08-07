@@ -754,3 +754,28 @@ M13c-T3: complete (c555afe..8ff4a1c, sonnet x3 — build, escalation ruling, rev
   Also: dead `computed` import removed; spacing snapped onto the token scale (13px -> var(--sp-3),
   6px -> var(--sp-1)) in BOTH components, free because nothing renders them yet. The only px left
   are 1px borders and 2px focus outlines, which design law prescribes verbatim.
+M13c-T4: complete (21bf7c3..bf99237, sonnet x2). bh-alert + bh-empty. 208 specs. NO screen migrated
+  — the 42 class="err" / 13 class="empty" sites are per-component classes defined locally, they
+  break nothing by staying, and they belong to each screen's rebuild (spec §3.7). First real
+  consumer is M13d.
+  bh-alert derives its ARIA role from tone instead of fixing role="alert": role="alert" interrupts
+  a screen reader mid-sentence, right for a failed save, wrong for "check your inbox".
+  REVIEW MUTATION-TESTED THE SPECS AND BOTH FAILED TO DISCRIMINATE — the project's own standing
+  lesson, again, and neither would have been found by reading. (1) Collapsing all four tone icons to
+  one left the suite GREEN, so the colour-blind signal had no regression guard at all. (2) Inverting
+  half the tone->role mapping (making `good` an alert) also left it green — only 2 of 4 directions
+  were asserted, and the untested half is the accessibility contract the component exists for.
+  Both fixed and both mutations re-run as negative controls: `Expected 1 to be 4` and
+  `Expected 'alert' to be 'status'`.
+  Also: --bw-accent: 3px added to _tokens.scss — the alert's left rule was the design system's only
+  bare border-width literal, and it becomes the precedent M13d copies across eleven screens.
+  TWO DOC GAPS CLOSED THAT ONLY MATTER BECAUSE M13d IS NEXT: bh-empty is deliberately NOT a live
+  region, so a screen swapping a list for it after a fetch needs its own aria-live wrapper; and
+  role="alert" announces reliably only when the element is freshly INSERTED, so bh-alert must be
+  mounted/unmounted with @if rather than kept mounted and mutated. The natural-looking Angular
+  pattern is the one that silently fails to announce.
+  EXECUTOR CAUGHT MY EIGHTH BRIEF ERROR: the brief's spec-count arithmetic was stale again ("199 =
+  193+4+1", which is 198, against a real baseline of 201). Reconciled rather than forced.
+  IMPECCABLE HOOK FALSE POSITIVE, correctly classified and NOT suppressed: it flagged the 3px
+  border-left as a "side-tab AI tell". Design law §3.1 prescribes exactly a thin left rule for quiet
+  semantic colour on a row-sized element. Reviewer independently agreed.
