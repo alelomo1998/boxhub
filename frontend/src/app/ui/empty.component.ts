@@ -4,6 +4,10 @@ import { IconComponent, IconName } from './icon.component';
 /**
  * The empty state. Law §11.6 makes this mandatory for every fetch — a list that renders nothing
  * when it has nothing is indistinguishable from a list that failed.
+ *
+ * Deliberately not a live region — an empty state is not an alert. A screen that swaps a results
+ * list for `bh-empty` after a fetch must announce the change itself, typically by wrapping the
+ * results region in `aria-live="polite"`.
  */
 @Component({
   selector: 'bh-empty',

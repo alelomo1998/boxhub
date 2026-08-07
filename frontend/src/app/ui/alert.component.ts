@@ -7,6 +7,11 @@ import { IconComponent, IconName } from './icon.component';
  *
  * role is derived from tone rather than fixed. role="alert" interrupts a screen reader mid-sentence,
  * which is right for a failed save and wrong for "check your inbox".
+ *
+ * role="alert" / role="status" reliably announce only when the element carrying the role is
+ * freshly inserted into the DOM — not when an already-mounted element's tone/content changes in
+ * place. Mount and unmount `<bh-alert>` with `@if`, don't keep one instance permanently mounted
+ * and flip its tone/message via signals, or the announcement can silently not fire.
  */
 @Component({
   selector: 'bh-alert',
@@ -20,7 +25,7 @@ import { IconComponent, IconName } from './icon.component';
   styles: [`
     .alert { display: flex; align-items: flex-start; gap: var(--sp-2);
       padding: var(--sp-3); border: 1px solid var(--hairline);
-      border-left-width: 3px; border-radius: var(--r-ctl);
+      border-left-width: var(--bw-accent); border-radius: var(--r-ctl);
       background: var(--surface); font-size: var(--fs-sm); color: var(--bone); }
     .msg { flex: 1; }
     .danger { border-left-color: var(--danger); } .danger bh-icon { color: var(--danger); }

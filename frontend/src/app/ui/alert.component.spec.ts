@@ -43,4 +43,27 @@ describe('AlertComponent', () => {
     expect(box().className).toContain('good');
     expect(box().className).not.toContain('danger');
   });
+
+  it('gives each tone a visibly distinct icon', () => {
+    // Colour-blind users rely on the icon, not the tone colour, to tell alerts apart —
+    // this must fail if any two tones ever collapse onto the same glyph.
+    const tones: Array<'danger' | 'warn' | 'good' | 'info'> = ['danger', 'warn', 'good', 'info'];
+    const svgs = tones.map((tone) => {
+      f.componentInstance.t.set(tone);
+      f.detectChanges();
+      return box().querySelector('svg')!.outerHTML;
+    });
+    expect(new Set(svgs).size).toBe(tones.length);
+  });
+
+  it('maps every tone to its correct role', () => {
+    const expected: Record<'danger' | 'warn' | 'good' | 'info', 'alert' | 'status'> = {
+      danger: 'alert', warn: 'alert', good: 'status', info: 'status',
+    };
+    for (const tone of Object.keys(expected) as Array<keyof typeof expected>) {
+      f.componentInstance.t.set(tone);
+      f.detectChanges();
+      expect(box().getAttribute('role')).toBe(expected[tone]);
+    }
+  });
 });
