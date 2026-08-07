@@ -25,17 +25,43 @@ const SHELLS = [
   { who: 'admin@demo.io', at: '/app/admin/dashboard' },
 ];
 
+// bh-dock is `display: none` above 719px — it's mobile-only chrome by design. Auditing it at the
+// default 1280x720 viewport includes zero nodes and can never fail, so each target is paired with
+// the width it actually renders at: the header at desktop, the dock at mobile. Playwright's
+// default viewport (1280x720) already satisfies "desktop"; MOBILE is set explicitly per test.
+const DESKTOP = { width: 1280, height: 720 };
+const MOBILE = { width: 375, height: 812 };
+
+const TARGETS = [
+  { component: 'bh-shell-header', viewportName: 'desktop', viewport: DESKTOP },
+  { component: 'bh-dock', viewportName: 'mobile', viewport: MOBILE },
+] as const;
+
 for (const shell of SHELLS) {
-  test(`${shell.who} shell chrome has zero WCAG 2.2 AA violations`, async ({ page }) => {
-    await login(page, shell.who);
-    await page.goto(shell.at);
+  for (const target of TARGETS) {
+    test(`${shell.who} ${target.component} (${target.viewportName}) has zero WCAG 2.2 AA violations`, async ({ page }) => {
+      // Width-dependent chrome (the dock) is CSS-only (@media, no JS gate), so setting the
+      // viewport before navigating is enough to have it in the DOM and actually displayed.
+      await page.setViewportSize(target.viewport);
+      await login(page, shell.who);
+      await page.goto(shell.at);
 
-    const { violations } = await new AxeBuilder({ page })
-      .withTags(TAGS)
-      .include('bh-shell-header')
-      .include('bh-dock')
-      .analyze();
+      // Non-vacuity: prove the target is actually present and visible before auditing it, so a
+      // future empty `.include()` scope fails loudly here instead of silently passing zero nodes.
+      if (target.component === 'bh-dock') {
+        const nav = page.locator('bh-dock nav');
+        await expect(nav).toBeVisible();
+        expect(await page.locator('bh-dock nav a.item').count()).toBeGreaterThan(0);
+      } else {
+        await expect(page.locator('bh-shell-header header')).toBeVisible();
+      }
 
-    expect(violations.map(v => `${v.id}: ${v.nodes.length} node(s)`)).toEqual([]);
-  });
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(TAGS)
+        .include(target.component)
+        .analyze();
+
+      expect(violations.map(v => `${v.id}: ${v.nodes.length} node(s)`)).toEqual([]);
+    });
+  }
 }
