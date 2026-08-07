@@ -779,3 +779,31 @@ M13c-T4: complete (21bf7c3..bf99237, sonnet x2). bh-alert + bh-empty. 208 specs.
   IMPECCABLE HOOK FALSE POSITIVE, correctly classified and NOT suppressed: it flagged the 3px
   border-left as a "side-tab AI tell". Design law §3.1 prescribes exactly a thin left rule for quiet
   semantic colour on a row-sized element. Reviewer independently agreed.
+M13c-T5: complete (e70eaed..c981a53, sonnet x2). bh-data-table replaces the global .bh-table.
+  7 screens / 9 table instances migrated mechanically. _table.scss DELETED, @use removed. 215 specs.
+  ::ng-deep is required, not lazy: thead/tbody are PROJECTED, so they carry the CONSUMER's
+  encapsulation attribute and scoped selectors cannot reach them.
+  REVIEW PROVED THE SPECS COULD NOT SEE THE ONE FAILURE THAT MATTERS. It stripped every ::ng-deep
+  from the component and all three specs STILL PASSED — the component's entire styling contract,
+  the whole reason ::ng-deep exists here, was untested, so a refactor breaking those selectors would
+  have shipped an unstyled admin table with every gate green. Fixed with a spec that attaches the
+  fixture to the document and reads getComputedStyle on a PROJECTED <th> and <td>. Negative control
+  fired: `Expected 'none' to be 'uppercase'`, `Expected 'normal' to be '0.66px'`,
+  `Expected '1px' to be '13px'`. Structure-only assertions cannot test styling — projection produces
+  the structure whether or not the CSS reaches it.
+  SECOND CONVENTION CAUGHT BEFORE IT SPREAD: console.page.ts had data-testid on the <table>, and the
+  migration moved it to the <bh-data-table> HOST, where it no longer reaches a table. Task 3 had
+  already established the library's answer (an explicit testId input forwarded to the inner element),
+  so this would have been two contradictory conventions in one library. bh-data-table now has
+  testId; the three console sites use it. No e2e reads them — verified twice — so this was purely
+  about not shipping the inconsistency.
+  MY BRIEF SILENTLY REDESIGNED THREE SCREENS — NINTH ERROR, and the most subtle. The component source
+  I wrote dropped `text-transform: uppercase` and moved 17px to var(--fs-body) on .mname, changing
+  four cells across members / superadmin console / schedule. KEPT, not reverted: design law v3 says
+  names read better in mixed case and uppercase belongs to mono eyebrows only, so the old rule was a
+  pre-M13b leftover — but it was bundled inside a task described as PRESERVING those classes, which
+  is how a redesign hides. Now carries a comment naming the change, the law, and the three owning
+  milestones (M15 / M18 / M14). Visual-regression baselines are built in T13, after this, so they
+  capture the corrected state rather than locking in the old one.
+  Also: redundant ::ng-deep .num deleted (the global utility already applies to projected cells,
+  since global styles are not view-encapsulated).
