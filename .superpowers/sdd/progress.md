@@ -903,3 +903,40 @@ M13c-T8: complete (9235478..c661926, sonnet). bh-search-bar, 3 screens migrated.
   pause); the other two are unchanged. Nothing in the code or docs claims otherwise.
   Reviewer mutation-tested all three guards: removing the re-emit guard fails `Expected 2 to be 1`,
   removing the debounce fails `Expected 3 to be 0`.
+M13c-T9: complete (9f32f8b..905538c, sonnet x2). LAST COMPONENT TASK. avatar/pill/day-pager/wordmark
+  rebuilt, stat + board-row + tag deleted. 245 specs. e2e 28 passed + 1 skipped.
+  ui/ IS NOW CLEAN: Eager 0, raw px font-size 0, dead components 0. The only @Input() grep hit is
+  prose in a spec comment describing the historical defect.
+  THE AVATAR DEFECT WAS CONFIRMED BY WATCHING IT FAIL FIRST: `Expected 'AL' to be 'GH'`. A plain
+  @Input() read inside computed() has ZERO signal dependencies — it evaluated once and cached, so an
+  @for member list reusing a DOM node showed the previous athlete's initials beside the right photo.
+  MY PRE-FLIGHT DECISION WAS WRONG — ELEVENTH BRIEF ERROR, AND THE MOST EMBARRASSING. I ruled the
+  four avatar sizes should become `font-size: 36%`. A PERCENT FONT-SIZE RESOLVES AGAINST THE
+  INHERITED FONT-SIZE, NOT THE ELEMENT'S OWN BOX, so all four rendered identically at 5.76px. The
+  executor caught it by MEASURING with getComputedStyle rather than trusting me, and switched to
+  36cqi with container-type:inline-size on the box and the ratio on a child (a container cannot
+  query its own cqi — that is circular).
+  THEN I MEASURED THE FIX AND IT WAS STILL WRONG, JUST LESS SO: one ratio gave sm -14.9%, md -5.5%,
+  lg +5%, xl +5.8%. The originals were never proportional (39.3/36.4/33.3/33.3% of their boxes), so
+  a single ratio CANNOT reproduce them. sm is the most-used size — shell header, member grids, score
+  grid — and a 15% shrink there is a visible change to live screens, which this milestone forbids.
+  I OVERRULED THE REVIEWER HERE, and the reason matters: it argued one ratio is more elegant and
+  that sub-pixel matching is not load-bearing. Elegance was never the constraint; "no screen is
+  redesigned" is, and 15% is not sub-pixel. Per-size ratios (42/38/34/34cqi against content boxes of
+  26/42/70/94) land all four within 1% AND keep the raw-px gate at zero. Measured live: 10.92 /
+  15.96 / 23.8 / 31.96 against 11 / 16 / 24 / 32.
+  bh-sheet WAS NOT IN MY FILE LIST and still carried @Input/@Output/Eager. The cleanliness grep found
+  it — the same thing that caught tv-shell.page.ts in M13b, and the same argument for writing a gate
+  as "this must come back empty" rather than as a list of files.
+  ANGULAR 22'S IMPLICIT DEFAULT IS OnPush, NOT Eager. Discovered while cleaning the sheet; it means
+  dropping the Eager pin gives OnPush, which is why the sheet's test harness needed a signal rather
+  than a plain field to match how every real caller already binds.
+  bh-sheet's `open` went from an @Input setter with a private mirror to a read-only input(). Verified
+  LIVE that the sheet still closes, REOPENS, and still raises the discard guard — the reopen was the
+  actual regression risk. All four callers reset on (closed); the reviewer established the
+  requirement is NOT new (the old setter needed the same transition), so it is documented, not
+  redesigned.
+  ORCHESTRATOR CAUGHT A FALSE GREEN: an e2e run reported 28 passed against a container whose image
+  build had FAILED (DeadlineExceeded) — it was serving the previous bundle. Re-verified by grepping
+  the served JS for the deleted components before trusting the rerun. Compose's builder fails on this
+  machine; `docker build` standalone + `up -d --no-build --force-recreate` works.
