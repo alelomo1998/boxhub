@@ -807,3 +807,49 @@ M13c-T5: complete (e70eaed..c981a53, sonnet x2). bh-data-table replaces the glob
   capture the corrected state rather than locking in the old one.
   Also: redundant ::ng-deep .num deleted (the global utility already applies to projected cells,
   since global styles are not view-encapsulated).
+M13c-GALLERY (pulled forward, 3c7786c, sonnet): user asked when /app/dev/components would show
+  anything, and the honest answer was "task 11, five tasks away". Pulled forward and scoped to the
+  8 components then built. Purely additive; later tasks extend the same page. 216 specs.
+  ORCHESTRATOR ENVIRONMENT FIGHT, recorded because it cost real time: `docker compose up --build`
+  failed TWICE with `DeadlineExceeded` on the frontend image. Building the SAME image standalone
+  (`docker build -f docker/frontend.Dockerfile`) succeeds in seconds — BUILD_EXIT=0, npm build step
+  4.2s. It is a compose/buildkit deadline, not a broken build, and `up -d --build` worked once the
+  layers were warm. Anyone hitting this: build the image directly first.
+  I ALSO MIS-REPORTED THAT FAILURE AS A SUCCESS. I backgrounded it as `docker compose … ; echo
+  "compose exit=$?"`, so the shell exited 0 while compose had exited 1, and the task notification
+  said success. Same class as piping a gate through grep — the trailing command's status is not the
+  gate's. Write `cmd > log 2>&1; echo "EXIT=$?" >> log` and then GREP THE LOG, never trust the outer
+  status.
+  Dev-server-only viewing does not work: with no backend, AuthService's boot call to /api/me fails
+  and the interceptor's logout path redirects to /auth/login. The gallery renders, then vanishes.
+  Publishing the backend's 8080 to the host (compose overlay in scratch) fixes it for dev-server use.
+M13c-T6: complete (3c7786c..14e8f5b, sonnet x2). bh-shell-header + bh-dock. 225 specs.
+  FULL e2e 28 passed + 1 skipped on a `down -v` rebuilt stack, run TWICE — once after the build and
+  again after the review fix, since the fix touched the shells and the first run no longer applied.
+  NOT one bh-app-shell: athlete and coach are flex columns, admin is a grid with a side nav and a
+  PENDING banner. Each shell keeps its layout; only the bar and the dock moved. Placeholder glyphs
+  gone — Home was '▮▮', Plan was '$'.
+  EXECUTOR FIXED A REAL GRID TRAP MECHANICALLY RATHER THAN STALLING: wrapping <header> in
+  <bh-shell-header> makes the COMPONENT HOST the grid item, so without an explicit grid-area CSS
+  Grid auto-placed it into admin's 210px side column. `class="top"` + `.top { grid-area: top }` kept
+  in admin's own stylesheet. Right call — mechanical, not a design decision.
+  EXECUTOR CAUGHT MY TENTH BRIEF ERROR: I called both security-link testids load-bearing. Neither is
+  referenced anywhere in the Playwright suite; only the Log out aria-label is. Preserved anyway.
+  REVIEW FOUND AN ACCESSIBILITY REGRESSION MY BRIEF CAUSED, and verified it against Angular's own
+  source rather than asserting it. I said "replace the icon buttons with <bh-button variant=icon>"
+  without carving out the NAVIGATION case. RouterLink only renders an href when the host tag is
+  a/area; bh-button's host is <bh-button>, so the Security link produced NO href. Left-click still
+  worked — the click bubbles to the host — which is exactly why no test caught it. Lost: ctrl/cmd
+  and middle click, open-in-new-tab, and the correct role (a screen reader announced "Security,
+  button" for something that navigates to another page).
+  PRINCIPLE APPLIED: buttons do things, links go places. Logout stays a bh-button; Security is a
+  real <a>. The duplicated CSS this task existed to delete did NOT come back — the projected action
+  links are styled ONCE inside bh-shell-header's .acts slot.
+  Negative control fired: `Expected null to be '/account/security'`.
+  FILED, NOT BUILT: bh-button cannot render as an anchor, and wod-library.page.ts:15 works around it
+  by nesting <bh-button> inside <a> — a <button> inside an <a>, an invalid content model. M13d hits
+  this immediately (its auth screens are full of links styled as buttons), so it is filed against
+  M13d to decide with real consumers in front of it.
+  DECLINED, with the reviewer's own reasoning: adding testId to bh-button. field/select/data-table
+  needed it because tests target a semantically different INNER element; bh-button's host already
+  carries data-testid at 30+ existing call sites, so adding it would be an unrequested API change.
