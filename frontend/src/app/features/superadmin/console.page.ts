@@ -37,7 +37,7 @@ interface AuditRow {
           @case ('error') { <p class="stateline err" data-testid="queue-error">Couldn't load the pending queue — try again.</p> }
           @default {
             @if (pendingBoxes().length) {
-              <bh-data-table data-testid="queue-table">
+              <bh-data-table testId="queue-table">
                 <thead><tr><th>Name</th><th>Slug</th><th>Owner</th><th>Created</th><th></th></tr></thead>
                 <tbody>
                   @for (b of pendingBoxes(); track b.id) {
@@ -73,7 +73,7 @@ interface AuditRow {
           @case ('error') { <p class="stateline err" data-testid="boxes-error">Couldn't load boxes — try again.</p> }
           @default {
             @if (allBoxes().length) {
-              <bh-data-table data-testid="boxes-table">
+              <bh-data-table testId="boxes-table">
                 <thead><tr><th>Name</th><th>Slug</th><th>Status</th><th>Owner</th><th>Created</th><th></th></tr></thead>
                 <tbody>
                   @for (b of allBoxes(); track b.id) {
@@ -160,7 +160,7 @@ interface AuditRow {
           @case ('error') { <p class="stateline err" data-testid="audit-error">Couldn't load the audit log — try again.</p> }
           @default {
             @if (auditRows().length) {
-              <bh-data-table data-testid="audit-table">
+              <bh-data-table testId="audit-table">
                 <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Box</th><th>Detail</th></tr></thead>
                 <tbody>
                   @for (a of auditRows(); track a.id) {
