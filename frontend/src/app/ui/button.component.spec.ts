@@ -5,12 +5,13 @@ import { ButtonComponent } from './button.component';
 @Component({
   standalone: true,
   imports: [ButtonComponent],
-  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()">Save</bh-button>`,
+  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()">Save</bh-button>`,
 })
 class Host {
   v = signal<'primary' | 'ghost' | 'danger' | 'icon'>('primary');
   d = signal(false);
   l = signal(false);
+  lbl = signal('');
 }
 
 describe('ButtonComponent', () => {
@@ -55,6 +56,40 @@ describe('ButtonComponent', () => {
     f.componentInstance.d.set(true);
     f.detectChanges();
     expect(btn().disabled).toBe(true);
+    expect(btn().getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('label puts aria-label on the inner button, and no label means no attribute at all', () => {
+    // No label set: must be absent, not an empty string — an empty aria-label can override
+    // the projected text as the accessible name.
+    expect(btn().getAttribute('aria-label')).toBeNull();
+
+    f.componentInstance.lbl.set('Log out');
+    f.detectChanges();
+    expect(btn().getAttribute('aria-label')).toBe('Log out');
+    // The literal selector shape e2e/tests/onboarding.spec.ts uses.
+    expect(f.nativeElement.querySelector('button[aria-label="Log out"]')).not.toBeNull();
+  });
+
+  it('a loading icon button shows only the spinner; a loading text button keeps its content', () => {
+    f.componentInstance.v.set('icon');
+    f.componentInstance.l.set(true);
+    f.detectChanges();
+    expect(btn().textContent).not.toContain('Save');
+    expect(btn().querySelector('.spin')).not.toBeNull();
+
+    f.componentInstance.v.set('primary');
+    f.detectChanges();
+    expect(btn().textContent).toContain('Save');
+    expect(btn().querySelector('.spin')).not.toBeNull();
+  });
+
+  it('toggling loading back off restores the button', () => {
+    f.componentInstance.l.set(true);
+    f.detectChanges();
+    f.componentInstance.l.set(false);
+    f.detectChanges();
+    expect(btn().disabled).toBe(false);
     expect(btn().getAttribute('aria-busy')).toBe('false');
   });
 });

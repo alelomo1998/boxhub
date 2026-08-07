@@ -2,19 +2,21 @@ import { Component, input } from '@angular/core';
 
 /**
  * The product's button. 32 call sites, so the input names and their accepted values are a public
- * API — `loading` and `variant="icon"` are additions, nothing was renamed.
+ * API — `loading`, `variant="icon"` and `label` are additions, nothing was renamed.
  *
- * Seven states, per design law §11.1. `loading` is the one this component shipped without, and it
- * is the one that matters: every save in the product is a button that must show pending (§11.6).
+ * Design law §11.1 names seven states: default, hover, focus, active, disabled, loading, error.
+ * Six apply here and are implemented. `error` is deliberately not this component's: a button
+ * doesn't own an error, the field or the alert beside it renders it.
  */
 @Component({
   selector: 'bh-button',
   standalone: true,
   template: `
     <button [type]="type()" [class]="'btn ' + variant() + ' ' + size()"
-            [disabled]="disabled() || loading()" [attr.aria-busy]="loading()">
+            [disabled]="disabled() || loading()" [attr.aria-busy]="loading()"
+            [attr.aria-label]="label() || null">
       @if (loading()) { <span class="spin" aria-hidden="true"></span> }
-      <ng-content />
+      @if (!(loading() && variant() === 'icon')) { <ng-content /> }
     </button>`,
   styles: [`
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
@@ -49,7 +51,7 @@ import { Component, input } from '@angular/core';
     /* No gradient (law §2.4): the spinner is a ring with one transparent side. */
     .spin { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
       border: 2px solid currentColor; border-right-color: transparent;
-      animation: bh-spin 700ms linear infinite; }
+      animation: bh-spin var(--dur-spin) linear infinite; }
     @keyframes bh-spin { to { transform: rotate(360deg); } }
     /* Reduced motion: the ring stays, it just stops. aria-busy still announces the state, so
        nothing is lost for anyone. */
@@ -65,4 +67,5 @@ export class ButtonComponent {
   type = input<'button' | 'submit'>('button');
   disabled = input(false);
   loading = input(false);
+  label = input('');
 }
