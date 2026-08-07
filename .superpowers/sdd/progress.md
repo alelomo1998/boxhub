@@ -940,3 +940,28 @@ M13c-T9: complete (9f32f8b..905538c, sonnet x2). LAST COMPONENT TASK. avatar/pil
   build had FAILED (DeadlineExceeded) — it was serving the previous bundle. Re-verified by grepping
   the served JS for the deleted components before trusting the rerun. Compose's builder fails on this
   machine; `docker build` standalone + `up -d --no-build --force-recreate` works.
+M13c-T10: complete (4136525..29a11f0, sonnet). Budget + typography sweep. 245 specs, e2e 28+1.
+  SECOND CLEAN REVIEW IN A ROW — no findings.
+  anyComponentStyle warning 4kB -> 6kB, error UNTOUCHED at 8kB. The budget counts UNCOMPRESSED bytes
+  while the wire cost is brotli, so at 4kB it was actively arguing for a raw value over its token —
+  M13b's members proof went over budget purely by tokenising two literals. Honest cost, stated in
+  the commit rather than buried: this silences the three standing warnings (instance-builder,
+  tv-shell, progress). They stay filed against M14 / Project 2 / M17; the fix is each screen's
+  rebuild, not a bigger budget.
+  36 on-scale font sizes tokenised across 18 feature files. Reviewer re-derived all 36 mappings from
+  the diff against _tokens.scss independently: 11px->--fs-meta x13, 13->--fs-sm x15, 15->--fs-body
+  x2, 20->--fs-h2 x5, 40->--fs-hero x1. No mix-ups.
+  41 OFF-SCALE VALUES REMAIN, DELIBERATELY, and that is the point of the split: 9, 10, 12, 14, 16,
+  17, 18, 19, 21, 22, 24, 34, 44px have NO token, so converting one means CHOOSING a nearby size —
+  a visible design decision on a screen nobody is redesigning. Grepping font-size in features now
+  returns only off-scale values, which converts "people typed px" into a documented list of sizes
+  the scale lacks, handed to M14-M18 as real questions.
+  MY BRIEF'S "51 remaining" WAS STALE — measured before Tasks 3-9 migrated screens. Real number is
+  41. Executor measured and reconciled rather than forcing my figure.
+  Reviewer checked the two traps that would have been invisible: no font-size inside receipt.page's
+  @media print block was touched (design law's sanctioned exception), and no on-scale value was
+  missed in an alternate form (no-space, uppercase PX, `font:` shorthand, or inline style="").
+  rem CAVEAT STATED HONESTLY, not overclaimed: --fs-sm is 0.8125rem and rem resolves against <html>,
+  which sets no font-size (body's 16px does NOT affect rem). So these render identically at browser
+  default and SCALE for a user who raised theirs — an accessibility improvement, not a
+  pixel-identical swap.
