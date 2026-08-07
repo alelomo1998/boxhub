@@ -997,3 +997,26 @@ M13c-T11: complete (29a11f0..0aadc68, sonnet + orchestrator glue). Gallery conso
   "never changes even once localised" — they ARE i18n-marked; the e2e selectors pass because the
   suite runs against the English source. The executor found this itself and left it dangling while
   fixing three sibling notes in the same pass.
+M13c-T12: complete (0aadc68..cbc9545, sonnet x2). axe-core, @axe-core/playwright@4.12.1.
+  ZERO WCAG 2.2 AA violations across 7 tests. Full suite now 35 passed + 1 skipped.
+  Two targets, and the SCOPING IS THE DESIGN: the gallery whole (it renders all 18 components in
+  all their states, so it audits exactly what M13c owns), and the three shells .include()-scoped to
+  bh-shell-header and bh-dock ONLY. Those two are the components whose failures are compositional —
+  focus order through a nav, landmark structure, ids duplicated across a header rendered three
+  times — so they cannot be proven in the gallery. Anything axe would report inside a screen body is
+  out of scope BY CONSTRUCTION rather than by triage, which is what keeps M13c a component milestone.
+  EXECUTOR CAUGHT A VACUOUS PASS — MY TWELFTH BRIEF ERROR AND THE WORST KIND. bh-dock is
+  `display:none` above 719px (mobile-only chrome by design) and Playwright's default viewport is
+  1280x720, so `.include('bh-dock')` contributed ZERO NODES to all three shell tests. The dock was
+  passing an accessibility gate that never looked at it. It flagged this rather than silently
+  widening scope, which was the correct call — the fix was mine to make.
+  THIS IS THE FONT-GUARD FAILURE AGAIN, in a different costume: M13b's brand-font test passed for a
+  whole milestone while asserting a deleted typeface. A test that cannot fail is worse than no test,
+  because it also stops anyone else from writing one.
+  Fixed by splitting into 3 shells x 2 targets: header at 1280x720, dock at 375x812 with the
+  viewport set BEFORE login/goto. Non-vacuity assertions added before every .analyze() — the dock
+  must be visible and have more than zero items — so a future reader can tell a real pass from an
+  empty one.
+  NEGATIVE CONTROL FIRES ON THE RULE THE COMPONENT EXISTS TO ENFORCE: stripping a dock item's text
+  label, leaving only the icon, gives `link-name: 1 node(s)` — "Links must have discernible text".
+  That is exactly the rule bh-dock was built for (the placeholder set it replaced used '$' for Plan).
