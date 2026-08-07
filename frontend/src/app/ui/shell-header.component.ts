@@ -35,6 +35,17 @@ import { Component, computed, input } from '@angular/core';
     .area { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); }
     .acts { display: flex; gap: 2px; margin-left: auto; }
+    /* Projected action links (e.g. Security) render as a real <a> so RouterLink emits an href —
+       it only does that on a/area hosts, never on bh-button. Projected content carries the
+       consumer's encapsulation attribute, not this component's, so a scoped selector can't reach
+       it; ::ng-deep scoped under .acts is how data-table.component.ts and dock.component.ts style
+       their own projected content, and this matches that pattern. Must visually match the icon
+       button beside it (Log out). */
+    ::ng-deep .acts a { display: inline-flex; align-items: center; justify-content: center;
+      min-width: var(--tap); min-height: var(--tap); border-radius: var(--r-full);
+      color: var(--faint); text-decoration: none; }
+    ::ng-deep .acts a:hover { color: var(--bone); }
+    ::ng-deep .acts a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   `],
 })
 export class ShellHeaderComponent {

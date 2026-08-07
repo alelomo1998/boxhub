@@ -323,6 +323,16 @@ milestone. Decide when the marketing site (M19) or the pilot forces it.
   `PATCH /api/me/locale`) needs a `MIN_ROLE` entry in `AuthzConformanceTest`, which is the
   orchestrator's call, not an executor's — left for whichever task first needs a user-facing
   language switcher (Task 9/10 or M13d).
+- **`bh-button` cannot render as an anchor, and M13d's eleven auth screens are all links styled as
+  buttons** ("Create a box account", "Start your box", "Forgot password?"). `RouterLink` only emits
+  an `href` when the host element is `a`/`area` — `bh-button`'s host tag is `bh-button`, so
+  `<bh-button routerLink="…">` silently produces no `href` (no ctrl/cmd-click, no "open in new tab",
+  wrong a11y role). `wod-library.page.ts:15` already works around it today —
+  `<a routerLink="/coach/wods/new"><bh-button size="sm">+ New WOD</bh-button></a>` — which nests a
+  `<button>` inside an `<a>`, an invalid HTML content model. Found fixing the same bug in the coach/
+  admin shells' Security link (M13c Task 6 review). Fix: polymorphic rendering on `bh-button` (an
+  `as="a"` input, or similar) or a separate link component styled to match — decide once M13d has
+  real consumers in front of it. Do not build ahead of that.
 
 ### → Chore: unify the two nginx configs
 

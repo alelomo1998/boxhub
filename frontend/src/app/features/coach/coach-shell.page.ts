@@ -23,9 +23,9 @@ import { IconComponent } from '../../ui/icon.component';
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
           }
         </nav>
-        <bh-button actions variant="icon" routerLink="/account/security" label="Security" title="Security" data-testid="coach-security-link">
+        <a actions routerLink="/account/security" aria-label="Security" title="Security" data-testid="coach-security-link">
           <bh-icon name="settings" />
-        </bh-button>
+        </a>
         <bh-button actions variant="icon" (click)="logout()" label="Log out" title="Log out">
           <bh-icon name="log-out" />
         </bh-button>

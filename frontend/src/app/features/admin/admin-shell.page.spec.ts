@@ -33,4 +33,12 @@ describe('AdminShellPage', () => {
     const fixture = setup('ACTIVE');
     expect(fixture.nativeElement.querySelector('[data-testid="pending-banner"]')).toBeNull();
   });
+
+  it('renders Security as a real anchor with an href, not a button — RouterLink only emits ' +
+     'href on a/area hosts, so a bh-button host silently drops it', () => {
+    const fixture = setup('ACTIVE');
+    const link = fixture.nativeElement.querySelector('[data-testid="admin-security-link"]');
+    expect(link.matches('a[href]')).toBe(true);
+    expect(link.getAttribute('href')).toBe('/account/security');
+  });
 });
