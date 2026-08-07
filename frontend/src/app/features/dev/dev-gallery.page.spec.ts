@@ -22,4 +22,19 @@ describe('DevGalleryPage', () => {
     expect(proof).toBeTruthy();
     expect(proof.querySelectorAll('[data-accent="volt"]').length).toBeLessThanOrEqual(1);
   });
+
+  it('has exactly one gallery section per shipped component, so a future addition without a section is caught', async () => {
+    await TestBed.configureTestingModule({ imports: [DevGalleryPage] }).compileComponents();
+    const fixture = TestBed.createComponent(DevGalleryPage);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+
+    const sections = Array.from(el.querySelectorAll('[data-gallery]'))
+      .map((s) => s.getAttribute('data-gallery'))
+      .sort();
+
+    expect(sections).toEqual(
+      ['alert', 'button', 'data-table', 'empty', 'field', 'icon', 'panel', 'select'].sort(),
+    );
+  });
 });
