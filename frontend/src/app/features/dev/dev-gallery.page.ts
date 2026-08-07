@@ -7,8 +7,10 @@ import { EmptyComponent } from '../../ui/empty.component';
 import { FieldComponent } from '../../ui/field.component';
 import { ICON_NAMES, IconComponent } from '../../ui/icon.component';
 import { PanelComponent } from '../../ui/panel.component';
+import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SelectComponent } from '../../ui/select.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
+import { SwitchComponent } from '../../ui/switch.component';
 import { WordmarkComponent } from '../../ui/wordmark.component';
 import { ProofAdminMembersComponent } from './proof-admin-members.component';
 import { ProofWodBoardComponent } from './proof-wod-board.component';
@@ -30,7 +32,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
-    ShellHeaderComponent, DockComponent,
+    ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -364,6 +366,52 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           <bh-dock [tabs]="dockSample" label="Athlete" />
         </div>
       </section>
+
+      <section class="gsec" data-gallery="segmented">
+        <h2 class="t-h2" i18n="@@dev.gallery.segmented.heading">Segmented</h2>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.segmented.state.rx">RX selected</span>
+            <bh-segmented [options]="segOptions" value="rx" label="Division" i18n-label="@@dev.gallery.segmented.label" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.segmented.state.sc">Scaled selected</span>
+            <bh-segmented [options]="segOptions" value="sc" label="Division" i18n-label="@@dev.gallery.segmented.label" />
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.segmented.note">
+          Hover and focus aren't shown statically — hover on an unselected segment lightens its text
+          to --bone; tab to the group for a solid 2px ring that inverts to --focus-inv on the
+          volt-filled selected segment. The group is one tab stop; arrow keys move the selection
+          within it, and selection follows focus.
+        </p>
+      </section>
+
+      <section class="gsec" data-gallery="switch">
+        <h2 class="t-h2" i18n="@@dev.gallery.switch.heading">Switch</h2>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-switch label="Private" i18n-label="@@dev.gallery.switch.label"
+                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" style="width: 220px" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.switch.state.on">On</span>
+            <bh-switch [checked]="true" label="Private" i18n-label="@@dev.gallery.switch.label"
+                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" style="width: 220px" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-switch [disabled]="true" label="Private" i18n-label="@@dev.gallery.switch.label"
+                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" style="width: 220px" />
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.switch.note.hoverFocus">
+          Hover isn't shown statically — the button has no hover treatment of its own; tab to it for
+          a solid 2px --focus ring against the sheet surface (it stays --focus rather than inverting,
+          since the ring sits on the button, not the volt track).
+        </p>
+      </section>
     </div>
   `,
   styles: [`
@@ -398,6 +446,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
 })
 export class DevGalleryPage {
   protected readonly iconNames = ICON_NAMES;
+  protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   protected readonly dockSample: DockTab[] = [
     { link: '.', label: 'Home', icon: 'house' },
     { link: '.', label: 'Book', icon: 'calendar-plus' },
