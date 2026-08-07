@@ -306,6 +306,16 @@ milestone. Decide when the marketing site (M19) or the pilot forces it.
 
 ### → M13d Auth & account screens
 
+- **A second, different error message on `bh-field` / `bh-select` may not be announced.** Both gate
+  their `<span role="alert">` behind `@if (error())`. Angular's `@if` only tears the node down and
+  recreates it across the falsy↔truthy boundary, so `"Required"` → `"Invalid format"` updates the
+  *same* DOM node in place. `bh-alert`'s own JSDoc states the mechanism this breaks: `role="alert"`
+  announces reliably only when the element is **freshly inserted**, not when its content changes.
+  Found in M13c Task 11 and confirmed independently in review; deliberately not fixed there, because
+  the fix belongs with a real consumer. **M13d hits this immediately** — eleven form screens, and
+  re-validation producing a second message is the normal case, not an edge case. Likely fix: key the
+  `@if` on the message value, or emit through a signal that remounts.
+
 - **The admin-facing invite link takes a redirect hop.** `InviteAdminController.java:76` returns the
   raw `/join/<token>` path and `invites.page.ts:109` builds the displayed/copied link as
   `location.origin + inv.link`. After M13a's `/app` move that still works — `/join/` is one of the

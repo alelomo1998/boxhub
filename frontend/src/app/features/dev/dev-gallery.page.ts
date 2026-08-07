@@ -549,8 +549,9 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <bh-day-pager />
         <p class="note" i18n="@@dev.gallery.dayPager.note">
           Offset is a model — two-way bound by the athlete book page and the coach classes page.
-          Previous/Next arrows disable at the [0, max] bounds; their aria-labels are asserted
-          verbatim by e2e, so the English text never changes even once localised.
+          Previous/Next arrows disable at the [0, max] bounds. Their aria-labels are marked for
+          translation and are also asserted verbatim by e2e, which passes because the suite runs
+          against the English source — a locale switch would need those selectors revisited.
         </p>
       </section>
 
