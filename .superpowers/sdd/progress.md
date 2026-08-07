@@ -853,3 +853,29 @@ M13c-T6: complete (3c7786c..14e8f5b, sonnet x2). bh-shell-header + bh-dock. 225 
   DECLINED, with the reviewer's own reasoning: adding testId to bh-button. field/select/data-table
   needed it because tests target a semantically different INNER element; bh-button's host already
   carries data-testid at 30+ existing call sites, so adding it would be an unrequested API change.
+M13c-T7: complete (9b30292..61cb6d7, sonnet x2). bh-segmented + bh-switch, score-form migrated.
+  236 specs. Closes the filed a11y defect: role="radio" with NO roving tabindex and no arrow keys,
+  so every option was a tab stop and Tab walked THROUGH the group. A radiogroup is one tab stop.
+  I VERIFIED THE DISCARD GUARD IN A REAL BROWSER, because no gate covers it and the failure mode is
+  an athlete's score vanishing. score-form lives in a bh-sheet whose [confirmClose] is driven by its
+  dirtyChange output. Live against the built stack: clean Escape closes with no bar; Escape after
+  changing the segmented control raises "Discard your entry?". Roving tabindex measured live as
+  [0, -1] — the defect is fixed in the running app, not merely unit-tested.
+  THE REVIEWER DROVE THE LIVE STACK TOO AND COVERED WHAT I MISSED: I only exercised the segmented
+  control; it exercised both switches (two DIFFERENT handlers) and confirmed the backdrop-click path.
+  Reviewers independently reproducing rather than trusting the report has now caught something in
+  four of seven tasks.
+  REVIEW FOUND THE REAL GAP, WHICH WAS COVERAGE NOT BEHAVIOUR: the only dirty-tracking spec fires a
+  raw `input` event on the <form>, so it would have passed with ALL THREE new handlers deleted.
+  Behaviour was right; nothing in CI would have caught it regressing. Three specs added, one per
+  handler, each negative-controlled: "Expected spy dirty to have been called ... But it was never
+  called." Buttons do not emit native input events, which is exactly why the form-level (input)
+  bubble could not cover these three paths.
+  REVIEWER ALMOST MIS-FLAGGED translateX(18px) AND CHECKED INSTEAD: with global box-sizing:border-box
+  the track's content box is 44 - 2x1px border - 2x2px padding = 38, and 38 - 20 = 18. Exact, not
+  sloppy. Derivation is now a comment so nobody "fixes" it.
+  Also: switch track 44px -> var(--tap) and knob 20px -> var(--sp-5), which were coincidental
+  duplicates of existing tokens. Other raw-px GEOMETRY across ui/ stays — the rule bans raw px TYPE
+  SIZES, and geometry is out of scope, consistent with the bh-icon and bh-avatar rulings.
+  BACKLOG line split: it bundled the segmented roving-tabindex defect with the bh-sheet discard-bar
+  focus defect. Only the first shipped; leaving one line would have read as both done or both open.
