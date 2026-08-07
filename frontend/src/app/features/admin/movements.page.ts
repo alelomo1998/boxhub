@@ -1,6 +1,7 @@
 import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent } from '../../ui/button.component';
+import { DataTableComponent } from '../../ui/data-table.component';
 import { ProgrammingService, Movement } from '../programming/programming.service';
 
 const CATEGORIES = ['BARBELL', 'GYMNASTICS', 'MONOSTRUCTURAL', 'DUMBBELL', 'KETTLEBELL', 'ODD_OBJECT', 'OTHER'];
@@ -8,7 +9,7 @@ const CATEGORIES = ['BARBELL', 'GYMNASTICS', 'MONOSTRUCTURAL', 'DUMBBELL', 'KETT
 @Component({
   selector: 'bh-admin-movements',
   standalone: true,
-  imports: [FormsModule, ButtonComponent],
+  imports: [FormsModule, ButtonComponent, DataTableComponent],
   template: `
     <section class="bh-section">
       <h2 class="t-h2">Movement catalog</h2>
@@ -20,23 +21,21 @@ const CATEGORIES = ['BARBELL', 'GYMNASTICS', 'MONOSTRUCTURAL', 'DUMBBELL', 'KETT
         <bh-button size="sm" (click)="add()" [disabled]="!newName().trim()">+ Add</bh-button>
       </div>
       <input class="search" placeholder="Filter…" [value]="search()" (input)="onSearch($any($event.target).value)" />
-      <div class="bh-table-wrap">
-        <table class="bh-table">
-          <thead><tr><th>Name</th><th>Category</th><th>Source</th><th></th></tr></thead>
-          <tbody>
-            @for (m of movements(); track m.id) {
-              <tr [attr.data-testid]="'mv-' + m.id">
-                <td>{{ m.name }}</td>
-                <td class="num">{{ m.category }}</td>
-                <td>@if (m.global) { <span class="tag">global</span> } @else { <span class="tag custom">custom</span> }</td>
-                <td class="right">
-                  @if (!m.global) { <button class="mini danger" (click)="archive(m)">Archive</button> }
-                </td>
-              </tr>
-            } @empty { <tr><td colspan="4" class="muted">No movements.</td></tr> }
-          </tbody>
-        </table>
-      </div>
+      <bh-data-table>
+        <thead><tr><th>Name</th><th>Category</th><th>Source</th><th></th></tr></thead>
+        <tbody>
+          @for (m of movements(); track m.id) {
+            <tr [attr.data-testid]="'mv-' + m.id">
+              <td>{{ m.name }}</td>
+              <td class="num">{{ m.category }}</td>
+              <td>@if (m.global) { <span class="tag">global</span> } @else { <span class="tag custom">custom</span> }</td>
+              <td class="right">
+                @if (!m.global) { <button class="mini danger" (click)="archive(m)">Archive</button> }
+              </td>
+            </tr>
+          } @empty { <tr><td colspan="4" class="muted">No movements.</td></tr> }
+        </tbody>
+      </bh-data-table>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,

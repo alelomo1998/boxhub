@@ -1,12 +1,13 @@
 import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonComponent } from '../../ui/button.component';
+import { DataTableComponent } from '../../ui/data-table.component';
 import { ProgrammingService, Wod } from './programming.service';
 
 @Component({
   selector: 'bh-wod-library',
   standalone: true,
-  imports: [RouterLink, ButtonComponent],
+  imports: [RouterLink, ButtonComponent, DataTableComponent],
   template: `
     <section class="bh-section">
       <div class="head">
@@ -15,24 +16,22 @@ import { ProgrammingService, Wod } from './programming.service';
       </div>
       <input class="search" placeholder="Search WODs…" [value]="search()"
              (input)="onSearch($any($event.target).value)" />
-      <div class="bh-table-wrap">
-        <table class="bh-table">
-          <thead><tr><th>Title</th><th>Type</th><th>Score</th><th></th></tr></thead>
-          <tbody>
-            @for (w of wods(); track w.id) {
-              <tr [attr.data-testid]="'wod-' + w.id">
-                <td><a class="link" [routerLink]="['/coach','wods', w.id]">{{ w.title }}</a></td>
-                <td><span class="tag">{{ w.wodType }}</span></td>
-                <td class="num">{{ w.scoreType }}</td>
-                <td class="right">
-                  <button class="mini" (click)="duplicate(w)">Duplicate</button>
-                  <button class="mini danger" (click)="remove(w)">Delete</button>
-                </td>
-              </tr>
-            } @empty { <tr><td colspan="4" class="muted">No WODs yet. Build one or clone a benchmark.</td></tr> }
-          </tbody>
-        </table>
-      </div>
+      <bh-data-table>
+        <thead><tr><th>Title</th><th>Type</th><th>Score</th><th></th></tr></thead>
+        <tbody>
+          @for (w of wods(); track w.id) {
+            <tr [attr.data-testid]="'wod-' + w.id">
+              <td><a class="link" [routerLink]="['/coach','wods', w.id]">{{ w.title }}</a></td>
+              <td><span class="tag">{{ w.wodType }}</span></td>
+              <td class="num">{{ w.scoreType }}</td>
+              <td class="right">
+                <button class="mini" (click)="duplicate(w)">Duplicate</button>
+                <button class="mini danger" (click)="remove(w)">Delete</button>
+              </td>
+            </tr>
+          } @empty { <tr><td colspan="4" class="muted">No WODs yet. Build one or clone a benchmark.</td></tr> }
+        </tbody>
+      </bh-data-table>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,

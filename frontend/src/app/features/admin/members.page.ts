@@ -6,11 +6,12 @@ import { AdminService, Member, PageResponse } from './admin.service';
 import { Role } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
+import { DataTableComponent } from '../../ui/data-table.component';
 
 @Component({
   selector: 'bh-admin-members',
   standalone: true,
-  imports: [FormsModule, DatePipe, RouterLink, ButtonComponent, PillComponent],
+  imports: [FormsModule, DatePipe, RouterLink, ButtonComponent, PillComponent, DataTableComponent],
   template: `
     <section class="bh-section">
       <div class="bh-section-head">
@@ -18,45 +19,43 @@ import { PillComponent } from '../../ui/pill.component';
         <input class="bh-input" placeholder="Search name or email" [ngModel]="search()" name="search"
                (ngModelChange)="onSearch($event)" data-testid="member-search" />
       </div>
-      <div class="bh-table-wrap">
-        <table class="bh-table">
-          <thead>
-            <tr><th>Member</th><th>Role</th><th>Status</th><th>Plan</th><th>Expires</th></tr>
-          </thead>
-          <tbody>
-            @for (m of page().content; track m.membershipId) {
-              <tr [attr.data-testid]="'member-' + m.email">
-                <td><div class="mname">{{ m.name }}</div><div class="memail">{{ m.email }}</div></td>
-                <td>
-                  <select class="bh-select" [ngModel]="m.role" [name]="'role-' + m.membershipId"
-                          (ngModelChange)="patch(m, { role: $event })">
-                    <option>ATHLETE</option><option>COACH</option><option>BOX_ADMIN</option>
-                  </select>
-                </td>
-                <td>
-                  <select class="bh-select" [ngModel]="m.status" [name]="'status-' + m.membershipId"
-                          (ngModelChange)="patch(m, { status: $event })">
-                    <option>ACTIVE</option><option>SUSPENDED</option>
-                  </select>
-                </td>
-                <td>
-                  <!-- read-only: plan assignment moved to POST /api/box/subscriptions (M10 T7) -->
-                  @if (m.planName) {
-                    {{ m.planName }}
-                  } @else {
-                    <a class="no-plan" routerLink="/admin/subscriptions" data-testid="no-plan">No active plan</a>
-                  }
-                </td>
-                <td class="num">
-                  {{ m.expiresAt | date:'dd MMM yyyy' }}
-                  @if (m.expiringSoon) { <span data-testid="expiring"><bh-pill tone="warn" label="expiring" /></span> }
-                  @if (error() === m.membershipId) { <span class="failed">· failed</span> }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+      <bh-data-table>
+        <thead>
+          <tr><th>Member</th><th>Role</th><th>Status</th><th>Plan</th><th>Expires</th></tr>
+        </thead>
+        <tbody>
+          @for (m of page().content; track m.membershipId) {
+            <tr [attr.data-testid]="'member-' + m.email">
+              <td><div class="mname">{{ m.name }}</div><div class="memail">{{ m.email }}</div></td>
+              <td>
+                <select class="bh-select" [ngModel]="m.role" [name]="'role-' + m.membershipId"
+                        (ngModelChange)="patch(m, { role: $event })">
+                  <option>ATHLETE</option><option>COACH</option><option>BOX_ADMIN</option>
+                </select>
+              </td>
+              <td>
+                <select class="bh-select" [ngModel]="m.status" [name]="'status-' + m.membershipId"
+                        (ngModelChange)="patch(m, { status: $event })">
+                  <option>ACTIVE</option><option>SUSPENDED</option>
+                </select>
+              </td>
+              <td>
+                <!-- read-only: plan assignment moved to POST /api/box/subscriptions (M10 T7) -->
+                @if (m.planName) {
+                  {{ m.planName }}
+                } @else {
+                  <a class="no-plan" routerLink="/admin/subscriptions" data-testid="no-plan">No active plan</a>
+                }
+              </td>
+              <td class="num">
+                {{ m.expiresAt | date:'dd MMM yyyy' }}
+                @if (m.expiringSoon) { <span data-testid="expiring"><bh-pill tone="warn" label="expiring" /></span> }
+                @if (error() === m.membershipId) { <span class="failed">· failed</span> }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </bh-data-table>
       @if (page().totalPages > 1) {
         <div class="pager">
           <bh-button variant="ghost" size="sm" [disabled]="pageIndex() === 0" (click)="go(-1)">Prev</bh-button>

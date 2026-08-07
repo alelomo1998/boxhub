@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
+import { DataTableComponent } from '../../ui/data-table.component';
 
 type FetchState = 'loading' | 'error' | 'ready';
 
@@ -21,7 +22,7 @@ interface AuditRow {
 @Component({
   selector: 'bh-superadmin-console',
   standalone: true,
-  imports: [FormsModule, DatePipe, ButtonComponent, PillComponent],
+  imports: [FormsModule, DatePipe, ButtonComponent, PillComponent, DataTableComponent],
   template: `
     <main class="page">
       <header class="head">
@@ -36,30 +37,28 @@ interface AuditRow {
           @case ('error') { <p class="stateline err" data-testid="queue-error">Couldn't load the pending queue — try again.</p> }
           @default {
             @if (pendingBoxes().length) {
-              <div class="bh-table-wrap">
-                <table class="bh-table" data-testid="queue-table">
-                  <thead><tr><th>Name</th><th>Slug</th><th>Owner</th><th>Created</th><th></th></tr></thead>
-                  <tbody>
-                    @for (b of pendingBoxes(); track b.id) {
-                      <tr [attr.data-testid]="'queue-row-' + b.id">
-                        <td class="mname">{{ b.name }}</td>
-                        <td>{{ b.slug }}</td>
-                        <td>{{ b.ownerEmail }}</td>
-                        <td class="num">{{ b.createdAt | date:'dd MMM yyyy' }}</td>
-                        <td class="actions">
-                          <bh-button variant="ghost" size="sm" [disabled]="queueActionId() === b.id"
-                                     (click)="approve(b)" [attr.data-testid]="'queue-approve-' + b.id">Approve</bh-button>
-                          <bh-button variant="ghost" size="sm" [disabled]="queueActionId() === b.id"
-                                     (click)="reject(b)" [attr.data-testid]="'queue-reject-' + b.id">Reject</bh-button>
-                          @if (queueErrors()[b.id]) {
-                            <p class="err" [attr.data-testid]="'queue-row-error-' + b.id">{{ queueErrors()[b.id] }}</p>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
+              <bh-data-table data-testid="queue-table">
+                <thead><tr><th>Name</th><th>Slug</th><th>Owner</th><th>Created</th><th></th></tr></thead>
+                <tbody>
+                  @for (b of pendingBoxes(); track b.id) {
+                    <tr [attr.data-testid]="'queue-row-' + b.id">
+                      <td class="mname">{{ b.name }}</td>
+                      <td>{{ b.slug }}</td>
+                      <td>{{ b.ownerEmail }}</td>
+                      <td class="num">{{ b.createdAt | date:'dd MMM yyyy' }}</td>
+                      <td class="actions">
+                        <bh-button variant="ghost" size="sm" [disabled]="queueActionId() === b.id"
+                                   (click)="approve(b)" [attr.data-testid]="'queue-approve-' + b.id">Approve</bh-button>
+                        <bh-button variant="ghost" size="sm" [disabled]="queueActionId() === b.id"
+                                   (click)="reject(b)" [attr.data-testid]="'queue-reject-' + b.id">Reject</bh-button>
+                        @if (queueErrors()[b.id]) {
+                          <p class="err" [attr.data-testid]="'queue-row-error-' + b.id">{{ queueErrors()[b.id] }}</p>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </bh-data-table>
             } @else {
               <p class="stateline" data-testid="queue-empty">No boxes waiting.</p>
             }
@@ -74,35 +73,33 @@ interface AuditRow {
           @case ('error') { <p class="stateline err" data-testid="boxes-error">Couldn't load boxes — try again.</p> }
           @default {
             @if (allBoxes().length) {
-              <div class="bh-table-wrap">
-                <table class="bh-table" data-testid="boxes-table">
-                  <thead><tr><th>Name</th><th>Slug</th><th>Status</th><th>Owner</th><th>Created</th><th></th></tr></thead>
-                  <tbody>
-                    @for (b of allBoxes(); track b.id) {
-                      <tr [attr.data-testid]="'box-row-' + b.id">
-                        <td class="mname">{{ b.name }}</td>
-                        <td>{{ b.slug }}</td>
-                        <td><bh-pill [tone]="b.status === 'ACTIVE' ? 'active' : 'suspended'" [label]="b.status" /></td>
-                        <td>{{ b.ownerEmail }}</td>
-                        <td class="num">{{ b.createdAt | date:'dd MMM yyyy' }}</td>
-                        <td class="actions">
-                          @if (b.status === 'ACTIVE') {
-                            <bh-button variant="ghost" size="sm" [disabled]="boxesActionId() === b.id"
-                                       (click)="suspend(b)" [attr.data-testid]="'box-suspend-' + b.id">Suspend</bh-button>
-                          }
-                          @if (b.status === 'SUSPENDED') {
-                            <bh-button variant="ghost" size="sm" [disabled]="boxesActionId() === b.id"
-                                       (click)="reactivate(b)" [attr.data-testid]="'box-reactivate-' + b.id">Reactivate</bh-button>
-                          }
-                          @if (boxesErrors()[b.id]) {
-                            <p class="err" [attr.data-testid]="'box-row-error-' + b.id">{{ boxesErrors()[b.id] }}</p>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
+              <bh-data-table data-testid="boxes-table">
+                <thead><tr><th>Name</th><th>Slug</th><th>Status</th><th>Owner</th><th>Created</th><th></th></tr></thead>
+                <tbody>
+                  @for (b of allBoxes(); track b.id) {
+                    <tr [attr.data-testid]="'box-row-' + b.id">
+                      <td class="mname">{{ b.name }}</td>
+                      <td>{{ b.slug }}</td>
+                      <td><bh-pill [tone]="b.status === 'ACTIVE' ? 'active' : 'suspended'" [label]="b.status" /></td>
+                      <td>{{ b.ownerEmail }}</td>
+                      <td class="num">{{ b.createdAt | date:'dd MMM yyyy' }}</td>
+                      <td class="actions">
+                        @if (b.status === 'ACTIVE') {
+                          <bh-button variant="ghost" size="sm" [disabled]="boxesActionId() === b.id"
+                                     (click)="suspend(b)" [attr.data-testid]="'box-suspend-' + b.id">Suspend</bh-button>
+                        }
+                        @if (b.status === 'SUSPENDED') {
+                          <bh-button variant="ghost" size="sm" [disabled]="boxesActionId() === b.id"
+                                     (click)="reactivate(b)" [attr.data-testid]="'box-reactivate-' + b.id">Reactivate</bh-button>
+                        }
+                        @if (boxesErrors()[b.id]) {
+                          <p class="err" [attr.data-testid]="'box-row-error-' + b.id">{{ boxesErrors()[b.id] }}</p>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </bh-data-table>
             } @else {
               <p class="stateline" data-testid="boxes-empty">No boxes yet.</p>
             }
@@ -163,22 +160,20 @@ interface AuditRow {
           @case ('error') { <p class="stateline err" data-testid="audit-error">Couldn't load the audit log — try again.</p> }
           @default {
             @if (auditRows().length) {
-              <div class="bh-table-wrap">
-                <table class="bh-table" data-testid="audit-table">
-                  <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Box</th><th>Detail</th></tr></thead>
-                  <tbody>
-                    @for (a of auditRows(); track a.id) {
-                      <tr [attr.data-testid]="'audit-row-' + a.id">
-                        <td class="num">{{ a.createdAt | date:'dd MMM yyyy, HH:mm' }}</td>
-                        <td>{{ a.actorEmail }}</td>
-                        <td><bh-pill tone="active" [label]="a.action" /></td>
-                        <td>{{ a.boxId || '—' }}</td>
-                        <td>{{ a.detail || '—' }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
+              <bh-data-table data-testid="audit-table">
+                <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Box</th><th>Detail</th></tr></thead>
+                <tbody>
+                  @for (a of auditRows(); track a.id) {
+                    <tr [attr.data-testid]="'audit-row-' + a.id">
+                      <td class="num">{{ a.createdAt | date:'dd MMM yyyy, HH:mm' }}</td>
+                      <td>{{ a.actorEmail }}</td>
+                      <td><bh-pill tone="active" [label]="a.action" /></td>
+                      <td>{{ a.boxId || '—' }}</td>
+                      <td>{{ a.detail || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </bh-data-table>
             } @else {
               <p class="stateline" data-testid="audit-empty">No superadmin actions recorded yet.</p>
             }

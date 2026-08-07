@@ -3,13 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { BookingService, ClassTemplate, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
+import { DataTableComponent } from '../../ui/data-table.component';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 @Component({
   selector: 'bh-admin-schedule',
   standalone: true,
-  imports: [FormsModule, DatePipe, ButtonComponent],
+  imports: [FormsModule, DatePipe, ButtonComponent, DataTableComponent],
   template: `
     <section class="bh-section">
       <h2 class="t-h2">Schedule</h2>
@@ -39,23 +40,21 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       </ul>
 
       <h3 class="t-h3 sub">Next two weeks</h3>
-      <div class="bh-table-wrap">
-        <table class="bh-table">
-          <thead><tr><th>When</th><th>Class</th><th>Booked</th><th></th></tr></thead>
-          <tbody>
-            @for (s of sessions(); track s.id) {
-              <tr [attr.data-testid]="'session-' + s.id">
-                <td class="num">{{ s.startAt | date:'EEE d MMM · HH:mm' }}</td>
-                <td><span class="mname">{{ s.name }}</span>@if (s.status === 'CANCELLED') { <span class="cx">cancelled</span> }</td>
-                <td class="num">{{ s.bookedCount }} / {{ s.capacity }}</td>
-                <td>@if (s.status !== 'CANCELLED') {
-                  <bh-button variant="ghost" size="sm" (click)="cancelSession(s)" [attr.data-testid]="'session-cancel-' + s.id">Cancel</bh-button>
-                }</td>
-              </tr>
-            } @empty { <tr><td colspan="4" class="muted">No sessions generated yet.</td></tr> }
-          </tbody>
-        </table>
-      </div>
+      <bh-data-table>
+        <thead><tr><th>When</th><th>Class</th><th>Booked</th><th></th></tr></thead>
+        <tbody>
+          @for (s of sessions(); track s.id) {
+            <tr [attr.data-testid]="'session-' + s.id">
+              <td class="num">{{ s.startAt | date:'EEE d MMM · HH:mm' }}</td>
+              <td><span class="mname">{{ s.name }}</span>@if (s.status === 'CANCELLED') { <span class="cx">cancelled</span> }</td>
+              <td class="num">{{ s.bookedCount }} / {{ s.capacity }}</td>
+              <td>@if (s.status !== 'CANCELLED') {
+                <bh-button variant="ghost" size="sm" (click)="cancelSession(s)" [attr.data-testid]="'session-cancel-' + s.id">Cancel</bh-button>
+              }</td>
+            </tr>
+          } @empty { <tr><td colspan="4" class="muted">No sessions generated yet.</td></tr> }
+        </tbody>
+      </bh-data-table>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,

@@ -4,12 +4,13 @@ import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { HomeService, Profile } from './home.service';
+import { DataTableComponent } from '../../ui/data-table.component';
 
 /** Public athlete profile: photo + name always; PRs/streak only when the profile is public. */
 @Component({
   selector: 'bh-athlete-profile',
   standalone: true,
-  imports: [DatePipe, AvatarComponent],
+  imports: [DatePipe, AvatarComponent, DataTableComponent],
   template: `
     <section class="prof">
       <button class="back" (click)="back()" aria-label="Back">‹ Back</button>
@@ -49,21 +50,19 @@ import { HomeService, Profile } from './home.service';
 
               @if (p.liftPrs?.length) {
                 <h2 class="sh">Lift PRs</h2>
-                <div class="bh-table-wrap">
-                  <table class="bh-table">
-                    <thead><tr><th>Movement</th><th>Best</th><th>Reps</th><th>When</th></tr></thead>
-                    <tbody>
-                      @for (l of p.liftPrs; track l.movementId) {
-                        <tr>
-                          <td>{{ l.movementName }}</td>
-                          <td class="num strong">{{ l.load }}</td>
-                          <td class="num">{{ l.reps }}</td>
-                          <td class="num">{{ l.performedOn | date:'d MMM y' }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
+                <bh-data-table>
+                  <thead><tr><th>Movement</th><th>Best</th><th>Reps</th><th>When</th></tr></thead>
+                  <tbody>
+                    @for (l of p.liftPrs; track l.movementId) {
+                      <tr>
+                        <td>{{ l.movementName }}</td>
+                        <td class="num strong">{{ l.load }}</td>
+                        <td class="num">{{ l.reps }}</td>
+                        <td class="num">{{ l.performedOn | date:'d MMM y' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </bh-data-table>
               }
             } @else {
               <p class="stateline">This athlete keeps their training private.</p>
