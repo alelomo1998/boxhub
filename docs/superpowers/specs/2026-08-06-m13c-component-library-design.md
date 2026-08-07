@@ -177,6 +177,45 @@ existing sites belong to each screen's own rebuild.
 The distinction matters because without it "migrate the call sites" quietly authorises editing
 thirty screens.
 
+### 3.8 The form-control migration is deferred to each screen's own milestone
+
+**Revised 2026-08-07, after Task 3's executor stopped and produced evidence.** §6.1 called the
+`.bh-input` / `.bh-select` migration mechanical. **It is not**, and the two reasons are structural
+rather than incidental:
+
+1. **13 of the 16 files wrap their inputs in a template-driven `<form>`** with `required`,
+   `minlength`, `name`, `type="email"` and `[(ngModel)]`. `bh-field` exposes `value = model('')` and
+   is **not** a `ControlValueAccessor`, so `ngModel` does not merely misbehave on it — it does not
+   work at all, and `name` has nowhere to bind.
+2. **Nearly every one of the 54 sites carries a `data-testid` that the e2e suite drives** with
+   Playwright `.fill()`, which requires the located node to *be* an `<input>`. An attribute written
+   on `<bh-field>` lands on the **host element**, not the inner control. This is the same
+   host-versus-inner-element failure that review caught on `bh-button`'s `aria-label` in Task 2, and
+   it would have broken specs across auth, onboarding, invite-flow, memberships and admin-panel.
+
+**The decisive fact is ownership.** All 16 files are rebuilt by a later milestone — **seven of them
+by M13d, the very next one** (join, signup, reset, verify, forgot, start-box, account/security),
+plus schedule (M14), invites/members/settings (M15), box-stripe/subscriptions/plans (M16) and the
+superadmin console (M18). Migrating them now means giving `bh-field` a `ControlValueAccessor`
+contract designed against template-driven forms that M13d is about to delete. **That is the double
+work this rework program exists to prevent**, arriving through the back door of a lint rule.
+
+So:
+
+- `bh-field`, `bh-select` and `bh-panel` **ship**, with a `testId` input that puts the hook on the
+  inner control — M13d's screens are e2e-driven by test id, which is rule 2 of §2.
+- `.bh-input` and `.bh-select` **stay in `styles.scss`**, commented as legacy, each consumer
+  annotated with the milestone that deletes it. The class survives exactly as long as its last
+  pre-rework consumer, and no longer.
+- The gate changes from *"must be empty"* to **"must not grow"** (§8.1). New code has a component;
+  old code has a scheduled death.
+- **Whether `bh-field` becomes a `ControlValueAccessor` is M13d's decision, not M13c's.** It rebuilds
+  seven of the sixteen and will choose signal-based forms or `ngModel` for itself. Building the
+  contract now, against screens about to be rewritten, is exactly the speculative build §2 forbids.
+
+`.bh-table` (§3.2, Task 5) and `.bh-dock` (Task 6) are **unaffected** — neither is a form control,
+so neither has an `ngModel` or a `.fill()` problem, and both migrations proceed as specified.
+
 ## 4. Conventions — decided once, so eighteen briefs do not each decide
 
 | Decision | Applies to |
@@ -308,8 +347,8 @@ about the file you forgot; a gate phrased as a list of files to change does not.
 `tv-shell.page.ts` was caught after being dropped from a brief.
 
 ```
-grep -rnE 'class="[^"]*\bbh-(input|select|table|table-wrap|dock|dock-item)\b' frontend/src/app
-grep -rnE '\.bh-(input|select|table|dock)\b' frontend/src/styles.scss frontend/src/styles
+grep -rnE 'class="[^"]*\bbh-(table|table-wrap|dock|dock-item)\b' frontend/src/app
+grep -rnE '\.bh-(table|dock)\b' frontend/src/styles.scss frontend/src/styles
 grep -rn 'font-size: *[0-9]*px' frontend/src/app/ui
 grep -rnE 'font-size: *(11|13|15|20|40)px' frontend/src/app/features
 grep -rn 'ChangeDetectionStrategy.Eager' frontend/src/app/ui
@@ -327,8 +366,10 @@ M13b's font guard passed for a whole milestone while asserting a deleted typefac
 
 | Gate | Hits today | After M13c |
 |---|---|---|
-| `class="… bh-input/select/table/dock …"` in `app/` | **79** | 0 |
-| `.bh-input/select/table/dock` defined in `styles/` | **20** | 0 |
+| `class="… bh-table/dock …"` in `app/` | **25** | 0 |
+| `class="… bh-input/select …"` in `app/` — **capped, not zeroed** (§3.8) | **54** | ≤ 54 |
+| `.bh-table/dock` defined in `styles/` | **14** | 0 |
+| `.bh-input/select` defined in `styles.scss` — legacy, §3.8 | **6** | 6 |
 | `font-size: Npx` in `app/ui` | **18** | 0 |
 | on-scale `font-size` px in `app/features` | **36** | 0 |
 | `ChangeDetectionStrategy.Eager` in `app/ui` | **9** | 0 |
@@ -336,12 +377,12 @@ M13b's font guard passed for a whole milestone while asserting a deleted typefac
 | `StatComponent` / `BoardRowComponent` / `TagComponent` | **3** | 0 |
 | raw hex in `app/ui` + `app/features`, print excluded | **0** | 0 |
 
-The first seven fall to zero, so they discriminate. **The eighth is zero today and must stay zero** —
+The table/dock migrations fall to zero, so they discriminate; the form-control counts are capped rather than zeroed for the reason in §3.8. **The eighth is zero today and must stay zero** —
 it is a standing guarantee, not a migration, and it is the one on this list that can pass vacuously.
 It is kept because law §2.1 makes a raw hex a bug and because M13c writes eighteen new stylesheets,
 which is precisely when one would reappear.
 
-The 79 is also the honest size of §6.1's mechanical migration.
+The 25 is the honest size of §6.1's mechanical migration. The 54 form-control sites are not part of it — see §3.8.
 
 **The `--exclude` on the hex gate is load-bearing and is not a carve-out for convenience.**
 `receipt.page.ts:93-98` holds four hex lines inside its `@media print` block, and they are correct:
