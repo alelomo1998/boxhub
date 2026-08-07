@@ -44,8 +44,8 @@ describe('DevGalleryPage', () => {
       .sort();
 
     expect(sections).toEqual(
-      ['alert', 'button', 'data-table', 'dock', 'empty', 'field', 'icon', 'panel', 'search-bar', 'segmented',
-        'select', 'shell-header', 'switch'].sort(),
+      ['alert', 'avatar', 'button', 'data-table', 'day-pager', 'dock', 'empty', 'field', 'icon', 'panel',
+        'pill', 'search-bar', 'segmented', 'select', 'shell-header', 'switch', 'wordmark'].sort(),
     );
   });
 });

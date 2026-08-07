@@ -15,7 +15,7 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
   imports: [RouterLink, ButtonComponent, PillComponent, DayPagerComponent, DatePipe],
   template: `
     <section class="book">
-      <bh-day-pager [offset]="dayOffset()" [max]="13" (offsetChange)="dayOffset.set($event)" />
+      <bh-day-pager [(offset)]="dayOffset" [max]="13" />
 
       @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
 

@@ -1,17 +1,20 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { SheetComponent } from './sheet.component';
 
+// Signal fields, not plain ones: every real caller (admin-shell, security, athlete-shell, wod
+// pages) binds `open` from a signal, e.g. `[open]="moreOpen()"`. A plain field would never mark
+// this now-OnPush-by-default component dirty on change — that's not a SheetComponent quirk, it's
+// how any OnPush descendant behaves, so the harness matches the app instead of routing around it.
 @Component({
   standalone: true,
   imports: [SheetComponent],
-  changeDetection: ChangeDetectionStrategy.Eager,
-  template: `<bh-sheet [open]="open" [confirmClose]="confirmClose" title="Test sheet"
+  template: `<bh-sheet [open]="open()" [confirmClose]="confirmClose()" title="Test sheet"
     (closed)="closedCount = closedCount + 1">hello</bh-sheet>`,
 })
 class HostComponent {
-  open = false;
-  confirmClose = false;
+  open = signal(false);
+  confirmClose = signal(false);
   closedCount = 0;
 }
 
@@ -22,18 +25,18 @@ describe('SheetComponent', () => {
     const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
     expect(dlg.open).toBeFalse();
 
-    fixture.componentInstance.open = true;
+    fixture.componentInstance.open.set(true);
     fixture.detectChanges();
     expect(dlg.open).toBeTrue();
 
-    fixture.componentInstance.open = false;
+    fixture.componentInstance.open.set(false);
     fixture.detectChanges();
     expect(dlg.open).toBeFalse();
   });
 
   it('emits closed when the dialog closes natively (Esc)', () => {
     const fixture = TestBed.createComponent(HostComponent);
-    fixture.componentInstance.open = true;
+    fixture.componentInstance.open.set(true);
     fixture.detectChanges();
     const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
     dlg.close();
@@ -44,8 +47,8 @@ describe('SheetComponent', () => {
 
   it('guarded backdrop tap shows discard bar instead of closing', () => {
     const fixture = TestBed.createComponent(HostComponent);
-    fixture.componentInstance.open = true;
-    fixture.componentInstance.confirmClose = true;
+    fixture.componentInstance.open.set(true);
+    fixture.componentInstance.confirmClose.set(true);
     fixture.detectChanges();
     const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
     dlg.dispatchEvent(new MouseEvent('click', { bubbles: true })); // target = dialog = backdrop
@@ -61,8 +64,8 @@ describe('SheetComponent', () => {
 
   it('guarded discard closes and emits closed', () => {
     const fixture = TestBed.createComponent(HostComponent);
-    fixture.componentInstance.open = true;
-    fixture.componentInstance.confirmClose = true;
+    fixture.componentInstance.open.set(true);
+    fixture.componentInstance.confirmClose.set(true);
     fixture.detectChanges();
     const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
     dlg.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -76,7 +79,7 @@ describe('SheetComponent', () => {
 
   it('unguarded backdrop tap closes', () => {
     const fixture = TestBed.createComponent(HostComponent);
-    fixture.componentInstance.open = true;
+    fixture.componentInstance.open.set(true);
     fixture.detectChanges();
     const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
     dlg.dispatchEvent(new MouseEvent('click', { bubbles: true }));

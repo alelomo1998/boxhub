@@ -1,12 +1,15 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { AlertComponent } from '../../ui/alert.component';
+import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
+import { DayPagerComponent } from '../../ui/day-pager.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { FieldComponent } from '../../ui/field.component';
 import { ICON_NAMES, IconComponent } from '../../ui/icon.component';
 import { PanelComponent } from '../../ui/panel.component';
+import { PillComponent } from '../../ui/pill.component';
 import { SearchBarComponent } from '../../ui/search-bar.component';
 import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SelectComponent } from '../../ui/select.component';
@@ -34,6 +37,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
+    AvatarComponent, PillComponent, DayPagerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -434,6 +438,94 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           field never lags, only the emitted search term is delayed and deduped, and an unchanged
           term is never re-emitted. No disabled or error state of its own; the focus ring lives on
           the pill, not the inner input, so the control reads as one thing.
+        </p>
+      </section>
+
+      <section class="gsec" data-gallery="avatar">
+        <h2 class="t-h2" i18n="@@dev.gallery.avatar.heading">Avatar</h2>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.avatar.size.sm">Sm</span>
+            <!-- Sample name: fabricated data, not prose — not i18n-marked. -->
+            <bh-avatar [path]="null" name="Ada Lovelace" size="sm" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.avatar.size.md">Md</span>
+            <bh-avatar [path]="null" name="Grace Hopper" size="md" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.avatar.size.lg">Lg</span>
+            <bh-avatar [path]="null" name="Katherine Johnson" size="lg" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.avatar.size.xl">Xl</span>
+            <bh-avatar [path]="null" name="Margaret Hamilton" size="xl" />
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.avatar.note">
+          Initials fallback shown here — no path is ever loadable in this fabricated data. A broken
+          image path falls back to the same initials via the (error) handler. The initials glyph is
+          sized as a ratio of the circle (36%), not a type-scale token — see Task 9.
+        </p>
+      </section>
+
+      <section class="gsec" data-gallery="pill">
+        <h2 class="t-h2" i18n="@@dev.gallery.pill.heading">Pill</h2>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.pill.tone.active">Active</span>
+            <bh-pill tone="active" label="Active" i18n-label="@@dev.gallery.pill.sample.active" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.pill.tone.suspended">Suspended</span>
+            <bh-pill tone="suspended" label="Suspended" i18n-label="@@dev.gallery.pill.sample.suspended" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.pill.tone.warn">Warn</span>
+            <bh-pill tone="warn" label="Expiring" i18n-label="@@dev.gallery.pill.sample.warn" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.pill.tone.danger">Danger</span>
+            <bh-pill tone="danger" label="Cancelled" i18n-label="@@dev.gallery.pill.sample.danger" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.pill.tone.live">Live</span>
+            <bh-pill tone="live" label="Live now" i18n-label="@@dev.gallery.pill.sample.live" />
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.pill.note">
+          Live is the only tone that fills volt — it means the class running right now, nothing
+          else. Danger fills the chip per law §3.1; the pulsing dot on live rests under reduced
+          motion instead of animating.
+        </p>
+      </section>
+
+      <section class="gsec" data-gallery="day-pager">
+        <h2 class="t-h2" i18n="@@dev.gallery.dayPager.heading">Day pager</h2>
+        <bh-day-pager />
+        <p class="note" i18n="@@dev.gallery.dayPager.note">
+          Offset is a model — two-way bound by the athlete book page and the coach classes page.
+          Previous/Next arrows disable at the [0, max] bounds; their aria-labels are asserted
+          verbatim by e2e, so the English text never changes even once localised.
+        </p>
+      </section>
+
+      <section class="gsec" data-gallery="wordmark">
+        <h2 class="t-h2" i18n="@@dev.gallery.wordmark.heading">Wordmark</h2>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.wordmark.variant.chrome">Chrome</span>
+            <bh-wordmark variant="chrome" size="md" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.wordmark.variant.hero">Hero</span>
+            <bh-wordmark variant="hero" size="md" />
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.wordmark.note">
+          Chrome is monochrome bone — app shells never compete with the screen's own volt element.
+          Hero fills volt behind "ed" and is reserved for login, mail, the landing site and the TV
+          idle screen, where the logo itself is the subject.
         </p>
       </section>
     </div>
