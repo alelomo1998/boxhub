@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { AlertComponent } from '../../ui/alert.component';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
@@ -13,6 +13,7 @@ import { PillComponent } from '../../ui/pill.component';
 import { SearchBarComponent } from '../../ui/search-bar.component';
 import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SelectComponent } from '../../ui/select.component';
+import { SheetComponent } from '../../ui/sheet.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
 import { SwitchComponent } from '../../ui/switch.component';
 import { WordmarkComponent } from '../../ui/wordmark.component';
@@ -37,7 +38,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
-    AvatarComponent, PillComponent, DayPagerComponent,
+    AvatarComponent, PillComponent, DayPagerComponent, SheetComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -341,6 +342,47 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         </p>
       </section>
 
+      <section class="gsec" data-gallery="sheet">
+        <h2 class="t-h2" i18n="@@dev.gallery.sheet.heading">Sheet</h2>
+        <p class="note" i18n="@@dev.gallery.sheet.note.interactiveOnly">
+          Interactive-only — bh-sheet mounts a native &lt;dialog&gt;, so it cannot render statically;
+          open it below to check the rise animation, backdrop and Esc-dismiss, and focus containment
+          by hand.
+        </p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.sheet.trigger.plain">Plain</span>
+            <bh-button variant="primary" size="sm" (click)="sheetOpen.set(true)"
+                       i18n="@@dev.gallery.sheet.openLabel">Open sheet</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.sheet.trigger.confirmClose">Confirm-close</span>
+            <bh-button variant="primary" size="sm" (click)="sheetConfirmOpen.set(true)"
+                       i18n="@@dev.gallery.sheet.openConfirmLabel">Open sheet (confirm close)</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.sheet.note.confirmClose">
+          The confirm-close sheet guards Esc and a backdrop click with a "Discard your entry?" bar
+          instead of closing outright — try Esc or clicking outside it to see the guard.
+        </p>
+
+        <bh-sheet [open]="sheetOpen()" title="Demo sheet" i18n-title="@@dev.gallery.sheet.title"
+                  label="Demo sheet" i18n-label="@@dev.gallery.sheet.label"
+                  (closed)="sheetOpen.set(false)">
+          <p class="t-body" i18n="@@dev.gallery.sheet.body">
+            This sheet has no confirm-close guard — Esc or a backdrop click dismisses it right away.
+          </p>
+        </bh-sheet>
+
+        <bh-sheet [open]="sheetConfirmOpen()" [confirmClose]="true" title="Demo sheet"
+                  i18n-title="@@dev.gallery.sheet.title" label="Demo sheet" i18n-label="@@dev.gallery.sheet.label"
+                  (closed)="sheetConfirmOpen.set(false)">
+          <p class="t-body" i18n="@@dev.gallery.sheet.bodyConfirm">
+            This sheet has the confirm-close guard — try to dismiss it with Esc or a backdrop click.
+          </p>
+        </bh-sheet>
+      </section>
+
       <section class="gsec" data-gallery="shell-header">
         <h2 class="t-h2" i18n="@@dev.gallery.shellHeader.heading">Shell header</h2>
         <p class="note" i18n="@@dev.gallery.shellHeader.note">
@@ -365,7 +407,9 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           Floating pill mobile nav, absorbed from the global .bh-dock rules. Hidden by design above
           719px (law: the dock is mobile-only chrome) — this section can't show it live at desktop
           width, so shrink the viewport below 719px to see the pill; every item pairs an icon with a
-          text label, never a glyph alone.
+          text label, never a glyph alone. No hover treatment of its own; tab to an item for the
+          focus ring. The highlighted "active" item marks the current route, not a momentary press —
+          the dock has no separate pressed state.
         </p>
         <div class="dockwrap">
           <bh-dock [tabs]="dockSample" label="Athlete" />
@@ -436,8 +480,8 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <p class="note" i18n="@@dev.gallery.searchBar.note">
           Debounces its search output at 250ms — the bound value updates on every keystroke so the
           field never lags, only the emitted search term is delayed and deduped, and an unchanged
-          term is never re-emitted. No disabled or error state of its own; the focus ring lives on
-          the pill, not the inner input, so the control reads as one thing.
+          term is never re-emitted. No hover, active, disabled or loading state of its own; the
+          focus ring lives on the pill, not the inner input, so the control reads as one thing.
         </p>
       </section>
 
@@ -525,7 +569,8 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <p class="note" i18n="@@dev.gallery.wordmark.note">
           Chrome is monochrome bone — app shells never compete with the screen's own volt element.
           Hero fills volt behind "ed" and is reserved for login, mail, the landing site and the TV
-          idle screen, where the logo itself is the subject.
+          idle screen, where the logo itself is the subject. Not interactive — no hover, focus,
+          active, disabled, loading or error state of its own.
         </p>
       </section>
     </div>
@@ -563,6 +608,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
 export class DevGalleryPage {
   protected readonly iconNames = ICON_NAMES;
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
+  // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
+  // it, so this page must reset its own signal on (closed) or the sheet could never reopen.
+  protected readonly sheetOpen = signal(false);
+  protected readonly sheetConfirmOpen = signal(false);
   protected readonly dockSample: DockTab[] = [
     { link: '.', label: 'Home', icon: 'house' },
     { link: '.', label: 'Book', icon: 'calendar-plus' },
