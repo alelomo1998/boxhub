@@ -18,12 +18,24 @@ class Host { v = signal('a'); }
 })
 class TestIdHost {}
 
+@Component({
+  standalone: true,
+  imports: [SelectComponent],
+  template: `<bh-select label="Plan" [(value)]="v">
+    @for (o of opts(); track o) { <option [value]="o">{{ o }}</option> }
+  </bh-select>`,
+})
+class DynHost {
+  v = signal('b');
+  opts = signal<string[]>([]);
+}
+
 describe('SelectComponent', () => {
   let f: any;
   const sel = (): HTMLSelectElement => f.nativeElement.querySelector('select');
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [Host, TestIdHost] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Host, TestIdHost, DynHost] }).compileComponents();
     f = TestBed.createComponent(Host);
     f.detectChanges();
   });
@@ -50,5 +62,26 @@ describe('SelectComponent', () => {
     const gSel: HTMLSelectElement = g.nativeElement.querySelector('select');
     expect(gSel.getAttribute('data-testid')).toBe('plan-select');
     expect(g.nativeElement.getAttribute('data-testid')).toBeNull();
+  });
+
+  it('applies the bound value once async options land', () => {
+    const d = TestBed.createComponent(DynHost);
+    d.detectChanges();
+    d.componentInstance.opts.set(['a', 'b', 'c']);
+    d.detectChanges();
+    const dSel: HTMLSelectElement = d.nativeElement.querySelector('select');
+    expect(dSel.value).toBe('b');
+  });
+
+  it('still propagates a user selection back through value after options land', () => {
+    const d = TestBed.createComponent(DynHost);
+    d.detectChanges();
+    d.componentInstance.opts.set(['a', 'b', 'c']);
+    d.detectChanges();
+    const dSel: HTMLSelectElement = d.nativeElement.querySelector('select');
+    dSel.value = 'c';
+    dSel.dispatchEvent(new Event('change'));
+    d.detectChanges();
+    expect(d.componentInstance.v()).toBe('c');
   });
 });

@@ -1,4 +1,4 @@
-import { Component, computed, input, model } from '@angular/core';
+import { Component, input, model } from '@angular/core';
 
 let seq = 0;
 
@@ -27,11 +27,11 @@ let seq = 0;
       }
     </div>`,
   styles: [`
-    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field { display: flex; flex-direction: column; gap: var(--sp-1); }
     .lab { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--faint); }
     .input { background: var(--surface-2); border: 1px solid var(--hairline);
-      border-radius: var(--edge); padding: 0 13px; min-height: var(--tap); color: var(--bone);
+      border-radius: var(--edge); padding: 0 var(--sp-3); min-height: var(--tap); color: var(--bone);
       font-family: var(--font-body); font-size: var(--fs-body); width: 100%; }
     .input::placeholder { color: var(--faint); }
     .input:hover:not(:disabled) { border-color: var(--faint); }
