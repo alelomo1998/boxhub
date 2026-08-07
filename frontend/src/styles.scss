@@ -32,24 +32,5 @@ a { color: var(--volt); text-decoration: none; }
 .bh-select { cursor: pointer; }
 .bh-section { display: flex; flex-direction: column; gap: var(--sp-5); }
 .bh-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
-/* Floating pill dock — mobile primary nav (athlete/coach/admin shells) */
-.bh-dock { display: none; }
-@media (max-width: 719px) {
-  .bh-dock { position: fixed; left: var(--sp-4); right: var(--sp-4);
-    bottom: calc(var(--sp-3) + env(safe-area-inset-bottom)); z-index: 30;
-    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px;
-    background: var(--surface); border: 1px solid var(--hairline);
-    border-radius: var(--r-full); padding: 6px; box-shadow: var(--shadow-float);
-    max-width: 480px; margin: 0 auto; }
-  .bh-dock-item { display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px; min-height: 56px; border-radius: var(--r-full); color: var(--bone-dim);
-    text-decoration: none; background: none; border: none; cursor: pointer; }
-  .bh-dock-item .glyph { font-size: 20px; line-height: 1; }
-  .bh-dock-item .tlabel { font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.08em; text-transform: uppercase; }
-  .bh-dock-item.active { background: var(--surface-2); color: var(--bone); }
-  .bh-dock-item.active .glyph { color: var(--volt); }
-  .bh-dock-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-}
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }

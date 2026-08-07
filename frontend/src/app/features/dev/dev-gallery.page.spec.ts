@@ -1,9 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { DevGalleryPage } from './dev-gallery.page';
 
 describe('DevGalleryPage', () => {
   it('renders the WOD board proof with a single volt-marked live line', async () => {
-    await TestBed.configureTestingModule({ imports: [DevGalleryPage] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [DevGalleryPage],
+      providers: [provideRouter([])],
+    }).compileComponents();
     const fixture = TestBed.createComponent(DevGalleryPage);
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
@@ -14,7 +18,10 @@ describe('DevGalleryPage', () => {
   });
 
   it('keeps the members proof calm — at most one volt element on the whole screen', async () => {
-    await TestBed.configureTestingModule({ imports: [DevGalleryPage] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [DevGalleryPage],
+      providers: [provideRouter([])],
+    }).compileComponents();
     const fixture = TestBed.createComponent(DevGalleryPage);
     fixture.detectChanges();
     const proof: HTMLElement = fixture.nativeElement.querySelector('[data-proof="admin-members"]');
@@ -24,7 +31,10 @@ describe('DevGalleryPage', () => {
   });
 
   it('has exactly one gallery section per shipped component, so a future addition without a section is caught', async () => {
-    await TestBed.configureTestingModule({ imports: [DevGalleryPage] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [DevGalleryPage],
+      providers: [provideRouter([])],
+    }).compileComponents();
     const fixture = TestBed.createComponent(DevGalleryPage);
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
@@ -34,7 +44,7 @@ describe('DevGalleryPage', () => {
       .sort();
 
     expect(sections).toEqual(
-      ['alert', 'button', 'data-table', 'empty', 'field', 'icon', 'panel', 'select'].sort(),
+      ['alert', 'button', 'data-table', 'dock', 'empty', 'field', 'icon', 'panel', 'select', 'shell-header'].sort(),
     );
   });
 });

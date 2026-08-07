@@ -2,11 +2,13 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { AlertComponent } from '../../ui/alert.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
+import { DockComponent, DockTab } from '../../ui/dock.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { FieldComponent } from '../../ui/field.component';
 import { ICON_NAMES, IconComponent } from '../../ui/icon.component';
 import { PanelComponent } from '../../ui/panel.component';
 import { SelectComponent } from '../../ui/select.component';
+import { ShellHeaderComponent } from '../../ui/shell-header.component';
 import { WordmarkComponent } from '../../ui/wordmark.component';
 import { ProofAdminMembersComponent } from './proof-admin-members.component';
 import { ProofWodBoardComponent } from './proof-wod-board.component';
@@ -28,6 +30,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
+    ShellHeaderComponent, DockComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -330,6 +333,37 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           yet.
         </p>
       </section>
+
+      <section class="gsec" data-gallery="shell-header">
+        <h2 class="t-h2" i18n="@@dev.gallery.shellHeader.heading">Shell header</h2>
+        <p class="note" i18n="@@dev.gallery.shellHeader.note">
+          The top bar shared by all three shells — brand mark, box name, an optional mono area
+          eyebrow, and a nav slot plus an actions slot. No state contract of its own; the projected
+          nav links and action buttons carry their own.
+        </p>
+        <div class="shellwrap">
+          <bh-shell-header boxName="Demo Box" area="Coach">
+            <!-- Sample nav item: not a real route, not i18n-marked. -->
+            <nav nav aria-label="Coach"><a href="#">Classes</a></nav>
+            <bh-button actions variant="icon" label="Log out" i18n-label="@@dev.gallery.shellHeader.logoutLabel">
+              <bh-icon name="log-out" />
+            </bh-button>
+          </bh-shell-header>
+        </div>
+      </section>
+
+      <section class="gsec" data-gallery="dock">
+        <h2 class="t-h2" i18n="@@dev.gallery.dock.heading">Dock</h2>
+        <p class="note" i18n="@@dev.gallery.dock.note">
+          Floating pill mobile nav, absorbed from the global .bh-dock rules. Hidden by design above
+          719px (law: the dock is mobile-only chrome) — this section can't show it live at desktop
+          width, so shrink the viewport below 719px to see the pill; every item pairs an icon with a
+          text label, never a glyph alone.
+        </p>
+        <div class="dockwrap">
+          <bh-dock [tabs]="dockSample" label="Athlete" />
+        </div>
+      </section>
     </div>
   `,
   styles: [`
@@ -358,8 +392,15 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
       width: 84px; color: var(--bone-dim); }
     .iconname { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
       text-align: center; word-break: break-word; }
+    .shellwrap { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden; }
+    .dockwrap { position: relative; min-height: var(--tap); }
   `],
 })
 export class DevGalleryPage {
   protected readonly iconNames = ICON_NAMES;
+  protected readonly dockSample: DockTab[] = [
+    { link: '.', label: 'Home', icon: 'house' },
+    { link: '.', label: 'Book', icon: 'calendar-plus' },
+    { link: '.', label: 'WOD', icon: 'clipboard-list' },
+  ];
 }

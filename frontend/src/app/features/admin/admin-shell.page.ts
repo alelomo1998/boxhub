@@ -3,20 +3,29 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
 import { BRAND_NAME } from '../../core/brand';
+import { ShellHeaderComponent } from '../../ui/shell-header.component';
+import { DockComponent, DockTab } from '../../ui/dock.component';
+import { ButtonComponent } from '../../ui/button.component';
+import { IconComponent } from '../../ui/icon.component';
 
 /** Admin: SaaS shell on desktop (side nav + top bar), bottom tabs + More sheet on mobile. */
 @Component({
   selector: 'bh-admin-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, SheetComponent],
+  imports: [
+    RouterOutlet, RouterLink, RouterLinkActive, SheetComponent,
+    ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent,
+  ],
   template: `
     <div class="admin">
-      <header class="top">
-        <div class="brand"><span class="mark">{{ boxInitial }}</span><span class="bn">{{ boxName }}</span></div>
-        <span class="area">Admin</span>
-        <a class="theme" routerLink="/account/security" aria-label="Security" title="Security" data-testid="admin-security-link">⚙</a>
-        <button class="theme" (click)="logout()" aria-label="Log out" title="Log out">⎋</button>
-      </header>
+      <bh-shell-header class="top" [boxName]="boxName" area="Admin">
+        <bh-button actions variant="icon" routerLink="/account/security" label="Security" title="Security" data-testid="admin-security-link">
+          <bh-icon name="settings" />
+        </bh-button>
+        <bh-button actions variant="icon" (click)="logout()" label="Log out" title="Log out">
+          <bh-icon name="log-out" />
+        </bh-button>
+      </bh-shell-header>
 
       <nav class="side" aria-label="Admin">
         @for (i of nav; track i.link) {
@@ -33,18 +42,12 @@ import { BRAND_NAME } from '../../core/brand';
         <router-outlet />
       </main>
 
-      <nav class="bh-dock" aria-label="Admin">
-        @for (i of mobileTabs; track i.link) {
-          <a class="bh-dock-item" [routerLink]="i.link" routerLinkActive="active" ariaCurrentWhenActive="page">
-            <span class="glyph" aria-hidden="true">{{ i.glyph }}</span>
-            <span class="tlabel">{{ i.label }}</span>
-          </a>
-        }
-        <button class="bh-dock-item" (click)="moreOpen.set(true)">
-          <span class="glyph" aria-hidden="true">⋯</span>
+      <bh-dock [tabs]="mobileTabs" label="Admin">
+        <button (click)="moreOpen.set(true)">
+          <bh-icon name="ellipsis" [size]="20" />
           <span class="tlabel">More</span>
         </button>
-      </nav>
+      </bh-dock>
     </div>
 
     <bh-sheet [open]="moreOpen()" title="More" label="More admin pages" (closed)="moreOpen.set(false)">
@@ -60,20 +63,10 @@ import { BRAND_NAME } from '../../core/brand';
   styles: [`
     .admin { display: grid; grid-template-columns: 210px 1fr; grid-template-rows: auto 1fr;
       grid-template-areas: "top top" "side content"; min-height: 100dvh; }
-    .top { grid-area: top; display: flex; align-items: center; gap: var(--sp-3);
-      padding: var(--sp-2) var(--sp-5); border-bottom: 1px solid var(--hairline); }
-    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .mark { width: 30px; height: 30px; border-radius: var(--edge); background: var(--volt); color: var(--on-volt);
-      display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 17px;
-      flex-shrink: 0; }
-    .bn { font-family: var(--font-display); font-weight: 800; font-size: 17px; text-transform: uppercase;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .area { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--faint); flex: 1; }
-    .theme { min-width: var(--tap); min-height: var(--tap); display: inline-flex; align-items: center;
-      justify-content: center; font-size: 16px; color: var(--faint); text-decoration: none;
-      background: transparent; border: none; border-radius: var(--edge); cursor: pointer; }
-    .theme:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* bh-shell-header is the direct grid child here (admin is the one shell that's a grid, not a
+       flex column), so IT — not its inner <header> — needs the area assignment or CSS Grid
+       auto-places it into a single 210px-wide cell instead of spanning the full top row. */
+    .top { grid-area: top; }
 
     .side { grid-area: side; border-right: 1px solid var(--hairline); padding: var(--sp-5) var(--sp-4);
       display: flex; flex-direction: column; gap: 3px; }
@@ -109,10 +102,6 @@ export class AdminShellPage {
   auth = inject(AuthService);
   private router = inject(Router);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
-  /* The badge beside a box's name is the box's own initial. It used to be a hardcoded "B"
-     for BoxHub, which survived the rename because a single letter does not look like a
-     brand string — the same way the mail subject lines did. */
-  boxInitial = (this.auth.activeBox()?.boxName || BRAND_NAME).trim().charAt(0).toUpperCase();
   moreOpen = signal(false);
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
@@ -129,10 +118,10 @@ export class AdminShellPage {
     { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
   ];
-  mobileTabs = [
-    { link: 'dashboard', label: 'Home', glyph: '▮▮' },
-    { link: 'members', label: 'Members', glyph: '◉' },
-    { link: 'schedule', label: 'Schedule', glyph: '＋' },
+  mobileTabs: DockTab[] = [
+    { link: 'dashboard', label: 'Home', icon: 'house' },
+    { link: 'members', label: 'Members', icon: 'users' },
+    { link: 'schedule', label: 'Schedule', icon: 'calendar' },
   ];
   moreLinks = [
     { link: 'invites', label: 'Invites' },
