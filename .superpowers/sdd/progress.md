@@ -666,3 +666,58 @@ Plan `docs/superpowers/plans/2026-08-06-m13c-component-library.md`, 14 tasks.
 Gate baselines measured on main at 70a7565 (must all reach zero):
   79 global-CSS class sites · 20 global defs · 18 raw px in ui/ · 36 on-scale px in features
   · 9 Eager in ui/ · 35 decorators in ui/ · 3 dead components · 0 raw hex (standing, already zero)
+M13c-T1: complete (eb3b928..9a71be6, sonnet). bh-icon, 27 lucide icons inlined, no runtime dep.
+  ORCHESTRATOR FILENAME FIX BEFORE DISPATCH: every .superpowers/sdd/task-N-brief.md and
+  task-N-report.md slot 1-15 was already occupied by STALE files from M8/M12b — task-1-report.md
+  was M12b's V16 migration report. A first executor died on an API limit having written nothing,
+  and reading that stale report would have scored the task DONE. M13c uses m13c-task-N-*.md.
+  Generalise: milestone-scope scratch filenames, or a dead executor looks like a finished one.
+  FIX 1 (orchestrator, trivial glue): npm wrote "^1.28.0"; pinned exactly. Geometry is copied at
+  authoring time, so a caret breaks nothing at runtime — but whoever adds icon #28 on a fresh clone
+  copies from whatever minor npm resolved, and lucide redraws icons between minors. Stroke
+  inconsistency arriving slowly across a set whose whole value is consistency.
+  FIX 2 (executor, from review — Important, and the finding was against MY brief): my Step 7
+  "all 27 wired" check was a one-off shell grep, never committed. Angular does NOT exhaustiveness-
+  check @switch against a TS union and there is deliberately no @default, so a dropped @case renders
+  an EMPTY <svg> — build green, 184 specs green, icon silently blank. THE PROJECT'S OWN LESSON
+  LANDING ON MY OWN PLAN. Fixed better than restoring the grep: ICON_NAMES is now a const array and
+  IconName derives from it (typeof ICON_NAMES[number]), so array and union cannot drift, and one
+  spec loops all 27 asserting geometry, naming the offending icon via withContext.
+  BOTH NEGATIVE CONTROLS FIRED, and the reviewer ran its own rather than trusting the executor's:
+  executor emptied `settings` (mid-list), reviewer independently emptied `inbox` (last case). Both
+  produced exactly one failure naming the icon. That is the difference between a demonstrated
+  mechanism and an anecdote.
+  EXECUTOR CAUGHT A COUNT ERROR OF MINE, AGAIN: my fix brief said "keep all three existing tests"
+  while describing two. There were two. Fourth brief error of the milestone so far.
+  DECLINED, with the reason recorded so it is not re-litigated per task: reviewer asked for an
+  --icon-size-* token scale before six tasks start passing [size]="16". Four distinct sizes across
+  eighteen components is not proliferation, and design law's tokens-only rule governs colour, font,
+  radius and spacing — not SVG geometry attributes. Default stays 20; call sites pass 16 or 28.
+  Note for later briefs: `ng` is NOT on PATH in the executor shell. Use `npx ng`.
+  185 specs (182 + 3), production build exit 0 with the three known pre-existing budget warnings.
+M13c-T2: complete (9a71be6..b5423c7, sonnet). bh-button rebuilt: signal inputs, no Eager, loading
+  state, hover rung, icon variant, label input. API source-compatible — all 32 call sites untouched
+  and still compiling (npx ng build, no NG8002). 191 specs.
+  EXECUTOR CAUGHT MY FIFTH BRIEF ERROR: plan said "187 specs" for this step, written before T1's
+  review fix added a third icon spec. It reconciled instead of forcing the number, which is exactly
+  why these are written as expectations. Plan's whole running chain rebased (74df0d6).
+  REVIEW FOUND A DEFECT THAT WOULD HAVE SURFACED AS A RED e2e TWO TASKS LATER, and this is the best
+  catch of the milestone so far. variant="icon" had no way to carry an accessible name: aria-label
+  written on <bh-button> lands on the HOST, not the inner <button>. Task 6 replaces the coach and
+  admin shells' icon buttons with this component, and onboarding.spec.ts:99 asserts the selector
+  `button[aria-label="Log out"]` — which needs the attribute on a real <button>. So the milestone
+  would have shipped an unlabelled control AND turned a spec red, and the failure would have looked
+  like Task 6's fault. Fixed with a `label` input bound as [attr.aria-label]="label() || null".
+  THE `|| null` IS THE POINT: an EMPTY aria-label overrides projected text as the accessible name,
+  so `label()` alone would silently un-name every text button in the app. Mutation-tested by the
+  re-reviewer — reverting to `label()` fails exactly one spec.
+  Also fixed: a loading icon button rendered TWO glyphs (spinner beside the projected icon) — gated
+  by @if for the icon variant only, text buttons still render their label while loading or they lose
+  their accessible name; the docstring claimed law §11.1's seven states while implementing six.
+  ADJUDICATION ON THE SEVENTH STATE: `error` is deliberately NOT added. A button does not own an
+  error — the field or alert beside it renders it. Law's rule is that a component which cannot be in
+  a state SAYS SO rather than omitting it silently, so the docstring now says which owns it.
+  FINDING ACCEPTED, SUGGESTED FIX DECLINED: reviewer wanted the spinner's 700ms to reuse --dur.
+  --dur is 200ms with an ease-out bezier — right for a transition, and it would make a continuous
+  spin a stutter. Added --dur-spin instead, which satisfies tokens-only properly.
+  Re-reviewer mutation-tested BOTH new guards rather than reading them, then restored and re-ran.
