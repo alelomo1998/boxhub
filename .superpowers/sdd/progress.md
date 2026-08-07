@@ -965,3 +965,35 @@ M13c-T10: complete (4136525..29a11f0, sonnet). Budget + typography sweep. 245 sp
   which sets no font-size (body's 16px does NOT affect rem). So these render identically at browser
   default and SCALE for a user who raised theirs — an accessibility improvement, not a
   pixel-identical swap.
+M13c-T11: complete (29a11f0..0aadc68, sonnet + orchestrator glue). Gallery consolidated to 18
+  sections — bh-sheet added (a modal <dialog> cannot render statically, so it gets triggers for the
+  plain and confirmClose variants). 245 specs, build clean, zero budget warnings.
+  A DISPUTED CRITICAL FINDING WAS RAISED, INVESTIGATED, AND REFUTED. The executor reported that
+  bh-sheet CANNOT BE REOPENED after closing, claimed three reproductions with showModal()
+  instrumentation, and said it would block Tasks 12 and 13. It does not reproduce.
+  I tested both paths it named against the same running container: Escape (trigger -> 1, Esc -> 0,
+  trigger -> 1) and discard (trigger -> 1, backdrop, its own Discard button -> 0, trigger -> 1).
+  Both reopen. The reviewer then reproduced my result INDEPENDENTLY with its own showModal counter
+  (showCount 2 after reopen) and supplied the mechanism I had only guessed at: @ViewChild with
+  static:true resolves during the first change-detection pass, and a constructor effect's first
+  flush is scheduled AFTER that pass — so the early `if (!el) return;` never fires on the first run,
+  open() is tracked from the start, and el never becomes falsy again.
+  THE LIKELY CAUSE OF THE FALSE POSITIVE IS WORTH KEEPING: while a dialog is open it intercepts
+  pointer events, so a reopen click aimed at the trigger lands on the dialog and is silently
+  swallowed — indistinguishable from "the sheet stays closed". I hit exactly that in one of my own
+  scripts (Playwright said `<dialog open …> subtree intercepts pointer events`) before writing a
+  clean sequence. AN EXECUTOR ASSERTING "this isn't a testing artifact" IS NOT EVIDENCE THAT IT
+  ISN'T; three reproductions of the same flawed script are one reproduction.
+  A REAL a11y GAP WAS FOUND IN THE SAME PASS AND FILED FOR M13d: bh-field/bh-select gate their
+  <span role="alert"> behind @if (error()), and @if only recreates the node across the falsy/truthy
+  boundary — so "Required" -> "Invalid format" mutates the SAME node, and role="alert" announces
+  reliably only on fresh insertion (bh-alert's own JSDoc states this). Confirmed independently by
+  the reviewer. Not fixed here: the fix belongs with a real consumer, and M13d has eleven form
+  screens where a second validation message is the normal case.
+  Also settled: field/select/table-row having no :active is NOT a defect — native inputs have no
+  pressed state distinct from focus, table rows have no click handler, and all three self-declare it,
+  consistent with panel/alert/empty/icon.
+  Orchestrator glue: corrected the day-pager gallery note, which claimed its aria-labels' English
+  "never changes even once localised" — they ARE i18n-marked; the e2e selectors pass because the
+  suite runs against the English source. The executor found this itself and left it dangling while
+  fixing three sibling notes in the same pass.
