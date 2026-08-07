@@ -10,4 +10,11 @@ export default defineConfig({
   // Serial: the suite shares one seeded backend stack; parallel workers race on shared
   // state and cold-start. One worker keeps it deterministic.
   workers: 1,
+  // One baseline per component per viewport. {platform} is deliberately ABSENT: baselines are
+  // generated and enforced inside the Linux container (visual.sh), so a macOS run must never
+  // compare against them — and it never does, because visual.spec.ts is excluded below.
+  snapshotPathTemplate: '{testDir}/{testFileName}-snapshots/{arg}{ext}',
+
+  // The default run is the functional suite. Visual regression is container-only.
+  testIgnore: process.env.BH_VISUAL ? [] : ['**/visual.spec.ts'],
 });
