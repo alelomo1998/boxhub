@@ -23,12 +23,14 @@ import { Component, input, model } from '@angular/core';
     .txt { display: flex; flex-direction: column; gap: 2px; }
     .lab { font-family: var(--font-body); font-size: var(--fs-body); }
     .hint { font-size: var(--fs-meta); color: var(--faint); }
-    .track { width: 44px; height: 26px; border-radius: var(--r-full); flex-shrink: 0;
+    .track { width: var(--tap); height: 26px; border-radius: var(--r-full); flex-shrink: 0;
       background: var(--surface-2); border: 1px solid var(--hairline); padding: 2px;
       display: flex; transition: background var(--dur) var(--ease-out); }
-    .knob { width: 20px; height: 20px; border-radius: var(--r-full); background: var(--faint);
+    .knob { width: var(--sp-5); height: var(--sp-5); border-radius: var(--r-full); background: var(--faint);
       transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out); }
     .sw[aria-checked="true"] .track { background: var(--volt); border-color: var(--volt); }
+    /* translateX(18px) is exact, not sloppy: border-box track content width is
+       --tap(44) − 2×1px border − 2×2px padding = 38px; 38 − --sp-5(20) = 18. */
     .sw[aria-checked="true"] .knob { transform: translateX(18px); background: var(--on-volt); }
     .sw:disabled { opacity: .5; cursor: not-allowed; }
     .sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-ctl); }

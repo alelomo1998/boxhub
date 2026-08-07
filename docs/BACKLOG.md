@@ -227,8 +227,9 @@ red nightly job is how a scan stops being read. Folding npm into the OSV gate is
   profile sheet vs coach/admin header ⎋). Fold into a shared shell.
 - Unicode glyph icons (⎋ ⌘ ◐) read as a placeholder icon system — adopt a real icon set.
 - Admin tables on phone are scroll-tables, not cards. *(`bh-data-table` card mode.)*
-- RX/Scaled segmented control: `role="radio"` without roving tabindex/arrow keys; sheet discard bar
-  doesn't move focus on appear. *(Fixed once in `bh-segmented` / `bh-sheet` rather than per screen.)*
+- ~~RX/Scaled segmented control: `role="radio"` without roving tabindex/arrow keys.~~ **DONE in M13c
+  Task 7** — `bh-segmented` is a `radiogroup` with roving tabindex and arrow-key navigation.
+- Sheet discard bar doesn't move focus on appear. *(Fix once in `bh-sheet` rather than per screen.)*
 - Sheet component: no focus trap beyond native `<dialog>`, no swipe-to-dismiss.
 - Coach + admin surfaces are pre-rebuild: raw px type sizes, sub-44px targets, screens re-implementing
   `bh-*` input styles, no loading states. *(M13 supplies the components; each surface milestone applies them.)*
