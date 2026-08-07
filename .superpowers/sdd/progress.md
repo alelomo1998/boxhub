@@ -1020,3 +1020,31 @@ M13c-T12: complete (0aadc68..cbc9545, sonnet x2). axe-core, @axe-core/playwright
   NEGATIVE CONTROL FIRES ON THE RULE THE COMPONENT EXISTS TO ENFORCE: stripping a dock item's text
   label, leaving only the icon, gives `link-name: 1 node(s)` — "Links must have discernible text".
   That is exactly the rule bh-dock was built for (the placeholder set it replaced used '$' for Plan).
+M13c-T13: complete (9387911..383e3e9, sonnet x2). Visual regression. 54 baselines (18 sections x 3
+  viewports), dark only, run ONLY inside mcr.microsoft.com/playwright:v1.62.0-noble via e2e/visual.sh.
+  Default run is unchanged at 35 passed + 1 skipped with zero visual tests executed.
+  THE PLATFORM TRAP, handled rather than discovered: Playwright suffixes snapshot paths by platform,
+  so macOS baselines enforced on Linux is not a stricter check, it is NO check — each side silently
+  ignores the other's files. snapshotPathTemplate drops {platform}, visual.sh is the only thing that
+  writes them, and visual.spec.ts is excluded from the default run so a macOS run can never compare
+  against them.
+  I CAUGHT MY OWN THIRTEENTH BRIEF ERROR BEFORE DISPATCH: the plan pinned the container to
+  Playwright 1.61.1. The installed version is 1.62.0. A mismatched renderer produces baseline churn
+  that looks exactly like a real regression.
+  THE NEGATIVE CONTROL DID NOT FAIL, AND THAT WAS THE REAL FINDING. --r-card 12px -> 20px changes
+  every card corner in the product and the suite PASSED. Playwright's default threshold is 0.2 in
+  YIQ colour distance, and on this dark-on-dark palette (--surface #151a16 on --ground #0d110e) an
+  antialiased corner barely moves, so those pixels were never counted. A --volt swap DID fail (4%),
+  which proved the pipeline worked and only the sensitivity was wrong. THE EXECUTOR REFUSED TO TUNE
+  THE THRESHOLD ON ITS OWN AND ESCALATED — exactly right; quietly loosening or tightening a gate to
+  get a green is the failure mode this process exists to prevent.
+  TUNED BY MEASUREMENT, NOT TASTE, and the numbers are in a comment in the spec so nobody
+  "simplifies" them back to the defaults: noise floor over two consecutive clean runs is 0px for 17
+  of 18 sections and <=29px for shell-header (a rounded avatar badge); the radius signal is >=298px,
+  400px on panel. threshold:0 with maxDiffPixels:100 leaves a ~10x gap and sits >3x clear of both
+  sides. threshold:0.1 was tried and REJECTED — it shrinks the signal to 36-55px, only ~1.5x above
+  the noise ceiling, which is a flaky gate, and a flaky gate is worse than a blind one because
+  people learn to re-run it.
+  A STALE STACK WAS FOUND, and it was mine: the running container was serving pre-0aadc68 code while
+  I believed it was current — I had not rebuilt after T11's fix commit. Only note text was affected,
+  but the lesson generalises: rebuild after EVERY frontend commit before measuring anything.
