@@ -458,7 +458,7 @@ export class ButtonComponent {
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t2.log 2>&1; echo "exit=$?"
 ```
 
-Expected: `exit=0`, **187 specs** — 184, minus the 2 tests the old `button.component.spec.ts` held, plus 5. (Measured on `main`: button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5.)
+Expected: `exit=0`, **188 specs** — 185, minus the 2 tests the old `button.component.spec.ts` held, plus 5. (Measured on `main`: button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5. Task 1's review fix added a third icon spec, so every expectation from here on is one higher than this plan's first draft said.)
 
 - [ ] **Step 6: Prove the 32 call sites still compile**
 
@@ -797,7 +797,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t3-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: both gate files **empty**; tests `exit=0` at **193 specs** — 187, minus the old field spec's 2, plus 6 field and 2 select; build `exit=0`.
+Expected: both gate files **empty**; tests `exit=0` at **194 specs** — 187, minus the old field spec's 2, plus 6 field and 2 select; build `exit=0`.
 
 - [ ] **Step 10: Commit**
 
@@ -1020,7 +1020,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t4-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: tests `exit=0` at **198 specs** (193 + 4 alert + 1 empty); build `exit=0`.
+Expected: tests `exit=0` at **199 specs** (193 + 4 alert + 1 empty); build `exit=0`.
 
 - [ ] **Step 6: Commit**
 
@@ -1224,7 +1224,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t5-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: gate file **empty**; tests `exit=0` at **201 specs** (198 + 3); build `exit=0`.
+Expected: gate file **empty**; tests `exit=0` at **202 specs** (199 + 3); build `exit=0`.
 
 - [ ] **Step 8: Look at all seven screens**
 
@@ -1575,7 +1575,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t6-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: all three gate files **empty**; tests `exit=0` at **208 specs** (201 + 4 shell-header + 3 dock); build `exit=0`.
+Expected: all three gate files **empty**; tests `exit=0` at **209 specs** (202 + 4 shell-header + 3 dock); build `exit=0`.
 
 - [ ] **Step 10: Run the full e2e suite — this task is why it exists**
 
@@ -1888,7 +1888,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t7-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: tests `exit=0` at **216 specs** (208 + 5 segmented + 3 switch); build `exit=0`.
+Expected: tests `exit=0` at **217 specs** (209 + 5 segmented + 3 switch); build `exit=0`.
 
 - [ ] **Step 8: Drive the score sheet by hand, then by e2e**
 
@@ -2088,7 +2088,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t8-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: tests `exit=0` at **220 specs** (216 + 4); build `exit=0`.
+Expected: tests `exit=0` at **221 specs** (217 + 4); build `exit=0`.
 
 - [ ] **Step 7: Commit**
 
@@ -2231,7 +2231,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t9-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: **all four gate files empty** — this is the first point at which the whole `ui/` folder is clean; tests `exit=0` at **at least 223 specs** (220 + 3 avatar). The pill and day-pager specs are rewritten in this task and today hold 1 and 2 tests, so the exact total depends on what you write; build `exit=0`.
+Expected: **all four gate files empty** — this is the first point at which the whole `ui/` folder is clean; tests `exit=0` at **at least 224 specs** (221 + 3 avatar). The pill and day-pager specs are rewritten in this task and today hold 1 and 2 tests, so the exact total depends on what you write; build `exit=0`.
 
 - [ ] **Step 7: e2e, because the day pager is asserted by three specs**
 
@@ -2832,4 +2832,4 @@ Then push and **check the Actions tab**. CI stopped scheduling runs on 2026-08-0
 
 **Type consistency.** `IconName` is defined once in Task 1 and consumed by Tasks 4, 6, 8, 9. `DockTab` is defined in Task 6. `SegOption` in Task 7. `value` is a `model()` on field, select, segmented, switch, search-bar and day-pager; `checked` on switch; `offset` on day-pager. No task references a symbol another task does not export.
 
-**Counts.** Spec counts are carried verbatim and every one was measured on `main` at `70a7565`: 79 global-CSS call sites, 18 raw px in `ui/`, 36 on-scale px in features, 51 off-scale, 9 `Eager` in `ui/`, 35 decorators in `ui/`, 3 dead components, 0 raw hex outside the print block. Running spec totals, derived from the measured per-file `it()` counts on `main` (button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5): 182 → 184 → 187 → 193 → 198 → 201 → 208 → 216 → 220 → ~223+. **Treat these as expectations, not assertions** — a divergence means a step added or replaced a spec and should be reconciled, not forced.
+**Counts.** Spec counts are carried verbatim and every one was measured on `main` at `70a7565`: 79 global-CSS call sites, 18 raw px in `ui/`, 36 on-scale px in features, 51 off-scale, 9 `Eager` in `ui/`, 35 decorators in `ui/`, 3 dead components, 0 raw hex outside the print block. Running spec totals, derived from the measured per-file `it()` counts on `main` (button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5): 182 → 184 → 185 (T1 review fix) → 188 → 194 → 199 → 202 → 209 → 217 → 221 → ~224+. **Treat these as expectations, not assertions** — a divergence means a step added or replaced a spec and should be reconciled, not forced.
