@@ -770,34 +770,52 @@ import { Component, input } from '@angular/core';
 export class PanelComponent { padded = input(true); }
 ```
 
-- [ ] **Step 7: Migrate every call site from `/tmp/m13c-t3-sites.txt`**
+- [ ] **Step 7: Do NOT migrate the call sites — add the `testId` hook instead**
 
-For each screen in that file, replace the raw control with the component and add the import. The swap is mechanical — same label text, same placeholder, same order, same surrounding layout:
+**Revised 2026-08-07 after this task's first executor stopped with evidence.** See spec §3.8. The 54 call sites are **not** mechanical: 13 of the 16 files wrap their inputs in a template-driven `<form>` with `required` / `minlength` / `name` / `[(ngModel)]`, and `bh-field` is not a `ControlValueAccessor`, so `ngModel` does not work on it at all. Nearly every site also carries a `data-testid` the e2e suite drives with Playwright `.fill()`, which requires the node to *be* an `<input>` — and an attribute on `<bh-field>` lands on the host, not the inner control.
 
+All 16 files are rebuilt by a later milestone, **seven of them by M13d**. Migrating them now designs a form contract against screens about to be deleted.
+
+So instead, add a `testId` input to **both** `bh-field` and `bh-select`, bound onto the inner control so the hook lands where Playwright needs it:
+
+```ts
+testId = input('');
+```
 ```html
-<!-- before -->
-<input class="bh-input" [value]="x()" (input)="onX($any($event.target).value)" placeholder="Name" />
-<!-- after -->
-<bh-field label="Name" [(value)]="x" />
+<input class="input" [attr.data-testid]="testId() || null" … />
 ```
 
-**If a call site does something this component cannot express** — a `(blur)` handler, an `autocomplete` attribute, a `maxlength`, an `input` inside a `<form>` with template-driven validation — **stop and escalate**. Do not add inputs to `bh-field` to make one screen work; that decision is the orchestrator's. Do not leave the screen half-migrated.
+Use `|| null` for the same reason `bh-button` does: an empty attribute is not the same as an absent one. Add one spec per component asserting the attribute lands on the **inner** `<input>`/`<select>` and is absent when `testId` is not given.
 
-- [ ] **Step 8: Delete the global classes**
+- [ ] **Step 8: Mark the global classes legacy rather than deleting them**
 
-Remove the `.bh-input` / `.bh-select` block from `frontend/src/styles.scss` (currently lines 21–27, beginning `/* shared form controls`). Leave `.bh-section` and `.bh-section-head` in place — they are layout utilities, not controls.
+Leave `.bh-input` and `.bh-select` in `frontend/src/styles.scss` and put a comment above the block naming why they survive and who kills each consumer:
 
-- [ ] **Step 9: Gates**
+```scss
+/* LEGACY, scheduled for deletion — do NOT use in new code; use <bh-field> / <bh-select>.
+   These survive because their 54 call sites sit inside template-driven <form>s with ngModel and
+   carry data-testids the e2e suite drives with .fill(); bh-field is deliberately not a
+   ControlValueAccessor yet (that is M13d's decision). Each consumer dies with its own milestone:
+   M13d — join, signup, reset, verify, forgot, start-box, account/security
+   M14  — schedule        M15 — invites, members, settings
+   M16  — box-stripe, subscriptions, plans                M18 — superadmin console
+   Spec: docs/superpowers/specs/2026-08-06-m13c-component-library-design.md §3.8 */
+```
+
+**Leave `.bh-section` and `.bh-section-head` alone** — layout utilities, not controls.
+
+- [ ] **Step 9: Gates — the form-control gate is a CAP, not a zero**
 
 ```bash
 cd /Users/alessandrolomonaco/dev/boxhub
-grep -rnE 'class="[^"]*\bbh-(input|select)\b' frontend/src/app > /tmp/m13c-t3-gate1.txt; echo "gate1=$? lines=$(wc -l < /tmp/m13c-t3-gate1.txt)"
-grep -rnE '\.bh-(input|select)\b' frontend/src/styles.scss > /tmp/m13c-t3-gate2.txt; echo "gate2 lines=$(wc -l < /tmp/m13c-t3-gate2.txt)"
+grep -rcE 'class="[^"]*\bbh-(input|select)\b' frontend/src/app > /dev/null
+grep -rnE 'class="[^"]*\bbh-(input|select)\b' frontend/src/app > /tmp/m13c-t3-cap.txt
+echo "form-control sites: $(wc -l < /tmp/m13c-t3-cap.txt) (must be <= 54, and must never grow)"
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t3.log 2>&1; echo "test exit=$?"
-ng build --configuration production > /tmp/m13c-t3-build.log 2>&1; echo "build exit=$?"
+npx ng build --configuration production > /tmp/m13c-t3-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: both gate files **empty**; tests `exit=0` at **194 specs** — 187, minus the old field spec's 2, plus 6 field and 2 select; build `exit=0`.
+Expected: **54 or fewer**; tests `exit=0` at **199 specs** (197 + 2 testId); build `exit=0`.
 
 - [ ] **Step 10: Commit**
 
@@ -806,15 +824,20 @@ git add frontend/src/app/ui/field.component.ts frontend/src/app/ui/field.compone
         frontend/src/app/ui/select.component.ts frontend/src/app/ui/select.component.spec.ts \
         frontend/src/app/ui/panel.component.ts frontend/src/styles.scss
 git add <each screen from /tmp/m13c-t3-sites.txt that you changed>
-git commit -m "feat(ui): one text input, one select — .bh-input is gone
+git commit -m "feat(ui): bh-field, bh-select, bh-panel — migration deferred, see spec 3.8
 
 bh-field existed and nothing imported it; the global .bh-input took its place
 and the two drifted (11px/13px padding vs 9px/12px), both claiming to be the
-app's text input. There is one implementation now.
+app's text input. There is one component now, though the legacy class survives
+until its last pre-rework consumer does.
 
 The label is wired with for/id rather than by wrapping, because an error
 message needs aria-describedby and that needs an id anyway — so an invalid
-field is announced, not merely outlined in red (law §11)."
+field is announced, not merely outlined in red (law 11).
+
+testId puts the e2e hook on the inner control: an attribute on <bh-field>
+lands on the host, and Playwright .fill() needs a real <input>.
+"
 ```
 
 ---
