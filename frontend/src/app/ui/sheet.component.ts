@@ -4,6 +4,14 @@ import { Component, ElementRef, ViewChild, effect, input, output, signal } from 
  * Bottom sheet on native <dialog>: Esc-dismiss, focus containment and backdrop come free.
  * Slides up on mobile, centers on desktop. Reduced-motion: no slide, instant fade.
  * confirmClose: backdrop/Esc shows an inline "Discard entry?" bar instead of closing.
+ *
+ * `open` invariant: `open` is a one-way input, not a `model()` — the component only ever reads
+ * it and cannot clear it. `onNativeClose()` emits `(closed)` but never touches `open()`. So every
+ * caller MUST reset its own `open` signal to `false` in response to `(closed)`, or the signal
+ * stays stuck `true` while the dialog is actually closed, and setting it `true` again later won't
+ * re-run the effect — the sheet will not reopen. This isn't new: the old `@Input() set open` had
+ * the same requirement. Current callers that reset correctly: `admin-shell.page.ts`,
+ * `security.page.ts`, `athlete-shell.page.ts`, `wod.page.ts`.
  */
 @Component({
   selector: 'bh-sheet',
