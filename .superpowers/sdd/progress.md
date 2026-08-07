@@ -879,3 +879,27 @@ M13c-T7: complete (9b30292..61cb6d7, sonnet x2). bh-segmented + bh-switch, score
   SIZES, and geometry is out of scope, consistent with the bh-icon and bh-avatar rulings.
   BACKLOG line split: it bundled the segmented roving-tabindex defect with the bh-sheet discard-bar
   focus defect. Only the first shipped; leaving one line would have read as both done or both open.
+M13c-T8: complete (9235478..c661926, sonnet). bh-search-bar, 3 screens migrated. 240 specs.
+  e2e 28 passed + 1 skipped on the rebuilt stack.
+  FIRST TASK OF THE MILESTONE TO CLEAR REVIEW WITH ZERO FINDINGS.
+  Closes the filed defect: members.page fired one request per KEYSTROKE. The bound value still
+  updates on every keystroke so the field never lags; only the output is debounced, and an unchanged
+  term does not re-emit.
+  EXECUTOR APPLIED INSTRUCTION #1 CORRECTLY WITHOUT BEING TOLD THE ANSWER. The brief warned that an
+  attribute on a component host does not reach the inner element — the failure that has now cost
+  four fixes this milestone (bh-button aria-label, bh-field, bh-data-table, and here). It checked
+  e2e/tests itself, found invite-flow.spec.ts:34 drives [data-testid="member-search"] with .fill()
+  (which REQUIRES the node to be an <input>), and added a testId input on its own initiative,
+  matching bh-field's convention. That is the pattern being learned rather than re-taught.
+  SOUND DEVIATIONS, both confirmed by the reviewer: it removed manual 250ms setTimeouts from
+  movements and wod-library, which would otherwise have DOUBLE-debounced — verified those timers
+  only delayed load(), with no request cancellation or race guard to lose. And it deleted a dead
+  `.bh-section-head .bh-input` rule in members.page whose only user was the replaced input.
+  DEBOUNCE VALIDATED RATHER THAN ASSUMED: 250ms was already the de-facto interval on two of the
+  three screens, so the brief's default was measured, not guessed.
+  HONEST BOUNDARY, checked by the reviewer rather than claimed: debouncing REDUCES but does not
+  eliminate out-of-order responses — none of the three screens cancels in flight (no switchMap).
+  members.page is strictly better than before (many overlapping requests -> at most one per 250ms
+  pause); the other two are unchanged. Nothing in the code or docs claims otherwise.
+  Reviewer mutation-tested all three guards: removing the re-emit guard fails `Expected 2 to be 1`,
+  removing the debounce fails `Expected 3 to be 0`.
