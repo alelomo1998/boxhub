@@ -61,16 +61,16 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   styles: [`
     .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
     .tm { max-width: 120px; } .dur { max-width: 90px; }
-    .err { color: var(--danger); font-size: 13px; margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .sub { margin-top: var(--sp-6); }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: 11px 4px; border-bottom: 1px solid var(--hairline); }
     .list li:last-child { border-bottom: none; }
     .nm { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 16px; }
-    .meta { color: var(--faint); font-size: 13px; margin-left: 10px; }
-    .off { font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
-    .cx { font-family: var(--font-mono); font-size: 11px; color: var(--danger); margin-left: 8px; }
+    .meta { color: var(--faint); font-size: var(--fs-sm); margin-left: 10px; }
+    .off { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint); }
+    .cx { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--danger); margin-left: 8px; }
     .muted { color: var(--bone-dim); padding: var(--sp-3); }
   `],
 })

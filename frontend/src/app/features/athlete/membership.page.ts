@@ -82,7 +82,7 @@ function mapCheckoutError(e: { error?: { detail?: string } }): string {
     .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-5); display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--sp-6); }
     .row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
-    .pn { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 20px; }
+    .pn { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: var(--fs-h2); }
     .price { font-family: var(--font-body); font-weight: 700; font-size: 34px; }
     .card .meta { color: var(--faint); font-size: var(--fs-sm); }
     .sh { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);

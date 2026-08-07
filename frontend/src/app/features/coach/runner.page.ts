@@ -158,7 +158,7 @@ type FetchState = 'loading' | 'error' | 'ready';
       border-radius: var(--r-ctl); color: var(--bone); cursor: pointer; min-height: var(--tap); }
     .chip.in { border-color: var(--good); }
     .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .chip-nm { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+    .chip-nm { font-size: var(--fs-meta); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       min-height: var(--tap); padding: 0 var(--sp-3); color: var(--bone); font-family: var(--font-body);

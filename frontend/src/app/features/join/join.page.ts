@@ -48,13 +48,13 @@ import { ButtonComponent } from '../../ui/button.component';
     .card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--hairline);
       border-radius: var(--r-lg); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-3); }
     .title { font-size: 44px; margin: 0 0 var(--sp-2); }
-    .muted { color: var(--bone-dim); font-size: 15px; margin: 0 0 var(--sp-3); }
+    .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0 0 var(--sp-3); }
     .muted strong { color: var(--bone); }
     form { display: flex; flex-direction: column; gap: var(--sp-4); }
     .f { display: flex; flex-direction: column; gap: 6px; }
-    .f span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
-    .alt { font-size: 13px; margin: var(--sp-2) 0 0; }
-    .err { color: var(--danger); font-size: 13px; margin: 0; }
+    .f span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+    .alt { font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
   `],
 })
 export class JoinPage implements OnInit {

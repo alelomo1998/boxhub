@@ -47,11 +47,11 @@ import { BRAND_NAME } from '../../core/brand';
       display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 21px; }
     .bn { font-family: var(--font-display); font-weight: 800; font-size: 19px; text-transform: uppercase; letter-spacing: 0.02em; }
     .f { display: flex; flex-direction: column; gap: 6px; }
-    .f span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+    .f span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
     .f input { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
-      padding: 11px 13px; color: var(--bone); font-family: var(--font-body); font-size: 15px; }
+      padding: 11px 13px; color: var(--bone); font-family: var(--font-body); font-size: var(--fs-body); }
     .f input:focus { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
-    .error { color: var(--danger); font-size: 13px; margin: 0; }
+    .error { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .alt { font-size: var(--fs-sm); margin: 0; }
     .google { display: flex; align-items: center; justify-content: center; min-height: var(--tap);
       border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);

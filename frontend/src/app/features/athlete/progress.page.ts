@@ -122,7 +122,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
     .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
-    .in.n { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 20px;
+    .in.n { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2);
       font-variant-numeric: tabular-nums; min-height: 52px; }
     .qsave { grid-column: 1 / -1; }
     @media (min-width: 560px) {

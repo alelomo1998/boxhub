@@ -122,7 +122,7 @@ function mapRecordError(e: { status?: number; error?: { detail?: string } }): st
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 420px; }
     .f { display: flex; flex-direction: column; gap: 6px; }
-    .f span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+    .f span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
     .f select { margin-top: 6px; }
     .discount { color: var(--warn); font-size: 12px; }
     .cancel-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);

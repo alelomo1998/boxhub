@@ -39,7 +39,7 @@ import { ProgrammingService, Wod } from './programming.service';
   styles: [`
     .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-4); }
     .link { color: var(--volt); font-weight: 600; }
-    .tag { font-family: var(--font-mono); font-size: 11px; color: var(--faint); text-transform: uppercase; }
+    .tag { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint); text-transform: uppercase; }
     .right { text-align: right; white-space: nowrap; }
     .mini { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); font-size: 12px; padding: 5px 9px; margin-left: 6px; cursor: pointer; }

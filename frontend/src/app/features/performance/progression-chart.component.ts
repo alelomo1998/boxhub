@@ -25,7 +25,7 @@ export interface ChartPoint { date: string; load: number; }
     .ln { fill: none; stroke: var(--volt); stroke-width: 2; vector-effect: non-scaling-stroke; }
     .dot { fill: var(--volt); }
     .lab { fill: var(--faint); font-family: var(--font-mono); font-size: 10px; }
-    .none { color: var(--bone-dim); font-size: 13px; }
+    .none { color: var(--bone-dim); font-size: var(--fs-sm); }
   `],
 })
 export class ProgressionChartComponent {

@@ -68,7 +68,7 @@ import { ButtonComponent } from '../../ui/button.component';
     .paper { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-6); }
     .rhead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--sp-5); }
-    .box { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 20px; }
+    .box { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: var(--fs-h2); }
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); }
     .lines { margin: 0; }

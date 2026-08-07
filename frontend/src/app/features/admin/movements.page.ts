@@ -45,7 +45,7 @@ const CATEGORIES = ['BARBELL', 'GYMNASTICS', 'MONOSTRUCTURAL', 'DUMBBELL', 'KETT
     .add { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3); flex-wrap: wrap; }
     .in { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       padding: 9px 12px; color: var(--bone); font-family: var(--font-body); font-size: 14px; }
-    .tag { font-family: var(--font-mono); font-size: 11px; color: var(--faint); text-transform: uppercase; }
+    .tag { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint); text-transform: uppercase; }
     .tag.custom { color: var(--volt); }
     .mini { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--danger); font-size: 12px; padding: 5px 9px; cursor: pointer; }

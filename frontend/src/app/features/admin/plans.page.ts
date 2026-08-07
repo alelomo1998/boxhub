@@ -61,13 +61,13 @@ import { ButtonComponent } from '../../ui/button.component';
     .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
     .dur { max-width: 100px; }
     .price { max-width: 100px; }
-    .err { color: var(--danger); font-size: 13px; margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: 12px 4px; border-bottom: 1px solid var(--hairline); }
     .list li:last-child { border-bottom: none; }
     .pn { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 17px; }
-    .meta { color: var(--faint); font-size: 13px; margin-left: 10px; }
+    .meta { color: var(--faint); font-size: var(--fs-sm); margin-left: 10px; }
     .empty { color: var(--bone-dim); font-size: 14px; }
   `],
 })
