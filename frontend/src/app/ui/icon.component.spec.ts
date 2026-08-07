@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
-import { IconComponent } from './icon.component';
+import { Component, signal } from '@angular/core';
+import { IconComponent, ICON_NAMES, IconName } from './icon.component';
 
 @Component({
   standalone: true,
@@ -8,6 +8,15 @@ import { IconComponent } from './icon.component';
   template: `<bh-icon name="house" [size]="24" /><bh-icon name="users" />`,
 })
 class Host {}
+
+@Component({
+  standalone: true,
+  imports: [IconComponent],
+  template: `<bh-icon [name]="name()" />`,
+})
+class SingleIconHost {
+  name = signal<IconName>(ICON_NAMES[0]);
+}
 
 describe('IconComponent', () => {
   it('renders inline SVG geometry, sized and decorative', async () => {
@@ -36,5 +45,18 @@ describe('IconComponent', () => {
     // Negative control: without this, a @switch with a broken default renders one icon for
     // every name and every other assertion above still passes.
     expect(svgs[0].innerHTML).not.toBe(svgs[1].innerHTML);
+  });
+
+  it('renders real geometry for every name in ICON_NAMES', async () => {
+    await TestBed.configureTestingModule({ imports: [SingleIconHost] }).compileComponents();
+    const f = TestBed.createComponent(SingleIconHost);
+
+    for (const name of ICON_NAMES) {
+      f.componentInstance.name.set(name);
+      f.detectChanges();
+      const svg = f.nativeElement.querySelector('svg');
+      const geometryCount = svg.querySelectorAll('path, circle, line, polyline, polygon, rect').length;
+      expect(geometryCount).withContext(`icon "${name}" rendered no geometry`).toBeGreaterThan(0);
+    }
   });
 });

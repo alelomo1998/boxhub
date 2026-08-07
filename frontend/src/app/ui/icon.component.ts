@@ -8,15 +8,20 @@ import { Component, input } from '@angular/core';
  * Icons are ALWAYS aria-hidden and always accompanied by a text label: design law §11 says colour
  * is never the only signal, and a glyph is not either.
  *
- * Adding an icon is three lines: the name in IconName, a @case here with the children copied
+ * Adding an icon is three lines: the name in ICON_NAMES, a @case here with the children copied
  * verbatim from node_modules/lucide-static/icons/<name>.svg. Never retype a `d` attribute.
  */
-export type IconName =
-  | 'house' | 'calendar' | 'calendar-plus' | 'clipboard-list' | 'dumbbell'
-  | 'trending-up' | 'credit-card' | 'users' | 'layout-grid' | 'plus'
-  | 'ellipsis' | 'chevron-left' | 'chevron-right' | 'chevron-up' | 'chevron-down'
-  | 'check' | 'x' | 'arrow-right' | 'arrow-left' | 'settings' | 'log-out'
-  | 'lock' | 'search' | 'triangle-alert' | 'circle-alert' | 'info' | 'inbox';
+/** The array is the source of truth; the union derives from it, so a spec can enumerate every
+    name at runtime and the two can never disagree. */
+export const ICON_NAMES = [
+  'house', 'calendar', 'calendar-plus', 'clipboard-list', 'dumbbell',
+  'trending-up', 'credit-card', 'users', 'layout-grid', 'plus',
+  'ellipsis', 'chevron-left', 'chevron-right', 'chevron-up', 'chevron-down',
+  'check', 'x', 'arrow-right', 'arrow-left', 'settings', 'log-out',
+  'lock', 'search', 'triangle-alert', 'circle-alert', 'info', 'inbox',
+] as const;
+
+export type IconName = typeof ICON_NAMES[number];
 
 @Component({
   selector: 'bh-icon',
