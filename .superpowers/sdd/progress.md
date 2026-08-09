@@ -1075,3 +1075,25 @@ M13c-T14 (orchestrator): MILESTONE GATE.
      FILED, NOT FIXED — M13c declared no backend change and its spec §9.1 pre-committed to filing
      findings from this check. Widening scope at the merge gate is the creep the milestone lock
      exists to stop. Filed only for that reason, not because it is small.
+M13c-T14 (cont.): THE GATE CAUGHT A DEFECT IN ITSELF, WHICH IS THE POINT OF RUNNING IT.
+  Visual regression FAILED on the final `down -v` gate: 1347px on day-pager, all three viewports,
+  every other section clean. Cause: bh-day-pager renders TODAY'S date, so the baselines encoded
+  Friday 7 August and the gate ran on Sunday 9 August. THE SUITE WOULD HAVE FAILED EVERY SINGLE DAY
+  — and a gate that cries wolf daily is a gate people switch off, which is worse than no gate
+  because it also stops anyone writing a real one.
+  Fixed by freezing page.clock to Wed 12 Aug 2026 noon UTC. ORDERING IS LOAD-BEARING and is
+  commented: the freeze must be installed BEFORE goto(), because after it the DOM has already
+  rendered and day() never re-runs. PROVEN, not assumed: frozen renders WEDNESDAY 12 AUGUST while
+  the real date is SUNDAY 9 AUGUST, and ./visual.sh passes twice consecutively. Only the 3
+  day-pager baselines changed, so the tuned sensitivity and its radius negative control still hold.
+  bh-day-pager itself was NOT touched — rendering today's date is correct; the TEST was wrong.
+  A NEAR-MISS I CAUGHT AT THE TREE, worth repeating: that executor died mid-negative-control and
+  left `--r-card: 20px` UNCOMMITTED IN THE WORKING TREE. Merging it would have shipped a design-law
+  violation across every card in the product. ALWAYS `git status` + `git diff` a dead executor's
+  tree before doing anything else; a killed subagent does not clean up after itself.
+  THE DOCKER "DeadlineExceeded" MYSTERY IS SOLVED, and it was never a build problem. The failing
+  step is `load metadata for docker.io/library/nginx:1.31-alpine` — a Docker Hub REGISTRY timeout
+  for an image that had never been pulled locally. `docker pull nginx:1.31-alpine` once, and every
+  build since succeeds, compose included. Earlier in the milestone I wrote that compose's builder
+  was broken on this machine and worked around it with standalone builds; that diagnosis was wrong
+  and the workaround only ever succeeded when the registry happened to answer.
