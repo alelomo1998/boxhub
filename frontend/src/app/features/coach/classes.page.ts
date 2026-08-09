@@ -16,7 +16,7 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
         <h1 class="title">Classes</h1>
       </header>
 
-      <bh-day-pager [offset]="dayOffset()" [max]="13" (offsetChange)="dayOffset.set($event)" />
+      <bh-day-pager [(offset)]="dayOffset" [max]="13" />
 
       @if (loading()) { <p class="stateline">Loading classes…</p> }
       @else if (error()) {

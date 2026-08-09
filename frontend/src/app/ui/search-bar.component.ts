@@ -1,0 +1,67 @@
+import { Component, DestroyRef, inject, input, model, output, signal } from '@angular/core';
+import { IconComponent } from './icon.component';
+
+let seq = 0;
+
+/**
+ * A debounced search field. members.page fired one request per keystroke — filed in
+ * docs/BACKLOG.md — which on a slow connection also means responses arriving out of order.
+ *
+ * The bound value updates on every keystroke so the input is never laggy; only the `search` output
+ * is debounced, and it does not re-emit an unchanged term.
+ */
+@Component({
+  selector: 'bh-search-bar',
+  standalone: true,
+  imports: [IconComponent],
+  template: `
+    <div class="sb">
+      <label class="sr" [attr.for]="id">{{ label() }}</label>
+      <bh-icon name="search" [size]="16" />
+      <input class="in" [id]="id" type="search" [value]="value()"
+             [placeholder]="placeholder()"
+             [attr.data-testid]="testId() || null"
+             (input)="onInput($any($event.target).value)" />
+    </div>`,
+  styles: [`
+    .sb { display: flex; align-items: center; gap: var(--sp-2); background: var(--surface-2);
+      border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 0 var(--sp-4);
+      min-height: var(--tap); max-width: 340px; color: var(--faint); }
+    .sb:focus-within { outline: 2px solid var(--focus); outline-offset: 2px;
+      border-color: var(--volt); }
+    .in { flex: 1; min-width: 0; background: none; border: none; color: var(--bone);
+      font-family: var(--font-body); font-size: var(--fs-body); min-height: var(--tap); }
+    .in:focus { outline: none; } /* the ring is on .sb, so the control reads as one thing */
+    .in::placeholder { color: var(--faint); }
+    /* A visible label above a search field costs a line and buys nothing; the placeholder is not
+       an accessible name, so the real label is present and visually hidden. */
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+      white-space: nowrap; }
+  `],
+})
+export class SearchBarComponent {
+  placeholder = input('');
+  label = input('');
+  debounceMs = input(250);
+  testId = input('');
+  value = model('');
+  search = output<string>();
+
+  readonly id = `bh-sb${seq++}`;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private lastEmitted = signal<string | null>(null);
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+  }
+
+  onInput(v: string) {
+    this.value.set(v); // immediate: the field must never lag behind typing
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      if (this.lastEmitted() === v) return;
+      this.lastEmitted.set(v);
+      this.search.emit(v);
+    }, this.debounceMs());
+  }
+}

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { BRAND_NAME } from '../core/brand';
 
 /**
@@ -16,12 +16,11 @@ import { BRAND_NAME } from '../core/brand';
 @Component({
   selector: 'bh-wordmark',
   standalone: true,
-  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <!-- The visible glyphs are split across two elements purely so the highlighter can sit behind
          "ed", so they are hidden from assistive tech and the accessible name comes from the one
          visually-hidden span. Without aria-hidden a screen reader announces the name twice. -->
-    <span class="wm" [class.hero]="variant === 'hero'" [attr.data-size]="size">
+    <span class="wm" [class.hero]="variant() === 'hero'" [attr.data-size]="size()">
       <span class="a" aria-hidden="true">rx</span><span class="b" aria-hidden="true">ed</span>
       <span class="sr">{{ brand }}</span>
     </span>
@@ -42,7 +41,7 @@ import { BRAND_NAME } from '../core/brand';
   `],
 })
 export class WordmarkComponent {
-  @Input() variant: 'chrome' | 'hero' = 'chrome';
-  @Input() size: 'sm' | 'md' | 'lg' = 'sm';
+  variant = input<'chrome' | 'hero'>('chrome');
+  size = input<'sm' | 'md' | 'lg'>('sm');
   protected readonly brand = BRAND_NAME;
 }

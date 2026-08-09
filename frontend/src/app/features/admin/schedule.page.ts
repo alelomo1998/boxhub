@@ -3,13 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { BookingService, ClassTemplate, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
+import { DataTableComponent } from '../../ui/data-table.component';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 @Component({
   selector: 'bh-admin-schedule',
   standalone: true,
-  imports: [FormsModule, DatePipe, ButtonComponent],
+  imports: [FormsModule, DatePipe, ButtonComponent, DataTableComponent],
   template: `
     <section class="bh-section">
       <h2 class="t-h2">Schedule</h2>
@@ -39,39 +40,37 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       </ul>
 
       <h3 class="t-h3 sub">Next two weeks</h3>
-      <div class="bh-table-wrap">
-        <table class="bh-table">
-          <thead><tr><th>When</th><th>Class</th><th>Booked</th><th></th></tr></thead>
-          <tbody>
-            @for (s of sessions(); track s.id) {
-              <tr [attr.data-testid]="'session-' + s.id">
-                <td class="num">{{ s.startAt | date:'EEE d MMM · HH:mm' }}</td>
-                <td><span class="mname">{{ s.name }}</span>@if (s.status === 'CANCELLED') { <span class="cx">cancelled</span> }</td>
-                <td class="num">{{ s.bookedCount }} / {{ s.capacity }}</td>
-                <td>@if (s.status !== 'CANCELLED') {
-                  <bh-button variant="ghost" size="sm" (click)="cancelSession(s)" [attr.data-testid]="'session-cancel-' + s.id">Cancel</bh-button>
-                }</td>
-              </tr>
-            } @empty { <tr><td colspan="4" class="muted">No sessions generated yet.</td></tr> }
-          </tbody>
-        </table>
-      </div>
+      <bh-data-table>
+        <thead><tr><th>When</th><th>Class</th><th>Booked</th><th></th></tr></thead>
+        <tbody>
+          @for (s of sessions(); track s.id) {
+            <tr [attr.data-testid]="'session-' + s.id">
+              <td class="num">{{ s.startAt | date:'EEE d MMM · HH:mm' }}</td>
+              <td><span class="mname">{{ s.name }}</span>@if (s.status === 'CANCELLED') { <span class="cx">cancelled</span> }</td>
+              <td class="num">{{ s.bookedCount }} / {{ s.capacity }}</td>
+              <td>@if (s.status !== 'CANCELLED') {
+                <bh-button variant="ghost" size="sm" (click)="cancelSession(s)" [attr.data-testid]="'session-cancel-' + s.id">Cancel</bh-button>
+              }</td>
+            </tr>
+          } @empty { <tr><td colspan="4" class="muted">No sessions generated yet.</td></tr> }
+        </tbody>
+      </bh-data-table>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
     .tm { max-width: 120px; } .dur { max-width: 90px; }
-    .err { color: var(--danger); font-size: 13px; margin: 0; }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
     .sub { margin-top: var(--sp-6); }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       padding: 11px 4px; border-bottom: 1px solid var(--hairline); }
     .list li:last-child { border-bottom: none; }
     .nm { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 16px; }
-    .meta { color: var(--faint); font-size: 13px; margin-left: 10px; }
-    .off { font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
-    .cx { font-family: var(--font-mono); font-size: 11px; color: var(--danger); margin-left: 8px; }
+    .meta { color: var(--faint); font-size: var(--fs-sm); margin-left: 10px; }
+    .off { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint); }
+    .cx { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--danger); margin-left: 8px; }
     .muted { color: var(--bone-dim); padding: var(--sp-3); }
   `],
 })

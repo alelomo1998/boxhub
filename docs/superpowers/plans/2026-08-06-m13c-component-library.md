@@ -458,7 +458,7 @@ export class ButtonComponent {
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t2.log 2>&1; echo "exit=$?"
 ```
 
-Expected: `exit=0`, **187 specs** — 184, minus the 2 tests the old `button.component.spec.ts` held, plus 5. (Measured on `main`: button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5.)
+Expected: `exit=0`, **188 specs** — 185, minus the 2 tests the old `button.component.spec.ts` held, plus 5. (Measured on `main`: button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5. Task 1's review fix added a third icon spec, so every expectation from here on is one higher than this plan's first draft said.)
 
 - [ ] **Step 6: Prove the 32 call sites still compile**
 
@@ -770,34 +770,52 @@ import { Component, input } from '@angular/core';
 export class PanelComponent { padded = input(true); }
 ```
 
-- [ ] **Step 7: Migrate every call site from `/tmp/m13c-t3-sites.txt`**
+- [ ] **Step 7: Do NOT migrate the call sites — add the `testId` hook instead**
 
-For each screen in that file, replace the raw control with the component and add the import. The swap is mechanical — same label text, same placeholder, same order, same surrounding layout:
+**Revised 2026-08-07 after this task's first executor stopped with evidence.** See spec §3.8. The 54 call sites are **not** mechanical: 13 of the 16 files wrap their inputs in a template-driven `<form>` with `required` / `minlength` / `name` / `[(ngModel)]`, and `bh-field` is not a `ControlValueAccessor`, so `ngModel` does not work on it at all. Nearly every site also carries a `data-testid` the e2e suite drives with Playwright `.fill()`, which requires the node to *be* an `<input>` — and an attribute on `<bh-field>` lands on the host, not the inner control.
 
+All 16 files are rebuilt by a later milestone, **seven of them by M13d**. Migrating them now designs a form contract against screens about to be deleted.
+
+So instead, add a `testId` input to **both** `bh-field` and `bh-select`, bound onto the inner control so the hook lands where Playwright needs it:
+
+```ts
+testId = input('');
+```
 ```html
-<!-- before -->
-<input class="bh-input" [value]="x()" (input)="onX($any($event.target).value)" placeholder="Name" />
-<!-- after -->
-<bh-field label="Name" [(value)]="x" />
+<input class="input" [attr.data-testid]="testId() || null" … />
 ```
 
-**If a call site does something this component cannot express** — a `(blur)` handler, an `autocomplete` attribute, a `maxlength`, an `input` inside a `<form>` with template-driven validation — **stop and escalate**. Do not add inputs to `bh-field` to make one screen work; that decision is the orchestrator's. Do not leave the screen half-migrated.
+Use `|| null` for the same reason `bh-button` does: an empty attribute is not the same as an absent one. Add one spec per component asserting the attribute lands on the **inner** `<input>`/`<select>` and is absent when `testId` is not given.
 
-- [ ] **Step 8: Delete the global classes**
+- [ ] **Step 8: Mark the global classes legacy rather than deleting them**
 
-Remove the `.bh-input` / `.bh-select` block from `frontend/src/styles.scss` (currently lines 21–27, beginning `/* shared form controls`). Leave `.bh-section` and `.bh-section-head` in place — they are layout utilities, not controls.
+Leave `.bh-input` and `.bh-select` in `frontend/src/styles.scss` and put a comment above the block naming why they survive and who kills each consumer:
 
-- [ ] **Step 9: Gates**
+```scss
+/* LEGACY, scheduled for deletion — do NOT use in new code; use <bh-field> / <bh-select>.
+   These survive because their 54 call sites sit inside template-driven <form>s with ngModel and
+   carry data-testids the e2e suite drives with .fill(); bh-field is deliberately not a
+   ControlValueAccessor yet (that is M13d's decision). Each consumer dies with its own milestone:
+   M13d — join, signup, reset, verify, forgot, start-box, account/security
+   M14  — schedule        M15 — invites, members, settings
+   M16  — box-stripe, subscriptions, plans                M18 — superadmin console
+   Spec: docs/superpowers/specs/2026-08-06-m13c-component-library-design.md §3.8 */
+```
+
+**Leave `.bh-section` and `.bh-section-head` alone** — layout utilities, not controls.
+
+- [ ] **Step 9: Gates — the form-control gate is a CAP, not a zero**
 
 ```bash
 cd /Users/alessandrolomonaco/dev/boxhub
-grep -rnE 'class="[^"]*\bbh-(input|select)\b' frontend/src/app > /tmp/m13c-t3-gate1.txt; echo "gate1=$? lines=$(wc -l < /tmp/m13c-t3-gate1.txt)"
-grep -rnE '\.bh-(input|select)\b' frontend/src/styles.scss > /tmp/m13c-t3-gate2.txt; echo "gate2 lines=$(wc -l < /tmp/m13c-t3-gate2.txt)"
+grep -rcE 'class="[^"]*\bbh-(input|select)\b' frontend/src/app > /dev/null
+grep -rnE 'class="[^"]*\bbh-(input|select)\b' frontend/src/app > /tmp/m13c-t3-cap.txt
+echo "form-control sites: $(wc -l < /tmp/m13c-t3-cap.txt) (must be <= 54, and must never grow)"
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t3.log 2>&1; echo "test exit=$?"
-ng build --configuration production > /tmp/m13c-t3-build.log 2>&1; echo "build exit=$?"
+npx ng build --configuration production > /tmp/m13c-t3-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: both gate files **empty**; tests `exit=0` at **193 specs** — 187, minus the old field spec's 2, plus 6 field and 2 select; build `exit=0`.
+Expected: **54 or fewer**; tests `exit=0` at **199 specs** (197 + 2 testId); build `exit=0`.
 
 - [ ] **Step 10: Commit**
 
@@ -806,15 +824,20 @@ git add frontend/src/app/ui/field.component.ts frontend/src/app/ui/field.compone
         frontend/src/app/ui/select.component.ts frontend/src/app/ui/select.component.spec.ts \
         frontend/src/app/ui/panel.component.ts frontend/src/styles.scss
 git add <each screen from /tmp/m13c-t3-sites.txt that you changed>
-git commit -m "feat(ui): one text input, one select — .bh-input is gone
+git commit -m "feat(ui): bh-field, bh-select, bh-panel — migration deferred, see spec 3.8
 
 bh-field existed and nothing imported it; the global .bh-input took its place
 and the two drifted (11px/13px padding vs 9px/12px), both claiming to be the
-app's text input. There is one implementation now.
+app's text input. There is one component now, though the legacy class survives
+until its last pre-rework consumer does.
 
 The label is wired with for/id rather than by wrapping, because an error
 message needs aria-describedby and that needs an id anyway — so an invalid
-field is announced, not merely outlined in red (law §11)."
+field is announced, not merely outlined in red (law 11).
+
+testId puts the e2e hook on the inner control: an attribute on <bh-field>
+lands on the host, and Playwright .fill() needs a real <input>.
+"
 ```
 
 ---
@@ -1020,7 +1043,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t4-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: tests `exit=0` at **198 specs** (193 + 4 alert + 1 empty); build `exit=0`.
+Expected: tests `exit=0` at **199 specs** (193 + 4 alert + 1 empty); build `exit=0`.
 
 - [ ] **Step 6: Commit**
 
@@ -1224,7 +1247,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t5-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: gate file **empty**; tests `exit=0` at **201 specs** (198 + 3); build `exit=0`.
+Expected: gate file **empty**; tests `exit=0` at **202 specs** (199 + 3); build `exit=0`.
 
 - [ ] **Step 8: Look at all seven screens**
 
@@ -1575,7 +1598,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t6-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: all three gate files **empty**; tests `exit=0` at **208 specs** (201 + 4 shell-header + 3 dock); build `exit=0`.
+Expected: all three gate files **empty**; tests `exit=0` at **209 specs** (202 + 4 shell-header + 3 dock); build `exit=0`.
 
 - [ ] **Step 10: Run the full e2e suite — this task is why it exists**
 
@@ -1888,7 +1911,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t7-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: tests `exit=0` at **216 specs** (208 + 5 segmented + 3 switch); build `exit=0`.
+Expected: tests `exit=0` at **217 specs** (209 + 5 segmented + 3 switch); build `exit=0`.
 
 - [ ] **Step 8: Drive the score sheet by hand, then by e2e**
 
@@ -2088,7 +2111,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t8-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: tests `exit=0` at **220 specs** (216 + 4); build `exit=0`.
+Expected: tests `exit=0` at **221 specs** (217 + 4); build `exit=0`.
 
 - [ ] **Step 7: Commit**
 
@@ -2178,7 +2201,23 @@ Expected: FAIL — `Expected 'AL' to be 'GH'`. **This failure is the whole point
 
 - [ ] **Step 3: Convert the three components to signal inputs**
 
-`avatar.component.ts` — `path`, `name`, `size` become `input()`; `broken` stays a plain `signal`; `initials` stays a `computed()` and now actually tracks `this.name()`. Drop `ChangeDetectionStrategy.Eager`. Replace the raw `font-size` values (`11px`, `16px`, `24px`, `32px`) — this component is one of the 18 `ui/` sites in the raw-px gate. `.sm` and `.md` map to `var(--fs-meta)` and `var(--fs-body)`; `.lg` and `.xl` have no token at their size, so use `--fs-display` for `.lg` and `--fs-hero` for `.xl`, which are 28px and 40px against the current 24 and 32. **Look at the result at `xl` before committing** — this is a real size change on the athlete profile.
+`avatar.component.ts` — `path`, `name`, `size` become `input()`; `broken` stays a plain `signal`; `initials` stays a `computed()` and now actually tracks `this.name()`. Drop `ChangeDetectionStrategy.Eager`.
+
+**The four raw `font-size` values (`11px`, `16px`, `24px`, `32px`) become ONE ratio, not four tokens.** Decided at pre-flight, because the obvious fix was a redesign in disguise: `.lg` is 24px and `.xl` is 32px, and **no token is either size** — the scale is 40/28/20/15/13/11. Mapping them onto `--fs-display` (28) and `--fs-hero` (40) would visibly enlarge the initials on the athlete profile and the class-detail avatar grid, which is precisely the move Task 10 refuses to make for the 51 off-scale feature values.
+
+An initials badge is not type on the type scale — it is a glyph filling a circle, and it should scale *with that circle*:
+
+```css
+.av  { font-size: 36%; }        /* one rule, all four sizes; % of the box, not of the type scale */
+.sm  { width: 28px; height: 28px; }
+.md  { width: 44px; height: 44px; }
+.lg  { width: 72px; height: 72px; }
+.xl  { width: 96px; height: 96px; }
+```
+
+`36%` of 28 / 44 / 72 / 96 is 10.1 / 15.8 / 25.9 / 34.6 against today's 11 / 16 / 24 / 32 — within a pixel at the two small sizes, and slightly larger at `lg` and `xl`. **Tune the percentage until all four match today's rendering as closely as one number can, then look at all four in the gallery before committing.** A fifth avatar size later needs no new number at all.
+
+This is neither a raw px nor a type token, and that is correct: the raw-px gate exists to stop hardcoded *type sizes*, and a ratio is not one.
 
 `pill.component.ts` — signal inputs; add a `danger` tone (law §3.1 permits `--danger` to fill a chip). Keep the `live` tone's volt fill and its pulsing dot, and keep the reduced-motion alternative.
 
@@ -2215,7 +2254,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless > /tmp/m13c-t
 ng build --configuration production > /tmp/m13c-t9-build.log 2>&1; echo "build exit=$?"
 ```
 
-Expected: **all four gate files empty** — this is the first point at which the whole `ui/` folder is clean; tests `exit=0` at **at least 223 specs** (220 + 3 avatar). The pill and day-pager specs are rewritten in this task and today hold 1 and 2 tests, so the exact total depends on what you write; build `exit=0`.
+Expected: **all four gate files empty** — this is the first point at which the whole `ui/` folder is clean; tests `exit=0` at **at least 224 specs** (221 + 3 avatar). The pill and day-pager specs are rewritten in this task and today hold 1 and 2 tests, so the exact total depends on what you write; build `exit=0`.
 
 - [ ] **Step 7: e2e, because the day pager is asserted by three specs**
 
@@ -2816,4 +2855,4 @@ Then push and **check the Actions tab**. CI stopped scheduling runs on 2026-08-0
 
 **Type consistency.** `IconName` is defined once in Task 1 and consumed by Tasks 4, 6, 8, 9. `DockTab` is defined in Task 6. `SegOption` in Task 7. `value` is a `model()` on field, select, segmented, switch, search-bar and day-pager; `checked` on switch; `offset` on day-pager. No task references a symbol another task does not export.
 
-**Counts.** Spec counts are carried verbatim and every one was measured on `main` at `70a7565`: 79 global-CSS call sites, 18 raw px in `ui/`, 36 on-scale px in features, 51 off-scale, 9 `Eager` in `ui/`, 35 decorators in `ui/`, 3 dead components, 0 raw hex outside the print block. Running spec totals, derived from the measured per-file `it()` counts on `main` (button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5): 182 → 184 → 187 → 193 → 198 → 201 → 208 → 216 → 220 → ~223+. **Treat these as expectations, not assertions** — a divergence means a step added or replaced a spec and should be reconciled, not forced.
+**Counts.** Spec counts are carried verbatim and every one was measured on `main` at `70a7565`: 79 global-CSS call sites, 18 raw px in `ui/`, 36 on-scale px in features, 51 off-scale, 9 `Eager` in `ui/`, 35 decorators in `ui/`, 3 dead components, 0 raw hex outside the print block. Running spec totals, derived from the measured per-file `it()` counts on `main` (button 2, day-pager 2, field 2, pill 1, sheet 5, timer 5): 182 → 184 → 185 (T1 review fix) → 188 → 194 → 199 → 202 → 209 → 217 → 221 → ~224+. **Treat these as expectations, not assertions** — a divergence means a step added or replaced a spec and should be reconciled, not forced.

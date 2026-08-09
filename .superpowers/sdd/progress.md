@@ -657,3 +657,492 @@ M13b-T12: docs + full gate (orchestrator; the executor died on a session limit p
   expensive frontend bug.
   PROCESS NOTE: five of six executors returned a real finding, and every one was caught because
   briefs tell them to stop rather than improvise. Three of those findings were errors in MY briefs.
+
+## M13c component library — 2026-08-06 — branch m13c-component-library, base 8eb2819
+
+Spec `docs/superpowers/specs/2026-08-06-m13c-component-library-design.md`.
+Plan `docs/superpowers/plans/2026-08-06-m13c-component-library.md`, 14 tasks.
+18 components: 6 rebuilt, 12 built, 3 deleted. No Flyway; next is still V19.
+Gate baselines measured on main at 70a7565 (must all reach zero):
+  79 global-CSS class sites · 20 global defs · 18 raw px in ui/ · 36 on-scale px in features
+  · 9 Eager in ui/ · 35 decorators in ui/ · 3 dead components · 0 raw hex (standing, already zero)
+M13c-T1: complete (eb3b928..9a71be6, sonnet). bh-icon, 27 lucide icons inlined, no runtime dep.
+  ORCHESTRATOR FILENAME FIX BEFORE DISPATCH: every .superpowers/sdd/task-N-brief.md and
+  task-N-report.md slot 1-15 was already occupied by STALE files from M8/M12b — task-1-report.md
+  was M12b's V16 migration report. A first executor died on an API limit having written nothing,
+  and reading that stale report would have scored the task DONE. M13c uses m13c-task-N-*.md.
+  Generalise: milestone-scope scratch filenames, or a dead executor looks like a finished one.
+  FIX 1 (orchestrator, trivial glue): npm wrote "^1.28.0"; pinned exactly. Geometry is copied at
+  authoring time, so a caret breaks nothing at runtime — but whoever adds icon #28 on a fresh clone
+  copies from whatever minor npm resolved, and lucide redraws icons between minors. Stroke
+  inconsistency arriving slowly across a set whose whole value is consistency.
+  FIX 2 (executor, from review — Important, and the finding was against MY brief): my Step 7
+  "all 27 wired" check was a one-off shell grep, never committed. Angular does NOT exhaustiveness-
+  check @switch against a TS union and there is deliberately no @default, so a dropped @case renders
+  an EMPTY <svg> — build green, 184 specs green, icon silently blank. THE PROJECT'S OWN LESSON
+  LANDING ON MY OWN PLAN. Fixed better than restoring the grep: ICON_NAMES is now a const array and
+  IconName derives from it (typeof ICON_NAMES[number]), so array and union cannot drift, and one
+  spec loops all 27 asserting geometry, naming the offending icon via withContext.
+  BOTH NEGATIVE CONTROLS FIRED, and the reviewer ran its own rather than trusting the executor's:
+  executor emptied `settings` (mid-list), reviewer independently emptied `inbox` (last case). Both
+  produced exactly one failure naming the icon. That is the difference between a demonstrated
+  mechanism and an anecdote.
+  EXECUTOR CAUGHT A COUNT ERROR OF MINE, AGAIN: my fix brief said "keep all three existing tests"
+  while describing two. There were two. Fourth brief error of the milestone so far.
+  DECLINED, with the reason recorded so it is not re-litigated per task: reviewer asked for an
+  --icon-size-* token scale before six tasks start passing [size]="16". Four distinct sizes across
+  eighteen components is not proliferation, and design law's tokens-only rule governs colour, font,
+  radius and spacing — not SVG geometry attributes. Default stays 20; call sites pass 16 or 28.
+  Note for later briefs: `ng` is NOT on PATH in the executor shell. Use `npx ng`.
+  185 specs (182 + 3), production build exit 0 with the three known pre-existing budget warnings.
+M13c-T2: complete (9a71be6..b5423c7, sonnet). bh-button rebuilt: signal inputs, no Eager, loading
+  state, hover rung, icon variant, label input. API source-compatible — all 32 call sites untouched
+  and still compiling (npx ng build, no NG8002). 191 specs.
+  EXECUTOR CAUGHT MY FIFTH BRIEF ERROR: plan said "187 specs" for this step, written before T1's
+  review fix added a third icon spec. It reconciled instead of forcing the number, which is exactly
+  why these are written as expectations. Plan's whole running chain rebased (74df0d6).
+  REVIEW FOUND A DEFECT THAT WOULD HAVE SURFACED AS A RED e2e TWO TASKS LATER, and this is the best
+  catch of the milestone so far. variant="icon" had no way to carry an accessible name: aria-label
+  written on <bh-button> lands on the HOST, not the inner <button>. Task 6 replaces the coach and
+  admin shells' icon buttons with this component, and onboarding.spec.ts:99 asserts the selector
+  `button[aria-label="Log out"]` — which needs the attribute on a real <button>. So the milestone
+  would have shipped an unlabelled control AND turned a spec red, and the failure would have looked
+  like Task 6's fault. Fixed with a `label` input bound as [attr.aria-label]="label() || null".
+  THE `|| null` IS THE POINT: an EMPTY aria-label overrides projected text as the accessible name,
+  so `label()` alone would silently un-name every text button in the app. Mutation-tested by the
+  re-reviewer — reverting to `label()` fails exactly one spec.
+  Also fixed: a loading icon button rendered TWO glyphs (spinner beside the projected icon) — gated
+  by @if for the icon variant only, text buttons still render their label while loading or they lose
+  their accessible name; the docstring claimed law §11.1's seven states while implementing six.
+  ADJUDICATION ON THE SEVENTH STATE: `error` is deliberately NOT added. A button does not own an
+  error — the field or alert beside it renders it. Law's rule is that a component which cannot be in
+  a state SAYS SO rather than omitting it silently, so the docstring now says which owns it.
+  FINDING ACCEPTED, SUGGESTED FIX DECLINED: reviewer wanted the spinner's 700ms to reuse --dur.
+  --dur is 200ms with an ease-out bezier — right for a transition, and it would make a continuous
+  spin a stutter. Added --dur-spin instead, which satisfies tokens-only properly.
+  Re-reviewer mutation-tested BOTH new guards rather than reading them, then restored and re-ran.
+M13c-T3: complete (c555afe..8ff4a1c, sonnet x3 — build, escalation ruling, review fixes). 201 specs.
+  bh-field rewritten, bh-select new, bh-panel to signal inputs. NO screen migrated — see below.
+  EXECUTOR STOPPED AND WAS RIGHT, AND THIS ONE WAS ARCHITECTURAL. My spec §6.1 called the
+  .bh-input/.bh-select migration "mechanical". It is not, for two structural reasons it proved
+  rather than asserted: (1) 13 of 16 files wrap inputs in a template-driven <form> with
+  required/minlength/name/[(ngModel)], and bh-field is not a ControlValueAccessor, so ngModel does
+  not misbehave on it — it does not work at all; (2) nearly all 54 sites carry a data-testid the
+  e2e suite drives with Playwright .fill(), which requires the node to BE an <input>, and an
+  attribute on <bh-field> lands on the HOST. Same host-vs-inner-element failure review caught on
+  bh-button's aria-label in T2 — twice in one milestone, so it is a pattern, not an accident.
+  USER RULING: defer. The decisive fact was OWNERSHIP, which I had not checked when writing the
+  spec — all 16 files are rebuilt by a later milestone, SEVEN by M13d. Migrating now designs a
+  ControlValueAccessor contract against template-driven forms M13d is about to delete: the exact
+  double work this program exists to prevent, arriving through a lint rule. Spec §3.8 records it;
+  the gate became a CAP (must not exceed 54) rather than a zero, so new code must use the component
+  while old code has a scheduled death. Whether bh-field becomes a CVA is M13d's call.
+  .bh-table and .bh-dock are unaffected — not form controls, no ngModel, no .fill(). Both proceed.
+  REVIEW FOUND A CRITICAL BUG AND REPRODUCED IT RATHER THAN REASONING ABOUT IT. bh-select's
+  [value] does NOT stick when <option>s arrive asynchronously: the native select keeps the browser's
+  first-option default and stays wrong — silently, permanently, no error. The reviewer wrote a
+  throwaway spec with options behind a signal that starts empty, got `Expected 'a' to be 'b'`, then
+  deleted it and re-ran clean. That is the exact shape M13d/M16/M18 plan and box pickers will use,
+  and it would have picked the wrong plan.
+  MY SUGGESTED FIX WAS WRONG — SEVENTH BRIEF ERROR. I proposed viewChild + afterRenderEffect. The
+  executor tried it, still failed identically, and read Angular 22's source: afterRenderEffect is
+  signal-dependency-gated like effect(), so it never reruns when a parent merely repopulates
+  projected <option>s — nothing signal-typed changed. It then tried ngDoCheck (fires, but too early
+  — still saw an empty option list) and landed on ngAfterContentChecked, which Angular defines as
+  running after projected content is checked. Writes only when the element's value differs, so no
+  feedback loop against the user's own selection.
+  Also: dead `computed` import removed; spacing snapped onto the token scale (13px -> var(--sp-3),
+  6px -> var(--sp-1)) in BOTH components, free because nothing renders them yet. The only px left
+  are 1px borders and 2px focus outlines, which design law prescribes verbatim.
+M13c-T4: complete (21bf7c3..bf99237, sonnet x2). bh-alert + bh-empty. 208 specs. NO screen migrated
+  — the 42 class="err" / 13 class="empty" sites are per-component classes defined locally, they
+  break nothing by staying, and they belong to each screen's rebuild (spec §3.7). First real
+  consumer is M13d.
+  bh-alert derives its ARIA role from tone instead of fixing role="alert": role="alert" interrupts
+  a screen reader mid-sentence, right for a failed save, wrong for "check your inbox".
+  REVIEW MUTATION-TESTED THE SPECS AND BOTH FAILED TO DISCRIMINATE — the project's own standing
+  lesson, again, and neither would have been found by reading. (1) Collapsing all four tone icons to
+  one left the suite GREEN, so the colour-blind signal had no regression guard at all. (2) Inverting
+  half the tone->role mapping (making `good` an alert) also left it green — only 2 of 4 directions
+  were asserted, and the untested half is the accessibility contract the component exists for.
+  Both fixed and both mutations re-run as negative controls: `Expected 1 to be 4` and
+  `Expected 'alert' to be 'status'`.
+  Also: --bw-accent: 3px added to _tokens.scss — the alert's left rule was the design system's only
+  bare border-width literal, and it becomes the precedent M13d copies across eleven screens.
+  TWO DOC GAPS CLOSED THAT ONLY MATTER BECAUSE M13d IS NEXT: bh-empty is deliberately NOT a live
+  region, so a screen swapping a list for it after a fetch needs its own aria-live wrapper; and
+  role="alert" announces reliably only when the element is freshly INSERTED, so bh-alert must be
+  mounted/unmounted with @if rather than kept mounted and mutated. The natural-looking Angular
+  pattern is the one that silently fails to announce.
+  EXECUTOR CAUGHT MY EIGHTH BRIEF ERROR: the brief's spec-count arithmetic was stale again ("199 =
+  193+4+1", which is 198, against a real baseline of 201). Reconciled rather than forced.
+  IMPECCABLE HOOK FALSE POSITIVE, correctly classified and NOT suppressed: it flagged the 3px
+  border-left as a "side-tab AI tell". Design law §3.1 prescribes exactly a thin left rule for quiet
+  semantic colour on a row-sized element. Reviewer independently agreed.
+M13c-T5: complete (e70eaed..c981a53, sonnet x2). bh-data-table replaces the global .bh-table.
+  7 screens / 9 table instances migrated mechanically. _table.scss DELETED, @use removed. 215 specs.
+  ::ng-deep is required, not lazy: thead/tbody are PROJECTED, so they carry the CONSUMER's
+  encapsulation attribute and scoped selectors cannot reach them.
+  REVIEW PROVED THE SPECS COULD NOT SEE THE ONE FAILURE THAT MATTERS. It stripped every ::ng-deep
+  from the component and all three specs STILL PASSED — the component's entire styling contract,
+  the whole reason ::ng-deep exists here, was untested, so a refactor breaking those selectors would
+  have shipped an unstyled admin table with every gate green. Fixed with a spec that attaches the
+  fixture to the document and reads getComputedStyle on a PROJECTED <th> and <td>. Negative control
+  fired: `Expected 'none' to be 'uppercase'`, `Expected 'normal' to be '0.66px'`,
+  `Expected '1px' to be '13px'`. Structure-only assertions cannot test styling — projection produces
+  the structure whether or not the CSS reaches it.
+  SECOND CONVENTION CAUGHT BEFORE IT SPREAD: console.page.ts had data-testid on the <table>, and the
+  migration moved it to the <bh-data-table> HOST, where it no longer reaches a table. Task 3 had
+  already established the library's answer (an explicit testId input forwarded to the inner element),
+  so this would have been two contradictory conventions in one library. bh-data-table now has
+  testId; the three console sites use it. No e2e reads them — verified twice — so this was purely
+  about not shipping the inconsistency.
+  MY BRIEF SILENTLY REDESIGNED THREE SCREENS — NINTH ERROR, and the most subtle. The component source
+  I wrote dropped `text-transform: uppercase` and moved 17px to var(--fs-body) on .mname, changing
+  four cells across members / superadmin console / schedule. KEPT, not reverted: design law v3 says
+  names read better in mixed case and uppercase belongs to mono eyebrows only, so the old rule was a
+  pre-M13b leftover — but it was bundled inside a task described as PRESERVING those classes, which
+  is how a redesign hides. Now carries a comment naming the change, the law, and the three owning
+  milestones (M15 / M18 / M14). Visual-regression baselines are built in T13, after this, so they
+  capture the corrected state rather than locking in the old one.
+  Also: redundant ::ng-deep .num deleted (the global utility already applies to projected cells,
+  since global styles are not view-encapsulated).
+M13c-GALLERY (pulled forward, 3c7786c, sonnet): user asked when /app/dev/components would show
+  anything, and the honest answer was "task 11, five tasks away". Pulled forward and scoped to the
+  8 components then built. Purely additive; later tasks extend the same page. 216 specs.
+  ORCHESTRATOR ENVIRONMENT FIGHT, recorded because it cost real time: `docker compose up --build`
+  failed TWICE with `DeadlineExceeded` on the frontend image. Building the SAME image standalone
+  (`docker build -f docker/frontend.Dockerfile`) succeeds in seconds — BUILD_EXIT=0, npm build step
+  4.2s. It is a compose/buildkit deadline, not a broken build, and `up -d --build` worked once the
+  layers were warm. Anyone hitting this: build the image directly first.
+  I ALSO MIS-REPORTED THAT FAILURE AS A SUCCESS. I backgrounded it as `docker compose … ; echo
+  "compose exit=$?"`, so the shell exited 0 while compose had exited 1, and the task notification
+  said success. Same class as piping a gate through grep — the trailing command's status is not the
+  gate's. Write `cmd > log 2>&1; echo "EXIT=$?" >> log` and then GREP THE LOG, never trust the outer
+  status.
+  Dev-server-only viewing does not work: with no backend, AuthService's boot call to /api/me fails
+  and the interceptor's logout path redirects to /auth/login. The gallery renders, then vanishes.
+  Publishing the backend's 8080 to the host (compose overlay in scratch) fixes it for dev-server use.
+M13c-T6: complete (3c7786c..14e8f5b, sonnet x2). bh-shell-header + bh-dock. 225 specs.
+  FULL e2e 28 passed + 1 skipped on a `down -v` rebuilt stack, run TWICE — once after the build and
+  again after the review fix, since the fix touched the shells and the first run no longer applied.
+  NOT one bh-app-shell: athlete and coach are flex columns, admin is a grid with a side nav and a
+  PENDING banner. Each shell keeps its layout; only the bar and the dock moved. Placeholder glyphs
+  gone — Home was '▮▮', Plan was '$'.
+  EXECUTOR FIXED A REAL GRID TRAP MECHANICALLY RATHER THAN STALLING: wrapping <header> in
+  <bh-shell-header> makes the COMPONENT HOST the grid item, so without an explicit grid-area CSS
+  Grid auto-placed it into admin's 210px side column. `class="top"` + `.top { grid-area: top }` kept
+  in admin's own stylesheet. Right call — mechanical, not a design decision.
+  EXECUTOR CAUGHT MY TENTH BRIEF ERROR: I called both security-link testids load-bearing. Neither is
+  referenced anywhere in the Playwright suite; only the Log out aria-label is. Preserved anyway.
+  REVIEW FOUND AN ACCESSIBILITY REGRESSION MY BRIEF CAUSED, and verified it against Angular's own
+  source rather than asserting it. I said "replace the icon buttons with <bh-button variant=icon>"
+  without carving out the NAVIGATION case. RouterLink only renders an href when the host tag is
+  a/area; bh-button's host is <bh-button>, so the Security link produced NO href. Left-click still
+  worked — the click bubbles to the host — which is exactly why no test caught it. Lost: ctrl/cmd
+  and middle click, open-in-new-tab, and the correct role (a screen reader announced "Security,
+  button" for something that navigates to another page).
+  PRINCIPLE APPLIED: buttons do things, links go places. Logout stays a bh-button; Security is a
+  real <a>. The duplicated CSS this task existed to delete did NOT come back — the projected action
+  links are styled ONCE inside bh-shell-header's .acts slot.
+  Negative control fired: `Expected null to be '/account/security'`.
+  FILED, NOT BUILT: bh-button cannot render as an anchor, and wod-library.page.ts:15 works around it
+  by nesting <bh-button> inside <a> — a <button> inside an <a>, an invalid content model. M13d hits
+  this immediately (its auth screens are full of links styled as buttons), so it is filed against
+  M13d to decide with real consumers in front of it.
+  DECLINED, with the reviewer's own reasoning: adding testId to bh-button. field/select/data-table
+  needed it because tests target a semantically different INNER element; bh-button's host already
+  carries data-testid at 30+ existing call sites, so adding it would be an unrequested API change.
+M13c-T7: complete (9b30292..61cb6d7, sonnet x2). bh-segmented + bh-switch, score-form migrated.
+  236 specs. Closes the filed a11y defect: role="radio" with NO roving tabindex and no arrow keys,
+  so every option was a tab stop and Tab walked THROUGH the group. A radiogroup is one tab stop.
+  I VERIFIED THE DISCARD GUARD IN A REAL BROWSER, because no gate covers it and the failure mode is
+  an athlete's score vanishing. score-form lives in a bh-sheet whose [confirmClose] is driven by its
+  dirtyChange output. Live against the built stack: clean Escape closes with no bar; Escape after
+  changing the segmented control raises "Discard your entry?". Roving tabindex measured live as
+  [0, -1] — the defect is fixed in the running app, not merely unit-tested.
+  THE REVIEWER DROVE THE LIVE STACK TOO AND COVERED WHAT I MISSED: I only exercised the segmented
+  control; it exercised both switches (two DIFFERENT handlers) and confirmed the backdrop-click path.
+  Reviewers independently reproducing rather than trusting the report has now caught something in
+  four of seven tasks.
+  REVIEW FOUND THE REAL GAP, WHICH WAS COVERAGE NOT BEHAVIOUR: the only dirty-tracking spec fires a
+  raw `input` event on the <form>, so it would have passed with ALL THREE new handlers deleted.
+  Behaviour was right; nothing in CI would have caught it regressing. Three specs added, one per
+  handler, each negative-controlled: "Expected spy dirty to have been called ... But it was never
+  called." Buttons do not emit native input events, which is exactly why the form-level (input)
+  bubble could not cover these three paths.
+  REVIEWER ALMOST MIS-FLAGGED translateX(18px) AND CHECKED INSTEAD: with global box-sizing:border-box
+  the track's content box is 44 - 2x1px border - 2x2px padding = 38, and 38 - 20 = 18. Exact, not
+  sloppy. Derivation is now a comment so nobody "fixes" it.
+  Also: switch track 44px -> var(--tap) and knob 20px -> var(--sp-5), which were coincidental
+  duplicates of existing tokens. Other raw-px GEOMETRY across ui/ stays — the rule bans raw px TYPE
+  SIZES, and geometry is out of scope, consistent with the bh-icon and bh-avatar rulings.
+  BACKLOG line split: it bundled the segmented roving-tabindex defect with the bh-sheet discard-bar
+  focus defect. Only the first shipped; leaving one line would have read as both done or both open.
+M13c-T8: complete (9235478..c661926, sonnet). bh-search-bar, 3 screens migrated. 240 specs.
+  e2e 28 passed + 1 skipped on the rebuilt stack.
+  FIRST TASK OF THE MILESTONE TO CLEAR REVIEW WITH ZERO FINDINGS.
+  Closes the filed defect: members.page fired one request per KEYSTROKE. The bound value still
+  updates on every keystroke so the field never lags; only the output is debounced, and an unchanged
+  term does not re-emit.
+  EXECUTOR APPLIED INSTRUCTION #1 CORRECTLY WITHOUT BEING TOLD THE ANSWER. The brief warned that an
+  attribute on a component host does not reach the inner element — the failure that has now cost
+  four fixes this milestone (bh-button aria-label, bh-field, bh-data-table, and here). It checked
+  e2e/tests itself, found invite-flow.spec.ts:34 drives [data-testid="member-search"] with .fill()
+  (which REQUIRES the node to be an <input>), and added a testId input on its own initiative,
+  matching bh-field's convention. That is the pattern being learned rather than re-taught.
+  SOUND DEVIATIONS, both confirmed by the reviewer: it removed manual 250ms setTimeouts from
+  movements and wod-library, which would otherwise have DOUBLE-debounced — verified those timers
+  only delayed load(), with no request cancellation or race guard to lose. And it deleted a dead
+  `.bh-section-head .bh-input` rule in members.page whose only user was the replaced input.
+  DEBOUNCE VALIDATED RATHER THAN ASSUMED: 250ms was already the de-facto interval on two of the
+  three screens, so the brief's default was measured, not guessed.
+  HONEST BOUNDARY, checked by the reviewer rather than claimed: debouncing REDUCES but does not
+  eliminate out-of-order responses — none of the three screens cancels in flight (no switchMap).
+  members.page is strictly better than before (many overlapping requests -> at most one per 250ms
+  pause); the other two are unchanged. Nothing in the code or docs claims otherwise.
+  Reviewer mutation-tested all three guards: removing the re-emit guard fails `Expected 2 to be 1`,
+  removing the debounce fails `Expected 3 to be 0`.
+M13c-T9: complete (9f32f8b..905538c, sonnet x2). LAST COMPONENT TASK. avatar/pill/day-pager/wordmark
+  rebuilt, stat + board-row + tag deleted. 245 specs. e2e 28 passed + 1 skipped.
+  ui/ IS NOW CLEAN: Eager 0, raw px font-size 0, dead components 0. The only @Input() grep hit is
+  prose in a spec comment describing the historical defect.
+  THE AVATAR DEFECT WAS CONFIRMED BY WATCHING IT FAIL FIRST: `Expected 'AL' to be 'GH'`. A plain
+  @Input() read inside computed() has ZERO signal dependencies — it evaluated once and cached, so an
+  @for member list reusing a DOM node showed the previous athlete's initials beside the right photo.
+  MY PRE-FLIGHT DECISION WAS WRONG — ELEVENTH BRIEF ERROR, AND THE MOST EMBARRASSING. I ruled the
+  four avatar sizes should become `font-size: 36%`. A PERCENT FONT-SIZE RESOLVES AGAINST THE
+  INHERITED FONT-SIZE, NOT THE ELEMENT'S OWN BOX, so all four rendered identically at 5.76px. The
+  executor caught it by MEASURING with getComputedStyle rather than trusting me, and switched to
+  36cqi with container-type:inline-size on the box and the ratio on a child (a container cannot
+  query its own cqi — that is circular).
+  THEN I MEASURED THE FIX AND IT WAS STILL WRONG, JUST LESS SO: one ratio gave sm -14.9%, md -5.5%,
+  lg +5%, xl +5.8%. The originals were never proportional (39.3/36.4/33.3/33.3% of their boxes), so
+  a single ratio CANNOT reproduce them. sm is the most-used size — shell header, member grids, score
+  grid — and a 15% shrink there is a visible change to live screens, which this milestone forbids.
+  I OVERRULED THE REVIEWER HERE, and the reason matters: it argued one ratio is more elegant and
+  that sub-pixel matching is not load-bearing. Elegance was never the constraint; "no screen is
+  redesigned" is, and 15% is not sub-pixel. Per-size ratios (42/38/34/34cqi against content boxes of
+  26/42/70/94) land all four within 1% AND keep the raw-px gate at zero. Measured live: 10.92 /
+  15.96 / 23.8 / 31.96 against 11 / 16 / 24 / 32.
+  bh-sheet WAS NOT IN MY FILE LIST and still carried @Input/@Output/Eager. The cleanliness grep found
+  it — the same thing that caught tv-shell.page.ts in M13b, and the same argument for writing a gate
+  as "this must come back empty" rather than as a list of files.
+  ANGULAR 22'S IMPLICIT DEFAULT IS OnPush, NOT Eager. Discovered while cleaning the sheet; it means
+  dropping the Eager pin gives OnPush, which is why the sheet's test harness needed a signal rather
+  than a plain field to match how every real caller already binds.
+  bh-sheet's `open` went from an @Input setter with a private mirror to a read-only input(). Verified
+  LIVE that the sheet still closes, REOPENS, and still raises the discard guard — the reopen was the
+  actual regression risk. All four callers reset on (closed); the reviewer established the
+  requirement is NOT new (the old setter needed the same transition), so it is documented, not
+  redesigned.
+  ORCHESTRATOR CAUGHT A FALSE GREEN: an e2e run reported 28 passed against a container whose image
+  build had FAILED (DeadlineExceeded) — it was serving the previous bundle. Re-verified by grepping
+  the served JS for the deleted components before trusting the rerun. Compose's builder fails on this
+  machine; `docker build` standalone + `up -d --no-build --force-recreate` works.
+M13c-T10: complete (4136525..29a11f0, sonnet). Budget + typography sweep. 245 specs, e2e 28+1.
+  SECOND CLEAN REVIEW IN A ROW — no findings.
+  anyComponentStyle warning 4kB -> 6kB, error UNTOUCHED at 8kB. The budget counts UNCOMPRESSED bytes
+  while the wire cost is brotli, so at 4kB it was actively arguing for a raw value over its token —
+  M13b's members proof went over budget purely by tokenising two literals. Honest cost, stated in
+  the commit rather than buried: this silences the three standing warnings (instance-builder,
+  tv-shell, progress). They stay filed against M14 / Project 2 / M17; the fix is each screen's
+  rebuild, not a bigger budget.
+  36 on-scale font sizes tokenised across 18 feature files. Reviewer re-derived all 36 mappings from
+  the diff against _tokens.scss independently: 11px->--fs-meta x13, 13->--fs-sm x15, 15->--fs-body
+  x2, 20->--fs-h2 x5, 40->--fs-hero x1. No mix-ups.
+  41 OFF-SCALE VALUES REMAIN, DELIBERATELY, and that is the point of the split: 9, 10, 12, 14, 16,
+  17, 18, 19, 21, 22, 24, 34, 44px have NO token, so converting one means CHOOSING a nearby size —
+  a visible design decision on a screen nobody is redesigning. Grepping font-size in features now
+  returns only off-scale values, which converts "people typed px" into a documented list of sizes
+  the scale lacks, handed to M14-M18 as real questions.
+  MY BRIEF'S "51 remaining" WAS STALE — measured before Tasks 3-9 migrated screens. Real number is
+  41. Executor measured and reconciled rather than forcing my figure.
+  Reviewer checked the two traps that would have been invisible: no font-size inside receipt.page's
+  @media print block was touched (design law's sanctioned exception), and no on-scale value was
+  missed in an alternate form (no-space, uppercase PX, `font:` shorthand, or inline style="").
+  rem CAVEAT STATED HONESTLY, not overclaimed: --fs-sm is 0.8125rem and rem resolves against <html>,
+  which sets no font-size (body's 16px does NOT affect rem). So these render identically at browser
+  default and SCALE for a user who raised theirs — an accessibility improvement, not a
+  pixel-identical swap.
+M13c-T11: complete (29a11f0..0aadc68, sonnet + orchestrator glue). Gallery consolidated to 18
+  sections — bh-sheet added (a modal <dialog> cannot render statically, so it gets triggers for the
+  plain and confirmClose variants). 245 specs, build clean, zero budget warnings.
+  A DISPUTED CRITICAL FINDING WAS RAISED, INVESTIGATED, AND REFUTED. The executor reported that
+  bh-sheet CANNOT BE REOPENED after closing, claimed three reproductions with showModal()
+  instrumentation, and said it would block Tasks 12 and 13. It does not reproduce.
+  I tested both paths it named against the same running container: Escape (trigger -> 1, Esc -> 0,
+  trigger -> 1) and discard (trigger -> 1, backdrop, its own Discard button -> 0, trigger -> 1).
+  Both reopen. The reviewer then reproduced my result INDEPENDENTLY with its own showModal counter
+  (showCount 2 after reopen) and supplied the mechanism I had only guessed at: @ViewChild with
+  static:true resolves during the first change-detection pass, and a constructor effect's first
+  flush is scheduled AFTER that pass — so the early `if (!el) return;` never fires on the first run,
+  open() is tracked from the start, and el never becomes falsy again.
+  THE LIKELY CAUSE OF THE FALSE POSITIVE IS WORTH KEEPING: while a dialog is open it intercepts
+  pointer events, so a reopen click aimed at the trigger lands on the dialog and is silently
+  swallowed — indistinguishable from "the sheet stays closed". I hit exactly that in one of my own
+  scripts (Playwright said `<dialog open …> subtree intercepts pointer events`) before writing a
+  clean sequence. AN EXECUTOR ASSERTING "this isn't a testing artifact" IS NOT EVIDENCE THAT IT
+  ISN'T; three reproductions of the same flawed script are one reproduction.
+  A REAL a11y GAP WAS FOUND IN THE SAME PASS AND FILED FOR M13d: bh-field/bh-select gate their
+  <span role="alert"> behind @if (error()), and @if only recreates the node across the falsy/truthy
+  boundary — so "Required" -> "Invalid format" mutates the SAME node, and role="alert" announces
+  reliably only on fresh insertion (bh-alert's own JSDoc states this). Confirmed independently by
+  the reviewer. Not fixed here: the fix belongs with a real consumer, and M13d has eleven form
+  screens where a second validation message is the normal case.
+  Also settled: field/select/table-row having no :active is NOT a defect — native inputs have no
+  pressed state distinct from focus, table rows have no click handler, and all three self-declare it,
+  consistent with panel/alert/empty/icon.
+  Orchestrator glue: corrected the day-pager gallery note, which claimed its aria-labels' English
+  "never changes even once localised" — they ARE i18n-marked; the e2e selectors pass because the
+  suite runs against the English source. The executor found this itself and left it dangling while
+  fixing three sibling notes in the same pass.
+M13c-T12: complete (0aadc68..cbc9545, sonnet x2). axe-core, @axe-core/playwright@4.12.1.
+  ZERO WCAG 2.2 AA violations across 7 tests. Full suite now 35 passed + 1 skipped.
+  Two targets, and the SCOPING IS THE DESIGN: the gallery whole (it renders all 18 components in
+  all their states, so it audits exactly what M13c owns), and the three shells .include()-scoped to
+  bh-shell-header and bh-dock ONLY. Those two are the components whose failures are compositional —
+  focus order through a nav, landmark structure, ids duplicated across a header rendered three
+  times — so they cannot be proven in the gallery. Anything axe would report inside a screen body is
+  out of scope BY CONSTRUCTION rather than by triage, which is what keeps M13c a component milestone.
+  EXECUTOR CAUGHT A VACUOUS PASS — MY TWELFTH BRIEF ERROR AND THE WORST KIND. bh-dock is
+  `display:none` above 719px (mobile-only chrome by design) and Playwright's default viewport is
+  1280x720, so `.include('bh-dock')` contributed ZERO NODES to all three shell tests. The dock was
+  passing an accessibility gate that never looked at it. It flagged this rather than silently
+  widening scope, which was the correct call — the fix was mine to make.
+  THIS IS THE FONT-GUARD FAILURE AGAIN, in a different costume: M13b's brand-font test passed for a
+  whole milestone while asserting a deleted typeface. A test that cannot fail is worse than no test,
+  because it also stops anyone else from writing one.
+  Fixed by splitting into 3 shells x 2 targets: header at 1280x720, dock at 375x812 with the
+  viewport set BEFORE login/goto. Non-vacuity assertions added before every .analyze() — the dock
+  must be visible and have more than zero items — so a future reader can tell a real pass from an
+  empty one.
+  NEGATIVE CONTROL FIRES ON THE RULE THE COMPONENT EXISTS TO ENFORCE: stripping a dock item's text
+  label, leaving only the icon, gives `link-name: 1 node(s)` — "Links must have discernible text".
+  That is exactly the rule bh-dock was built for (the placeholder set it replaced used '$' for Plan).
+M13c-T13: complete (9387911..383e3e9, sonnet x2). Visual regression. 54 baselines (18 sections x 3
+  viewports), dark only, run ONLY inside mcr.microsoft.com/playwright:v1.62.0-noble via e2e/visual.sh.
+  Default run is unchanged at 35 passed + 1 skipped with zero visual tests executed.
+  THE PLATFORM TRAP, handled rather than discovered: Playwright suffixes snapshot paths by platform,
+  so macOS baselines enforced on Linux is not a stricter check, it is NO check — each side silently
+  ignores the other's files. snapshotPathTemplate drops {platform}, visual.sh is the only thing that
+  writes them, and visual.spec.ts is excluded from the default run so a macOS run can never compare
+  against them.
+  I CAUGHT MY OWN THIRTEENTH BRIEF ERROR BEFORE DISPATCH: the plan pinned the container to
+  Playwright 1.61.1. The installed version is 1.62.0. A mismatched renderer produces baseline churn
+  that looks exactly like a real regression.
+  THE NEGATIVE CONTROL DID NOT FAIL, AND THAT WAS THE REAL FINDING. --r-card 12px -> 20px changes
+  every card corner in the product and the suite PASSED. Playwright's default threshold is 0.2 in
+  YIQ colour distance, and on this dark-on-dark palette (--surface #151a16 on --ground #0d110e) an
+  antialiased corner barely moves, so those pixels were never counted. A --volt swap DID fail (4%),
+  which proved the pipeline worked and only the sensitivity was wrong. THE EXECUTOR REFUSED TO TUNE
+  THE THRESHOLD ON ITS OWN AND ESCALATED — exactly right; quietly loosening or tightening a gate to
+  get a green is the failure mode this process exists to prevent.
+  TUNED BY MEASUREMENT, NOT TASTE, and the numbers are in a comment in the spec so nobody
+  "simplifies" them back to the defaults: noise floor over two consecutive clean runs is 0px for 17
+  of 18 sections and <=29px for shell-header (a rounded avatar badge); the radius signal is >=298px,
+  400px on panel. threshold:0 with maxDiffPixels:100 leaves a ~10x gap and sits >3x clear of both
+  sides. threshold:0.1 was tried and REJECTED — it shrinks the signal to 36-55px, only ~1.5x above
+  the noise ceiling, which is a flaky gate, and a flaky gate is worse than a blind one because
+  people learn to re-run it.
+  A STALE STACK WAS FOUND, and it was mine: the running container was serving pre-0aadc68 code while
+  I believed it was current — I had not rebuilt after T11's fix commit. Only note text was affected,
+  but the lesson generalises: rebuild after EVERY frontend commit before measuring anything.
+M13c-T14 (orchestrator): MILESTONE GATE.
+  backend 428/0/0 (unchanged — M13c touched no backend) · frontend 245 SUCCESS · production build
+  exit 0 with ZERO anyComponentStyle warnings (the three standing ones now sit under the 6kB
+  warning) · e2e 35 passed + 1 skipped · axe 7/7 zero WCAG 2.2 AA violations · visual regression
+  3/3 over 54 baselines in the Linux container.
+  THE EIGHT EMPTY GATES, against their measured baselines on main at 70a7565:
+    table/dock class sites 79 -> 0 · global defs 20 -> 0 · raw px in ui/ 18 -> 0 · on-scale px in
+    features 36 -> 0 · Eager in ui/ 9 -> 0 · decorators in ui/ 35 -> 0 (the single remaining grep
+    hit is PROSE in sheet.component.ts's JSDoc documenting the open contract) · dead components
+    3 -> 0 · raw hex 0 -> 0 (standing guarantee, held).
+    Form-control CAP: 53, under the 54 ceiling — one fewer because members.page's search input
+    became bh-search-bar.
+  M13b's TWO COMPUTED-NOT-VERIFIED CLAIMS, now actually verified — and one of them was WRONG:
+  1. RECEIPT PRINT: CORRECT. Rendered a real seeded payment under print media and looked at it —
+     black ink on white, every row legible (plan, period, method, list price, discount, total, date).
+     M13b computed this and never saw it; it holds.
+  2. MAIL ACCENT: HALF WRONG, AND THE HALF NOBODY CHECKED IS THE VISIBLE ONE. The CTA swap is right
+     (measured live: rgb(223,255,78) on rgb(13,17,14) = volt on --on-volt). But layout.html still
+     sets #17120D ground and #221B14 card — THE RETIRED WARM PALETTE — so every verification, reset,
+     invite, receipt, lapse and approval email arrives looking like the product that was renamed
+     away, with one volt button on a brown card. Three values, one file.
+     THIS IS THE ARGUMENT FOR THE WHOLE "computed vs verified" DISTINCTION, in one artifact: M13b
+     swapped a hex, reasoned the mail was done, and shipped a brand inconsistency to every recipient
+     for a milestone. Opening it took four minutes.
+     FILED, NOT FIXED — M13c declared no backend change and its spec §9.1 pre-committed to filing
+     findings from this check. Widening scope at the merge gate is the creep the milestone lock
+     exists to stop. Filed only for that reason, not because it is small.
+M13c-T14 (cont.): THE GATE CAUGHT A DEFECT IN ITSELF, WHICH IS THE POINT OF RUNNING IT.
+  Visual regression FAILED on the final `down -v` gate: 1347px on day-pager, all three viewports,
+  every other section clean. Cause: bh-day-pager renders TODAY'S date, so the baselines encoded
+  Friday 7 August and the gate ran on Sunday 9 August. THE SUITE WOULD HAVE FAILED EVERY SINGLE DAY
+  — and a gate that cries wolf daily is a gate people switch off, which is worse than no gate
+  because it also stops anyone writing a real one.
+  Fixed by freezing page.clock to Wed 12 Aug 2026 noon UTC. ORDERING IS LOAD-BEARING and is
+  commented: the freeze must be installed BEFORE goto(), because after it the DOM has already
+  rendered and day() never re-runs. PROVEN, not assumed: frozen renders WEDNESDAY 12 AUGUST while
+  the real date is SUNDAY 9 AUGUST, and ./visual.sh passes twice consecutively. Only the 3
+  day-pager baselines changed, so the tuned sensitivity and its radius negative control still hold.
+  bh-day-pager itself was NOT touched — rendering today's date is correct; the TEST was wrong.
+  A NEAR-MISS I CAUGHT AT THE TREE, worth repeating: that executor died mid-negative-control and
+  left `--r-card: 20px` UNCOMMITTED IN THE WORKING TREE. Merging it would have shipped a design-law
+  violation across every card in the product. ALWAYS `git status` + `git diff` a dead executor's
+  tree before doing anything else; a killed subagent does not clean up after itself.
+  THE DOCKER "DeadlineExceeded" MYSTERY IS SOLVED, and it was never a build problem. The failing
+  step is `load metadata for docker.io/library/nginx:1.31-alpine` — a Docker Hub REGISTRY timeout
+  for an image that had never been pulled locally. `docker pull nginx:1.31-alpine` once, and every
+  build since succeeds, compose included. Earlier in the milestone I wrote that compose's builder
+  was broken on this machine and worked around it with standalone builds; that diagnosis was wrong
+  and the workaround only ever succeeded when the registry happened to answer.
+M13c IMPECCABLE GATE: 31/40 — PASSES (bar is >=28, no open P0/P1). Dual-agent, A design review /
+  B detector+browser, isolated.
+  Assessment B, deterministic: detector 1 finding, a FALSE POSITIVE (avatar's [src] flagged
+  broken-image; it is the correct dynamic-image-with-fallback pattern behind @if). Contrast: zero
+  real failures across 12 distinct pairings at 3 widths — the one sub-threshold hit was a
+  screen-reader-only label that is never painted. --faint measured 5.07:1, confirming the documented
+  claim. Zero horizontal overflow at 375/768/1440. Focus: 36 tab stops, every one visible, and THE
+  VOLT INVERSION IS CONFIRMED WORKING — every volt-filled control rings dark (rgb(13,17,14)), never
+  volt-on-volt. Fonts: all five faces load real; Saira Condensed negative control returns zero.
+  B FOUND WHAT NO GATE COVERED: 31 CSP violations per load on the gallery, and ZERO on every product
+  page. Cause: 21 inline style="" attributes (7 mine, 14 M13b's proof). The app's CSP has a nonce and
+  no unsafe-inline, so a style attribute is blocked. THIS IS THE THIRD GATE THE SAME SHORTCUT EVADES
+  — BACKLOG already recorded that inline style="" does not count toward anyComponentStyle either.
+  THE DURABLE FIX WAS THE GATE, NOT THE STYLES: security.spec.ts asserts zero CSP violations but only
+  visited /, /app/athlete/book, /app/auth/login and /app/admin/settings. The gallery was never
+  checked, which is why 31 violations sat there unseen. Route added; proven to fail before the fix
+  (`Received + 33`), 0 after.
+  A's HEADLINE FINDING IS REAL AND PRE-EXISTING: `a { color: var(--volt) }` at styles.scss:14 is
+  GLOBAL, so every link in the product is volt. Measured on the real login screen: four volt elements
+  where law §2.3 says one. NOT fixed here — a global anchor colour repaints ~40 screens and the
+  visual baselines cover only the gallery. Filed to M13d, which rebuilds those exact screens.
+  FIXED FROM THE CRITIQUE: the flagship admin proof still rendered Unicode glyphs (▦ ◉ ▤ ≡ $ ⚇ ⚙)
+  while the icon set M13c built sat unused — the exact "placeholder icon system" §17 assigned to this
+  milestone. Migrated to bh-icon. And the dock demo, being position:fixed, floated over the WHOLE
+  gallery below 719px, occluding other sections; contained with `contain: paint`, which also retired
+  a workaround the visual spec had needed.
+  THE VISUAL GATE THEN CAUGHT A CHANGE ITS OWN AUTHOR REPORTED AS ABSENT. The CSP fix said no demo's
+  rendered output changed. It did: icon-phone 5520px, icon-tablet 5843px, button-desktop 632px,
+  against a ~29px noise floor. I LOOKED at the new rendering before accepting it — 27 icons, clean
+  grid, consistent stroke, correct spacing — so the reflow was benign and the baselines merely stale.
+  Regenerated. 32 files rather than 3 because --update-snapshots rewrites the set and 29 carried
+  sub-threshold drift; kept as one coherent capture rather than mixing two builds.
+  Also filed: the members table clips at 375 and 768 with card mode built but unadopted (M15), and
+  the search placeholder truncates in English before translation touches it (M15).
+M13c MAIL PALETTE (8d3b955, orchestrator — user asked for it before merge). Backend 428/0/0.
+  MY FILED COUNT WAS WRONG: I said three values in one file, because I had only counted what the
+  browser reported on a single message. The real set is TEN across FIVE templates, and #8a8078
+  alone appears five times OUTSIDE layout.html:
+    #17120D -> #0d110e ground x2 · #221B14 -> #151a16 surface x1
+    #E8E0D6 -> #f2f4ef bone x2   · #8A8078 -> #7c8779 faint x5
+  The volt CTA and its dark #0d110e text are untouched — M13b got that half right, and white on
+  volt is 1.1:1, which is why the text must stay dark.
+  VERIFIED BY LOOKING: triggered a real verification mail through self-serve signup and rendered it
+  in Mailpit — rgb(13,17,14) ground, rgb(21,26,22) card, volt CTA with dark text. Identical to the
+  product. That is the check M13b recorded as computed and never performed.
+  ENVIRONMENT, and it cost a false alarm: `mvn test` returned 79 ERRORS mid-session — every one
+  `Could not initialize class AbstractIntegrationTest`. Not the template change: THE DOCKER DAEMON
+  HAD STOPPED, so Testcontainers had no environment. `open -a Docker`, wait, re-run: 428/0/0. A wall
+  of identical NoClassDefFound on a base class means the environment, not the diff.

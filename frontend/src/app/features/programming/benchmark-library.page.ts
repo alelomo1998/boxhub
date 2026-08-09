@@ -33,17 +33,17 @@ import { ProgrammingService, Benchmark } from './programming.service';
   styles: [`
     .filters { display: flex; gap: 8px; margin-bottom: var(--sp-4); }
     .f { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
-      color: var(--faint); font-size: 13px; padding: 6px 12px; cursor: pointer; }
+      color: var(--faint); font-size: var(--fs-sm); padding: 6px 12px; cursor: pointer; }
     .f.on { color: var(--bone); border-color: var(--volt); }
     .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-4); }
     .card { border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-4);
       display: flex; flex-direction: column; gap: var(--sp-3); }
     .top { display: flex; justify-content: space-between; align-items: baseline; }
-    .nm { font-family: var(--font-display); font-weight: 800; font-size: 20px; text-transform: uppercase; }
+    .nm { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2); text-transform: uppercase; }
     .kd { font-family: var(--font-mono); font-size: 10px; color: var(--faint); }
-    .body { font-size: 13px; color: var(--bone-dim); flex: 1; margin: 0; }
+    .body { font-size: var(--fs-sm); color: var(--bone-dim); flex: 1; margin: 0; }
     .foot { display: flex; justify-content: space-between; align-items: center; }
-    .sc { font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+    .sc { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint); }
     .muted { color: var(--bone-dim); }
   `],
 })

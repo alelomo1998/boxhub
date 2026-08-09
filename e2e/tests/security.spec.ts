@@ -32,6 +32,11 @@ test('security headers present and no CSP violations across the app', async ({ b
   await athletePage.goto('/app/athlete/book');
   await expect(athletePage.locator('.card', { hasText: 'WOD Class' }).first()).toBeVisible();
 
+  // dev gallery — M13c T14: unguarded, needs no login, and is what axe-core + visual
+  // regression run against, so it must stay as CSP-clean as any product page.
+  await athletePage.goto('/app/dev/components');
+  await expect(athletePage.locator('[data-gallery="button"]')).toBeVisible();
+
   await athleteCtx.close();
 
   // admin screen — separate context so it doesn't collide with the athlete session

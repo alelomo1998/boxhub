@@ -117,13 +117,39 @@ no-gradients rule; `.bh-skel` is a `--surface-2` block pulsing opacity between ~
 
 ## Components (`frontend/src/app/ui/`)
 
-`bh-button` (primary/ghost, md/sm) · `bh-field` (label+input+error, focus ring) · `bh-pill` · `bh-tag` ·
-`bh-stat` · `bh-board-row` · `bh-panel` · `bh-rail`/`bh-nav-item` · `bh-avatar` · `bh-sheet` ·
-`bh-wordmark` (`[variant]="'chrome' | 'hero'"`, `[size]="'sm' | 'md' | 'lg'"`) · `.bh-table` styles.
+**Eighteen components, rebuilt in M13c.** All live flat in `frontend/src/app/ui/`, one file each, no
+barrel.
+
+| | |
+|---|---|
+| **Form** | `bh-field` · `bh-select` · `bh-search-bar` (debounced) · `bh-segmented` · `bh-switch` |
+| **Action** | `bh-button` (`primary`/`ghost`/`danger`/`icon`, `loading`, `label`) |
+| **Surface** | `bh-panel` · `bh-sheet` · `bh-data-table` |
+| **Feedback** | `bh-alert` (tone drives the ARIA role) · `bh-empty` |
+| **Chrome** | `bh-shell-header` · `bh-dock` · `bh-wordmark` · `bh-icon` |
+| **Identity** | `bh-avatar` · `bh-pill` · `bh-day-pager` |
+
 **Screens compose these; re-implementing a component's markup in a screen is a bug.**
 
-Every interactive component owes seven states: default, hover, focus, active, disabled, loading,
-error.
+**Every interactive component owes seven states** — default, hover, focus, active, disabled, loading,
+error. That contract is not a list to assert: it is **the structure of the dev gallery** at
+`/app/dev/components`, where each component renders every state it can be in, notes the ones that
+can only be checked by hand (`hover`, `active`), and **explicitly declares the ones it cannot have**.
+An omitted state is indistinguishable from a forgotten one, which is how this contract quietly
+stopped being true once already.
+
+The gallery is gated: **axe-core** asserts zero WCAG 2.2 AA violations across it (plus the shell
+chrome, checked at the width each part actually renders at), and **visual regression** holds 54
+committed baselines, generated inside the same Linux renderer that enforces them.
+
+**Deleted in M13c:** `bh-stat`, `bh-board-row` and `bh-tag`, all with zero importers. The board row
+and the `RX` badge are hero-screen parts and belong to M17, extracted from the real leaderboard
+against real rank and tie behaviour rather than designed against nothing. `bh-rail`/`bh-nav-item`
+died earlier still, in M5.5.
+
+**Conventions inside `ui/`:** signal inputs only (`input()`, `model()`, `output()`), no
+`ChangeDetectionStrategy.Eager`, no raw px type sizes, no raw hex. Feature screens still carry
+decorators and the Eager pin; each surface milestone converts its own.
 
 ## Layout
 

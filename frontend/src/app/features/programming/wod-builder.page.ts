@@ -80,7 +80,7 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .builder { max-width: 760px; }
-    .lab { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    .lab { display: block; font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); margin: var(--sp-4) 0 6px; }
     .in { width: 100%; background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--edge); padding: 9px 12px; color: var(--bone); font-family: var(--font-body); font-size: 14px; }
@@ -91,7 +91,7 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
     .block { border: 1px solid var(--hairline); border-radius: var(--r-card); padding: var(--sp-3); }
     .brow { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-2); margin-bottom: var(--sp-2); }
     .lrow { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: var(--sp-2); margin-bottom: 6px; }
-    .sm { padding: 7px 9px; font-size: 13px; }
+    .sm { padding: 7px 9px; font-size: var(--fs-sm); }
     .mini { background: transparent; border: 1px solid var(--hairline); border-radius: var(--edge);
       color: var(--bone); font-size: 12px; padding: 6px 10px; cursor: pointer; }
     .mini.danger { color: var(--danger); }

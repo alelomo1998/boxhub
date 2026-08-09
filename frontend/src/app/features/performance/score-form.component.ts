@@ -1,6 +1,8 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent } from '../../ui/button.component';
+import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
+import { SwitchComponent } from '../../ui/switch.component';
 import { PerformanceService, Score, ScoreInput } from './performance.service';
 
 let uid = 0;
@@ -8,15 +10,11 @@ let uid = 0;
 @Component({
   selector: 'bh-score-form',
   standalone: true,
-  imports: [FormsModule, ButtonComponent],
+  imports: [FormsModule, ButtonComponent, SegmentedComponent, SwitchComponent],
   template: `
     <form class="sform" (ngSubmit)="save()" (input)="markDirty()" data-testid="score-form">
-      <div class="seg" role="radiogroup" aria-label="Division">
-        <button type="button" class="segbtn" [class.on]="rx()" (click)="rx.set(true); markDirty()"
-                role="radio" [attr.aria-checked]="rx()">RX</button>
-        <button type="button" class="segbtn" [class.on]="!rx()" (click)="rx.set(false); markDirty()"
-                role="radio" [attr.aria-checked]="!rx()">Scaled</button>
-      </div>
+      <bh-segmented [options]="divisionOptions" [value]="division()" (valueChange)="onDivisionChange($event)"
+                    label="Division" />
 
       @switch (scoreType) {
         @case ('TIME') {
@@ -30,8 +28,8 @@ let uid = 0;
                      [(ngModel)]="secs" name="secs" placeholder="ss" aria-label="Seconds" />
             </div>
           </div>
-          <label class="switch"><span class="sw-lab">Finished <span class="hint">(off = hit the cap)</span></span>
-            <input type="checkbox" [(ngModel)]="finished" name="finished" (change)="markDirty()" /><span class="knob" aria-hidden="true"></span></label>
+          <bh-switch [checked]="finished()" (checkedChange)="onFinishedChange($event)"
+                     label="Finished" hint="(off = hit the cap)" />
           @if (!finished()) {
             <div class="grp">
               <label class="lab" [for]="id + '-reps'">Reps at cap</label>
@@ -60,8 +58,8 @@ let uid = 0;
         @default { <p class="done">Mark today's work complete.</p> }
       }
 
-      <label class="switch"><span class="sw-lab">Private <span class="hint">(off the leaderboard — still counts for your history)</span></span>
-        <input type="checkbox" [(ngModel)]="isPrivate" name="private" (change)="markDirty()" /><span class="knob" aria-hidden="true"></span></label>
+      <bh-switch [checked]="isPrivate()" (checkedChange)="onPrivateChange($event)"
+                 label="Private" hint="(off the leaderboard — still counts for your history)" />
 
       <div class="grp">
         <label class="lab" [for]="id + '-notes'">Notes</label>
@@ -78,14 +76,6 @@ let uid = 0;
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .sform { display: flex; flex-direction: column; gap: var(--sp-4); }
-    .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
-      background: var(--surface-2); border-radius: var(--r-full); }
-    .segbtn { min-height: var(--tap); background: transparent; border: none; border-radius: var(--r-full);
-      color: var(--bone-dim); font-family: var(--font-body); font-weight: 700; font-size: var(--fs-sm);
-      text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
-      transition: background var(--dur) var(--ease-out); }
-    .segbtn.on { background: var(--surface); color: var(--bone); box-shadow: inset 0 0 0 1px var(--hairline); }
-    .segbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     .grp { display: flex; flex-direction: column; gap: 6px; }
     .lab { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--faint); }
@@ -98,23 +88,8 @@ let uid = 0;
       font-weight: 800; font-size: var(--fs-display); font-variant-numeric: tabular-nums; }
     .in.big.wide { width: 100%; max-width: 240px; align-self: center; }
     .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
-    .switch { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--tap);
-      font-size: var(--fs-sm); color: var(--bone); cursor: pointer; position: relative; }
-    .sw-lab { flex: 1; }
-    .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
-    .knob { width: 46px; height: 28px; border-radius: var(--r-full); background: var(--surface-2);
-      border: 1px solid var(--hairline); position: relative; flex-shrink: 0;
-      transition: background var(--dur) var(--ease-out); }
-    .knob::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
-      border-radius: var(--r-full); background: var(--bone-dim); transition: transform var(--dur) var(--ease-out); }
-    .switch input:checked + .knob { background: var(--volt); border-color: var(--volt); }
-    .switch input:checked + .knob::after { transform: translateX(18px); background: var(--on-volt); }
-    .switch input:focus-visible + .knob { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .switch input:checked:focus-visible + .knob { outline-color: var(--focus-inv); }
-    .hint { color: var(--faint); }
     .done { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
-    @media (prefers-reduced-motion: reduce) { .knob, .knob::after, .segbtn { transition: none; } }
   `],
 })
 export class ScoreFormComponent implements OnInit {
@@ -126,7 +101,9 @@ export class ScoreFormComponent implements OnInit {
   private perf = inject(PerformanceService);
   readonly id = 'sf' + uid++;
 
-  rx = signal(true);
+  readonly divisionOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
+  division = signal<'rx' | 'sc'>('rx');
+  rx = computed(() => this.division() === 'rx');
   mins = signal<number | null>(null);
   secs = signal<number | null>(null);
   rounds = signal<number | null>(null);
@@ -141,12 +118,16 @@ export class ScoreFormComponent implements OnInit {
 
   markDirty() { if (!this.dirty) { this.dirty = true; this.dirtyChange.emit(true); } }
 
+  onDivisionChange(v: string) { this.division.set(v === 'rx' ? 'rx' : 'sc'); this.markDirty(); }
+  onFinishedChange(v: boolean) { this.finished.set(v); this.markDirty(); }
+  onPrivateChange(v: boolean) { this.isPrivate.set(v); this.markDirty(); }
+
   ngOnInit() {
     this.perf.myScore(this.itemId).subscribe({ next: s => { if (s && !this.dirty) this.prefill(s); }, error: () => {} });
   }
 
   private prefill(s: Score) {
-    this.rx.set(s.rx); this.finished.set(s.finished); this.isPrivate.set(s.isPrivate);
+    this.division.set(s.rx ? 'rx' : 'sc'); this.finished.set(s.finished); this.isPrivate.set(s.isPrivate);
     this.notes.set(s.notes ?? ''); this.rounds.set(s.rounds); this.reps.set(s.reps); this.load.set(s.load);
     if (s.timeSeconds != null) { this.mins.set(Math.floor(s.timeSeconds / 60)); this.secs.set(s.timeSeconds % 60); }
   }

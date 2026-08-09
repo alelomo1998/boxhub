@@ -5,13 +5,14 @@ import { ButtonComponent } from '../../ui/button.component';
 import { PerformanceService, BenchmarkHistory, Lift } from '../performance/performance.service';
 import { ProgressionChartComponent, ChartPoint } from '../performance/progression-chart.component';
 import { ProgrammingService, Movement } from '../programming/programming.service';
+import { DataTableComponent } from '../../ui/data-table.component';
 
 function today(): string { return new Date().toISOString().slice(0, 10); }
 
 @Component({
   selector: 'bh-progress',
   standalone: true,
-  imports: [DatePipe, FormsModule, ButtonComponent, ProgressionChartComponent],
+  imports: [DatePipe, FormsModule, ButtonComponent, ProgressionChartComponent, DataTableComponent],
   template: `
     <section class="prog">
       <header class="head">
@@ -66,21 +67,19 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
       <h2 class="sh">Lift PRs</h2>
       @if (loadingPrs()) { <p class="stateline">Loading…</p> }
       @else if (prs().length) {
-        <div class="bh-table-wrap">
-          <table class="bh-table">
-            <thead><tr><th>Movement</th><th>Best</th><th>Reps</th><th>When</th></tr></thead>
-            <tbody>
-              @for (l of prs(); track l.movementId) {
-                <tr [class.sel]="l.movementId === selected()">
-                  <td><button class="mvbtn" (click)="select(l)">{{ l.movementName }}</button></td>
-                  <td class="num strong">{{ l.load }}</td>
-                  <td class="num">{{ l.reps }}</td>
-                  <td class="num">{{ l.performedOn | date:'d MMM y' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+        <bh-data-table>
+          <thead><tr><th>Movement</th><th>Best</th><th>Reps</th><th>When</th></tr></thead>
+          <tbody>
+            @for (l of prs(); track l.movementId) {
+              <tr [class.sel]="l.movementId === selected()">
+                <td><button class="mvbtn" (click)="select(l)">{{ l.movementName }}</button></td>
+                <td class="num strong">{{ l.load }}</td>
+                <td class="num">{{ l.reps }}</td>
+                <td class="num">{{ l.performedOn | date:'d MMM y' }}</td>
+              </tr>
+            }
+          </tbody>
+        </bh-data-table>
       } @else { <p class="stateline">Log a lift above and your PRs build from there.</p> }
 
       @if (selected()) {
@@ -123,7 +122,7 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
       min-height: var(--tap); padding: 0 12px; color: var(--bone); font-family: var(--font-body);
       font-size: var(--fs-body); box-sizing: border-box; width: 100%; }
     .in:focus-visible { border-color: var(--volt); outline: 2px solid var(--focus); outline-offset: 2px; }
-    .in.n { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 20px;
+    .in.n { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2);
       font-variant-numeric: tabular-nums; min-height: 52px; }
     .qsave { grid-column: 1 / -1; }
     @media (min-width: 560px) {

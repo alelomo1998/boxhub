@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { IconComponent, IconName } from '../../ui/icon.component';
 
 /** A nested item under a top-level sidebar section — the indent-guide case in spec §9. */
 interface SidebarChild {
@@ -9,7 +10,7 @@ interface SidebarChild {
 
 /** One top-level sidebar item. Icon-only when the sidebar is collapsed. */
 interface SidebarItem {
-  readonly icon: string;
+  readonly icon: IconName;
   readonly label: string;
   readonly active?: boolean;
   readonly children?: readonly SidebarChild[];
@@ -40,7 +41,7 @@ interface AdminMemberRow {
 @Component({
   selector: 'bh-proof-admin-members',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, IconComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="proof" data-proof="admin-members">
@@ -50,13 +51,7 @@ interface AdminMemberRow {
             <span class="brand">
               <span class="badge" aria-hidden="true">R</span>
               @if (!collapsed()) {
-                <span
-                  class="bn"
-                  style="font-weight: 700; font-size: var(--fs-sm); overflow: hidden;
-                    text-overflow: ellipsis; white-space: nowrap"
-                  i18n="@@dev.members.brand"
-                  >rxed admin</span
-                >
+                <span class="bn" i18n="@@dev.members.brand">rxed admin</span>
               }
             </span>
             <button
@@ -67,7 +62,7 @@ interface AdminMemberRow {
               [attr.aria-label]="collapsed() ? expandLabel : collapseLabel"
               (click)="collapsed.set(!collapsed())"
             >
-              <span aria-hidden="true">{{ collapsed() ? '»' : '«' }}</span>
+              <bh-icon [name]="collapsed() ? 'chevron-right' : 'chevron-left'" [size]="16" />
             </button>
           </div>
 
@@ -81,7 +76,7 @@ interface AdminMemberRow {
                 [attr.title]="collapsed() ? item.label : null"
                 [attr.aria-label]="item.label"
               >
-                <span class="icon" aria-hidden="true">{{ item.icon }}</span>
+                <bh-icon class="icon" [name]="item.icon" [size]="20" />
                 @if (!collapsed()) {
                   <span class="label">{{ item.label }}</span>
                 }
@@ -105,7 +100,7 @@ interface AdminMemberRow {
                 [attr.title]="collapsed() ? item.label : null"
                 [attr.aria-label]="item.label"
               >
-                <span class="icon" aria-hidden="true">{{ item.icon }}</span>
+                <bh-icon class="icon" [name]="item.icon" [size]="20" />
                 @if (!collapsed()) {
                   <span class="label">{{ item.label }}</span>
                 }
@@ -118,12 +113,8 @@ interface AdminMemberRow {
             @if (!collapsed()) {
               <span class="who">
                 <!-- A person's name: not i18n-marked, per spec §12.1 — vocabulary, not prose. -->
-                <span
-                  style="font-size: var(--fs-sm); font-weight: 500; overflow: hidden;
-                    text-overflow: ellipsis; white-space: nowrap"
-                  >Alex Kirov</span
-                >
-                <span style="color: var(--faint); font-size: var(--fs-meta)" i18n="@@dev.members.userRole">Box admin</span>
+                <span class="uname">Alex Kirov</span>
+                <span class="urole" i18n="@@dev.members.userRole">Box admin</span>
               </span>
             }
           </div>
@@ -131,7 +122,7 @@ interface AdminMemberRow {
 
         <div class="main">
           <header class="page-head">
-            <h2 class="t-h2" style="margin: 0" i18n="@@dev.members.heading">Members</h2>
+            <h2 class="t-h2" i18n="@@dev.members.heading">Members</h2>
             <button type="button" class="primary" data-accent="volt" i18n="@@dev.members.inviteAction">
               Invite member
             </button>
@@ -140,7 +131,6 @@ interface AdminMemberRow {
           <div class="filters">
             <input
               class="bh-input"
-              style="flex: 1 1 220px"
               type="search"
               i18n-placeholder="@@dev.members.searchPlaceholder"
               placeholder="Search by name or email"
@@ -179,12 +169,12 @@ interface AdminMemberRow {
                         <span class="badge rd" aria-hidden="true">{{ m.initials }}</span>
                         <span class="who">
                           <!-- A member's name and email: fabricated data, not prose — not i18n-marked. -->
-                          <span style="font-weight: 500">{{ m.name }}</span>
+                          <span class="mem-name">{{ m.name }}</span>
                           <span class="memail">{{ m.email }}</span>
                         </span>
                       </div>
                     </td>
-                    <td style="max-width: 220px; word-break: break-word">
+                    <td class="plan-cell">
                       <!-- Plan names are box-defined vocabulary, like a benchmark WOD's name — not
                            i18n-marked. One is deliberately long German text (spec §12): the column
                            wraps rather than truncating and stays inside its own scroll container. -->
@@ -221,11 +211,11 @@ interface AdminMemberRow {
             </thead>
             <tbody>
               <tr class="skel-row">
-                <td><span class="bh-skel" style="width: 9.5rem; height: 1rem;"></span></td>
-                <td><span class="bh-skel" style="width: 6rem; height: 1rem;"></span></td>
-                <td><span class="bh-skel" style="width: 4rem; height: 1rem;"></span></td>
-                <td><span class="bh-skel" style="width: 5rem; height: 1rem;"></span></td>
-                <td><span class="bh-skel" style="width: 2.5rem; height: 1rem;"></span></td>
+                <td><span class="bh-skel"></span></td>
+                <td><span class="bh-skel"></span></td>
+                <td><span class="bh-skel"></span></td>
+                <td><span class="bh-skel"></span></td>
+                <td><span class="bh-skel"></span></td>
               </tr>
             </tbody>
           </table>
@@ -235,8 +225,8 @@ interface AdminMemberRow {
       <section class="state-demo">
         <p class="t-eyebrow" i18n="@@dev.members.emptyLabel">Empty state</p>
         <div class="empty">
-          <p style="margin: 0; font-size: var(--fs-body)" i18n="@@dev.members.emptyMessage">No members match these filters.</p>
-          <p style="margin: 0; color: var(--faint); font-size: var(--fs-sm)" i18n="@@dev.members.emptyHint">Try clearing a filter or search term.</p>
+          <p class="empty-msg" i18n="@@dev.members.emptyMessage">No members match these filters.</p>
+          <p class="empty-hint" i18n="@@dev.members.emptyHint">Try clearing a filter or search term.</p>
         </div>
       </section>
     </div>
@@ -267,6 +257,8 @@ interface AdminMemberRow {
     .side-head { justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3);
       border-bottom: 1px solid var(--hairline); }
     .brand { gap: var(--sp-2); min-width: 0; }
+    .bn { font-weight: 700; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; }
     .collapse-btn { min-width: var(--tap); min-height: var(--tap); justify-content: center;
       background: none; border: none; color: var(--faint); border-radius: var(--r-xs); cursor: pointer; }
 
@@ -291,9 +283,13 @@ interface AdminMemberRow {
 
     .user-card { gap: var(--sp-2); padding: var(--sp-3); border-top: 1px solid var(--hairline); }
     .who { min-width: 0; }
+    .uname { font-size: var(--fs-sm); font-weight: 500; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; }
+    .urole { color: var(--faint); font-size: var(--fs-meta); }
 
     .main { flex: 1; min-width: 0; padding: var(--sp-5); gap: var(--sp-4); }
     .page-head { justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+    .page-head h2 { margin: 0; }
     /* The one volt element on the whole proof. */
     .primary { background: var(--volt); color: var(--on-volt); border: none; border-radius: var(--edge);
       padding: 0 var(--sp-4); min-height: var(--tap); font-weight: 700; font-size: var(--fs-sm);
@@ -301,6 +297,7 @@ interface AdminMemberRow {
     .primary:focus-visible { outline: 2px solid var(--focus-inv); outline-offset: 2px; }
 
     .filters { flex-wrap: wrap; gap: var(--sp-2); }
+    .filters .bh-input { flex: 1 1 220px; }
 
     .table-wrap { overflow-x: auto; margin-top: var(--sp-2); }
     .table { border-collapse: collapse; width: 100%; }
@@ -310,8 +307,10 @@ interface AdminMemberRow {
     .table tbody tr:last-child td { border-bottom: none; }
     .table tbody tr:hover td { background: var(--surface-2); }
     .num-col { text-align: right; }
+    .plan-cell { max-width: 220px; word-break: break-word; }
 
     .member-cell { gap: var(--sp-3); min-width: 0; }
+    .mem-name { font-weight: 500; }
     .memail { color: var(--faint); font-family: var(--font-mono); font-size: var(--fs-meta); }
 
     .status { gap: var(--sp-1); font-size: var(--fs-sm); color: var(--status-c); }
@@ -322,6 +321,13 @@ interface AdminMemberRow {
     .num-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
     .state-demo { gap: var(--sp-2); }
+    /* Skeleton row column widths — one per <td>, matching the real table's column proportions. */
+    .skel-row .bh-skel { height: 1rem; }
+    .skel-row td:nth-child(1) .bh-skel { width: 9.5rem; }
+    .skel-row td:nth-child(2) .bh-skel { width: 6rem; }
+    .skel-row td:nth-child(3) .bh-skel { width: 4rem; }
+    .skel-row td:nth-child(4) .bh-skel { width: 5rem; }
+    .skel-row td:nth-child(5) .bh-skel { width: 2.5rem; }
     .empty { align-items: center; gap: var(--sp-1); border: 1px solid var(--hairline);
       border-radius: var(--r-card); padding: var(--sp-6); }
     .empty-msg { margin: 0; font-size: var(--fs-body); }
@@ -342,9 +348,9 @@ export class ProofAdminMembersComponent {
   protected readonly statusLapsingLabel = $localize`:@@dev.members.statusLapsing:Lapsing`;
 
   protected readonly mainNav: readonly SidebarItem[] = [
-    { icon: '▦', label: $localize`:@@dev.members.navDashboard:Dashboard` },
+    { icon: 'house', label: $localize`:@@dev.members.navDashboard:Dashboard` },
     {
-      icon: '◉',
+      icon: 'users',
       label: $localize`:@@dev.members.navMembers:Members`,
       active: true,
       children: [
@@ -352,14 +358,17 @@ export class ProofAdminMembersComponent {
         { label: $localize`:@@dev.members.navMembersWaivers:Waivers` },
       ],
     },
-    { icon: '▤', label: $localize`:@@dev.members.navSchedule:Schedule` },
-    { icon: '≡', label: $localize`:@@dev.members.navProgramming:Programming` },
+    { icon: 'calendar', label: $localize`:@@dev.members.navSchedule:Schedule` },
+    { icon: 'clipboard-list', label: $localize`:@@dev.members.navProgramming:Programming` },
   ];
 
+  // 'users' covers both Members (main nav) and Team (settings) — the 27-icon set (icon.component.ts)
+  // has no second people glyph, and "a group of people" is the accurate read for both, not a
+  // misleading one; they sit in visually separate sections so the reuse doesn't read as a mistake.
   protected readonly settingsNav: readonly SidebarItem[] = [
-    { icon: '$', label: $localize`:@@dev.members.navBilling:Billing` },
-    { icon: '⚇', label: $localize`:@@dev.members.navTeam:Team` },
-    { icon: '⚙', label: $localize`:@@dev.members.navPreferences:Preferences` },
+    { icon: 'credit-card', label: $localize`:@@dev.members.navBilling:Billing` },
+    { icon: 'users', label: $localize`:@@dev.members.navTeam:Team` },
+    { icon: 'settings', label: $localize`:@@dev.members.navPreferences:Preferences` },
   ];
 
   // Plan names are box-defined vocabulary (like a member's name), never translated — see the

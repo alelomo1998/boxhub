@@ -1,18 +1,26 @@
-import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, ViewChild, effect, input, output, signal } from '@angular/core';
 
 /**
  * Bottom sheet on native <dialog>: Esc-dismiss, focus containment and backdrop come free.
  * Slides up on mobile, centers on desktop. Reduced-motion: no slide, instant fade.
  * confirmClose: backdrop/Esc shows an inline "Discard entry?" bar instead of closing.
+ *
+ * `open` invariant: `open` is a one-way input, not a `model()` — the component only ever reads
+ * it and cannot clear it. `onNativeClose()` emits `(closed)` but never touches `open()`. So every
+ * caller MUST reset its own `open` signal to `false` in response to `(closed)`, or the signal
+ * stays stuck `true` while the dialog is actually closed, and setting it `true` again later won't
+ * re-run the effect — the sheet will not reopen. This isn't new: the old `@Input() set open` had
+ * the same requirement. Current callers that reset correctly: `admin-shell.page.ts`,
+ * `security.page.ts`, `athlete-shell.page.ts`, `wod.page.ts`.
  */
 @Component({
   selector: 'bh-sheet',
   standalone: true,
   template: `
     <dialog #dlg class="sheet" (close)="onNativeClose()" (cancel)="onCancel($event)"
-            (click)="onBackdrop($event)" [attr.aria-label]="label">
+            (click)="onBackdrop($event)" [attr.aria-label]="label()">
       <div class="grab" aria-hidden="true"></div>
-      @if (title) { <h2 class="sh-title">{{ title }}</h2> }
+      @if (title()) { <h2 class="sh-title">{{ title() }}</h2> }
       <div class="body"><ng-content /></div>
       @if (discardAsk()) {
         <div class="discard" role="alertdialog" aria-label="Discard entry?">
@@ -23,7 +31,6 @@ import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, 
       }
     </dialog>
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .sheet { border: 1px solid var(--hairline); border-radius: var(--r-lg) var(--r-lg) 0 0;
       background: var(--surface); color: var(--bone);
@@ -54,38 +61,39 @@ import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, effect, 
   `],
 })
 export class SheetComponent {
-  @Input() title = '';
-  @Input() label = 'Sheet';
-  @Input() confirmClose = false;
-  @Output() closed = new EventEmitter<void>();
+  title = input('');
+  label = input('Sheet');
+  confirmClose = input(false);
+  open = input(false);
+  closed = output<void>();
   @ViewChild('dlg', { static: true }) dlg!: ElementRef<HTMLDialogElement>;
-
-  private isOpen = signal(false);
-  @Input() set open(v: boolean) { this.isOpen.set(v); }
 
   discardAsk = signal(false);
 
   constructor() {
+    // The dialog's own open/close state is driven directly off the `open` input signal — no local
+    // mirror needed, since a signal already IS the up-to-date "desired" value the old @Input
+    // setter used to copy into `isOpen` by hand.
     effect(() => {
       const el = this.dlg?.nativeElement;
       if (!el) return;
-      if (this.isOpen() && !el.open) el.showModal();
-      else if (!this.isOpen() && el.open) el.close();
+      if (this.open() && !el.open) el.showModal();
+      else if (!this.open() && el.open) el.close();
     });
   }
 
   onNativeClose() {
     this.discardAsk.set(false);
-    if (this.isOpen()) { this.isOpen.set(false); this.closed.emit(); }
+    if (this.open()) { this.closed.emit(); }
   }
 
   onCancel(ev: Event) { // Esc
-    if (this.confirmClose) { ev.preventDefault(); this.discardAsk.set(true); }
+    if (this.confirmClose()) { ev.preventDefault(); this.discardAsk.set(true); }
   }
 
   onBackdrop(ev: MouseEvent) {
     if (ev.target !== this.dlg.nativeElement) return; // click outside the content box only
-    if (this.confirmClose) this.discardAsk.set(true);
+    if (this.confirmClose()) this.discardAsk.set(true);
     else this.dlg.nativeElement.close();
   }
 

@@ -61,7 +61,7 @@ import { AuthService } from '../../core/auth/auth.service';
     .linkbox { display: flex; align-items: center; gap: var(--sp-3); padding: 12px 14px;
       background: var(--surface-2); border: 1px dashed var(--hairline); border-radius: var(--r-card); }
     .linkbox .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; color: var(--faint); }
-    .linkbox code { font-family: var(--font-mono); font-size: 13px; color: var(--bone); }
+    .linkbox code { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--bone); }
     .linkbox bh-button { margin-left: auto; }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);

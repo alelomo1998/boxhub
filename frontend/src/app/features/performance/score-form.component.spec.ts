@@ -57,6 +57,36 @@ describe('ScoreFormComponent', () => {
     expect(spy).toHaveBeenCalledOnceWith(true);
   });
 
+  it('emits dirtyChange when the division segmented control changes', () => {
+    const fixture = create('TIME');
+    const spy = jasmine.createSpy('dirty');
+    fixture.componentInstance.dirtyChange.subscribe(spy);
+    const radios: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('[role="radio"]'));
+    const other = radios.find(r => r.getAttribute('aria-checked') === 'false')!;
+    other.click();
+    expect(spy).toHaveBeenCalledOnceWith(true);
+  });
+
+  it('emits dirtyChange when the Finished switch is toggled', () => {
+    const fixture = create('TIME');
+    const spy = jasmine.createSpy('dirty');
+    fixture.componentInstance.dirtyChange.subscribe(spy);
+    const switches: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('[role="switch"]'));
+    const finished = switches.find(s => s.textContent?.includes('Finished'))!;
+    finished.click();
+    expect(spy).toHaveBeenCalledOnceWith(true);
+  });
+
+  it('emits dirtyChange when the Private switch is toggled', () => {
+    const fixture = create('TIME');
+    const spy = jasmine.createSpy('dirty');
+    fixture.componentInstance.dirtyChange.subscribe(spy);
+    const switches: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('[role="switch"]'));
+    const priv = switches.find(s => s.textContent?.includes('Private'))!;
+    priv.click();
+    expect(spy).toHaveBeenCalledOnceWith(true);
+  });
+
   it('shows an inline error and preserves values when the save fails', () => {
     const fixture = create('LOAD');
     const c = fixture.componentInstance;

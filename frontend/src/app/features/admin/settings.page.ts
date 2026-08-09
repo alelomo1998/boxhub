@@ -25,9 +25,9 @@ import { ButtonComponent } from '../../ui/button.component';
   styles: [`
     .form form { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 420px; }
     .f { display: flex; flex-direction: column; gap: 6px; }
-    .f span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+    .f span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
     .actions { display: flex; align-items: center; gap: var(--sp-3); }
-    .ok { color: var(--good); font-size: 13px; font-weight: 600; }
+    .ok { color: var(--good); font-size: var(--fs-sm); font-weight: 600; }
   `],
 })
 export class SettingsPage implements OnInit {

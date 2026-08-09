@@ -4,6 +4,8 @@ import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
 import { BRAND_NAME } from '../../core/brand';
 import { AvatarComponent } from '../../ui/avatar.component';
+import { ShellHeaderComponent } from '../../ui/shell-header.component';
+import { DockComponent, DockTab } from '../../ui/dock.component';
 import { ProfileSheetComponent } from './profile-sheet.component';
 import { HomeService } from './home.service';
 
@@ -11,31 +13,26 @@ import { HomeService } from './home.service';
 @Component({
   selector: 'bh-athlete-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, SheetComponent, AvatarComponent, ProfileSheetComponent],
+  imports: [
+    RouterOutlet, RouterLink, RouterLinkActive, SheetComponent, AvatarComponent,
+    ShellHeaderComponent, DockComponent, ProfileSheetComponent,
+  ],
   template: `
     <div class="app">
-      <header class="top">
-        <div class="brand"><span class="mark">{{ boxInitial }}</span><span class="bn">{{ boxName }}</span></div>
-        <nav class="hnav" aria-label="Athlete">
+      <bh-shell-header [boxName]="boxName">
+        <nav nav class="hnav" aria-label="Athlete">
           @for (t of tabs; track t.link) {
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
           }
         </nav>
-        <button class="me" (click)="profileOpen.set(true)" aria-label="Your profile">
+        <button actions class="me" (click)="profileOpen.set(true)" aria-label="Your profile">
           <bh-avatar [path]="avatarPath()" [name]="userName" size="sm" />
         </button>
-      </header>
+      </bh-shell-header>
 
       <main class="content"><router-outlet /></main>
 
-      <nav class="bh-dock" aria-label="Athlete">
-        @for (t of tabs; track t.link) {
-          <a class="bh-dock-item" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">
-            <span class="glyph" aria-hidden="true">{{ t.glyph }}</span>
-            <span class="tlabel">{{ t.label }}</span>
-          </a>
-        }
-      </nav>
+      <bh-dock [tabs]="tabs" label="Athlete" />
     </div>
 
     <bh-sheet [open]="profileOpen()" title="Profile" label="Your profile" (closed)="profileOpen.set(false)">
@@ -45,15 +42,6 @@ import { HomeService } from './home.service';
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .app { display: flex; flex-direction: column; min-height: 100dvh; }
-    .top { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-5);
-      border-bottom: 1px solid var(--hairline); position: sticky; top: 0; z-index: 20;
-      background: var(--ground); }
-    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .mark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt); color: var(--on-volt);
-      display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 17px;
-      flex-shrink: 0; }
-    .bn { font-family: var(--font-display); font-weight: 800; font-size: 17px; text-transform: uppercase;
-      letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .hnav { display: flex; gap: var(--sp-1); flex: 1; justify-content: center; }
     .hitem { display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--sp-4);
       border-radius: var(--r-full); color: var(--bone-dim); font-weight: 600; font-size: 14px;
@@ -62,8 +50,7 @@ import { HomeService } from './home.service';
     .hitem:hover:not(.active) { color: var(--bone); }
     .hitem:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .me { min-width: var(--tap); min-height: var(--tap); display: grid; place-items: center;
-      background: transparent; border: none; border-radius: var(--r-full); cursor: pointer;
-      margin-left: auto; }
+      background: transparent; border: none; border-radius: var(--r-full); cursor: pointer; }
     .me:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .content { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     @media (max-width: 719px) {
@@ -79,18 +66,14 @@ export class AthleteShellPage implements OnInit {
   profileOpen = signal(false);
   avatarPath = signal<string | null>(null);
   boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
-  /* The badge beside a box's name is the box's own initial. It used to be a hardcoded "B"
-     for BoxHub, which survived the rename because a single letter does not look like a
-     brand string — the same way the mail subject lines did. */
-  boxInitial = (this.auth.activeBox()?.boxName || BRAND_NAME).trim().charAt(0).toUpperCase();
   userName = '';
 
-  tabs = [
-    { link: 'home', label: 'Home', glyph: '▮▮' },
-    { link: 'book', label: 'Book', glyph: '＋' },
-    { link: 'wod', label: 'WOD', glyph: '◎' },
-    { link: 'progress', label: 'Progress', glyph: '▲' },
-    { link: 'membership', label: 'Plan', glyph: '$' },
+  tabs: DockTab[] = [
+    { link: 'home', label: 'Home', icon: 'house' },
+    { link: 'book', label: 'Book', icon: 'calendar-plus' },
+    { link: 'wod', label: 'WOD', icon: 'clipboard-list' },
+    { link: 'progress', label: 'Progress', icon: 'trending-up' },
+    { link: 'membership', label: 'Plan', icon: 'credit-card' },
   ];
 
   ngOnInit() {
