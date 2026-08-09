@@ -282,7 +282,12 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13c is complete on `m13c-component-library`, awaiting merge.** M13b is merged; `main` is at `7f3af3a`.
+**M13c is MERGED and PUSHED.** `main` is at `1e4ad1b`. Nothing is in flight; no branch is open.
+
+**CI is GREEN on both workflows** — first time since before M13a. `main` was RED at `70a7565`
+(both `ci` and `dependency-scan` failed on 2026-08-06) and is green now, so three milestones of
+locally-verified-only work are finally confirmed on Linux CI. I did not investigate what fixed
+the red and am not claiming a cause.
 
 **CI is green** — `21aab79` (the merge) went red, and `0fd89a1` (the quarantine, below) is the first
 fully clean `ci` run since 2026-08-02: backend, frontend, e2e and dependency-scan all pass.
@@ -373,6 +378,18 @@ low-risk and both are unverified — those are different claims from "done".
 
 **Optional TLS:** `docker compose -f docker/docker-compose.yml --profile tls up -d --build`, after
 generating a cert into `docker/dev-tls/` and adding a hosts entry. See `README.md`.
+
+**ORDERING DECIDED 2026-08-09, against the roadmap's own sequence in one place.** The landing site
+(M19) was considered next, since M13a's `/app` move exists precisely to free `/` for it — verified,
+`GET /` still 301s to `/app/`, the slot is empty and waiting. **Deferred to after M13d** for three
+reasons worth keeping: the landing page is *brand* register and needs a largely disjoint component
+set that M13c correctly did not build; its central claim depends on The Room, which is Project 2
+and unbuilt, so the hero copy would be written twice; and its CTAs land on the very auth screens
+M13d rebuilds. Order is now **M13d → M19 landing → M14 coach**.
+
+**THE COACH TOUR IS DONE** — `docs/superpowers/specs/2026-08-09-m14-coach-tour.md`. It was the
+stated blocker on M14's spec and it is no longer blocking. Ten decisions taken, six questions left
+deliberately open to be asked at the screen. Read it before speccing M14, not before M13d.
 
 **NEXT: M13d — auth & account screens.** Eleven screens as the component library's first real
 consumer: login, signup, start-a-box, box picker, check-email, verify, forgot, reset, join,
