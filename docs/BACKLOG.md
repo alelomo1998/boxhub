@@ -328,6 +328,24 @@ milestone. Decide when the marketing site (M19) or the pilot forces it.
 
 ### → M13d Auth & account screens
 
+- **`a { color: var(--volt) }` is a GLOBAL rule, so every link in the product is volt — which breaks
+  the one-volt-element law on every plumbing screen.** `frontend/src/styles.scss:14`. Found by the
+  M13c impeccable critique, which measured it on the real login screen: the `Log in` button (correct
+  — the primary action) **plus** "Forgot password?", "Create a box account" and "Start your box", all
+  rendering `rgb(223,255,78)`. That is **four** volt elements where design law §2.3 says exactly one.
+  Because it lives in a bare `a` selector it is not a mistake on one screen, it is the default
+  everywhere.
+
+  **Deliberately not fixed in M13c.** Changing a global anchor colour repaints every link on ~40
+  screens, and the visual-regression baselines cover only the gallery — so the blast radius is
+  entirely unverified. M13d rebuilds login, signup, forgot, reset and start-box, which is where the
+  critique actually observed it, so it owns both the fix and the screens that prove it.
+
+  The fix is a decision, not a find-and-replace: links are not primary actions, so the base anchor
+  should be `--bone` (or inherit) with volt reserved for the one control that *is* the answer to the
+  screen's question. Whoever does it should also ask the critique's own question — was the
+  one-volt-element rule ever enforced by a gate, or only by eye on hero screens?
+
 - **A second, different error message on `bh-field` / `bh-select` may not be announced.** Both gate
   their `<span role="alert">` behind `@if (error())`. Angular's `@if` only tears the node down and
   recreates it across the falsy↔truthy boundary, so `"Required"` → `"Invalid format"` updates the
@@ -399,6 +417,18 @@ full e2e run.
 - Drag-and-drop reorder + drag-to-move calendar slots (today: up/down + click-assign).
 
 ### → M15 Admin: people
+
+- **The admin members proof clips below its designed width, and `bh-data-table`'s card mode exists
+  but nothing adopts it.** Found by the M13c critique at 375 and 768: at 375 the `PLAN / STATUS /
+  JOINED / VISITS` columns are cut mid-word with no visible scroll affordance; at 768 — a real
+  coach-tablet width — `JOINED` wraps to three lines and `VISITS` is pushed off-screen entirely.
+  M13c shipped card mode on `bh-data-table` (activates per-cell on `<td data-label="…">`) precisely
+  for this, but adopting it changes a screen's phone layout, which M13c forbade itself. **Adopting it
+  is this milestone's job**, on the real members table — the proof screen is only where it was
+  spotted.
+- **The members search placeholder truncates at 768px** — renders as `"Search by name or em"`, hard
+  clipped, no ellipsis. English already breaks it, so translation will be worse; §12 of design law
+  exists for exactly this.
 - `members.page` search fires one request per keystroke — no debounce. *(`bh-search-bar` solves it.)*
 
 ### → M16 Admin: commerce
