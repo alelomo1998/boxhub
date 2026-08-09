@@ -1048,3 +1048,30 @@ M13c-T13: complete (9387911..383e3e9, sonnet x2). Visual regression. 54 baseline
   A STALE STACK WAS FOUND, and it was mine: the running container was serving pre-0aadc68 code while
   I believed it was current — I had not rebuilt after T11's fix commit. Only note text was affected,
   but the lesson generalises: rebuild after EVERY frontend commit before measuring anything.
+M13c-T14 (orchestrator): MILESTONE GATE.
+  backend 428/0/0 (unchanged — M13c touched no backend) · frontend 245 SUCCESS · production build
+  exit 0 with ZERO anyComponentStyle warnings (the three standing ones now sit under the 6kB
+  warning) · e2e 35 passed + 1 skipped · axe 7/7 zero WCAG 2.2 AA violations · visual regression
+  3/3 over 54 baselines in the Linux container.
+  THE EIGHT EMPTY GATES, against their measured baselines on main at 70a7565:
+    table/dock class sites 79 -> 0 · global defs 20 -> 0 · raw px in ui/ 18 -> 0 · on-scale px in
+    features 36 -> 0 · Eager in ui/ 9 -> 0 · decorators in ui/ 35 -> 0 (the single remaining grep
+    hit is PROSE in sheet.component.ts's JSDoc documenting the open contract) · dead components
+    3 -> 0 · raw hex 0 -> 0 (standing guarantee, held).
+    Form-control CAP: 53, under the 54 ceiling — one fewer because members.page's search input
+    became bh-search-bar.
+  M13b's TWO COMPUTED-NOT-VERIFIED CLAIMS, now actually verified — and one of them was WRONG:
+  1. RECEIPT PRINT: CORRECT. Rendered a real seeded payment under print media and looked at it —
+     black ink on white, every row legible (plan, period, method, list price, discount, total, date).
+     M13b computed this and never saw it; it holds.
+  2. MAIL ACCENT: HALF WRONG, AND THE HALF NOBODY CHECKED IS THE VISIBLE ONE. The CTA swap is right
+     (measured live: rgb(223,255,78) on rgb(13,17,14) = volt on --on-volt). But layout.html still
+     sets #17120D ground and #221B14 card — THE RETIRED WARM PALETTE — so every verification, reset,
+     invite, receipt, lapse and approval email arrives looking like the product that was renamed
+     away, with one volt button on a brown card. Three values, one file.
+     THIS IS THE ARGUMENT FOR THE WHOLE "computed vs verified" DISTINCTION, in one artifact: M13b
+     swapped a hex, reasoned the mail was done, and shipped a brand inconsistency to every recipient
+     for a milestone. Opening it took four minutes.
+     FILED, NOT FIXED — M13c declared no backend change and its spec §9.1 pre-committed to filing
+     findings from this check. Widening scope at the merge gate is the creep the milestone lock
+     exists to stop. Filed only for that reason, not because it is small.
