@@ -7,7 +7,7 @@
     <strong th:text="${planName}">Plan</strong><br/>
     <span th:text="${amountCents / 100.0} + ' ' + ${#strings.toUpperCase(currency)} + ' (' + ${method} + ')'">Amount</span>
   </p>
-  <p th:if="${hasDiscount}" style="color:#8A8078;font-size:13px;">
+  <p th:if="${hasDiscount}" style="color:#7c8779;font-size:13px;">
     <span th:text="#{paymentReceipt.discountBefore}">Negotiated discount applied — list price</span>
     <span th:text="${listPriceCents / 100.0} + ' ' + ${#strings.toUpperCase(currency)}">list</span>.
   </p>
