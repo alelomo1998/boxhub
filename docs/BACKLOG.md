@@ -285,6 +285,32 @@ exists and only the wiring and six bundle keys are missing.
 Worth noting how this survived M13a's i18n sweep: subject strings do not look like brand strings or
 like template content, so a search framed around either misses them entirely.
 
+### → M16 Admin: commerce — every email still ships the RETIRED WARM PALETTE
+
+**Found 2026-08-07 by actually opening Mailpit during M13c's gate — the check M13b recorded as
+"computed, not verified".** M13b swapped the mail CTA accent from the retired race red to volt and
+verified nothing visually. The buttons are correct (`#dfff4e` on `#0d110e`, 8 occurrences, measured
+live as `rgb(223,255,78)` / `rgb(13,17,14)`). **The surfaces around them were never touched.**
+
+`backend/src/main/resources/templates/layout.html` still sets the warm-dark ground and card:
+
+| Hex | Occurrences | What it is |
+|---|---|---|
+| `#17120D` | 2 | the retired warm ground — the product's is `#0d110e` |
+| `#221B14` | 1 | the retired warm card — the product's is `#151a16` |
+
+So every verification, reset, invite, receipt, lapse and box-approval email arrives looking like the
+product that was renamed away, with a single volt button on a brown card. Three values, one file.
+
+**Deliberately not fixed in M13c**, whose spec §9.1 pre-committed to filing rather than making a
+backend change at the merge gate — the milestone declared no backend change and no Flyway, and
+widening that at the end is the scope creep the milestone lock exists to stop. It is filed here
+rather than fixed only because of that boundary, **not** because it is small enough to ignore.
+
+Fix alongside the existing mail-accent centralisation item below — and carry its contrast warning:
+email clients cannot read CSS custom properties, so whoever centralises this must centralise the
+text colour too, or the next palette change silently reintroduces an unreadable button.
+
 ### → M16 Admin: commerce — the categorical chart palette does not exist
 
 **The palette as it stands cannot draw a chart**, and M16 and M18 both ship analytics. There is one
