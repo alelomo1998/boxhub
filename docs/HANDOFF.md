@@ -294,7 +294,19 @@ event appears to have been dropped. `ng build --configuration production` passed
 asset ships to `dist`. **The next push to `main` will cover it** — check that run rather than
 assuming.
 
-### CI STOPPED RUNNING — almost certainly exhausted Actions minutes (2026-08-06)
+### CI IS RUNNING AGAIN as of 2026-08-09 — but `main` was RED before M13c merged
+
+**Corrected 2026-08-09.** The section below was written on 2026-08-06 when CI had stopped
+scheduling. Pushing M13c's merge queued **both** workflows immediately, so whatever the cause
+was (exhausted minutes was the guess) it has cleared. **Do not carry the old claim forward.**
+
+**Read the last two completed runs before trusting anything:** both the `ci` and
+`dependency-scan` runs on 2026-08-06 **failed**. So `main` was already red when M13c merged onto
+it, exactly as it was when M13b did. A red CI on M13c's merge is therefore not automatically
+M13c's — check whether the failure signature matches the pre-existing one before investigating.
+
+### The original note, kept because its lesson stands
+
 
 **Do not read "no red build" as "green".** Two consecutive pushes to `main` (`7f3af3a`, `e4d789f`)
 produced **no workflow run at all**. Verified, so the next person does not re-check it: both commits
