@@ -90,6 +90,50 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
   an empty array for an undeclared family, with a permanent negative control asserting Saira
   Condensed returns zero faces.
 
+- **M13c component library (2026-08-07)** — the `bh-*` layer rebuilt against design law v3.
+  **Eighteen components**, gated by a dev gallery that is the seven-state contract rather than a
+  page about it.
+
+  **The inventory was fiction and measuring it changed the milestone.** The hand-off recorded that
+  `bh-stat` had zero call sites; measured *by import*, **five of eleven were dead** — `bh-stat`,
+  `bh-board-row`, `bh-tag`, `bh-panel`, `bh-field`. `leaderboard.page.ts:26` hand-rolls the board
+  row without importing it, and `bh-field` was never adopted because a global `.bh-input` took its
+  place and the two drifted apart on padding while both claimed to be the app's text input. So the
+  work was never "restyle the library": it was decide what should exist, build that, and migrate the
+  call sites. Three components deleted, twelve built, six rebuilt.
+
+  **`frontend/src/app/ui/` is now clean** — zero `@Input()`, zero `ChangeDetectionStrategy.Eager`,
+  zero raw px type sizes, zero raw hex. Signal inputs throughout. Feature screens deliberately keep
+  their decorators and the Eager pin; each surface milestone converts its own.
+
+  **The form-control migration was deferred, and that was the right call.** `.bh-input` /
+  `.bh-select` are **not** mechanical to migrate: 13 of their 16 files wrap inputs in a
+  template-driven `<form>` with `[(ngModel)]`, and `bh-field` is deliberately not a
+  `ControlValueAccessor`; nearly every site also carries a `data-testid` that Playwright's `.fill()`
+  drives, and an attribute on `<bh-field>` lands on the **host**, not the inner `<input>`. All 16
+  files are rebuilt by a later milestone, **seven by M13d**. The classes survive, annotated legacy
+  with each consumer's owning milestone, and the gate became a **cap (≤54)** rather than a zero.
+
+  **Two new standing gates.** `@axe-core/playwright` asserts zero WCAG 2.2 AA violations on the
+  gallery and on the shell chrome — checked at the width each part actually renders at, after the
+  first version audited `bh-dock` at desktop where it is `display:none` and therefore inspected
+  **zero nodes**. And visual regression holds **54 baselines**, generated and enforced inside the
+  same Linux container, with `{platform}` dropped from `snapshotPathTemplate` and the spec excluded
+  from the default run — because macOS baselines enforced on Linux is not a stricter check, it is
+  no check. Its sensitivity is **tuned by measurement, not taste**: `threshold: 0`,
+  `maxDiffPixels: 100`, chosen because the default `0.2` could not see a `--r-card` 12→20px change
+  on this dark-on-dark palette. Noise floor ≤29 px, radius signal ≥298 px, ~10× apart.
+
+  **`anyComponentStyle`'s warning rose 4 kB → 6 kB, the 8 kB error untouched** — the budget counts
+  uncompressed bytes while the wire cost is brotli, so at 4 kB it argued *for* raw values over
+  tokens. Honest cost: it silences the three standing warnings, which stay filed against M14,
+  Project 2 and M17. 36 on-scale feature font sizes were tokenised; **41 off-scale ones stay
+  deliberately**, because no token is 17px and choosing one is a redesign.
+
+  **Tests:** backend **428** (untouched — no backend change, no Flyway, next is still V19) ·
+  frontend **245** · e2e **35 passed + 1 skipped** (28 + 7 axe) · visual **54 baselines** ·
+  production build clean with **zero** budget warnings.
+
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
 ## Roadmap — SUPERSEDED by the v1 roadmap (2026-07-14)
@@ -238,7 +282,7 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13b is MERGED and PUSHED.** `main` is at `7f3af3a`. Nothing is in flight; no branch is open.
+**M13c is complete on `m13c-component-library`, awaiting merge.** M13b is merged; `main` is at `7f3af3a`.
 
 **CI is green** — `21aab79` (the merge) went red, and `0fd89a1` (the quarantine, below) is the first
 fully clean `ci` run since 2026-08-02: backend, frontend, e2e and dependency-scan all pass.
@@ -318,25 +362,25 @@ low-risk and both are unverified — those are different claims from "done".
 **Optional TLS:** `docker compose -f docker/docker-compose.yml --profile tls up -d --build`, after
 generating a cert into `docker/dev-tls/` and adding a hosts entry. See `README.md`.
 
-**NEXT: M13c — the component library.** ~22 `bh-*` components rebuilt against design law v3, the
-dev gallery at `/app/dev/components` (**which now exists** — M13b created it early for the proof
-screens, and M13c grows it into the full gallery), plus visual-regression and axe-core WCAG checks.
+**NEXT: M13d — auth & account screens.** Eleven screens as the component library's first real
+consumer: login, signup, start-a-box, box picker, check-email, verify, forgot, reset, join,
+`account/security`, `account/email`.
 
-Read `docs/superpowers/specs/2026-08-06-m13b-design-language-design.md` first. It is binding, and
-§12.1 sets the i18n marker convention those ~22 components inherit.
+**Three things M13d inherits, all recorded rather than left to be rediscovered:**
 
-**Still owed by the user, and it blocks M14's spec:** a tour of the coach programming screens —
-Types, WOD library, Benchmarks, instance Builder. Coach was skipped in the 2026-08-02 product tour,
-then split, and the half that landed in M14 has never been reviewed by anyone. **The brand-name
-blocker is gone** — the product is `rxed`, settled 2026-08-06.
-
-**Two decisions M13c inherits, both recorded rather than left to be rediscovered:**
-- `bh-stat` has **zero call sites**. Decide whether to build it or delete it; do not restyle a
-  component nothing renders.
-- The 4 kB `anyComponentStyle` budget and the tokens-only rule pull against each other —
-  `var(--fs-meta)` is eleven characters longer than `11px`, and M13b's members proof went over
-  budget purely by replacing a raw value with its token. Note also that inline `style=""` in
-  template markup does **not** count toward that budget at all.
+- **Whether `bh-field` becomes a `ControlValueAccessor` is M13d's decision.** It rebuilds seven of
+  the sixteen screens still on the legacy `.bh-input`, and it picks signal-based forms or `ngModel`
+  for itself. Building that contract in M13c would have designed it against forms about to be
+  deleted.
+- **`bh-button` cannot render as an anchor.** `routerLink` on its host silently produces no `href`,
+  so a link styled as a button loses ctrl/cmd-click, open-in-new-tab and the correct role.
+  `wod-library.page.ts:15` works around it by nesting `<bh-button>` inside `<a>`, which is a
+  `<button>` inside an `<a>` — an invalid content model. M13d's screens are full of links styled as
+  buttons; filed in `docs/BACKLOG.md`.
+- **A second, different error message on `bh-field`/`bh-select` may not be announced.** `@if (error())`
+  only recreates the node across the falsy↔truthy boundary, so "Required" → "Invalid format" mutates
+  the same node, and `role="alert"` announces reliably only on fresh insertion. Eleven form screens
+  make a second validation message the normal case, not an edge case. Filed.
 
 **Read `docs/BACKLOG.md` top-down — it is organised by destination and tells you what to do next.**
 
