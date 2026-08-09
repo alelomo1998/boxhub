@@ -237,14 +237,14 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <div class="row">
           <div class="cell">
             <span class="stlabel" i18n="@@dev.gallery.panel.variant.padded">Padded (default)</span>
-            <bh-panel style="width: 220px">
-              <p class="t-body" style="margin: 0" i18n="@@dev.gallery.panel.sampleBody">Panel content</p>
+            <bh-panel class="demo-w220">
+              <p class="t-body demo-flush" i18n="@@dev.gallery.panel.sampleBody">Panel content</p>
             </bh-panel>
           </div>
           <div class="cell">
             <span class="stlabel" i18n="@@dev.gallery.panel.variant.unpadded">Unpadded</span>
-            <bh-panel [padded]="false" style="width: 220px">
-              <p class="t-body" style="margin: 0; padding: var(--sp-3)" i18n="@@dev.gallery.panel.sampleBody">Panel content</p>
+            <bh-panel [padded]="false" class="demo-w220">
+              <p class="t-body demo-flush-pad" i18n="@@dev.gallery.panel.sampleBody">Panel content</p>
             </bh-panel>
           </div>
         </div>
@@ -393,7 +393,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <div class="shellwrap">
           <bh-shell-header boxName="Demo Box" area="Coach">
             <!-- Sample nav item: not a real route, not i18n-marked. -->
-            <nav nav aria-label="Coach"><a href="#">Classes</a></nav>
+            <nav nav aria-label="Coach"><a href="#" class="demo-navlink">Classes</a></nav>
             <bh-button actions variant="icon" label="Log out" i18n-label="@@dev.gallery.shellHeader.logoutLabel">
               <bh-icon name="log-out" />
             </bh-button>
@@ -442,17 +442,17 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           <div class="cell">
             <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
             <bh-switch label="Private" i18n-label="@@dev.gallery.switch.label"
-                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" style="width: 220px" />
+                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" class="demo-w220" />
           </div>
           <div class="cell">
             <span class="stlabel" i18n="@@dev.gallery.switch.state.on">On</span>
             <bh-switch [checked]="true" label="Private" i18n-label="@@dev.gallery.switch.label"
-                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" style="width: 220px" />
+                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" class="demo-w220" />
           </div>
           <div class="cell">
             <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
             <bh-switch [disabled]="true" label="Private" i18n-label="@@dev.gallery.switch.label"
-                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" style="width: 220px" />
+                       hint="off the leaderboard" i18n-hint="@@dev.gallery.switch.hint" class="demo-w220" />
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.switch.note.hoverFocus">
@@ -603,7 +603,16 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     .iconname { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
       text-align: center; word-break: break-word; }
     .shellwrap { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden; }
+    /* Real shells project nav items sized to --tap; this demo anchor needs the same minimum so the
+       gallery doesn't model an undersized tap target (impeccable finding). */
+    .demo-navlink { display: inline-flex; align-items: center; min-height: var(--tap); }
     .dockwrap { position: relative; min-height: var(--tap); }
+
+    /* Demo-only layout geometry (fixed widths, margin resets) that used to live in inline style=""
+       attributes — blocked by the app's strict CSP (no unsafe-inline). Moved here as classes. */
+    .demo-w220 { width: 220px; }
+    .demo-flush { margin: 0; }
+    .demo-flush-pad { margin: 0; padding: var(--sp-3); }
   `],
 })
 export class DevGalleryPage {
