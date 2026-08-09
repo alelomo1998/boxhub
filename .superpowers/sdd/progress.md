@@ -1097,3 +1097,37 @@ M13c-T14 (cont.): THE GATE CAUGHT A DEFECT IN ITSELF, WHICH IS THE POINT OF RUNN
   build since succeeds, compose included. Earlier in the milestone I wrote that compose's builder
   was broken on this machine and worked around it with standalone builds; that diagnosis was wrong
   and the workaround only ever succeeded when the registry happened to answer.
+M13c IMPECCABLE GATE: 31/40 — PASSES (bar is >=28, no open P0/P1). Dual-agent, A design review /
+  B detector+browser, isolated.
+  Assessment B, deterministic: detector 1 finding, a FALSE POSITIVE (avatar's [src] flagged
+  broken-image; it is the correct dynamic-image-with-fallback pattern behind @if). Contrast: zero
+  real failures across 12 distinct pairings at 3 widths — the one sub-threshold hit was a
+  screen-reader-only label that is never painted. --faint measured 5.07:1, confirming the documented
+  claim. Zero horizontal overflow at 375/768/1440. Focus: 36 tab stops, every one visible, and THE
+  VOLT INVERSION IS CONFIRMED WORKING — every volt-filled control rings dark (rgb(13,17,14)), never
+  volt-on-volt. Fonts: all five faces load real; Saira Condensed negative control returns zero.
+  B FOUND WHAT NO GATE COVERED: 31 CSP violations per load on the gallery, and ZERO on every product
+  page. Cause: 21 inline style="" attributes (7 mine, 14 M13b's proof). The app's CSP has a nonce and
+  no unsafe-inline, so a style attribute is blocked. THIS IS THE THIRD GATE THE SAME SHORTCUT EVADES
+  — BACKLOG already recorded that inline style="" does not count toward anyComponentStyle either.
+  THE DURABLE FIX WAS THE GATE, NOT THE STYLES: security.spec.ts asserts zero CSP violations but only
+  visited /, /app/athlete/book, /app/auth/login and /app/admin/settings. The gallery was never
+  checked, which is why 31 violations sat there unseen. Route added; proven to fail before the fix
+  (`Received + 33`), 0 after.
+  A's HEADLINE FINDING IS REAL AND PRE-EXISTING: `a { color: var(--volt) }` at styles.scss:14 is
+  GLOBAL, so every link in the product is volt. Measured on the real login screen: four volt elements
+  where law §2.3 says one. NOT fixed here — a global anchor colour repaints ~40 screens and the
+  visual baselines cover only the gallery. Filed to M13d, which rebuilds those exact screens.
+  FIXED FROM THE CRITIQUE: the flagship admin proof still rendered Unicode glyphs (▦ ◉ ▤ ≡ $ ⚇ ⚙)
+  while the icon set M13c built sat unused — the exact "placeholder icon system" §17 assigned to this
+  milestone. Migrated to bh-icon. And the dock demo, being position:fixed, floated over the WHOLE
+  gallery below 719px, occluding other sections; contained with `contain: paint`, which also retired
+  a workaround the visual spec had needed.
+  THE VISUAL GATE THEN CAUGHT A CHANGE ITS OWN AUTHOR REPORTED AS ABSENT. The CSP fix said no demo's
+  rendered output changed. It did: icon-phone 5520px, icon-tablet 5843px, button-desktop 632px,
+  against a ~29px noise floor. I LOOKED at the new rendering before accepting it — 27 icons, clean
+  grid, consistent stroke, correct spacing — so the reflow was benign and the baselines merely stale.
+  Regenerated. 32 files rather than 3 because --update-snapshots rewrites the set and 29 carried
+  sub-threshold drift; kept as one coherent capture rather than mixing two builds.
+  Also filed: the members table clips at 375 and 768 with card mode built but unadopted (M15), and
+  the search placeholder truncates in English before translation touches it (M15).
