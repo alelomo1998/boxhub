@@ -1131,3 +1131,18 @@ M13c IMPECCABLE GATE: 31/40 — PASSES (bar is >=28, no open P0/P1). Dual-agent,
   sub-threshold drift; kept as one coherent capture rather than mixing two builds.
   Also filed: the members table clips at 375 and 768 with card mode built but unadopted (M15), and
   the search placeholder truncates in English before translation touches it (M15).
+M13c MAIL PALETTE (8d3b955, orchestrator — user asked for it before merge). Backend 428/0/0.
+  MY FILED COUNT WAS WRONG: I said three values in one file, because I had only counted what the
+  browser reported on a single message. The real set is TEN across FIVE templates, and #8a8078
+  alone appears five times OUTSIDE layout.html:
+    #17120D -> #0d110e ground x2 · #221B14 -> #151a16 surface x1
+    #E8E0D6 -> #f2f4ef bone x2   · #8A8078 -> #7c8779 faint x5
+  The volt CTA and its dark #0d110e text are untouched — M13b got that half right, and white on
+  volt is 1.1:1, which is why the text must stay dark.
+  VERIFIED BY LOOKING: triggered a real verification mail through self-serve signup and rendered it
+  in Mailpit — rgb(13,17,14) ground, rgb(21,26,22) card, volt CTA with dark text. Identical to the
+  product. That is the check M13b recorded as computed and never performed.
+  ENVIRONMENT, and it cost a false alarm: `mvn test` returned 79 ERRORS mid-session — every one
+  `Could not initialize class AbstractIntegrationTest`. Not the template change: THE DOCKER DAEMON
+  HAD STOPPED, so Testcontainers had no environment. `open -a Docker`, wait, re-run: 428/0/0. A wall
+  of identical NoClassDefFound on a base class means the environment, not the diff.
