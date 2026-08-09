@@ -8,8 +8,19 @@ const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
 ];
 
+// bh-day-pager renders `new Date()` via `{{ day() | date:'EEEE d MMMM' }}` — real "today" — so a
+// baseline generated on one date mismatches on every other date, forever. Frozen to Wednesday 12
+// August 2026: unambiguous weekday/month in the rendered format, and noon UTC keeps the calendar
+// date stable regardless of the container's local timezone. Confirmed empirically (Playwright
+// 1.62 page.clock): the freeze must be installed BEFORE page.goto() — installing it after the
+// page has already rendered does not retroactively update the DOM (day() only re-runs on the next
+// change-detection pass, and nothing here triggers one), so the same real-date bug reappears if
+// this call moves below goto().
+const FROZEN_TIME = new Date('2026-08-12T12:00:00Z');
+
 for (const vp of VIEWPORTS) {
   test(`component gallery is visually unchanged at ${vp.name}`, async ({ page }) => {
+    await page.clock.setFixedTime(FROZEN_TIME);
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('/app/dev/components');
 
