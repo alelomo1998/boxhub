@@ -606,7 +606,19 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     /* Real shells project nav items sized to --tap; this demo anchor needs the same minimum so the
        gallery doesn't model an undersized tap target (impeccable finding). */
     .demo-navlink { display: inline-flex; align-items: center; min-height: var(--tap); }
-    .dockwrap { position: relative; min-height: var(--tap); }
+    /* bh-dock is position:fixed, pinned to the real viewport bottom — without a containing block
+       here it floats over the whole gallery page instead of staying inside this section (that's
+       the defect e2e/tests/visual.spec.ts used to work around by ripping the dock out of the DOM
+       before every screenshot). contain: paint makes this box the containing block for its fixed
+       descendant and clips anything that would escape it — the fix belongs here, not in bh-dock,
+       whose fixed positioning is correct product behaviour. Below the same 719px breakpoint
+       bh-dock itself uses, the box needs real height or the now-contained pill gets clipped by that
+       same contain: paint: 68px pill (56px item + 6px+6px padding) + 12px bottom gap. Left empty
+       above 719px, where .dock is display:none and there's nothing to contain. */
+    .dockwrap { position: relative; min-height: var(--tap); contain: paint; }
+    @media (max-width: 719px) {
+      .dockwrap { min-height: 96px; }
+    }
 
     /* Demo-only layout geometry (fixed widths, margin resets) that used to live in inline style=""
        attributes — blocked by the app's strict CSP (no unsafe-inline). Moved here as classes. */

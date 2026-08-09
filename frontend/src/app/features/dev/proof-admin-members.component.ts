@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { IconComponent, IconName } from '../../ui/icon.component';
 
 /** A nested item under a top-level sidebar section — the indent-guide case in spec §9. */
 interface SidebarChild {
@@ -9,7 +10,7 @@ interface SidebarChild {
 
 /** One top-level sidebar item. Icon-only when the sidebar is collapsed. */
 interface SidebarItem {
-  readonly icon: string;
+  readonly icon: IconName;
   readonly label: string;
   readonly active?: boolean;
   readonly children?: readonly SidebarChild[];
@@ -40,7 +41,7 @@ interface AdminMemberRow {
 @Component({
   selector: 'bh-proof-admin-members',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, IconComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="proof" data-proof="admin-members">
@@ -61,7 +62,7 @@ interface AdminMemberRow {
               [attr.aria-label]="collapsed() ? expandLabel : collapseLabel"
               (click)="collapsed.set(!collapsed())"
             >
-              <span aria-hidden="true">{{ collapsed() ? '»' : '«' }}</span>
+              <bh-icon [name]="collapsed() ? 'chevron-right' : 'chevron-left'" [size]="16" />
             </button>
           </div>
 
@@ -75,7 +76,7 @@ interface AdminMemberRow {
                 [attr.title]="collapsed() ? item.label : null"
                 [attr.aria-label]="item.label"
               >
-                <span class="icon" aria-hidden="true">{{ item.icon }}</span>
+                <bh-icon class="icon" [name]="item.icon" [size]="20" />
                 @if (!collapsed()) {
                   <span class="label">{{ item.label }}</span>
                 }
@@ -99,7 +100,7 @@ interface AdminMemberRow {
                 [attr.title]="collapsed() ? item.label : null"
                 [attr.aria-label]="item.label"
               >
-                <span class="icon" aria-hidden="true">{{ item.icon }}</span>
+                <bh-icon class="icon" [name]="item.icon" [size]="20" />
                 @if (!collapsed()) {
                   <span class="label">{{ item.label }}</span>
                 }
@@ -347,9 +348,9 @@ export class ProofAdminMembersComponent {
   protected readonly statusLapsingLabel = $localize`:@@dev.members.statusLapsing:Lapsing`;
 
   protected readonly mainNav: readonly SidebarItem[] = [
-    { icon: '▦', label: $localize`:@@dev.members.navDashboard:Dashboard` },
+    { icon: 'house', label: $localize`:@@dev.members.navDashboard:Dashboard` },
     {
-      icon: '◉',
+      icon: 'users',
       label: $localize`:@@dev.members.navMembers:Members`,
       active: true,
       children: [
@@ -357,14 +358,17 @@ export class ProofAdminMembersComponent {
         { label: $localize`:@@dev.members.navMembersWaivers:Waivers` },
       ],
     },
-    { icon: '▤', label: $localize`:@@dev.members.navSchedule:Schedule` },
-    { icon: '≡', label: $localize`:@@dev.members.navProgramming:Programming` },
+    { icon: 'calendar', label: $localize`:@@dev.members.navSchedule:Schedule` },
+    { icon: 'clipboard-list', label: $localize`:@@dev.members.navProgramming:Programming` },
   ];
 
+  // 'users' covers both Members (main nav) and Team (settings) — the 27-icon set (icon.component.ts)
+  // has no second people glyph, and "a group of people" is the accurate read for both, not a
+  // misleading one; they sit in visually separate sections so the reuse doesn't read as a mistake.
   protected readonly settingsNav: readonly SidebarItem[] = [
-    { icon: '$', label: $localize`:@@dev.members.navBilling:Billing` },
-    { icon: '⚇', label: $localize`:@@dev.members.navTeam:Team` },
-    { icon: '⚙', label: $localize`:@@dev.members.navPreferences:Preferences` },
+    { icon: 'credit-card', label: $localize`:@@dev.members.navBilling:Billing` },
+    { icon: 'users', label: $localize`:@@dev.members.navTeam:Team` },
+    { icon: 'settings', label: $localize`:@@dev.members.navPreferences:Preferences` },
   ];
 
   // Plan names are box-defined vocabulary (like a member's name), never translated — see the

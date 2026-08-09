@@ -29,16 +29,14 @@ for (const vp of VIEWPORTS) {
     await page.evaluate(() => document.fonts.ready);
     await page.waitForSelector('[data-gallery="button"]');
 
-    // bh-dock is position: fixed to the viewport (mobile-only chrome, <719px) — it stays pinned to
-    // the bottom of the screen regardless of scroll, so per-section screenshots below 719px
-    // capture whatever the dock happens to be floating over at scroll time (observed bleeding into
-    // search-bar, pill and wordmark) rather than anything about those components. Its own
-    // [data-gallery="dock"] section already can't show it live per the gallery's own note ("shrink
-    // the viewport... to see the pill" is instructions for a human, not this per-section capture).
-    // Removed via plain DOM API (not a style/script injection) because the app's real CSP has no
-    // 'unsafe-inline' for style-src, so page.addStyleTag is blocked here. Runs after the gallery has
-    // rendered (waitForSelector above) — bh-dock doesn't exist in the DOM until Angular renders it.
-    await page.evaluate(() => document.querySelectorAll('bh-dock').forEach((el) => el.remove()));
+    // bh-dock is position: fixed to the viewport (mobile-only chrome, <719px). It used to stay
+    // pinned to the bottom of the real viewport regardless of scroll, so per-section screenshots
+    // below 719px captured whatever the dock happened to be floating over at scroll time (observed
+    // bleeding into search-bar, pill and wordmark) — that's why this test used to strip bh-dock
+    // from the DOM before every capture. The gallery's [data-gallery="dock"] section now gives its
+    // .dockwrap `contain: paint`, which makes that box the containing block for the fixed dock: the
+    // dock renders inside its own section at every width instead of the viewport, so there's
+    // nothing left to strip and the section's own baseline shows the real pill.
 
     const sections = page.locator('[data-gallery]');
     const n = await sections.count();
