@@ -194,21 +194,6 @@ Two consequences worth holding separately:
   than assumed distinct, and the fixed-name TV devices the `runner`/`tv` specs leave behind are the
   first thing to look at.
 
-## Post-M13 · Frontend quality gates
-
-*Both cut from M13 to keep it tight, both worth adding once the component library exists and has
-stopped churning. Neither needs a new build pipeline — both ride the Playwright suite we already have.*
-
-- **Visual regression on the component gallery.** Playwright's built-in `toHaveScreenshot()` over
-  every component, both themes, three viewports, baselines committed. Catches unintended visual
-  drift when a token or a shared style changes — exactly what happens during a rework. Deliberately
-  not started in M13: baselines churn while components are still being designed.
-- **Automated WCAG checks.** `@axe-core/playwright` asserting zero WCAG 2.2 AA violations on the
-  gallery and the three shells. Design law v2 already *requires* AA; today it is reviewed by hand,
-  not enforced. Expect the first run to find existing violations — the backlog already records two
-  (`role="radio"` without roving tabindex on the RX/Scaled segmented control, and the sheet discard
-  bar not moving focus on appear).
-
 ## The rework program — items by destination milestone
 
 *The old "M12 · UX/UI rework" section is gone: it was one bucket for what is now eight milestones
@@ -223,16 +208,17 @@ step was **kept**, against the plan: without `--omit=dev` it still exits 1 on th
 dev-only advisories (`brace-expansion`, `fast-uri`, `socket.io-parser` via Karma), and a permanently
 red nightly job is how a scan stops being read. Folding npm into the OSV gate is therefore still open.*
 
-- Header CSS is ~90% duplicated across three shells; logout/theme placement differs per shell (athlete
-  profile sheet vs coach/admin header ⎋). Fold into a shared shell.
-- Unicode glyph icons (⎋ ⌘ ◐) read as a placeholder icon system — adopt a real icon set.
-- Admin tables on phone are scroll-tables, not cards. *(`bh-data-table` card mode.)*
-- ~~RX/Scaled segmented control: `role="radio"` without roving tabindex/arrow keys.~~ **DONE in M13c
-  Task 7** — `bh-segmented` is a `radiogroup` with roving tabindex and arrow-key navigation.
+- Admin tables on phone are scroll-tables, not cards. *(`bh-data-table` now ships card mode — a
+  `<td data-label="…">` renders as a labelled row instead of a scroll-table cell — but no screen
+  adopts it. Adopting it changes that screen's phone layout, which M13c's own-scope lock forbade;
+  the fix is each screen's rebuild wiring up `data-label`.)*
 - Sheet discard bar doesn't move focus on appear. *(Fix once in `bh-sheet` rather than per screen.)*
 - Sheet component: no focus trap beyond native `<dialog>`, no swipe-to-dismiss.
-- Coach + admin surfaces are pre-rebuild: raw px type sizes, sub-44px targets, screens re-implementing
-  `bh-*` input styles, no loading states. *(M13 supplies the components; each surface milestone applies them.)*
+- Coach + admin surfaces are pre-rebuild. The components now exist (`bh-field`, `bh-select`,
+  `bh-button`, `bh-data-table`, …) and M13c tokenised 36 on-scale raw `font-size` sites in
+  `features/`, but adoption is still open: 27 raw `<input>` and 18 raw `<button>` remain in
+  admin+coach templates instead of `bh-field`/`bh-button`, and only 2 of the 16 admin+coach screens
+  read a loading signal. *(M13 supplies the components; each surface milestone applies them.)*
 
 ### → M13c Component library — Angular 22 compatibility shims to revisit
 
@@ -240,12 +226,17 @@ red nightly job is how a scan stops being read. Folding npm into the OSV gate is
 defining constraint is that nothing changes behaviourally. Both are opt-outs of newer Angular
 defaults, and M13c is rebuilding the component layer anyway — the right moment to drop them.*
 
-- **`ChangeDetectionStrategy.Eager` is now on all 56 components.** Angular 22 shifted its
-  change-detection default; the migration pinned every existing component to the old behaviour. This
-  app is signals-based, so the newer default is very likely what it actually wants. Dropping it is
-  56 files of deletion plus a real performance check.
-- **`withXhr()` is now on `provideHttpClient`** (`app.config.ts` plus ~33 spec files). Angular 22
-  moved the default HTTP transport; this pins the old one. Revisit alongside the above.
+- **`ChangeDetectionStrategy.Eager` is now off all 18 rebuilt `ui/` components** — M13c dropped it
+  component-by-component as part of the rebuild. It remains on 51 other components, measured by
+  grep: `app.component.ts` plus 50 under `features/` (not the `~45` this entry used to guess). Each
+  surface milestone (M14–M18) still owns dropping its own as it rebuilds that screen. **Worth
+  recording:** Angular 22's implicit default when `changeDetection` is omitted is `OnPush`, not the
+  old eager `Default` — confirmed in the compiler, which only emits a component's `changeDetection`
+  field when it differs from `OnPush`. So the 18 `ui/` components already get the newer, faster
+  default just by omitting the decorator; no further work needed there.
+- **`withXhr()` is still on `provideHttpClient`** (`app.config.ts` plus ~33 spec files), untouched
+  by M13c. Angular 22 moved the default HTTP transport; this pins the old one. Open on its own —
+  no longer bundled with `ChangeDetectionStrategy.Eager` above, which M13c partially resolved.
 
 *Not filed: the `extendedDiagnostics` suppression the same migration added to `tsconfig.app.json` and
 `tsconfig.spec.json`. It was measured (build with it removed: exit 0, zero violations of
@@ -254,22 +245,27 @@ carried, because it hid nothing and would have silently loosened a standard.*
 
 ### → M13c Component library — raised by M13b (2026-08-06)
 
-- **`bh-stat` has zero call sites.** `grep -rn 'bh-stat' frontend/src/app` returns only its own
-  definition. It is in the design law's component inventory and nothing renders it. **Decide build
-  vs delete before restyling it** — restyling a component nothing uses is the purest form of the
-  work this program exists to avoid.
-- **The 4 kB `anyComponentStyle` budget pulls against the tokens-only rule.** `var(--fs-meta)` is
-  eleven characters longer than `11px`, and M13b's admin-members proof went *over* budget purely by
-  replacing two raw values with their tokens. It was resolved by cutting a genuine redundancy, but
-  ~22 components will hit this repeatedly. Either the budget rises with a written reason, or
-  components get split — decide once, deliberately, rather than per component under pressure.
 - **Inline `style=""` in template markup does not count toward `anyComponentStyle` at all.** A real
   hole in that gate. Recorded before someone discovers it as a workaround rather than as a fact.
-- **Three standing budget warnings**: `instance-builder.page.ts` (+456 B), `tv-shell.page.ts`
-  (+256 B), `progress.page.ts` (+17 B). All pre-date M13b; the 8 kB *error* budget is not breached,
-  so the build is green. Each screen is rebuilt in its own milestone (M14, Project 2, M17), so **the
-  fix is the rebuild, not a bigger budget**. Filed because a build printing three warnings nobody has
-  written down is a build that teaches people to stop reading warnings.
+- **The three standing budget warnings** — `instance-builder.page.ts` (+456 B), `tv-shell.page.ts`
+  (+256 B), `progress.page.ts` (+17 B) — now print silently. M13c Task 10 raised the
+  `anyComponentStyle` warning threshold to 6 kB (error stays 8 kB), which sits above all three; the
+  underlying components are unchanged, nobody split or trimmed them, the budget moved instead. Each
+  screen's own rebuild (M14 / Project 2 / M17) is still the real fix. Filed again because a silenced
+  warning nobody has written down is how the next person concludes there was never a problem.
+
+### → M14–M18 — 41 off-scale `font-size` px values, one decision per screen
+
+`grep -rhoE 'font-size:\s*[0-9]+px' frontend/src/app/features` returns 41 raw values today, and
+every one is off-scale: 9px×1, 10px×9, 12px×8, 14px×10, 16px×2, 17px×2, 18px×2, 19px×1, 21px×1,
+22px×1, 24px×1, 34px×1, 44px×2. They stayed raw deliberately, not by oversight — M13c Task 10
+tokenised the 36 sites that landed exactly on a `--fs-*` value and left these alone. No token on the
+scale is 17px, so converting one of these means *choosing* a nearby size, which is a visible design
+decision M13c's component-only scope did not authorize.
+
+Not debt to pay down blind. Frame it as a question for each screen's rebuild (M14–M18): for this
+site, which `--fs-*` token was this actually meant to be, and does the resulting visual change need
+its own note in that screen's review?
 
 ### → M16 Admin: commerce — email subject lines are not translatable (M13a debt, found in M13b)
 
