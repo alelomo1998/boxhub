@@ -1283,3 +1283,43 @@ Task 5: complete (commits 561f065..49468ea, review clean after one fix — spec 
   RegisterTx's fallback is never actually reached there. True; it satisfies arity and nothing more.
   Clean on the high-risk axes: no tenancy change, no transaction-boundary move, no mail/audit
   ordering change, AuthzConformanceTest untouched, no Flyway. Next migration stays V19.
+
+Task 6: complete (commits b5790b1..4c5d326, review clean — spec PASS, quality PASS)
+  AppUrls gains appPath() = base + path (a PATH, not an absolute URL: the frontend prepends
+  location.origin, so appLink() there would render origin+origin). InviteAdminController returns
+  appPath("/join/"+token) so the copied admin link lands directly instead of via a 301. Line 75's
+  mailer.link() was already correct and is untouched. 432/0/0.
+  TEN FILES, FROM A BRIEF THAT NAMED TWO. This was the worst brief of the milestone and the gap
+  was found in three stages:
+   - PRE-DISPATCH (orchestrator grepped for dependents first, having learned from Tasks 3 and 5):
+     SIX test files parse this field as link.substring("/join/".length()), which silently yields a
+     CORRUPTED token the moment the prefix changes — "/app/join/T".substring(6) is "oin/T", not a
+     token. Corrected to 8 files before dispatch.
+   - THE SUITE FOUND TWO MORE, which no grep of mine would have: LogHygieneTest:225's extraction
+     regex hardcoded "link":"/join/, and InviteAdminApiTest:44's Mailer stub.
+  Token extraction became link.substring(link.lastIndexOf('/') + 1) rather than hardcoding
+  "/app/join/": the app base is CONFIGURABLE and AppUrlsTest proves an empty base is supported, so
+  six tests pinned to one config value would be wrong. Reviewer verified this is unambiguous —
+  invite tokens are Base64.getUrlEncoder().withoutPadding(), which never emits '/'.
+  A MOCK THAT HAD BEEN LYING SINCE THE /app MOVE: InviteAdminApiTest:44 stubbed mailer.link(path)
+  as origin + path, while real Mailer.link -> AppUrls.appLink is origin + BASE + path. It never
+  mattered because both strings happened to share the /join/ substring. FIXED THE MOCK, NOT THE
+  ASSERTION IT BROKE: :113 asserts the mailed link contains the response link, and it guards the
+  M8 incident where three emailed links shipped pointing at routes that did not exist. In
+  production the assertion still holds — appLink (origin+base+path) always contains appPath
+  (base+path) as a suffix. A test that passes only because a mock is unfaithful is the same family
+  as the two tests-that-cannot-fail already found this milestone.
+  LogHygieneTest's regex is prefix-tolerant now ([^"]*?/join/) rather than weakened to match any
+  link: reviewer traced the backtracking by hand and confirmed the /join/ anchor still forces a
+  real match, so its doesNotContain("{") vacuous-pass guard still fires.
+  MINOR, no action: the executor widened an existing assertion (startsWith("/join/") ->
+  startsWith("/app/join/")) instead of adding the new test the brief asked for. Coverage-identical
+  and leaner than a near-duplicate test; recorded because the report did not flag it as a
+  deviation.
+
+ORCHESTRATOR PATTERN, WORTH CARRYING INTO M14+: four of six briefs were incomplete, always the
+same way — LISTING THE FILES A CHANGE *IS*, NOT THE FILES THAT *DEPEND ON IT*. Task 3 (a 19th ui/
+component cannot avoid the gallery's exhaustive-list test), Task 5 (a signature change moves its
+Mockito callers), Task 6 twice. Every one was caught by an executor stopping. Grepping for
+dependents BEFORE writing the brief turned Task 6's first gap from an escalation into a correction
+shipped with the brief; do that by default.
