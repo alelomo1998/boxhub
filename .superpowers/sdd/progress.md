@@ -1146,3 +1146,30 @@ M13c MAIL PALETTE (8d3b955, orchestrator — user asked for it before merge). Ba
   `Could not initialize class AbstractIntegrationTest`. Not the template change: THE DOCKER DAEMON
   HAD STOPPED, so Testcontainers had no environment. `open -a Docker`, wait, re-run: 428/0/0. A wall
   of identical NoClassDefFound on a base class means the environment, not the diff.
+
+## M13d — auth & account screens (branch `m13d-auth-account-screens`, from `0c5117e`)
+
+Spec `docs/superpowers/specs/2026-08-10-m13d-auth-account-screens-design.md`,
+plan `docs/superpowers/plans/2026-08-10-m13d-auth-account-screens.md`.
+
+PRE-FLIGHT CAUGHT AN ERROR IN THE ORCHESTRATOR'S OWN PLAN (`e906764`): the running Karma totals
+said 245 -> 253 -> 256 -> 261, but Task 1 adds three specs per component, not four. Corrected to
+245 -> 251 -> 254 -> 259 before Task 1 was dispatched. Same class as M13c's thirteen brief errors,
+found one step earlier this time.
+
+Task 1: complete (commits e906764..6a2d932, review clean — spec PASS, quality Good)
+  bh-field/bh-select gain name + required, bh-field alone gains autocomplete; the error <span>
+  moves from @if to @for tracked by the message.
+  NEGATIVE CONTROL VERIFIED, and it is the reason to believe the fix: pre-fix run produced
+  `Expected <span role="alert" id="bh-f16-err"> not to be <span role="alert" id="bh-f16-err">`
+  — literally the same node reused — with TOTAL: 2 FAILED, 246 SUCCESS. Post-fix 251/251.
+  MINOR 1 (process, not code): executor wrote field.component.ts before running the mandated
+  pre-fix check, then used git stash/pop to produce the evidence retroactively. Self-disclosed,
+  evidence credible, nothing wrong shipped.
+  MINOR 2 (orchestrator's brief was wrong): the brief predicted the attribute test would fail
+  `Expected null to be 'email'`. It actually failed NG0303 — with the inputs not yet existing the
+  template cannot compile at all, so it never runs far enough to misroute an attribute. The
+  executor reasoned the root cause was identical and proceeded instead of escalating. Correct call.
+  DEVIATION ACCEPTED: select.component.spec.ts's existing Host had no [error] binding (field's
+  did), so the executor added one to drive the mirrored remount test. Inside an authorized file,
+  defaults unchanged, no existing assertion touched.
