@@ -203,8 +203,20 @@ class BoxSignupTest extends AbstractIntegrationTest {
         assertThat(owner.getLocale()).isEqualTo("it");
     }
 
+    /**
+     * NOTE ON WHAT THIS TEST DOES NOT PROVE — it is a refactor guard, not a guard on the M13d fix.
+     *
+     * It passes against the OLD hardcoded code too: that path called insertUser(..., "en")
+     * unconditionally, and the new path sends null (no header) which RegisterTx:42 maps to "en".
+     * Both produce "en", so this assertion cannot tell them apart. Only
+     * selfServeOwnerGetsTheBrowsersLanguage discriminates the defect.
+     *
+     * Kept anyway, because it does pin something real: threading a locale parameter through three
+     * files must not break the header-less default. Named honestly so the next reader does not
+     * count it as coverage of the bug. Caught in review; the misleading name was the orchestrator's.
+     */
     @Test
-    void selfServeOwnerFallsBackToEnglishWithNoHeader() throws Exception {
+    void headerlessSignupStillDefaultsToEnglishAfterTheLocaleRefactor() throws Exception {
         mvc.perform(post("/api/auth/signup-box").with(csrf())
                         .contentType(APPLICATION_JSON)
                         .content("""
