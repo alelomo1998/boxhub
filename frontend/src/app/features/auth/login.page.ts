@@ -8,6 +8,29 @@ import { FieldComponent } from '../../ui/field.component';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 
+/** A seeded benchmark prescription (verbatim from V5*.sql), reformatted for the panel's narrow
+ * column: name, rep scheme, then movements each on their own line — a board, not a sentence. */
+interface Benchmark {
+  readonly name: string;
+  readonly scheme: string;
+  readonly movements: readonly string[];
+}
+
+const BENCHMARKS: readonly Benchmark[] = [
+  { name: 'Fran', scheme: '21-15-9 reps for time', movements: ['Thrusters (95/65 lb)', 'Pull-Ups'] },
+  { name: 'Grace', scheme: '30 for time', movements: ['Clean and Jerks (135/95 lb)'] },
+  { name: 'Isabel', scheme: '30 for time', movements: ['Snatches (135/95 lb)'] },
+  { name: 'Diane', scheme: '21-15-9 reps for time', movements: ['Deadlifts (225/155 lb)', 'Handstand Push-Ups'] },
+  { name: 'Elizabeth', scheme: '21-15-9 reps for time', movements: ['Cleans (135/95 lb)', 'Ring Dips'] },
+  { name: 'Karen', scheme: '150 for time', movements: ['Wall Balls (20/14 lb)'] },
+  { name: 'Annie', scheme: '50-40-30-20-10 reps for time', movements: ['Double-Unders', 'Sit-Ups'] },
+  { name: 'Cindy', scheme: 'AMRAP 20', movements: ['5 Pull-Ups', '10 Push-Ups', '15 Air Squats'] },
+];
+
+function randomBenchmark(): Benchmark {
+  return BENCHMARKS[Math.floor(Math.random() * BENCHMARKS.length)];
+}
+
 @Component({
   selector: 'bh-login',
   standalone: true,
@@ -15,6 +38,16 @@ import { AuthLayoutComponent } from '../../ui/auth-layout.component';
   template: `
     <bh-auth-layout variant="split">
       <div panel>
+        <div class="benchmark" data-testid="login-benchmark">
+          <p class="t-eyebrow benchmark-label">
+            <span i18n="@@auth.login.benchmarkLabel">Benchmark</span> {{ benchmark.name }}
+          </p>
+          <p class="benchmark-scheme">{{ benchmark.scheme }}</p>
+          @for (line of benchmark.movements; track line) {
+            <p class="benchmark-line">{{ line }}</p>
+          }
+        </div>
+
         <p class="t-eyebrow" i18n="@@auth.login.panel.eyebrow">Rx · as prescribed</p>
         <h1 class="headline t-display" i18n="@@auth.login.panel.headline">Today's board is already up.</h1>
       </div>
@@ -72,6 +105,12 @@ import { AuthLayoutComponent } from '../../ui/auth-layout.component';
     </bh-auth-layout>
   `,
   styles: [`
+    .benchmark { margin: 0 0 var(--sp-6); font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums; }
+    .benchmark p { margin: 0; }
+    .benchmark-label { margin-bottom: var(--sp-2); }
+    .benchmark-scheme { font-size: var(--fs-sm); font-weight: 700; color: var(--bone); }
+    .benchmark-line { font-size: var(--fs-sm); color: var(--faint); margin-top: var(--sp-1); }
     .headline { font-size: var(--fs-display); margin: var(--sp-2) 0 0; }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); }
     .forgot { font-size: var(--fs-meta); }
@@ -86,6 +125,7 @@ export class LoginPage implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  readonly benchmark = randomBenchmark();
   email = signal('');
   password = signal('');
   error = signal('');

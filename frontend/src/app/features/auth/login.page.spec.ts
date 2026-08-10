@@ -4,6 +4,20 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { LoginPage } from './login.page';
 
+// Verbatim from the seeded prescriptions in backend/src/main/resources/db/migration/V5*.sql —
+// independent of login.page.ts's own BENCHMARKS const, so a corrupted entry there (empty,
+// mistyped, wrong load) fails this instead of the test just echoing the same bug back.
+const KNOWN_BENCHMARKS: Record<string, { scheme: string; movements: string[] }> = {
+  Fran: { scheme: '21-15-9 reps for time', movements: ['Thrusters (95/65 lb)', 'Pull-Ups'] },
+  Grace: { scheme: '30 for time', movements: ['Clean and Jerks (135/95 lb)'] },
+  Isabel: { scheme: '30 for time', movements: ['Snatches (135/95 lb)'] },
+  Diane: { scheme: '21-15-9 reps for time', movements: ['Deadlifts (225/155 lb)', 'Handstand Push-Ups'] },
+  Elizabeth: { scheme: '21-15-9 reps for time', movements: ['Cleans (135/95 lb)', 'Ring Dips'] },
+  Karen: { scheme: '150 for time', movements: ['Wall Balls (20/14 lb)'] },
+  Annie: { scheme: '50-40-30-20-10 reps for time', movements: ['Double-Unders', 'Sit-Ups'] },
+  Cindy: { scheme: 'AMRAP 20', movements: ['5 Pull-Ups', '10 Push-Ups', '15 Air Squats'] },
+};
+
 describe('LoginPage', () => {
   let http: HttpTestingController;
 
@@ -21,6 +35,33 @@ describe('LoginPage', () => {
   }
 
   afterEach(() => http.verify());
+
+  it('renders a real benchmark prescription in the panel, with its label', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const el: HTMLElement = fixture.nativeElement.querySelector('[data-testid="login-benchmark"]');
+    expect(el).withContext('benchmark block must render').not.toBeNull();
+
+    const cmp = fixture.componentInstance;
+    const known = KNOWN_BENCHMARKS[cmp.benchmark.name];
+    // A regression rendering an empty/malformed entry (name not in the known list, or its own
+    // scheme/movements drifting from the seeded data) fails here — a weaker "some text exists"
+    // assertion would pass regardless of what actually rendered.
+    expect(known).withContext(`"${cmp.benchmark.name}" must be a known seeded benchmark`).toBeDefined();
+    expect(cmp.benchmark.scheme).toBe(known.scheme);
+    expect(cmp.benchmark.movements).toEqual(known.movements);
+
+    const label = el.querySelector('.benchmark-label')!.textContent!.replace(/\s+/g, ' ').trim();
+    expect(label).toBe(`Benchmark ${cmp.benchmark.name}`);
+
+    const scheme = el.querySelector('.benchmark-scheme')!.textContent!.trim();
+    expect(scheme).toBe(cmp.benchmark.scheme);
+
+    const lines = Array.from(el.querySelectorAll('.benchmark-line')).map(n => n.textContent!.trim());
+    expect(lines).toEqual([...cmp.benchmark.movements]);
+  });
 
   it('403 EMAIL_NOT_VERIFIED shows a message and the resend control', () => {
     const fixture = setup();
