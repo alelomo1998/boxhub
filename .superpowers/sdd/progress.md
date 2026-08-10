@@ -1223,3 +1223,37 @@ Task 3: complete (commits 19fa905..6ddc6d4, review clean after one fix — spec 
   "ed", and spec §2.3/§3 explicitly decide that the brand highlighter is not an accent and is
   rendered in both variants; (b) its permitted-px inventory omitted max-width 420px, which is this
   codebase's existing form-column width (box-picker, settings, subscriptions, box-stripe).
+
+Task 4: complete (commit c23c6b8, orchestrator-implemented — one CSS rule is trivial glue, and
+  the plan makes the verification sweep the orchestrator's job explicitly)
+  `a { color: var(--volt) }` -> `color: var(--bone); text-decoration: underline`. The underline is
+  load-bearing: dropping colour as the affordance without replacing it trades a design-law bug for
+  a WCAG 1.4.1 one.
+  PROVEN ON THE SCREEN THE CRITIQUE MEASURED: login went from FOUR volt elements to ONE (the Log
+  in button). Measured in a real browser via computed styles, not by eye — note the two volt hits
+  the audit reports on login are ONE element counted twice, the bh-button host plus its inner
+  <button>.
+  THE SWEEP EARNED ITS KEEP, AND FOUND THE INVERSE OF WHAT THE PLAN PREDICTED. The plan said to
+  watch for "a link only findable because it was volt". The actual regression was NAVIGATION
+  READING AS PROSE: admin side-nav items and half the dock came back underlined, while the half
+  carrying a local `text-decoration: none` did not — so the shells were inconsistently underlined,
+  across ~40 screens. Fixed with ONE structural rule, `nav a { text-decoration: none; }`: both the
+  admin side nav (admin-shell.page.ts:30) and bh-dock (dock.component.ts:22) render a real <nav>,
+  so it scopes correctly WITHOUT editing screens M15/M16 own. Re-measured after: zero underlined
+  nav items on admin, athlete and coach.
+  A CLAIM I MADE AND WITHDREW, recorded so it is not re-derived: I first read
+  shell-header.component.ts:47 (`.acts a:hover { color: var(--bone) }`) as a hover affordance
+  killed by the new base colour. Reading four lines up, :44-46 already sets `.acts a { color:
+  var(--faint); text-decoration: none }` locally, so that faint->bone hover is untouched. Grepping
+  one line and reasoning from it nearly produced a fix for a non-bug.
+  BLAST RADIUS MEASURED, smaller than filed: 33 files contain an anchor, not the "~40 screens"
+  the backlog estimated.
+  FILED, NOT FIXED: dashboard.page.ts:140 `.s-body a { color: var(--bone) }` is now redundant —
+  a screen that had already compensated locally. Harmless (same value), M16 owns it.
+  DATA FOR TASK 18's OPEN QUESTION: account/security currently renders TWO volt-filled buttons
+  ("Change password", "Change email"). The plan flags the volt budget there as a Step B question
+  for the user; this is the measurement behind it.
+  ALSO: `docker compose -f docker/docker-compose.yml` from inside frontend/ exits 1 on a relative
+  path. Bash cwd persists between calls in this harness. Caught only because the exit code was
+  checked — otherwise the next measurement would have run against a STALE IMAGE, which is exactly
+  how M13c's e2e once reported 28 passed.
