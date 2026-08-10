@@ -39,10 +39,13 @@ import { WordmarkComponent } from './wordmark.component';
     .panel-copy { display: flex; flex-direction: column; gap: var(--sp-2); }
     .body { display: flex; flex-direction: column; gap: var(--sp-4); }
 
-    /* Stacked-and-centred is the base case, so phone needs no override and the narrow variant
-       needs no rules at all. Only the split's desktop form is an addition. */
+    /* Stacked-and-centred is the base case, so phone needs no override and BOTH variants share
+       this rule. It is load-bearing for narrow, not decoration: without the max-width the column
+       stretches to the full viewport. Only the split's desktop form below is an addition.
+       420px is this codebase's existing form-column width (box-picker, settings, subscriptions,
+       box-stripe all use it) — following the convention rather than inventing a number. */
     .wrap[data-variant="narrow"], .wrap[data-variant="split"] {
-      align-items: stretch; max-width: 420px; margin: 0 auto; }
+      max-width: 420px; margin: 0 auto; }
 
     /* 720px is this codebase's breakpoint — 8 uses of max-width:720px, 6 of 719px, 1 of
        min-width:720px. Do not introduce a new one. */

@@ -56,13 +56,31 @@ describe('AuthLayoutComponent', () => {
     expect(narrow.nativeElement.querySelector('[data-variant="narrow"]')).toBeTruthy();
   });
 
+  // WHAT THE NEXT TWO TESTS DO AND DO NOT PROVE — read before trusting them.
+  //
+  // They assert that ONE <main> and ONE <bh-wordmark> exist in the rendered DOM. Both are real
+  // accessibility properties: two <main>s is a broken landmark structure, and two wordmarks
+  // duplicates the accessible name — M13b shipped exactly that bug, where the wordmark's split
+  // glyphs computed as "rxedrxed".
+  //
+  // They do NOT protect against this component being rewritten as
+  //     @if (variant() === 'split') { <main>…<bh-wordmark/>…</main> }
+  //     @else                       { <main>…<bh-wordmark/>…</main> }
+  // which is the duplication the class comment argues against. @if/@else are mutually exclusive,
+  // so only one branch ever renders and BOTH counts are still 1 — these tests pass just as
+  // happily against the duplicated version. Caught in review, recorded rather than papered over.
+  //
+  // That is not a gap to close with a cleverer assertion: single-markup-tree is a maintainability
+  // property, and a behavioural test cannot see it. Code review is the guard. What is fixable is
+  // the claim, so it is fixed here.
+
   it('renders exactly one main landmark', () => {
     const f = TestBed.createComponent(SplitHost);
     f.detectChanges();
     expect(f.nativeElement.querySelectorAll('main').length).toBe(1);
   });
 
-  it('renders the wordmark once, not once per variant branch', () => {
+  it('renders exactly one wordmark, so the accessible name is not duplicated', () => {
     const f = TestBed.createComponent(SplitHost);
     f.detectChanges();
     expect(f.nativeElement.querySelectorAll('bh-wordmark').length).toBe(1);
