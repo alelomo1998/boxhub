@@ -246,7 +246,7 @@ Mirror both new specs into `select.component.spec.ts`, adapted to `<select>` (`q
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-Expected: PASS, with the suite total risen from **245** by the number of specs added (4 in `field`, 4 in `select` → **253**).
+Expected: PASS, with the suite total risen from **245** by the number of specs added (3 in `field`, 3 in `select` → **251**).
 
 - [ ] **Step 6: Verify the `ui/` standing guarantees still hold**
 
@@ -420,7 +420,7 @@ Leave every other style rule and every existing comment untouched.
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-Expected: PASS, suite total **256**.
+Expected: PASS, suite total **254**.
 
 - [ ] **Step 5: Verify no existing call site regressed**
 
@@ -631,7 +631,7 @@ No `changeDetection` field — Angular 22's implicit default when omitted is `On
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-Expected: PASS, suite total **261**.
+Expected: PASS, suite total **259**.
 
 - [ ] **Step 5: Add the gallery section**
 
@@ -726,7 +726,7 @@ Expected failure mode to look for specifically: a link that was only findable *b
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npx ng build --configuration production
 ```
 
-Expected: 261 passing, build clean.
+Expected: 259 passing, build clean.
 
 - [ ] **Step 5: Commit**
 
@@ -987,7 +987,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 npx ng build --configuration production
 ```
 
-Expected: **261** passing; build exit 0 with **zero** budget warnings.
+Expected: **259** passing; build exit 0 with **zero** budget warnings.
 
 - [ ] **Step 2: Backend**
 
@@ -1415,7 +1415,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 - [ ] **Step 2: Full gate run**
 
-Repeat every step of Task 7, plus `./visual.sh` and `a11y.spec.ts`. Expected: frontend **≥261** plus every screen's specs, backend **431/0/0**, e2e **35 passed + 1 skipped** plus the new axe cases, visual **76**, build clean with zero budget warnings.
+Repeat every step of Task 7, plus `./visual.sh` and `a11y.spec.ts`. Expected: frontend **≥259** plus every screen's specs, backend **431/0/0**, e2e **35 passed + 1 skipped** plus the new axe cases, visual **76**, build clean with zero budget warnings.
 
 Then the milestone's own capped gate:
 
