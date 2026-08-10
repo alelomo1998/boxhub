@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { AlertComponent } from '../../ui/alert.component';
+import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
@@ -38,7 +39,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
-    AvatarComponent, PillComponent, DayPagerComponent, SheetComponent,
+    AvatarComponent, PillComponent, DayPagerComponent, SheetComponent, AuthLayoutComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -574,6 +575,45 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           active, disabled, loading or error state of its own.
         </p>
       </section>
+
+      <section class="gsec" data-gallery="auth-layout">
+        <h2 class="t-h2" i18n="@@dev.gallery.authLayout.heading">Auth layout</h2>
+        <p class="note" i18n="@@dev.gallery.authLayout.note.noStates">
+          A frame, not a control — bh-auth-layout has no hover, focus, active, disabled, loading or
+          error state of its own; those belong to the projected form's fields and buttons, shown in
+          their own sections above. Variant is assigned per screen and never per state.
+        </p>
+
+        <p class="gsub" i18n="@@dev.gallery.authLayout.variant.split">Split</p>
+        <div class="authwrap">
+          <bh-auth-layout variant="split">
+            <div panel>
+              <p class="t-eyebrow" i18n="@@dev.gallery.authLayout.split.eyebrow">Welcome back</p>
+              <h1 class="t-h2" i18n="@@dev.gallery.authLayout.split.headline">Log in to your box.</h1>
+            </div>
+            <bh-field label="Email" i18n-label="@@dev.gallery.authLayout.split.emailLabel" />
+            <bh-button variant="primary" i18n="@@dev.gallery.authLayout.split.cta">Log in</bh-button>
+          </bh-auth-layout>
+        </div>
+
+        <p class="gsub" i18n="@@dev.gallery.authLayout.variant.narrow">Narrow</p>
+        <div class="authwrap">
+          <bh-auth-layout variant="narrow">
+            <div panel>
+              <h1 class="t-h2" i18n="@@dev.gallery.authLayout.narrow.headline">Check your email.</h1>
+            </div>
+            <p class="t-body" i18n="@@dev.gallery.authLayout.narrow.body">
+              We sent a confirmation link to your inbox.
+            </p>
+          </bh-auth-layout>
+        </div>
+
+        <p class="note" i18n="@@dev.gallery.authLayout.note.viewport">
+          Split only shows its side-by-side panel above 720px — shrink the viewport below that to
+          see it collapse to the same stacked, centred column narrow uses at every width, with the
+          panel content moving above the form.
+        </p>
+      </section>
     </div>
   `,
   styles: [`
@@ -603,6 +643,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     .iconname { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
       text-align: center; word-break: break-word; }
     .shellwrap { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden; }
+    /* bh-auth-layout's .wrap is min-height:100vh by design (a real screen fills the viewport) — the
+       border + overflow:hidden here is purely to frame the demo on this scrolling page; it plays
+       no part in the component's own layout. */
+    .authwrap { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden; }
     /* Real shells project nav items sized to --tap; this demo anchor needs the same minimum so the
        gallery doesn't model an undersized tap target (impeccable finding). */
     .demo-navlink { display: inline-flex; align-items: center; min-height: var(--tap); }
