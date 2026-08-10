@@ -145,8 +145,9 @@ public class AuthController {
     record SignupModeResponse(boolean open) {}
 
     @PostMapping("/signup-box")
-    public ResponseEntity<?> signupBox(@Valid @RequestBody SignupBoxRequest req) {
-        var outcome = boxSignup.signup(req.boxName(), req.name(), req.email(), req.password());
+    public ResponseEntity<?> signupBox(@Valid @RequestBody SignupBoxRequest req, HttpServletRequest http) {
+        var outcome = boxSignup.signup(req.boxName(), req.name(), req.email(), req.password(),
+                primaryLanguageTag(http.getHeader(HttpHeaders.ACCEPT_LANGUAGE)));
         if (outcome.full()) return ResponseEntity.ok(new FullResponse(true));
         // Body from the request only — echoing anything persisted is an enumeration oracle (M8 T5).
         return ResponseEntity.status(HttpStatus.CREATED)

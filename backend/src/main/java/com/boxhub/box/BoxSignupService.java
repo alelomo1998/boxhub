@@ -66,7 +66,7 @@ public class BoxSignupService {
      * recovery from a failed attempt runs in fresh transactions on the far side of that proxy
      * call, never inside the one that just rolled back.
      */
-    public SignupOutcome signup(String boxName, String name, String email, String password) {
+    public SignupOutcome signup(String boxName, String name, String email, String password, String locale) {
         if (!acceptingSignups()) return new SignupOutcome(true);
 
         passwordPolicy.check(password);
@@ -79,7 +79,7 @@ public class BoxSignupService {
         BoxSignupTx.Result result;
         for (int attempt = 1; ; attempt++) {
             try {
-                result = tx.createOwnerAndBox(boxName.trim(), uniqueSlug(boxName), name, normalized, hash, boxStatus);
+                result = tx.createOwnerAndBox(boxName.trim(), uniqueSlug(boxName), name, normalized, hash, boxStatus, locale);
                 break;
             } catch (DataIntegrityViolationException e) {
                 // createOwnerAndBox's transaction already rolled back cleanly (see BoxSignupTx

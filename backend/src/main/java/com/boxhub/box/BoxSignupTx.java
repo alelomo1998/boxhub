@@ -52,13 +52,12 @@ class BoxSignupTx {
 
     @Transactional
     Result createOwnerAndBox(String boxName, String slug, String ownerName, String normalizedEmail,
-                            String passwordHash, String boxStatus) {
+                            String passwordHash, String boxStatus, String locale) {
         // Self-serve box signup never carries an invite token — always unverified; the caller
         // sends the verify mail once this transaction has committed (see BoxSignupService).
-        // Self-serve box signup doesn't read Accept-Language here (only AuthController#register
-        // does, per M13a T8's scope) — "en" until this path is wired the same way. See BACKLOG.md
-        // "M13d Auth & account screens".
-        User owner = registerTx.insertUser(normalizedEmail, passwordHash, ownerName, false, "en");
+        // Accept-Language now reaches here the same way it reaches AuthController#register
+        // (M13d). RegisterTx#insertUser falls back to "en" for null/blank, so no guard here.
+        User owner = registerTx.insertUser(normalizedEmail, passwordHash, ownerName, false, locale);
 
         Box box = new Box();
         box.setName(boxName);

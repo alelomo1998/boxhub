@@ -190,6 +190,32 @@ class BoxSignupTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void selfServeOwnerGetsTheBrowsersLanguage() throws Exception {
+        mvc.perform(post("/api/auth/signup-box").with(csrf())
+                        .header("Accept-Language", "it-IT,it;q=0.9,en;q=0.8")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"boxName":"Locale Box","name":"Owner","email":"locale-owner@demo.io",
+                             "password":"correct-horse-battery"}"""))
+                .andExpect(status().isCreated());
+
+        var owner = users.findByEmail("locale-owner@demo.io").orElseThrow();
+        assertThat(owner.getLocale()).isEqualTo("it");
+    }
+
+    @Test
+    void selfServeOwnerFallsBackToEnglishWithNoHeader() throws Exception {
+        mvc.perform(post("/api/auth/signup-box").with(csrf())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"boxName":"No Header Box","name":"Owner","email":"no-header@demo.io",
+                             "password":"correct-horse-battery"}"""))
+                .andExpect(status().isCreated());
+
+        assertThat(users.findByEmail("no-header@demo.io").orElseThrow().getLocale()).isEqualTo("en");
+    }
+
+    @Test
     void signupModeEndpointReportsOpenness() throws Exception {
         mvc.perform(get("/api/auth/signup-mode"))
                 .andExpect(status().isOk())
