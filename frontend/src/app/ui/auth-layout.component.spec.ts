@@ -85,4 +85,43 @@ describe('AuthLayoutComponent', () => {
     f.detectChanges();
     expect(f.nativeElement.querySelectorAll('bh-wordmark').length).toBe(1);
   });
+
+  // Regression for the Task 3 bug: `.wrap` centred for the column direction, the >=720px block
+  // flipped it to row but never re-declared `justify-content`, and the row then silently centred
+  // instead of filling — 208px of dead background on each side at 1440x900. This runs in a real
+  // ChromeHeadless (see gate command), so getBoundingClientRect reflects actual layout, not a
+  // JSDOM stub — the assertions below only pass if the >=720px column actually renders wide.
+  //
+  // What this proves: `.wrap` is never the flexed-and-centred element at any width — it is
+  // structurally impossible for a future direction change on it to reintroduce this bug, because
+  // `.wrap` no longer owns a direction to flip. What it does NOT prove: it does not pin the exact
+  // 46/54 split or the 760px card cap — those are covered by the manual/visual verification in
+  // the task report, since a Karma spec has no baseline image to diff against.
+  it('fills the split card edge-to-edge instead of leaving dead gutters (>=720px)', () => {
+    if (window.innerWidth < 720) {
+      pending(`karma window is ${window.innerWidth}px wide, below the 720px breakpoint this test needs`);
+      return;
+    }
+    const f = TestBed.createComponent(SplitHost);
+    f.detectChanges();
+    const wrap = f.nativeElement.querySelector('.wrap') as HTMLElement;
+    const card = f.nativeElement.querySelector('.card') as HTMLElement;
+    const panel = f.nativeElement.querySelector('.panel') as HTMLElement;
+    const body = f.nativeElement.querySelector('.body') as HTMLElement;
+
+    // The bug: `.wrap` picked up flex-direction:row from the media query. It must not, ever.
+    expect(getComputedStyle(wrap).flexDirection).toBe('column');
+    // The fix's own axis-flip lives one level down.
+    expect(getComputedStyle(card).flexDirection).toBe('row');
+
+    const cardRect = card.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+
+    // Panel starts at the card's own left edge — no leading gutter.
+    expect(Math.abs(panelRect.left - cardRect.left)).toBeLessThanOrEqual(1);
+    // Body reaches the card's own right edge — no trailing gutter. This is the exact defect: the
+    // bug left ~208px of dead background between the form and the card's/viewport's right edge.
+    expect(Math.abs(bodyRect.right - cardRect.right)).toBeLessThanOrEqual(1);
+  });
 });
