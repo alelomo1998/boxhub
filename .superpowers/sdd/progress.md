@@ -1343,3 +1343,44 @@ Task 7: complete (Phase 1 checkpoint, orchestrator-run — a gate task, no imple
   measurement running against a STALE IMAGE, exactly M13c's e2e mistake — and (3) `ls graphify-out`
   reporting "No such file" from inside backend/ when it exists at the root and is gitignored.
   Every one looked like a real finding. Prefix gate commands with an absolute `cd`.
+
+Task 8 — login: BUILT AND REVIEWED, **NOT CLOSED** (commits d6b65f9..ad954e5)
+  655026e build · 30a07ad review fixes · ad954e5 card layout + a real bug fix. 271/271, prod build
+  clean, hex gate empty.
+  SHAPED WITH THE USER FIRST, which is the half of design law §16 no milestone had ever run: three
+  question rounds via /impeccable shape, brief at .superpowers/sdd/task-8-shape.md. Panel copy
+  "Rx · as prescribed / Today's board is already up.", Google icon-only, "Create a box account"
+  DROPPED because it routes to a signup that dead-ends (verified: that account lands on the box
+  picker reading "No memberships yet").
+  THE LIBRARY COULD NOT ANSWER THE QUESTION IT WAS ASKED. User asked for evidence from
+  docs/design-md/ on login-form conventions. Measured across all 74 systems: ZERO mention "forgot
+  password", exactly ONE mentions login forms (wired, only that its corners are square). They are
+  marketing-site extractions — input STYLING, not auth-form COMPOSITION. Decided instead from
+  convention among the tools product.md names as the bar. Worth knowing before anyone else plans to
+  mine that library for product-UI rules.
+  TWO IMPORTANT REVIEW FINDINGS, BOTH MEASURED IN A BROWSER, BOTH FIXED IN 30a07ad:
+   - `Forgot?` was positioned absolutely over bh-field (no label-row slot existed). At 320px with
+     Spanish strings at 200% TEXT RESIZE: 139px OVERLAP, both strings unreadable — a WCAG 1.4.4 AA
+     failure, which design law §11 makes binding. Fixed properly: bh-field gained an optional
+     projected label-row action slot laid out with FLEXBOX, so overlap is impossible BY
+     CONSTRUCTION rather than by tuning. Overlap now 0.
+   - data-testid="login-google" landed on the bh-button HOST, not the inner <a>. bh-field,
+     bh-select and bh-data-table all got a testId input in M13c; bh-button never did. It only
+     worked by accident of href being a static attribute. bh-button now has testId, bound on BOTH
+     the button and anchor branches.
+  A REAL LAYOUT BUG THE USER CAUGHT BY EYE, ORCHESTRATOR'S OWN, FROM TASK 3: at 1440 the split
+  panel started at x=208 with 208px of dead ground each side. Cause — `.wrap` set
+  `justify-content: center` for the COLUMN axis; the >=720px block flipped flex-direction to row
+  and re-declared everything EXCEPT justify-content, which then centred on the HORIZONTAL axis.
+  THE STRUCTURAL LESSON: the centring and the axis-flip were on the same element. Fixed by moving
+  the direction onto a new inner `.card`, so `.wrap` no longer owns a direction to flip and the
+  bug cannot recur. Regression spec added that fails against the pre-fix markup.
+  DESIGN CHANGE, user-chosen from two live-rendered options: the split is now a BOUNDED CARD
+  (760px, min-height 480, hairline + --r-card, panel 46% in --surface, no dividing rule) rather
+  than a full-height slab. min-height NOT height, so login's tallest state (alert + resend + resend
+  error) grows instead of clipping.
+  CSP CONFIRMED WORKING, incidentally: injecting a <style> element to probe layout was REFUSED —
+  style-src is 'self' + nonce. Had to drive the CSSOM instead.
+  ** STILL OWED: /impeccable critique. All three critique agents died on "You've hit your session
+  limit · resets 8pm (Europe/Rome)". The screen has had a CODE review, not a DESIGN critique, so
+  per the per-screen cycle Task 8 is NOT done. Re-run before Task 9. **
