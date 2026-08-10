@@ -1025,9 +1025,15 @@ Expected: all zero bytes.
 - [ ] **Step 5: Push and check CI**
 
 ```bash
-git push
-gh run list --limit 2
+git push -u origin m13d-auth-account-screens
+gh run list --branch m13d-auth-account-screens --limit 3
 ```
+
+**Expect ZERO runs, and that is correct here.** `.github/workflows/ci.yml` triggers on
+`push: branches: [main]` and on `pull_request` — a feature-branch push queues nothing. This
+milestone's work is therefore verified on Linux CI only when a PR is opened or the branch merges,
+which is Task 21's business. Do not read the empty list as the silent-drop failure the hand-off
+describes; that one was a push **to main** producing no run.
 
 **A local green is not the gate.** Three M11 failures appeared only on Linux CI, and one had been failing silently since M10's push, unnoticed for six days while the hand-off claimed CI was green. Also compare any red against `main`'s pre-existing signature before blaming it on this work.
 

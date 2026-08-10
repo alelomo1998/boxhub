@@ -1323,3 +1323,23 @@ component cannot avoid the gallery's exhaustive-list test), Task 5 (a signature 
 Mockito callers), Task 6 twice. Every one was caught by an executor stopping. Grepping for
 dependents BEFORE writing the brief turned Task 6's first gap from an escalation into a correction
 shipped with the brief; do that by default.
+
+Task 7: complete (Phase 1 checkpoint, orchestrator-run — a gate task, no implementation)
+  frontend 259/259 · production build exit 0 with ZERO budget warnings · backend 432/0/0 ·
+  e2e 35 passed + 1 skipped at retries:0 on a `down -v` REBUILT stack · all four ui/ standing
+  greps empty · legacy form-class count still 53 (correct — Phase 2 does that work) · Phase 2's
+  own targets still 21 legacy classes and 11 Eager pins across the eleven screens, untouched.
+  The 1 skip is the quarantined TV/SSE defect (Project 2). Not investigated, per scope.
+  PLAN CORRECTED, MEASURED NOT ASSUMED: backend is 432, not the 431 the plan predicted — Task 6
+  added TWO AppUrls cases (base-prefixed and empty-base).
+  PLAN CORRECTED AGAIN — CI: step 5 said "push and check CI". `.github/workflows/ci.yml` triggers
+  on `push: branches: [main]` and on `pull_request`, so pushing a FEATURE BRANCH queues NOTHING.
+  Zero runs here is correct and is NOT the silent-drop failure the hand-off documents — that one
+  was a push TO MAIN producing no run. This branch gets Linux CI only at PR or merge (Task 21).
+  ENVIRONMENT TRAP, HIT THREE TIMES IN ONE SESSION, WORTH PROMOTING: **Bash cwd PERSISTS between
+  tool calls in this harness.** It produced (1) a whole gate block reporting zero matches because
+  `grep -rn pat $D` got one nonexistent path, (2) `docker compose -f docker/docker-compose.yml`
+  exiting 1 on a relative path from inside frontend/ — which would have left the next browser
+  measurement running against a STALE IMAGE, exactly M13c's e2e mistake — and (3) `ls graphify-out`
+  reporting "No such file" from inside backend/ when it exists at the root and is gitignored.
+  Every one looked like a real finding. Prefix gate commands with an absolute `cd`.
