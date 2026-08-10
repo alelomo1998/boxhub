@@ -1173,3 +1173,20 @@ Task 1: complete (commits e906764..6a2d932, review clean — spec PASS, quality 
   DEVIATION ACCEPTED: select.component.spec.ts's existing Host had no [error] binding (field's
   did), so the executor added one to drive the mirrored remount test. Inside an authorized file,
   defaults unchanged, no existing assertion touched.
+
+Task 2: complete (commits 4a10f75..5a62baa, review clean — spec PASS, quality PASS)
+  bh-button gains `href`: set, it renders <a> with the identical .btn classes; unset, the
+  <button> is unchanged. Two consumers coming (Continue-with-Google on login + signup), each
+  today a hand-rolled anchor with ~10 duplicated CSS lines. routerLink support deliberately NOT
+  added — no consumer for it in M13d.
+  THE TRAP, AVOIDED RATHER THAN DEBUGGED: <ng-content /> projects ONCE, statically. Two @if
+  branches each holding their own <ng-content /> leaves one silently EMPTY. Template declares it
+  once in <ng-template #body> and renders it per branch via ngTemplateOutlet.
+  WORTH KEEPING, from the reviewer: projection resolves by TEMPLATE ORDER, not by which branch is
+  active. The anchor branch is written first, so a regression to duplicated <ng-content /> would
+  starve the SECOND one — the ordinary <button> — and the `PlainHost` half of the "projects its
+  content in BOTH modes" spec is exactly what fails. The negative control points the right way.
+  No new CSS beyond `a.btn { text-decoration: none; }`: :disabled never matches <a>, so the
+  existing :not(:disabled) hover/active rules apply naturally and the disabled/busy rules
+  naturally never fire. 254/254. Production build clean — which is what proves all 32 existing
+  bh-button call sites still compile.
