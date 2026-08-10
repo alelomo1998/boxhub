@@ -11,7 +11,25 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--volt); text-decoration: none; }
+/* Links are not primary actions. Volt means live / now / primary / winning (law §2.3) and is
+   reserved for the ONE control that answers a screen's question — spending it on every anchor put
+   FOUR volt elements on the login screen where the law allows one (the M13c critique measured it:
+   the Log in button, correctly, plus Forgot password, Create a box account and Start your box).
+   Because it lived in a bare `a` selector it was not one screen's mistake, it was the default
+   everywhere.
+
+   The underline is not decoration: it replaces colour as the affordance, so WCAG 1.4.1 (Use of
+   Colour) still holds. Removing one without adding the other would trade a design-law bug for an
+   accessibility one. */
+a { color: var(--bone); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Navigation is not prose. The underline above is the affordance for a link sitting INSIDE a
+   sentence; on a nav item it is noise, and it regressed every shell the moment the base rule
+   changed — measured in a browser across the admin surface, where side-nav items and half the
+   dock came back underlined while the half carrying a local `text-decoration: none` did not.
+   Structural selector on purpose: both the admin side nav and `bh-dock` render a real <nav>, so
+   this scopes correctly without editing screens that other milestones own. */
+nav a { text-decoration: none; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 ::selection { background: var(--volt); color: var(--on-volt); }
 
