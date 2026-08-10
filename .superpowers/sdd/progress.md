@@ -1257,3 +1257,29 @@ Task 4: complete (commit c23c6b8, orchestrator-implemented — one CSS rule is t
   path. Bash cwd persists between calls in this harness. Caught only because the exit code was
   checked — otherwise the next measurement would have run against a STALE IMAGE, which is exactly
   how M13c's e2e once reported 28 passed.
+
+Task 5: complete (commits 561f065..49468ea, review clean after one fix — spec PASS, quality PASS)
+  Accept-Language now reaches the self-serve box owner: AuthController.signupBox ->
+  BoxSignupService.signup -> BoxSignupTx.createOwnerAndBox -> RegisterTx.insertUser. Reuses the
+  existing primaryLanguageTag() rather than writing a second parser. 430/0/0.
+  ESCALATION #3, AND THE ORCHESTRATOR'S BRIEF WAS WRONG A THIRD TIME: the brief named three
+  production files and forgot that CHANGING A SIGNATURE MOVES ITS CALLERS. BoxSignupRetryTest is a
+  Mockito unit test calling both changed signatures — two service.signup(...) and four
+  tx.createOwnerAndBox(...) stubs/verifies — so test-compile failed with 6 errors. Authorized as
+  ARITY ONLY: a 7th any(), and null as the 5th signup argument. That test pins the retry BOUND
+  (3-attempt dive, SIGNUP_RETRY 503) and not one times()/never()/assertion moved.
+  null rather than "en" on purpose: null is what a header-less request actually produces, and
+  hardcoding "en" would assert a value that test has no opinion about.
+  IMPORTANT REVIEW FINDING, FIXED IN 49468ea — THE SECOND TEST-THAT-CANNOT-FAIL THIS MILESTONE:
+  selfServeOwnerFallsBackToEnglishWithNoHeader passed against the OLD code too. Old path:
+  insertUser(..., "en") hardcoded -> "en". New path: no header -> null -> RegisterTx:42 maps to
+  "en". Both produce "en", so it cannot discriminate the defect at all; only
+  selfServeOwnerGetsTheBrowsersLanguage does. The test body was the orchestrator's brief verbatim.
+  KEPT rather than deleted — it genuinely pins that threading a parameter through three files did
+  not break the header-less default — but RENAMED to
+  headerlessSignupStillDefaultsToEnglishAfterTheLocaleRefactor with a comment stating what it does
+  not prove. Same resolution as Task 3's wordmark count: FIX THE CLAIM, NOT THE ASSERTION.
+  Reviewer also noted the null 5th arg in BoxSignupRetryTest is inert plumbing — tx is a mock, so
+  RegisterTx's fallback is never actually reached there. True; it satisfies arity and nothing more.
+  Clean on the high-risk axes: no tenancy change, no transaction-boundary move, no mail/audit
+  ordering change, AuthzConformanceTest untouched, no Flyway. Next migration stays V19.
