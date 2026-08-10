@@ -24,11 +24,10 @@ import { AuthLayoutComponent } from '../../ui/auth-layout.component';
                    name="email" autocomplete="username" [required]="true" [(value)]="email"
                    placeholder="you@email.com" i18n-placeholder="@@auth.login.email.placeholder" />
 
-        <div class="pwd-wrap">
-          <bh-field label="PASSWORD" i18n-label="@@auth.login.password.label" type="password"
-                     name="password" autocomplete="current-password" [required]="true" [(value)]="password" />
-          <a class="forgot" routerLink="/auth/forgot" i18n="@@auth.login.forgot">Forgot?</a>
-        </div>
+        <bh-field label="PASSWORD" i18n-label="@@auth.login.password.label" type="password"
+                   name="password" autocomplete="current-password" [required]="true" [(value)]="password">
+          <a labelAction class="forgot" routerLink="/auth/forgot" i18n="@@auth.login.forgot">Forgot?</a>
+        </bh-field>
 
         @if (error()) {
           <bh-alert tone="danger" data-testid="login-error">{{ error() }}</bh-alert>
@@ -60,7 +59,7 @@ import { AuthLayoutComponent } from '../../ui/auth-layout.component';
           <div class="divider"><span i18n="@@auth.login.divider">OR CONTINUE WITH</span></div>
           <bh-button class="full" variant="ghost" href="/oauth2/authorization/google"
                      label="Continue with Google" i18n-label="@@auth.login.google.label"
-                     data-testid="login-google">
+                     testId="login-google">
             <img src="google-mark.svg" alt="" width="18" height="18" />
           </bh-button>
         }
@@ -75,8 +74,7 @@ import { AuthLayoutComponent } from '../../ui/auth-layout.component';
   styles: [`
     .headline { font-size: var(--fs-display); margin: var(--sp-2) 0 0; }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); }
-    .pwd-wrap { position: relative; }
-    .forgot { position: absolute; top: 0; right: 0; font-size: var(--fs-meta); }
+    .forgot { font-size: var(--fs-meta); }
     .divider { display: flex; align-items: center; gap: var(--sp-3); }
     .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--hairline); }
     .divider span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;

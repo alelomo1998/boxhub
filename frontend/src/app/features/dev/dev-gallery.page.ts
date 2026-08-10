@@ -181,6 +181,12 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
             <bh-field label="Box name" i18n-label="@@dev.gallery.field.label" value="CrossFit Riverside" [disabled]="true" />
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.field.state.withAction">With label action</span>
+            <bh-field label="PASSWORD" i18n-label="@@dev.gallery.field.passwordLabel">
+              <a labelAction href="#" i18n="@@dev.gallery.field.actionLabel">Forgot?</a>
+            </bh-field>
+          </div>
         </div>
         <p class="note" i18n="@@dev.gallery.field.note.hoverFocus">
           Hover and focus aren't shown statically — hover on an enabled field lightens the border to

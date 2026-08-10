@@ -27,12 +27,34 @@ class TestIdHost {}
 })
 class AttrHost {}
 
+@Component({
+  standalone: true,
+  imports: [FieldComponent],
+  template: `<bh-field label="Email"><a labelAction data-testid="action">Forgot?</a></bh-field>`,
+})
+class ActionHost {}
+
+@Component({
+  standalone: true,
+  imports: [FieldComponent],
+  // Long, narrow-width, locale-length strings — reproduces the 320px/200%-zoom/Spanish
+  // conditions that caught the original absolute-positioning overlap.
+  template: `<div style="width: 320px">
+    <bh-field label="CONTRASEÑA">
+      <a labelAction data-testid="action" style="font-size: 12px">¿Olvidaste tu contraseña?</a>
+    </bh-field>
+  </div>`,
+})
+class OverlapHost {}
+
 describe('FieldComponent', () => {
   let f: any;
   const input = (): HTMLInputElement => f.nativeElement.querySelector('input');
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [Host, TestIdHost, AttrHost] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [Host, TestIdHost, AttrHost, ActionHost, OverlapHost],
+    }).compileComponents();
     f = TestBed.createComponent(Host);
     f.detectChanges();
   });
@@ -125,5 +147,51 @@ describe('FieldComponent', () => {
     expect(input().getAttribute('name')).toBeNull();
     expect(input().getAttribute('autocomplete')).toBeNull();
     expect(input().required).toBe(false);
+  });
+
+  it('projects a labelAction element into the label row, beside the label', () => {
+    const g = TestBed.createComponent(ActionHost);
+    g.detectChanges();
+    const row: HTMLElement = g.nativeElement.querySelector('.lab-row');
+    expect(row).toBeTruthy();
+    const label = row.querySelector('label');
+    const action = row.querySelector('[data-testid="action"]');
+    expect(label).toBeTruthy();
+    expect(action).toBeTruthy();
+    expect(action!.textContent).toContain('Forgot?');
+    // Both land as children of the same flex row, not one absolutely positioned over the field.
+    expect(label!.parentElement).toBe(row);
+    expect(action!.parentElement).toBe(row);
+  });
+
+  it('renders the label row with only the label when nothing is projected into labelAction', () => {
+    // Nothing is projected in the default Host fixture — an empty <ng-content> must not leave a
+    // stray node (and therefore no stray flex gap) behind.
+    const row: HTMLElement = f.nativeElement.querySelector('.lab-row');
+    expect(row).toBeTruthy();
+    expect(row.children.length).toBe(1);
+    expect(row.children[0].tagName).toBe('LABEL');
+  });
+
+  it('never overlaps the label and a projected action, even at long locale-length strings in a ' +
+     'narrow container — the flex row guarantees disjoint boxes, it is not a tuned pixel value', () => {
+    const g = TestBed.createComponent(OverlapHost);
+    // Real layout requires the element to be in the document — Angular does not attach fixtures
+    // to the DOM by default, and getBoundingClientRect on a detached node is meaningless.
+    document.body.appendChild(g.nativeElement);
+    g.detectChanges();
+
+    const label = g.nativeElement.querySelector('label') as HTMLElement;
+    const action = g.nativeElement.querySelector('[data-testid="action"]') as HTMLElement;
+    const l = label.getBoundingClientRect();
+    const a = action.getBoundingClientRect();
+
+    // Disjoint on at least one axis — the only way two boxes in a flex row (or a row that has
+    // wrapped) can legitimately relate. Overlap on both axes is exactly what Finding 1 measured
+    // (139px of horizontal overlap from `position: absolute`).
+    const disjoint = l.right <= a.left || a.right <= l.left || l.bottom <= a.top || a.bottom <= l.top;
+    expect(disjoint).toBeTrue();
+
+    document.body.removeChild(g.nativeElement);
   });
 });

@@ -21,13 +21,13 @@ import { NgTemplateOutlet } from '@angular/common';
            no href at all, losing ctrl/cmd-click, open-in-new-tab and the correct role. Two real
            consumers: the Google control on login and on signup. -->
       <a [href]="href()" [class]="'btn ' + variant() + ' ' + size()"
-         [attr.aria-label]="label() || null">
+         [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
         <ng-container [ngTemplateOutlet]="body" />
       </a>
     } @else {
       <button [type]="type()" [class]="'btn ' + variant() + ' ' + size()"
               [disabled]="disabled() || loading()" [attr.aria-busy]="loading()"
-              [attr.aria-label]="label() || null">
+              [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
         @if (loading()) { <span class="spin" aria-hidden="true"></span> }
         @if (!(loading() && variant() === 'icon')) { <ng-container [ngTemplateOutlet]="body" /> }
       </button>
@@ -86,4 +86,5 @@ export class ButtonComponent {
   /** Set to render an <a> instead of a <button>. For real navigation only — an OAuth start, an
    *  external destination. Internal navigation is a text link with routerLink, not this. */
   href = input('');
+  testId = input('');
 }

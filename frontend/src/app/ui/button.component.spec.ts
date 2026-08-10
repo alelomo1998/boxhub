@@ -108,9 +108,25 @@ class LinkHost {}
 })
 class PlainHost {}
 
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button testId="login-google" href="/oauth2/authorization/google">Google</bh-button>`,
+})
+class TestIdLinkHost {}
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button testId="save-btn">Save</bh-button>`,
+})
+class TestIdButtonHost {}
+
 describe('ButtonComponent as a link', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [LinkHost, PlainHost] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [LinkHost, PlainHost, TestIdLinkHost, TestIdButtonHost],
+    }).compileComponents();
   });
 
   it('renders an anchor with a real href when href is set', () => {
@@ -142,5 +158,27 @@ describe('ButtonComponent as a link', () => {
     f.detectChanges();
     expect(f.nativeElement.querySelector('button')).toBeTruthy();
     expect(f.nativeElement.querySelector('a')).toBeNull();
+  });
+
+  it('puts testId on the inner anchor, never the host, in link mode', () => {
+    const f = TestBed.createComponent(TestIdLinkHost);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a.getAttribute('data-testid')).toBe('login-google');
+    // An attribute written on a component's host does not reach the element inside it — the
+    // failure this fixes (CLAUDE.md, four prior fixes on bh-field/bh-select/bh-data-table).
+    expect(f.nativeElement.getAttribute('data-testid')).toBeNull();
+  });
+
+  it('puts testId on the inner button, never the host, in button mode, and omits it when unset', () => {
+    const f = TestBed.createComponent(TestIdButtonHost);
+    f.detectChanges();
+    const btn: HTMLButtonElement = f.nativeElement.querySelector('button');
+    expect(btn.getAttribute('data-testid')).toBe('save-btn');
+    expect(f.nativeElement.getAttribute('data-testid')).toBeNull();
+
+    const plain = TestBed.createComponent(PlainHost);
+    plain.detectChanges();
+    expect(plain.nativeElement.querySelector('button').getAttribute('data-testid')).toBeNull();
   });
 });

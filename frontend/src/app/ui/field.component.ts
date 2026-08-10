@@ -15,7 +15,10 @@ let seq = 0;
   standalone: true,
   template: `
     <div class="field">
-      <label class="lab" [attr.for]="id">{{ label() }}</label>
+      <div class="lab-row">
+        <label class="lab" [attr.for]="id">{{ label() }}</label>
+        <ng-content select="[labelAction]" />
+      </div>
       <input class="input" [id]="id" [type]="type()" [value]="value()"
              [attr.name]="name() || null"
              [attr.autocomplete]="autocomplete() || null"
@@ -31,6 +34,7 @@ let seq = 0;
     </div>`,
   styles: [`
     .field { display: flex; flex-direction: column; gap: var(--sp-1); }
+    .lab-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2); }
     .lab { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--faint); }
     .input { background: var(--surface-2); border: 1px solid var(--hairline);
