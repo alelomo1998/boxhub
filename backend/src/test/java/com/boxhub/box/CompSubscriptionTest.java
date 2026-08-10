@@ -136,7 +136,8 @@ class CompSubscriptionTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .content("{\"email\":\"" + email + "\",\"role\":\"ATHLETE\"}"))
                 .andReturn().getResponse().getContentAsString();
-        String token = om.readTree(body).get("link").asText().substring("/join/".length());
+        String link = om.readTree(body).get("link").asText();
+        String token = link.substring(link.lastIndexOf('/') + 1);
 
         User joiner = authService.register(email, "correct-horse-battery", "Joiner");
         String userToken = tokenService.userToken(joiner);

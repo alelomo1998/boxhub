@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 /**
  * The single place that knows where rxed's URLs point.
  *
- * Two methods, deliberately named so the choice is obvious at every call site:
+ * Three methods, deliberately named so the choice is obvious at every call site:
  *
  *  - {@link #appLink} — the Angular application, which lives under {@code boxhub.app-base}
  *    (default {@code /app}). Emailed links and the Stripe return URLs use this.
@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
  *    because nginx proxies /login/oauth2/ at the root and Google matches redirect_uri against a
  *    console registration. Prefixing it breaks Google SSO in production and nowhere else, which
  *    is the bug M12c fixed on 2026-07-29.
+ *  - {@link #appPath} — the app base plus a path, no origin. For responses a client will prefix
+ *    with its own origin; returning {@link #appLink} there would produce origin+origin.
  */
 @Component
 public class AppUrls {
@@ -35,5 +37,12 @@ public class AppUrls {
     /** The bare server origin, with no app base. For the OAuth2 redirect-uri only. */
     public String origin() {
         return origin;
+    }
+
+    /** Path into the Angular app WITHOUT an origin, e.g. appPath("/join/abc") -> "/app/join/abc".
+     *  For responses a client will prefix with its own origin. Returning appLink() there would
+     *  produce origin+origin. */
+    public String appPath(String path) {
+        return base + path;
     }
 }

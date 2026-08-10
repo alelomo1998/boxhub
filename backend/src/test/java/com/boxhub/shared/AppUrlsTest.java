@@ -37,4 +37,16 @@ class AppUrlsTest {
         AppUrls urls = new AppUrls("https://boxhub.example", "");
         assertThat(urls.appLink("/membership")).isEqualTo("https://boxhub.example/membership");
     }
+
+    @Test
+    void appPathCarriesTheAppBaseButNoOrigin() {
+        AppUrls urls = new AppUrls("https://boxhub.example", "/app");
+        assertThat(urls.appPath("/join/abc")).isEqualTo("/app/join/abc");
+    }
+
+    @Test
+    void appPathWithAnEmptyAppBaseIsJustThePath() {
+        AppUrls urls = new AppUrls("https://boxhub.example", "");
+        assertThat(urls.appPath("/join/abc")).isEqualTo("/join/abc");
+    }
 }

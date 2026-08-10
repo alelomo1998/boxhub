@@ -41,7 +41,10 @@ class InviteAdminApiTest extends AbstractIntegrationTest {
     // doesn't order multiple @BeforeEach methods by declaration — so it's one method.
     @BeforeEach
     void setup() {
-        lenient().when(mailer.link(any())).thenAnswer(inv -> "https://boxhub.test" + inv.getArgument(0, String.class));
+        // Real Mailer.link() delegates to AppUrls.appLink(): origin + app-base + path. The stub
+        // must include the base too, or it silently disagrees with production and this class's
+        // mailed-link assertion (:113) passes for the wrong reason.
+        lenient().when(mailer.link(any())).thenAnswer(inv -> "https://boxhub.test/app" + inv.getArgument(0, String.class));
 
         long n = System.nanoTime();
         Box boxA = newBox("Inv Box A " + n, "inv-a-" + n);
@@ -79,9 +82,9 @@ class InviteAdminApiTest extends AbstractIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         String link = om.readTree(body).get("link").asText();
-        assertThat(link).startsWith("/join/");
+        assertThat(link).startsWith("/app/join/");
         // raw token not persisted: only its hash exists in DB
-        String raw = link.substring("/join/".length());
+        String raw = link.substring(link.lastIndexOf('/') + 1);
         assertThat(invites.findAll()).noneMatch(i -> raw.equals(i.getTokenHash()));
 
         mvc.perform(get("/api/box/invites").header("Authorization", "Bearer " + adminToken))

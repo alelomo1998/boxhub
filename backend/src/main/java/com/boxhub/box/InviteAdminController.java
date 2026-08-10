@@ -1,5 +1,6 @@
 package com.boxhub.box;
 
+import com.boxhub.shared.AppUrls;
 import com.boxhub.shared.Brand;
 import com.boxhub.shared.Mailer;
 import com.boxhub.shared.RoleGuard;
@@ -26,14 +27,16 @@ public class InviteAdminController {
     private final PlanRepository plans;
     private final BoxRepository boxes;
     private final Mailer mailer;
+    private final AppUrls appUrls;
 
     public InviteAdminController(InviteRepository invites, InviteService inviteService, PlanRepository plans,
-                                  BoxRepository boxes, Mailer mailer) {
+                                  BoxRepository boxes, Mailer mailer, AppUrls appUrls) {
         this.invites = invites;
         this.inviteService = inviteService;
         this.plans = plans;
         this.boxes = boxes;
         this.mailer = mailer;
+        this.appUrls = appUrls;
     }
 
     /** email redacted — Spring MVC logs the deserialized request body at DEBUG; see
@@ -74,7 +77,7 @@ public class InviteAdminController {
                 Map.of("boxName", box.getName(), "role", i.getRole(),
                         "link", mailer.link("/join/" + created.rawToken())));
         return new CreatedInviteResponse(i.getId(), i.getEmail(), i.getRole(), i.getPlanId(),
-                i.getExpiresAt(), "/join/" + created.rawToken());
+                i.getExpiresAt(), appUrls.appPath("/join/" + created.rawToken()));
     }
 
     @GetMapping
