@@ -952,7 +952,7 @@ Leave line 75's `mailer.link("/join/" + created.rawToken())` **exactly as it is*
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
 ```
 
-Expected: **431/0/0**.
+Expected: **432/0/0**.
 
 - [ ] **Step 5: Commit**
 
@@ -995,7 +995,7 @@ Expected: **259** passing; build exit 0 with **zero** budget warnings.
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
 ```
 
-Expected: **431/0/0**. Not concurrently with Step 1.
+Expected: **432/0/0**. Not concurrently with Step 1.
 
 - [ ] **Step 3: e2e on a rebuilt stack**
 
@@ -1415,7 +1415,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 - [ ] **Step 2: Full gate run**
 
-Repeat every step of Task 7, plus `./visual.sh` and `a11y.spec.ts`. Expected: frontend **≥259** plus every screen's specs, backend **431/0/0**, e2e **35 passed + 1 skipped** plus the new axe cases, visual **76**, build clean with zero budget warnings.
+Repeat every step of Task 7, plus `./visual.sh` and `a11y.spec.ts`. Expected: frontend **≥259** plus every screen's specs, backend **432/0/0**, e2e **35 passed + 1 skipped** plus the new axe cases, visual **76**, build clean with zero budget warnings.
 
 Then the milestone's own capped gate:
 
