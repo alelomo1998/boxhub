@@ -5,11 +5,14 @@ import { SelectComponent } from './select.component';
 @Component({
   standalone: true,
   imports: [SelectComponent],
-  template: `<bh-select label="Plan" [(value)]="v">
+  template: `<bh-select label="Plan" [(value)]="v" [error]="e()">
     <option value="a">A</option><option value="b">B</option>
   </bh-select>`,
 })
-class Host { v = signal('a'); }
+class Host {
+  v = signal('a');
+  e = signal<string | undefined>(undefined);
+}
 
 @Component({
   standalone: true,
@@ -30,12 +33,19 @@ class DynHost {
   opts = signal<string[]>([]);
 }
 
+@Component({
+  standalone: true,
+  imports: [SelectComponent],
+  template: `<bh-select label="Plan" name="plan" [required]="true"><option value=""></option></bh-select>`,
+})
+class AttrHost {}
+
 describe('SelectComponent', () => {
   let f: any;
   const sel = (): HTMLSelectElement => f.nativeElement.querySelector('select');
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [Host, TestIdHost, DynHost] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Host, TestIdHost, DynHost, AttrHost] }).compileComponents();
     f = TestBed.createComponent(Host);
     f.detectChanges();
   });
@@ -83,5 +93,40 @@ describe('SelectComponent', () => {
     dSel.dispatchEvent(new Event('change'));
     d.detectChanges();
     expect(d.componentInstance.v()).toBe('c');
+  });
+
+  it('re-announces a SECOND, different error by remounting the alert node', () => {
+    f.componentInstance.e.set('Required');
+    f.detectChanges();
+    const first = f.nativeElement.querySelector('[role="alert"]');
+    expect(first.textContent).toContain('Required');
+
+    f.componentInstance.e.set('Invalid format');
+    f.detectChanges();
+    const second = f.nativeElement.querySelector('[role="alert"]');
+    expect(second.textContent).toContain('Invalid format');
+
+    // role="alert" announces reliably only on FRESH INSERTION, not when an already-mounted
+    // node's text changes (bh-alert's own JSDoc states this mechanism). @if only tears the node
+    // down across the falsy<->truthy boundary, so "Required" -> "Invalid format" mutated the SAME
+    // node and the second message was silent. Re-validation producing a second message is the
+    // normal case on eleven form screens, not an edge case.
+    expect(second).not.toBe(first);
+  });
+
+  it('puts name and required on the INNER select, never the host', () => {
+    const g = TestBed.createComponent(AttrHost);
+    g.detectChanges();
+    const gSel: HTMLSelectElement = g.nativeElement.querySelector('select');
+    expect(gSel.getAttribute('name')).toBe('plan');
+    expect(gSel.required).toBe(true);
+    // An attribute written on a component's host does not reach the element inside it — the
+    // failure that cost M13c four separate fixes.
+    expect(g.nativeElement.getAttribute('name')).toBeNull();
+  });
+
+  it('omits name entirely when unset', () => {
+    expect(sel().getAttribute('name')).toBeNull();
+    expect(sel().required).toBe(false);
   });
 });

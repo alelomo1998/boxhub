@@ -20,12 +20,19 @@ class Host {
 })
 class TestIdHost {}
 
+@Component({
+  standalone: true,
+  imports: [FieldComponent],
+  template: `<bh-field label="Email" name="email" autocomplete="username" [required]="true" />`,
+})
+class AttrHost {}
+
 describe('FieldComponent', () => {
   let f: any;
   const input = (): HTMLInputElement => f.nativeElement.querySelector('input');
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [Host, TestIdHost] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Host, TestIdHost, AttrHost] }).compileComponents();
     f = TestBed.createComponent(Host);
     f.detectChanges();
   });
@@ -80,5 +87,43 @@ describe('FieldComponent', () => {
     const gInput: HTMLInputElement = g.nativeElement.querySelector('input');
     expect(gInput.getAttribute('data-testid')).toBe('email-field');
     expect(g.nativeElement.getAttribute('data-testid')).toBeNull();
+  });
+
+  it('re-announces a SECOND, different error by remounting the alert node', () => {
+    f.componentInstance.e.set('Required');
+    f.detectChanges();
+    const first = f.nativeElement.querySelector('[role="alert"]');
+    expect(first.textContent).toContain('Required');
+
+    f.componentInstance.e.set('Invalid format');
+    f.detectChanges();
+    const second = f.nativeElement.querySelector('[role="alert"]');
+    expect(second.textContent).toContain('Invalid format');
+
+    // role="alert" announces reliably only on FRESH INSERTION, not when an already-mounted
+    // node's text changes (bh-alert's own JSDoc states this mechanism). @if only tears the node
+    // down across the falsy<->truthy boundary, so "Required" -> "Invalid format" mutated the SAME
+    // node and the second message was silent. Re-validation producing a second message is the
+    // normal case on eleven form screens, not an edge case.
+    expect(second).not.toBe(first);
+  });
+
+  it('puts name, autocomplete and required on the INNER input, never the host', () => {
+    const g = TestBed.createComponent(AttrHost);
+    g.detectChanges();
+    const gInput: HTMLInputElement = g.nativeElement.querySelector('input');
+    expect(gInput.getAttribute('name')).toBe('email');
+    expect(gInput.getAttribute('autocomplete')).toBe('username');
+    expect(gInput.required).toBe(true);
+    // An attribute written on a component's host does not reach the element inside it — the
+    // failure that cost M13c four separate fixes.
+    expect(g.nativeElement.getAttribute('name')).toBeNull();
+    expect(g.nativeElement.getAttribute('autocomplete')).toBeNull();
+  });
+
+  it('omits name and autocomplete entirely when unset', () => {
+    expect(input().getAttribute('name')).toBeNull();
+    expect(input().getAttribute('autocomplete')).toBeNull();
+    expect(input().required).toBe(false);
   });
 });
