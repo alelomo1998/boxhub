@@ -1190,3 +1190,36 @@ Task 2: complete (commits 4a10f75..5a62baa, review clean — spec PASS, quality 
   existing :not(:disabled) hover/active rules apply naturally and the disabled/busy rules
   naturally never fire. 254/254. Production build clean — which is what proves all 32 existing
   bh-button call sites still compile.
+
+Task 3: complete (commits 19fa905..6ddc6d4, review clean after one fix — spec PASS, quality PASS)
+  bh-auth-layout: one markup tree, layout switched by CSS on [data-variant]. split (panel beside
+  the form above 720px) for the four screens a stranger arrives at from outside; narrow for the
+  six mid-flow ones. Panel content renders in BOTH variants — base CSS is column with .panel
+  before .body in DOM order, so it needs no override to sit above the form; only split's desktop
+  reflow is an addition. 259/259, build clean, four ui/ greps empty.
+
+  ESCALATION #2, AND THE ORCHESTRATOR'S BRIEF WAS WRONG AGAIN: the brief named three files. A
+  NINETEENTH ui/ component cannot avoid a fourth — dev-gallery.page.spec.ts asserts an EXHAUSTIVE
+  sorted list of gallery sections, so it fails until the new section is declared. That is the
+  gallery-is-the-contract rule being enforceable rather than aspirational. Executor stopped instead
+  of editing an unauthorized file; orchestrator verified the list and authorized it.
+
+  IMPORTANT REVIEW FINDING, FIXED IN 6ddc6d4 — A TEST THAT COULD NOT FAIL, THE THIRD OF ITS KIND
+  IN THIS REPO (after M11's conformance sweep and M13b's font guard): the spec named "renders the
+  wordmark once, NOT ONCE PER VARIANT BRANCH" cannot detect that. @if/@else are mutually
+  exclusive, so a component rewritten with duplicated per-branch markup still renders exactly one
+  <main> and one <bh-wordmark> — both counts are invariant across the wanted AND the unwanted
+  implementation. Inherited verbatim from the orchestrator's brief.
+  The fix was the CLAIM, not the assertion, and that reasoning is worth carrying: single-markup-
+  tree is a MAINTAINABILITY property and no behavioural test can see it. Inventing a cleverer
+  assertion would have manufactured false confidence. Both tests keep real value — two <main>s is
+  a broken landmark structure, two wordmarks duplicate the accessible name, which is the exact bug
+  M13b shipped as "rxedrxed". The spec file now states in a comment what the tests do and do not
+  protect.
+  MINOR, also fixed: the shared .wrap rule's comment said narrow "needs no rules at all" while
+  that rule is load-bearing for it; redundant align-items:stretch (the flexbox default) dropped.
+  NOT DEFECTS — two errors in the ORCHESTRATOR'S REVIEW BRIEF, caught by the reviewer: (a) it said
+  the component may render no volt at all, but <bh-wordmark variant="hero"> fills volt behind
+  "ed", and spec §2.3/§3 explicitly decide that the brand highlighter is not an accent and is
+  rendered in both variants; (b) its permitted-px inventory omitted max-width 420px, which is this
+  codebase's existing form-column width (box-picker, settings, subscriptions, box-stripe).
