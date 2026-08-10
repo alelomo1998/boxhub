@@ -37,7 +37,12 @@ import { WordmarkComponent } from './wordmark.component';
       <div class="card">
         <div class="panel">
           <bh-wordmark variant="hero" size="md" />
-          <div class="panel-copy"><ng-content select="[panel]" /></div>
+          <!-- Projected panel blocks are DIRECT children of .panel, deliberately unwrapped: the
+               panel is space-between, so a screen projecting one block gets wordmark-top /
+               copy-bottom, and a screen projecting two (login: a benchmark board and its headline)
+               gets three distributed zones. Wrapping them in a container collapses them back into
+               one flex child and the distribution is lost. -->
+          <ng-content select="[panel]" />
         </div>
         <div class="body"><ng-content /></div>
       </div>
@@ -54,7 +59,6 @@ import { WordmarkComponent } from './wordmark.component';
     .card { display: flex; flex-direction: column; width: 100%; max-width: 420px;
       gap: var(--sp-6); }
     .panel { display: flex; flex-direction: column; gap: var(--sp-6); }
-    .panel-copy { display: flex; flex-direction: column; gap: var(--sp-2); }
     .body { display: flex; flex-direction: column; gap: var(--sp-4); }
 
     /* 720px is this codebase's breakpoint — 8 uses of max-width:720px, 6 of 719px, 1 of

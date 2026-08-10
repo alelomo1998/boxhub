@@ -37,17 +37,22 @@ function randomBenchmark(): Benchmark {
   imports: [RouterLink, ButtonComponent, FieldComponent, AlertComponent, AuthLayoutComponent],
   template: `
     <bh-auth-layout variant="split">
-      <div panel>
-        <div class="benchmark" data-testid="login-benchmark">
-          <p class="t-eyebrow benchmark-label">
-            <span i18n="@@auth.login.benchmarkLabel">Benchmark</span> {{ benchmark.name }}
-          </p>
-          <p class="benchmark-scheme">{{ benchmark.scheme }}</p>
-          @for (line of benchmark.movements; track line) {
-            <p class="benchmark-line">{{ line }}</p>
-          }
-        </div>
+      <!-- TWO projected blocks, not one. bh-auth-layout's panel is space-between, so projecting
+           the board and the headline separately distributes wordmark / board / headline across the
+           panel's height. Wrapping them in a single div collapses them into one flex child and the
+           board slides down to sit on the headline, leaving a 181px void under the wordmark —
+           measured, and the reason this markup looks the way it does. -->
+      <div panel class="benchmark" data-testid="login-benchmark">
+        <p class="t-eyebrow benchmark-label">
+          <span i18n="@@auth.login.benchmarkLabel">Benchmark</span> {{ benchmark.name }}
+        </p>
+        <p class="benchmark-scheme">{{ benchmark.scheme }}</p>
+        @for (line of benchmark.movements; track line) {
+          <p class="benchmark-line">{{ line }}</p>
+        }
+      </div>
 
+      <div panel>
         <p class="t-eyebrow" i18n="@@auth.login.panel.eyebrow">Rx · as prescribed</p>
         <h1 class="headline t-display" i18n="@@auth.login.panel.headline">Today's board is already up.</h1>
       </div>
@@ -105,7 +110,8 @@ function randomBenchmark(): Benchmark {
     </bh-auth-layout>
   `,
   styles: [`
-    .benchmark { margin: 0 0 var(--sp-6); font-family: var(--font-mono);
+    /* No bottom margin: the panel's space-between owns the gaps now. */
+    .benchmark { margin: 0; font-family: var(--font-mono);
       font-variant-numeric: tabular-nums; }
     .benchmark p { margin: 0; }
     .benchmark-label { margin-bottom: var(--sp-2); }
