@@ -93,3 +93,54 @@ describe('ButtonComponent', () => {
     expect(btn().getAttribute('aria-busy')).toBe('false');
   });
 });
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button href="/oauth2/authorization/google">Continue with Google</bh-button>`,
+})
+class LinkHost {}
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button>Log in</bh-button>`,
+})
+class PlainHost {}
+
+describe('ButtonComponent as a link', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [LinkHost, PlainHost] }).compileComponents();
+  });
+
+  it('renders an anchor with a real href when href is set', () => {
+    const f = TestBed.createComponent(LinkHost);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a).toBeTruthy();
+    expect(a.getAttribute('href')).toBe('/oauth2/authorization/google');
+    expect(f.nativeElement.querySelector('button')).toBeNull();
+    // Same visual contract as the button it replaces.
+    expect(a.className).toContain('btn');
+  });
+
+  it('projects its content in BOTH modes', () => {
+    // <ng-content> projects once, statically. Two @if branches each containing their own
+    // <ng-content> silently leaves one of them empty. This assertion is the reason the template
+    // declares it once in an <ng-template>.
+    const link = TestBed.createComponent(LinkHost);
+    link.detectChanges();
+    expect(link.nativeElement.textContent).toContain('Continue with Google');
+
+    const plain = TestBed.createComponent(PlainHost);
+    plain.detectChanges();
+    expect(plain.nativeElement.textContent).toContain('Log in');
+  });
+
+  it('still renders a button when href is unset', () => {
+    const f = TestBed.createComponent(PlainHost);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('button')).toBeTruthy();
+    expect(f.nativeElement.querySelector('a')).toBeNull();
+  });
+});
