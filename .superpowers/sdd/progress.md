@@ -1483,3 +1483,21 @@ Task 8 — CRITIQUE RE-RUN AFTER THE FIXES: **36/40, no open P0/P1 — §16 gate
   <20ms, faster than the poll), 429 copy (25 rapid POSTs never tripped the dev limit), the
   box-unavailable 403 arm (no seeded suspended box), and the Google-absent state (providers always
   returns true in this env).
+
+  AA PLACEHOLDER FIX (4c3f6e5), taken rather than filed because it was systemic and cheap:
+  bh-field and bh-search-bar placeholders moved --faint -> --bone-dim (an existing token; the
+  --faint token itself was NOT touched, since it is used widely on --ground/--surface where it is
+  fine, and changing it would repaint the product). Measured by the orchestrator, not just the
+  executor: 4.27:1 -> 7.17:1 against --surface-2, with entered text at 14.46:1 — so the placeholder
+  still reads as clearly secondary rather than as content, which is the failure mode a naive
+  "make it brighter" fix would have introduced. bh-select has no ::placeholder and was correctly
+  left alone.
+  THE GENERAL LESSON, worth more than the fix: the token file documents --faint at 5.1:1, measured
+  against --ground. Placeholders sit on the INSET --surface-2, which is lighter, so the real ratio
+  was lower and nothing in the docs would ever have shown it. MEASURE CONTRAST AGAINST THE SURFACE
+  THE TEXT ACTUALLY SITS ON, never against --ground by default. --faint on --surface is already at
+  4.699:1 with no headroom, so this token is being used near its limit in more than one place.
+  274/274, build clean, hex gate empty.
+
+TASK 8 (login) IS CLOSED: shaped with the user, built, code-reviewed, four user-driven design
+iterations, critiqued 22 -> 36/40 with no open P0/P1, e2e 35 passed + 1 skipped on a down -v stack.
