@@ -220,6 +220,37 @@ describe('LoginPage', () => {
     expect(navSpy).toHaveBeenCalledWith('/auth/boxes');
   }));
 
+  it('clicking the submit button fires submit() and prevents the native GET-with-password-in-URL submit', () => {
+    // Regression for the P0: (ngSubmit) silently binds to nothing once FormsModule/NgForm is gone,
+    // so the earlier version of this suite — which called cmp.submit() directly, never dispatching
+    // a real DOM event — stayed green while the button was completely dead. This test only proves
+    // something if it exercises the actual click-to-submit path and checks defaultPrevented; a
+    // "handler ran" assertion alone would still pass on a page that also navigates away.
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const cmp = fixture.componentInstance;
+    spyOn(cmp, 'submit').and.callThrough();
+    cmp.email.set('a@b.io');
+    cmp.password.set('whatever12');
+    fixture.detectChanges();
+
+    const form: HTMLFormElement = fixture.nativeElement.querySelector('[data-testid="login-form"]');
+    let captured: Event | undefined;
+    form.addEventListener('submit', e => (captured = e));
+    const submitBtn: HTMLButtonElement = form.querySelector('button[type="submit"]')!;
+    submitBtn.click();
+
+    expect(cmp.submit).withContext('the component handler must run').toHaveBeenCalled();
+    expect(captured).withContext('a real submit event must reach the form').toBeDefined();
+    expect(captured!.defaultPrevented)
+      .withContext('preventDefault must fire, or the browser performs a native GET with the password in the URL')
+      .toBeTrue();
+
+    http.expectOne('/api/auth/login').flush({ detail: 'BAD_CREDENTIALS' }, { status: 401, statusText: 'Unauthorized' });
+  });
+
   it('a resend that 429s shows an error instead of failing silently', () => {
     const fixture = setup();
     fixture.detectChanges();

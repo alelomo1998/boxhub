@@ -60,8 +60,11 @@ import { NgTemplateOutlet } from '@angular/common';
 
     .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     /* A volt ring on the volt-filled primary is invisible — law §11.2, the single
-       highest-traffic control in the product. */
-    .btn.primary:focus-visible { outline-color: var(--focus-inv); }
+       highest-traffic control in the product. --focus-inv only reads against the volt surface
+       itself, so the ring has to sit ON that surface: a negative offset pulls it inside the
+       button instead of out onto --ground (identical to --focus-inv, which made the positive
+       offset invisible too). */
+    .btn.primary:focus-visible { outline-color: var(--focus-inv); outline-offset: -2px; }
 
     /* No gradient (law §2.4): the spinner is a ring with one transparent side. */
     .spin { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;

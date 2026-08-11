@@ -84,6 +84,37 @@ describe('ButtonComponent', () => {
     expect(btn().querySelector('.spin')).not.toBeNull();
   });
 
+  it('the primary variant draws its focus ring inside the button, not outside it', () => {
+    // What this CAN prove: the primary variant's :focus-visible rule carries a different
+    // outline-offset geometry than the default rule (negative vs. positive) — the actual fix for
+    // the P1 bug, where a positive offset drew the ring outside the volt button, onto --ground,
+    // which shares --focus-inv's token value, making the ring invisible.
+    // What this CANNOT prove: that :focus-visible itself engages correctly on a real keyboard Tab
+    // in a real browser — Karma/ChromeHeadless doesn't reliably reproduce that interaction
+    // heuristic, so the visible-on-keyboard-focus claim is the manual browser check, not this test.
+    const rules: CSSStyleRule[] = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      let cssRules: CSSRuleList;
+      try { cssRules = sheet.cssRules; } catch { continue; }
+      for (const rule of Array.from(cssRules)) {
+        if (rule instanceof CSSStyleRule && rule.selectorText?.includes(':focus-visible')) rules.push(rule);
+      }
+    }
+
+    const primaryRule = rules.find(r => r.selectorText.includes('.primary'));
+    const defaultRule = rules.find(r => !r.selectorText.includes('.primary'));
+
+    expect(primaryRule).withContext('a .primary:focus-visible rule must exist').toBeDefined();
+    expect(defaultRule).withContext('a default :focus-visible rule must exist').toBeDefined();
+
+    const primaryOffset = primaryRule!.style.getPropertyValue('outline-offset').trim();
+    const defaultOffset = defaultRule!.style.getPropertyValue('outline-offset').trim();
+
+    expect(defaultOffset).toBe('2px');
+    expect(primaryOffset).withContext('primary must pull its ring inward, onto the volt surface itself').toBe('-2px');
+    expect(primaryOffset).not.toBe(defaultOffset);
+  });
+
   it('toggling loading back off restores the button', () => {
     f.componentInstance.l.set(true);
     f.detectChanges();

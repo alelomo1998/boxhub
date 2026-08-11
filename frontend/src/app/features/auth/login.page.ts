@@ -69,7 +69,7 @@ function randomBenchmarkPair(): readonly [Benchmark, Benchmark] {
         <h1 class="headline t-display" i18n="@@auth.login.panel.headline">Today's board is already up.</h1>
       </div>
 
-      <form class="form" (ngSubmit)="submit()" novalidate data-testid="login-form">
+      <form class="form" (submit)="submit($event)" novalidate data-testid="login-form">
         <bh-field label="EMAIL" i18n-label="@@auth.login.email.label" type="email"
                    name="email" autocomplete="username" [required]="true" [(value)]="email"
                    placeholder="you@email.com" i18n-placeholder="@@auth.login.email.placeholder" />
@@ -174,7 +174,8 @@ export class LoginPage implements OnInit {
     }
   }
 
-  submit() {
+  submit(event?: Event) {
+    event?.preventDefault();
     this.error.set('');
     this.unverified.set(false);
     this.pending.set(true);
