@@ -67,7 +67,16 @@ This is design law §16 (`shape → build → critique ≥28/40, no open P0/P1`)
 
 **Step C — build (executor).** One Sonnet executor, self-contained brief carrying the agreed design, the file list, this plan's Global Constraints, and the screen's gates. The executor writes the screen and its Karma specs.
 
-**Step D — gates (orchestrator).** Review the diff. Run the screen's own gates (below), then `npm test -- --watch=false --browsers=ChromeHeadless` and `npx ng build --configuration production`.
+**Step D — gates (orchestrator).** Review the diff. Run the screen's own gates (below), then `npm test -- --watch=false --browsers=ChromeHeadless`, `npx ng build --configuration production`, **and the e2e suite on a rebuilt image.**
+
+> **e2e is not optional per screen, and this rule was bought.** Task 8 shipped a login button that
+> never authenticated and wrote the password into the URL. 272 Karma specs passed, because they
+> called `submit()` directly and never dispatched a real DOM submit. `e2e/tests/login.spec.ts` fills
+> the form, clicks the button and waits for the URL to leave `/auth/login` — it would have failed in
+> seconds. It was skipped because the task brief said "I will run e2e myself" and then nobody did.
+> **Rebuild the frontend image first** (the container serves a built bundle), and if a spec fails,
+> re-run on a `down -v` stack before blaming the diff — `runner`/`tracking`/`tv` are documented as
+> non-idempotent and will fail on a dirty stack for reasons that have nothing to do with your change.
 
 **Step E — critique (orchestrator).** `/impeccable critique <the screen>`. Fix P0/P1. **The screen is not done until this is clean.** Then commit.
 
@@ -89,6 +98,13 @@ grep -n 'ChangeDetectionStrategy.Eager' PATH
 
 # 5. Every <form> owns its validation (§4.1) — NgForm no longer supplies novalidate
 grep -n '<form' PATH | grep -v novalidate
+
+# 5b. (ngSubmit) MUST NOT APPEAR (§4.2). It is an output of the NgForm directive, which ships with
+# FormsModule — dropped by this milestone's form contract. Without NgForm it binds to an event the
+# browser never fires, so the native GET proceeds and every field lands in the URL. This shipped on
+# login: the button did not authenticate and the PASSWORD went into the query string. Forms bind the
+# native (submit) and call event.preventDefault().
+grep -n 'ngSubmit' PATH
 
 # 6. No plain hrefs; internal navigation is routerLink
 grep -nE '\[?href\]?="' PATH | grep -v 'oauth2/authorization/google'

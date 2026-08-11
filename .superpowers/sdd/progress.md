@@ -1420,3 +1420,44 @@ Task 8 — login panel, four user-driven iterations after the first build (19d3c
   ** STILL OWED, UNCHANGED: /impeccable critique on login. Every critique agent died on the session
   limit. The panel has changed substantially four times since, so re-running earlier would have been
   wasted — but Task 8 does NOT close until it runs. **
+
+Task 8 — CRITIQUE RUN AT LAST, AND IT FOUND A P0 (fix 80e84f7). Score 22/40.
+  ** THE MILESTONE'S MOST EXPENSIVE ERROR, AND IT WAS THE ORCHESTRATOR'S SPEC. **
+  `(ngSubmit)` is an OUTPUT OF THE NgForm DIRECTIVE, which ships with FormsModule. Spec §4 told every
+  screen to drop FormsModule AND keep `<form (ngSubmit)>`. Incompatible: with no NgForm the binding
+  listens for an event the browser never fires, Angular never intercepts, and the form does a NATIVE
+  GET. On login the button did not authenticate and THE PASSWORD WENT INTO THE URL — browser
+  history, access logs, Referer headers.
+  Reproduced by the orchestrator before acting: attach a submit listener, click the button,
+  `event.defaultPrevented === false`. Confirmed, not suspected.
+  §4.1 had spotted that NgForm supplies `novalidate` and MISSED that it also supplies `(ngSubmit)`.
+  Half the trap found, half shipped.
+  FOUR LAYERS OF DEFENCE FAILED IN ORDER, and each is worth keeping:
+   1. The spec was wrong; every remaining screen would have inherited it.
+   2. 272 GREEN KARMA SPECS DID NOT SEE IT. login.page.spec.ts called cmp.submit() DIRECTLY six
+      times and never dispatched a real DOM submit — it tested the handler, never the wiring. This
+      is the third test-that-could-not-fail this milestone, and the worst.
+   3. e2e WOULD have caught it in seconds (login.spec fills, clicks submit, waits for the URL to
+      leave /auth/login) — but Task 8's brief said "I will run e2e myself" and then nobody did.
+   4. The design critique found it in one click, on the live screen. THIS IS THE ARGUMENT FOR THE
+      PER-SCREEN CYCLE. Had login been the first of eleven screens built and critiqued only at the
+      end, all eleven would have shipped dead forms with credentials in the URL.
+  CONTAINMENT VERIFIED, not assumed: the other six auth screens still pair FormsModule WITH
+  (ngSubmit), so they work. Only login was rebuilt under the new contract, so only login broke.
+  ALSO FIXED (P1, WCAG 2.4.11 AA): the primary button's focus ring was INVISIBLE. --focus-inv is
+  #0d110e === --ground, and a POSITIVE outline-offset drew the ring OUTSIDE the volt button onto
+  that same ground. 1:1 contrast. The token exists for "a ring on a volt surface" but the offset
+  put it off the volt surface — the inversion was applied against the wrong thing. Fixed with a
+  negative offset on the primary variant so the ring sits ON the volt. Affected all 32 bh-button
+  call sites since M13c.
+  SPEC AND PLAN CORRECTED so Tasks 9-18 cannot repeat it: new §4.2 gives the corrected contract
+  (`<form (submit)="submit($event)" novalidate>` + `event.preventDefault()`), a new per-screen gate
+  5b greps for `ngSubmit`, and Step D of the cycle now REQUIRES an e2e run per screen.
+  e2e: first run showed 2 failures (runner, tracking) on a dirty stack; on a `down -v` rebuild,
+  35 passed + 1 skipped. Verified rather than assumed in either direction — the documented
+  non-idempotency, not the diff.
+  274/274 Karma, prod build clean, hex gate empty.
+  P2s left open and NOT blocking: google_email_unverified gives no next step; --faint on --surface
+  measures 4.70:1 (clears AA by 0.2 — the token doc's 5.1:1 is against --ground, not --surface).
+  UNVERIFIED, honestly flagged by the critique: half the ten states could not be driven because the
+  P0 blocked the only path to them. Re-check them first, next session.
