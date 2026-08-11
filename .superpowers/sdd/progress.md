@@ -1384,3 +1384,39 @@ Task 8 — login: BUILT AND REVIEWED, **NOT CLOSED** (commits d6b65f9..ad954e5)
   ** STILL OWED: /impeccable critique. All three critique agents died on "You've hit your session
   limit · resets 8pm (Europe/Rome)". The screen has had a CODE review, not a DESIGN critique, so
   per the per-screen cycle Task 8 is NOT done. Re-run before Task 9. **
+
+Task 8 — login panel, four user-driven iterations after the first build (19d3c79, 564f84f, 8c3c87c):
+  The user reviewed the rendered screen four times and each round found something real. Recorded
+  because it is the argument FOR the shape-then-look cycle, not against it.
+  1. "at full screen the vertical separation is ugly" -> exposed a REAL BUG, orchestrator's own from
+     Task 3: `.wrap` set justify-content:center for the COLUMN axis; the >=720px block flipped
+     flex-direction to row and re-declared everything EXCEPT justify-content, which then centred
+     HORIZONTALLY — 208px of dead ground each side. Structural fix: centring and axis-flip were on
+     the SAME element; the direction moved to a new inner `.card`, so `.wrap` owns no direction to
+     flip. Regression spec added that fails against the pre-fix markup.
+  2. Split became a BOUNDED CARD (760 wide, min-height 480 — min-height NOT height, so login's
+     tallest state grows instead of clipping).
+  3. "on the left is a little empty" -> a random seeded benchmark, typed like a board. Chosen over a
+     fabricated sample because Fran et al are REAL public benchmarks this product already ships
+     (V5 seeds 15). Hardcoded, NOT fetched: login is unauthenticated, so an endpoint would be a new
+     public route needing an AuthzConformanceTest entry, and a decorative fetch would owe
+     loading/error/empty states under design law §11.6.
+     EXECUTOR'S REPORT WAS WRONG AND MEASURING CAUGHT IT: it claimed "the void reads as gone". It
+     had MOVED — 181px gap under the wordmark, measured. Cause was two things stacking: login
+     projected ONE <div panel> holding both blocks, and the layout wrapped the slot in .panel-copy.
+     Either alone collapses the panel to two flex children so space-between has nothing to
+     distribute. Fixed both; gaps became 107 and 146.
+  4. "still pretty empty, maybe 2 wod" -> TWO distinct benchmarks with a hairline rule, DESKTOP
+     ONLY. Hidden below 720px because the panel stacks ABOVE the form on phone and boards would
+     push Log in down, against "thirty seconds, one thumb". Verified at 375x812: board display:none,
+     Log in at y=489-533, page scrollHeight == viewport, no scrolling to reach the primary action.
+     Offered a third option (a realistic strength+metcon board) and argued against it in the same
+     breath: it is the only one that would have INVENTED programming, giving up the
+     nothing-is-fabricated property that made a board defensible on a login screen at all.
+  SELF-INFLICTED, worth remembering: an HTML comment I wrote inside the Angular template contained
+  a BACKTICK, which terminated the TypeScript template literal — build failed with TS1005. Caught by
+  the build in seconds. Never put a backtick in a component template comment.
+  272/272, prod build clean, hex gate empty, gallery's auth-layout section verified unaffected.
+  ** STILL OWED, UNCHANGED: /impeccable critique on login. Every critique agent died on the session
+  limit. The panel has changed substantially four times since, so re-running earlier would have been
+  wasted — but Task 8 does NOT close until it runs. **
