@@ -36,7 +36,7 @@ describe('LoginPage', () => {
 
   afterEach(() => http.verify());
 
-  it('renders a real benchmark prescription in the panel, with its label', () => {
+  it('renders two distinct real benchmark prescriptions in the panel, each with its label', () => {
     const fixture = setup();
     fixture.detectChanges();
     http.expectOne('/api/auth/providers').flush({ google: false });
@@ -45,22 +45,40 @@ describe('LoginPage', () => {
     expect(el).withContext('benchmark block must render').not.toBeNull();
 
     const cmp = fixture.componentInstance;
-    const known = KNOWN_BENCHMARKS[cmp.benchmark.name];
-    // A regression rendering an empty/malformed entry (name not in the known list, or its own
-    // scheme/movements drifting from the seeded data) fails here — a weaker "some text exists"
-    // assertion would pass regardless of what actually rendered.
-    expect(known).withContext(`"${cmp.benchmark.name}" must be a known seeded benchmark`).toBeDefined();
-    expect(cmp.benchmark.scheme).toBe(known.scheme);
-    expect(cmp.benchmark.movements).toEqual(known.movements);
+    const [first, second] = cmp.benchmarks;
 
-    const label = el.querySelector('.benchmark-label')!.textContent!.replace(/\s+/g, ' ').trim();
-    expect(label).toBe(`Benchmark ${cmp.benchmark.name}`);
+    // The property most likely to regress if the picker is "simplified" back to two independent
+    // random draws: they must never land on the same workout twice.
+    expect(first.name).withContext('the two boards must not be the same benchmark')
+      .not.toBe(second.name);
 
-    const scheme = el.querySelector('.benchmark-scheme')!.textContent!.trim();
-    expect(scheme).toBe(cmp.benchmark.scheme);
+    const boards = Array.from(el.querySelectorAll('.benchmark-board'));
+    expect(boards.length).withContext('exactly two boards must render').toBe(2);
 
-    const lines = Array.from(el.querySelectorAll('.benchmark-line')).map(n => n.textContent!.trim());
-    expect(lines).toEqual([...cmp.benchmark.movements]);
+    [first, second].forEach((b, i) => {
+      const known = KNOWN_BENCHMARKS[b.name];
+      // A regression rendering an empty/malformed entry (name not in the known list, or its own
+      // scheme/movements drifting from the seeded data) fails here — a weaker "some text exists"
+      // assertion would pass regardless of what actually rendered.
+      expect(known).withContext(`"${b.name}" must be a known seeded benchmark`).toBeDefined();
+      expect(b.scheme).toBe(known.scheme);
+      expect(b.movements).toEqual(known.movements);
+
+      const board = boards[i];
+      const label = board.querySelector('.benchmark-label')!.textContent!.replace(/\s+/g, ' ').trim();
+      expect(label).toBe(`Benchmark ${b.name}`);
+
+      const scheme = board.querySelector('.benchmark-scheme')!.textContent!.trim();
+      expect(scheme).toBe(b.scheme);
+
+      const lines = Array.from(board.querySelectorAll('.benchmark-line')).map(n => n.textContent!.trim());
+      expect(lines).toEqual([...b.movements]);
+    });
+
+    // Not proven here: that the pair is drawn uniformly at random across runs (a single test run
+    // only ever sees one pair), and this Karma spec cannot see the CSS media query that hides the
+    // block below 720px — that was checked in a real browser instead.
+    expect(el.querySelector('.benchmark-rule')).withContext('a rule must separate the two boards').not.toBeNull();
   });
 
   it('403 EMAIL_NOT_VERIFIED shows a message and the resend control', () => {

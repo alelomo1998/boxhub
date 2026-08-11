@@ -27,8 +27,13 @@ const BENCHMARKS: readonly Benchmark[] = [
   { name: 'Cindy', scheme: 'AMRAP 20', movements: ['5 Pull-Ups', '10 Push-Ups', '15 Air Squats'] },
 ];
 
-function randomBenchmark(): Benchmark {
-  return BENCHMARKS[Math.floor(Math.random() * BENCHMARKS.length)];
+/** Two distinct entries — never the same workout twice. `j` is drawn from the remaining
+ * BENCHMARKS.length-1 slots then shifted past `i`, so it's uniform over "any index but i". */
+function randomBenchmarkPair(): readonly [Benchmark, Benchmark] {
+  const i = Math.floor(Math.random() * BENCHMARKS.length);
+  let j = Math.floor(Math.random() * (BENCHMARKS.length - 1));
+  if (j >= i) j++;
+  return [BENCHMARKS[i], BENCHMARKS[j]];
 }
 
 @Component({
@@ -43,12 +48,19 @@ function randomBenchmark(): Benchmark {
            board slides down to sit on the headline, leaving a 181px void under the wordmark —
            measured, and the reason this markup looks the way it does. -->
       <div panel class="benchmark" data-testid="login-benchmark">
-        <p class="t-eyebrow benchmark-label">
-          <span i18n="@@auth.login.benchmarkLabel">Benchmark</span> {{ benchmark.name }}
-        </p>
-        <p class="benchmark-scheme">{{ benchmark.scheme }}</p>
-        @for (line of benchmark.movements; track line) {
-          <p class="benchmark-line">{{ line }}</p>
+        @for (b of benchmarks; track b.name; let last = $last) {
+          <div class="benchmark-board">
+            <p class="t-eyebrow benchmark-label">
+              <span i18n="@@auth.login.benchmarkLabel">Benchmark</span> {{ b.name }}
+            </p>
+            <p class="benchmark-scheme">{{ b.scheme }}</p>
+            @for (line of b.movements; track line) {
+              <p class="benchmark-line">{{ line }}</p>
+            }
+          </div>
+          @if (!last) {
+            <hr class="benchmark-rule" />
+          }
         }
       </div>
 
@@ -110,13 +122,21 @@ function randomBenchmark(): Benchmark {
     </bh-auth-layout>
   `,
   styles: [`
-    /* No bottom margin: the panel's space-between owns the gaps now. */
+    /* No bottom margin: the panel's space-between owns the gaps now. Flex column + gap stacks the
+       two boards and the hairline rule between them without touching each board's own spacing. */
     .benchmark { margin: 0; font-family: var(--font-mono);
-      font-variant-numeric: tabular-nums; }
+      font-variant-numeric: tabular-nums; display: flex; flex-direction: column; gap: var(--sp-3); }
     .benchmark p { margin: 0; }
+    .benchmark-rule { border: 0; height: 1px; margin: 0; background: var(--hairline); }
     .benchmark-label { margin-bottom: var(--sp-2); }
     .benchmark-scheme { font-size: var(--fs-sm); font-weight: 700; color: var(--bone); }
     .benchmark-line { font-size: var(--fs-sm); color: var(--faint); margin-top: var(--sp-1); }
+    /* Below 720px split collapses to a stacked column with the panel ABOVE the form (see
+       bh-auth-layout) — two boards there would push Log in down the screen, against "thirty
+       seconds, one thumb". The eyebrow/headline panel block is unaffected; only the boards hide. */
+    @media (max-width: 719px) {
+      .benchmark { display: none; }
+    }
     .headline { font-size: var(--fs-display); margin: var(--sp-2) 0 0; }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); }
     .forgot { font-size: var(--fs-meta); }
@@ -131,7 +151,7 @@ export class LoginPage implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
-  readonly benchmark = randomBenchmark();
+  readonly benchmarks = randomBenchmarkPair();
   email = signal('');
   password = signal('');
   error = signal('');
