@@ -1461,3 +1461,25 @@ Task 8 — CRITIQUE RUN AT LAST, AND IT FOUND A P0 (fix 80e84f7). Score 22/40.
   measures 4.70:1 (clears AA by 0.2 — the token doc's 5.1:1 is against --ground, not --surface).
   UNVERIFIED, honestly flagged by the critique: half the ten states could not be driven because the
   P0 blocked the only path to them. Re-check them first, next session.
+
+Task 8 — CRITIQUE RE-RUN AFTER THE FIXES: **36/40, no open P0/P1 — §16 gate CLEARED.**
+  Trend for this screen: 22 -> 36. The +14 is not a "looks better" bump: the reviewer reproduced
+  the OLD P0 failure path and confirmed it is gone (POST /api/auth/login fires, URL stays clean,
+  full login reaches the dashboard), and confirmed the focus ring now sits inset on the volt under
+  a real keyboard Tab. Heuristics 1 and 9 had been floored at 0 and 1 purely because the task was
+  uncompletable; they are 3-4 now because it completes AND recovers.
+  Also drove the states the first pass could not reach at all (wrong password, EMAIL_NOT_VERIFIED
+  + resend + its error) — the first pass refused to score them from source, which was the right
+  call and is why the second pass is worth more than a re-read.
+  NEW P2, AND IT IS A REAL WCAG AA FAILURE, SYSTEMIC: `--faint` placeholder text on `--surface-2`
+  measures 4.27:1, UNDER the 4.5:1 floor. field.component.ts sets `.input { background:
+  var(--surface-2) }` and `.input::placeholder { color: var(--faint) }`. Affects EVERY bh-field
+  placeholder in the product, not just login. It hid because the token's documented 5.1:1 is
+  measured against --ground and NOTHING renders a placeholder on --ground.
+  P2 carried over, unchanged: --faint on --surface (the benchmark board) re-measured 4.699:1 —
+  passes AA with no headroom; google_email_unverified still offers no next step, now more glaring
+  because the sibling EMAIL_NOT_VERIFIED branch on the same screen demonstrates a good one.
+  STILL UNVERIFIED, flagged rather than assumed: the pending spinner (local backend answers in
+  <20ms, faster than the poll), 429 copy (25 rapid POSTs never tripped the dev limit), the
+  box-unavailable 403 arm (no seeded suspended box), and the Google-absent state (providers always
+  returns true in this env).
