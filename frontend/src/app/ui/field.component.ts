@@ -40,7 +40,9 @@ let seq = 0;
     .input { background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--edge); padding: 0 var(--sp-3); min-height: var(--tap); color: var(--bone);
       font-family: var(--font-body); font-size: var(--fs-body); width: 100%; }
-    .input::placeholder { color: var(--faint); }
+    /* --faint on --surface-2 measures 4.27:1, under AA's 4.5:1 floor — --bone-dim clears it
+       (7.18:1) and stays visually secondary to entered text (--bone, 14.46:1). */
+    .input::placeholder { color: var(--bone-dim); }
     .input:hover:not(:disabled) { border-color: var(--faint); }
     .input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px;
       border-color: var(--volt); }
