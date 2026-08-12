@@ -37,6 +37,9 @@ describe('LoginPage', () => {
   afterEach(() => http.verify());
 
   it('renders two distinct real benchmark prescriptions in the panel, each with its label', () => {
+    // The board itself (picker, verbatim data, markup) now lives in and is fully covered by
+    // BenchmarkBoardComponent's own spec — this just proves login wires it up: mounted, testId
+    // applied, and two genuinely different boards land in the DOM under it.
     const fixture = setup();
     fixture.detectChanges();
     http.expectOne('/api/auth/providers').flush({ google: false });
@@ -44,36 +47,16 @@ describe('LoginPage', () => {
     const el: HTMLElement = fixture.nativeElement.querySelector('[data-testid="login-benchmark"]');
     expect(el).withContext('benchmark block must render').not.toBeNull();
 
-    const cmp = fixture.componentInstance;
-    const [first, second] = cmp.benchmarks;
-
-    // The property most likely to regress if the picker is "simplified" back to two independent
-    // random draws: they must never land on the same workout twice.
-    expect(first.name).withContext('the two boards must not be the same benchmark')
-      .not.toBe(second.name);
-
     const boards = Array.from(el.querySelectorAll('.benchmark-board'));
     expect(boards.length).withContext('exactly two boards must render').toBe(2);
 
-    [first, second].forEach((b, i) => {
-      const known = KNOWN_BENCHMARKS[b.name];
-      // A regression rendering an empty/malformed entry (name not in the known list, or its own
-      // scheme/movements drifting from the seeded data) fails here — a weaker "some text exists"
-      // assertion would pass regardless of what actually rendered.
-      expect(known).withContext(`"${b.name}" must be a known seeded benchmark`).toBeDefined();
-      expect(b.scheme).toBe(known.scheme);
-      expect(b.movements).toEqual(known.movements);
-
-      const board = boards[i];
-      const label = board.querySelector('.benchmark-label')!.textContent!.replace(/\s+/g, ' ').trim();
-      expect(label).toBe(`Benchmark ${b.name}`);
-
-      const scheme = board.querySelector('.benchmark-scheme')!.textContent!.trim();
-      expect(scheme).toBe(b.scheme);
-
-      const lines = Array.from(board.querySelectorAll('.benchmark-line')).map(n => n.textContent!.trim());
-      expect(lines).toEqual([...b.movements]);
+    const names = boards.map(b => {
+      const label = b.querySelector('.benchmark-label')!.textContent!.replace(/\s+/g, ' ').trim();
+      const known = Object.keys(KNOWN_BENCHMARKS).find(n => label === `Benchmark ${n}`);
+      expect(known).withContext(`label "${label}" must name a known seeded benchmark`).toBeDefined();
+      return known;
     });
+    expect(names[0]).withContext('the two boards must not be the same benchmark').not.toBe(names[1]);
 
     // Not proven here: that the pair is drawn uniformly at random across runs (a single test run
     // only ever sees one pair), and this Karma spec cannot see the CSS media query that hides the

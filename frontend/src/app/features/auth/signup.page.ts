@@ -7,16 +7,19 @@ import { ButtonComponent } from '../../ui/button.component';
 import { FieldComponent } from '../../ui/field.component';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
+import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 
 @Component({
   selector: 'bh-signup',
   standalone: true,
-  imports: [RouterLink, ButtonComponent, FieldComponent, AlertComponent, AuthLayoutComponent],
+  imports: [RouterLink, ButtonComponent, FieldComponent, AlertComponent, AuthLayoutComponent, BenchmarkBoardComponent],
   template: `
     <bh-auth-layout variant="split">
-      <!-- ONE projected panel block (unlike login's two) — signup carries no benchmark boards,
-           decided by the user. wordmark-top / headline-bottom is the layout's default with a
-           single block. -->
+      <!-- TWO projected blocks, same as login: the board and the eyebrow+headline separately, so
+           bh-auth-layout's space-between panel distributes wordmark / board / headline across its
+           height instead of collapsing into one flex child. -->
+      <bh-benchmark-board panel testId="signup-benchmark" />
+
       <div panel>
         <p class="t-eyebrow" i18n="@@auth.signup.panel.eyebrow">Your box invited you</p>
         <h1 class="headline t-display" i18n="@@auth.signup.panel.headline">Set up your account.</h1>
@@ -31,14 +34,12 @@ import { AuthLayoutComponent } from '../../ui/auth-layout.component';
                    name="email" autocomplete="username" [required]="true" [(value)]="email"
                    testId="signup-email" placeholder="you@email.com" i18n-placeholder="@@auth.signup.email.placeholder" />
 
-        <!-- data-testid is a plain host attribute here (FieldComponent has no input for it on the
-             error node — only testId forwards to the inner input), so it lands on bh-field itself
-             rather than on the span the pre-M13d markup carried it on. Kept anyway to preserve the
-             testid's presence in the DOM; see task report for the limit. -->
+        <!-- No host data-testid: bh-field derives the error node's own hook as '<testId>-error',
+             so 'signup-password-error' lands on the error span itself. -->
         <bh-field label="PASSWORD" i18n-label="@@auth.signup.password.label" type="password"
                    name="password" autocomplete="new-password" [required]="true" [(value)]="password"
                    testId="signup-password" placeholder="min 10 characters" i18n-placeholder="@@auth.signup.password.placeholder"
-                   [error]="passwordError()" data-testid="signup-password-error" />
+                   [error]="passwordError()" />
 
         @if (formError()) {
           <bh-alert tone="danger" data-testid="signup-error">{{ formError() }}</bh-alert>

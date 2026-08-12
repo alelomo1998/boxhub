@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 import { AvatarComponent } from '../../ui/avatar.component';
+import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
 import { DayPagerComponent } from '../../ui/day-pager.component';
@@ -40,6 +41,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
     AvatarComponent, PillComponent, DayPagerComponent, SheetComponent, AuthLayoutComponent,
+    BenchmarkBoardComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -620,6 +622,19 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           panel content moving above the form.
         </p>
       </section>
+
+      <section class="gsec" data-gallery="benchmark-board">
+        <h2 class="t-h2" i18n="@@dev.gallery.benchmarkBoard.heading">Benchmark board</h2>
+        <p class="note" i18n="@@dev.gallery.benchmarkBoard.note.noStates">
+          Pure information, not a control — no hover, focus, active, disabled, loading or error
+          state of its own. Two distinct seeded prescriptions are drawn at random on every mount;
+          reload this page to see a different pair. Hides below 720px in the real auth screens
+          (checked in the browser, not shown here).
+        </p>
+        <div class="benchwrap">
+          <bh-benchmark-board testId="gallery-benchmark" />
+        </div>
+      </section>
     </div>
   `,
   styles: [`
@@ -653,6 +668,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
        border + overflow:hidden here is purely to frame the demo on this scrolling page; it plays
        no part in the component's own layout. */
     .authwrap { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden; }
+    /* Framed like the auth panel it actually sits in (bh-auth-layout's split panel is --surface,
+       padding var(--sp-8)) so the board is checked against its real background, not bare --ground. */
+    .benchwrap { max-width: 320px; padding: var(--sp-8); background: var(--surface);
+      border: 1px solid var(--hairline); border-radius: var(--r-card); }
     /* Real shells project nav items sized to --tap; this demo anchor needs the same minimum so the
        gallery doesn't model an undersized tap target (impeccable finding). */
     .demo-navlink { display: inline-flex; align-items: center; min-height: var(--tap); }

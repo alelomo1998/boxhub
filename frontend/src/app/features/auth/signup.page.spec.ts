@@ -33,6 +33,16 @@ describe('SignupPage', () => {
     expect(el.textContent).toContain("You'll need an invite from your gym");
   });
 
+  it('renders the benchmark board under its own testId, same as login', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    flushProviders();
+
+    const el: HTMLElement = fixture.nativeElement.querySelector('[data-testid="signup-benchmark"]');
+    expect(el).withContext('benchmark block must render').not.toBeNull();
+    expect(el.querySelectorAll('.benchmark-board').length).toBe(2);
+  });
+
   it('renders PASSWORD_TOO_SHORT under the password field, not at the top of the form', () => {
     const fixture = setup();
     fixture.detectChanges();
