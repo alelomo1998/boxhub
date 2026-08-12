@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, ViewChild, afterNextRender, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -80,7 +80,16 @@ type Mode = 'loading' | 'open' | 'full' | 'error';
         @case ('full') {
           @if (waitlisted()) {
             <p class="ok" data-testid="start-waitlist-success" i18n="@@auth.startBox.waitlistSuccess">You're on the list — we'll be in touch.</p>
+            <p class="footer">
+              <a routerLink="/auth/login" data-testid="start-waitlist-back-to-login" i18n="@@auth.startBox.waitlistSuccess.backToLogin">Back to login</a>
+            </p>
           } @else {
+            @if (flippedFromSubmit()) {
+              <bh-alert #waitlistFlipNotice tabindex="-1" tone="warn" data-testid="start-waitlist-flip-notice"
+                        i18n="@@auth.startBox.waitlistFlipNotice">
+                The platform reached capacity while you were signing up. We've kept your box name and email below for the waitlist.
+              </bh-alert>
+            }
             <p class="muted" data-testid="start-full-copy" i18n="@@auth.startBox.fullCopy">We're at capacity right now — leave your details and we'll be in touch.</p>
             <form class="form" (submit)="submitWaitlist($event)" novalidate data-testid="waitlist-form">
               <bh-field label="BOX NAME" i18n-label="@@auth.startBox.waitlist.boxName.label" type="text"
@@ -121,6 +130,11 @@ type Mode = 'loading' | 'open' | 'full' | 'error';
 export class StartBoxPage implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private injector = inject(Injector);
+
+  // Focus target for the mid-submit flip notice — read via afterNextRender once it mounts,
+  // since @ViewChild only reflects the DOM after the next render, not the signal write.
+  @ViewChild('waitlistFlipNotice', { read: ElementRef }) waitlistFlipNoticeRef?: ElementRef<HTMLElement>;
 
   boxName = signal('');
   name = signal('');
@@ -132,6 +146,9 @@ export class StartBoxPage implements OnInit {
   passwordError = signal('');
   formError = signal('');
   waitlisted = signal(false);
+  // True only when 'full' was reached by a submit flipping under the user, not a cold load —
+  // that distinction is what tells the flip notice apart from someone landing on a closed platform.
+  flippedFromSubmit = signal(false);
 
   ngOnInit() {
     this.loadMode();
@@ -155,7 +172,14 @@ export class StartBoxPage implements OnInit {
         this.pending.set(false);
         // Mode flipped to APPROVAL/CLOSED between load and submit — swap to the waitlist
         // form with what's already typed (name/password aren't needed there).
-        if (res.body?.full) { this.mode.set('full'); return; }
+        if (res.body?.full) {
+          this.mode.set('full');
+          this.flippedFromSubmit.set(true);
+          // Focus moves onto the notice once it's actually in the DOM — the form just changed
+          // out from under a keyboard/screen-reader user and focus was left on <body>.
+          afterNextRender(() => this.waitlistFlipNoticeRef?.nativeElement.focus(), { injector: this.injector });
+          return;
+        }
         this.router.navigate(['/auth/check-email'], { queryParams: { email: this.email() } });
       },
       error: (e: HttpErrorResponse) => {

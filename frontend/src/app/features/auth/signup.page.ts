@@ -21,8 +21,8 @@ import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
       <bh-benchmark-board panel testId="signup-benchmark" />
 
       <div panel>
-        <p class="t-eyebrow" i18n="@@auth.signup.panel.eyebrow">Your box invited you</p>
-        <h1 class="headline t-display" i18n="@@auth.signup.panel.headline">Set up your account.</h1>
+        <p class="t-eyebrow" i18n="@@auth.signup.panel.eyebrow">Create your account</p>
+        <h1 class="headline t-display" i18n="@@auth.signup.panel.headline">Join your gym on rxed.</h1>
       </div>
 
       <form class="form" (submit)="submit($event)" novalidate data-testid="signup-form">

@@ -105,7 +105,7 @@ describe('StartBoxPage', () => {
     expect(cmp.passwordError()).toBe('');
   });
 
-  it('swaps to the waitlist form when the mode flips to full between load and submit, carrying typed values over', () => {
+  it('swaps to the waitlist form when the mode flips to full between load and submit, carrying typed values over, and explains the flip', () => {
     const fixture = setup();
     fixture.detectChanges();
     http.expectOne('/api/auth/signup-mode').flush({ open: true });
@@ -114,14 +114,49 @@ describe('StartBoxPage', () => {
     cmp.boxName.set('Iron Box'); cmp.name.set('Ann'); cmp.email.set('a@b.io'); cmp.password.set('longenoughpw');
     cmp.submit();
     http.expectOne('/api/auth/signup-box').flush({ full: true });
+    fixture.detectChanges();
 
     expect(cmp.mode()).toBe('full');
     expect(cmp.boxName()).toBe('Iron Box');
     expect(cmp.email()).toBe('a@b.io');
+    // The whole point of the fix: someone who just typed four fields and watched the platform
+    // flip under them mid-submit gets told so — not left staring at a shorter form in silence.
+    expect(fixture.nativeElement.querySelector('[data-testid="start-waitlist-flip-notice"]'))
+      .withContext('a submit-caused flip must render the explanation')
+      .not.toBeNull();
 
     cmp.submitWaitlist();
     http.expectOne('/api/auth/waitlist').flush(null, { status: 202, statusText: 'Accepted' });
     expect(cmp.waitlisted()).toBeTrue();
+  });
+
+  it('does NOT show the flip notice on a cold load into a closed platform', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/signup-mode').flush({ open: false });
+    fixture.detectChanges();
+
+    // Same 'full' mode as the flip case, but reached by landing on the page directly — the
+    // "we just filled up while you were typing" message would be false here and must not show.
+    expect(fixture.componentInstance.mode()).toBe('full');
+    expect(fixture.componentInstance.flippedFromSubmit()).toBeFalse();
+    expect(fixture.nativeElement.querySelector('[data-testid="start-waitlist-flip-notice"]')).toBeNull();
+  });
+
+  it('offers a way back to login from the waitlist success state', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/signup-mode').flush({ open: false });
+
+    const cmp = fixture.componentInstance;
+    cmp.boxName.set('Iron Box'); cmp.email.set('a@b.io');
+    cmp.submitWaitlist();
+    http.expectOne('/api/auth/waitlist').flush(null, { status: 202, statusText: 'Accepted' });
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('[data-testid="start-waitlist-back-to-login"]');
+    expect(link).withContext('waitlist success must not be a dead end').not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/auth/login');
   });
 
   it('shows a generic form error when the waitlist submit fails', () => {
