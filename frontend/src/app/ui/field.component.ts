@@ -29,7 +29,13 @@ let seq = 0;
              [attr.data-testid]="testId() || null"
              (input)="value.set($any($event.target).value)" />
       @for (msg of errors(); track msg) {
-        <span class="err" [id]="id + '-err'" role="alert">{{ msg }}</span>
+        <!-- The error node gets its own hook, derived as '<testId>-error'. That is not an invented
+             convention: signup, reset and start-box already name their error test ids exactly that
+             way against a field whose own id is '<testId>'. Without this a screen has to hang the
+             attribute on the <bh-field> HOST, which spans label + input + error — the same
+             host-versus-inner-element trap that cost M13c four separate fixes. -->
+        <span class="err" [id]="id + '-err'" role="alert"
+              [attr.data-testid]="testId() ? testId() + '-error' : null">{{ msg }}</span>
       }
     </div>`,
   styles: [`

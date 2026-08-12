@@ -47,13 +47,21 @@ class ActionHost {}
 })
 class OverlapHost {}
 
+
+@Component({
+  standalone: true,
+  imports: [FieldComponent],
+  template: `<bh-field label="Password" testId="pw" error="Too short" />`,
+})
+class ErrHost {}
+
 describe('FieldComponent', () => {
   let f: any;
   const input = (): HTMLInputElement => f.nativeElement.querySelector('input');
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Host, TestIdHost, AttrHost, ActionHost, OverlapHost],
+      imports: [Host, TestIdHost, AttrHost, ActionHost, OverlapHost, ErrHost],
     }).compileComponents();
     f = TestBed.createComponent(Host);
     f.detectChanges();
@@ -193,5 +201,22 @@ describe('FieldComponent', () => {
     expect(disjoint).toBeTrue();
 
     document.body.removeChild(g.nativeElement);
+  });
+
+  it('puts a derived data-testid on the ERROR node, not on the host', () => {
+    // signup/reset/start-box all already name their error hook `<testId>-error` against a field
+    // whose own id is `<testId>`, so this is derived rather than invented. Without it a screen has
+    // to hang the attribute on the bh-field host, which spans label + input + error.
+    const g = TestBed.createComponent(ErrHost);
+    g.detectChanges();
+    const err: HTMLElement = g.nativeElement.querySelector('[data-testid="pw-error"]');
+    expect(err).toBeTruthy();
+    expect(err.getAttribute('role')).toBe('alert');
+    expect(err.tagName).toBe('SPAN');
+    expect(g.nativeElement.getAttribute('data-testid')).toBeNull();
+  });
+
+  it('omits the error testid when there is no error and when testId is unset', () => {
+    expect(f.nativeElement.querySelector('[data-testid$="-error"]')).toBeNull();
   });
 });
