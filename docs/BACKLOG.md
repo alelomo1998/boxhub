@@ -300,6 +300,36 @@ M13b ships `public/favicon.svg` only. `index.html` references exactly one icon a
 `apple-touch-icon`, no web manifest, and no `theme-color`. Deliberately not smuggled into the design
 milestone. Decide when the marketing site (M19) or the pilot forces it.
 
+### → M15 Admin: people — signup collects only name + email; birthday / gender / address are missing
+
+Raised by the user 2026-08-11 while M13d rebuilt signup. **Deliberately not built in M13d**: the
+milestone rebuilds screens, and this is a data-model change. Deferring is cheap — signup is a
+vertical form, so extra fields are additive rather than a rebuild — while building it now costs a
+Flyway migration, entity + DTO + validation, and an extension of the GDPR export and anonymize
+flows to cover new PII.
+
+**`users` holds only** `id`, `email`, `password_hash`, `name`, `created_at`, plus `email_verified`,
+the backoff columns, `locale` (V18) and `anonymized_at` (V12). None of the three exist.
+
+**Each field needs its own answer before any of it is built — they are not one item:**
+
+- **Gender — probably NOT a signup field, and this is the one worth thinking about first.** CrossFit
+  RX loads are gendered: the seeded benchmarks read `Thrusters (95/65 lb)`, male/female. So what the
+  product actually needs is an **RX load category on the athlete's scoring identity**, which belongs
+  with leaderboards and scoring (**M17**), not with the account. Asking "gender" at signup and
+  asking "which RX loads do you use" at scoring are different questions with different answers, and
+  conflating them is how a schema gets stuck. Also the more sensitive of the three under GDPR.
+- **Birthday** — needs a stated purpose. Age-banded programming? A legal minimum age? Birthday
+  shout-outs on the board? Each implies a different requiredness and a different surface.
+- **Address** — needs a purpose too. Billing already runs through Stripe, which collects its own
+  billing address, so this may be redundant. Emergency contact would be a different field entirely.
+
+**Whoever picks this up must also decide:** required or optional; asked at signup or later in a
+profile screen (M5 already shipped athlete profiles, which is the natural home); what an existing
+user sees; and whether each field joins `GET /api/me/export` and the anonymizing `DELETE /api/me`.
+The GDPR flows are not optional extras here — the project is the processor and EU gyms are the
+controllers.
+
 ### → M13d Auth & account screens
 
 - **`a { color: var(--volt) }` is a GLOBAL rule, so every link in the product is volt — which breaks
