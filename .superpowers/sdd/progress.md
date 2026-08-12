@@ -1501,3 +1501,45 @@ Task 8 — CRITIQUE RE-RUN AFTER THE FIXES: **36/40, no open P0/P1 — §16 gate
 
 TASK 8 (login) IS CLOSED: shaped with the user, built, code-reviewed, four user-driven design
 iterations, critiqued 22 -> 36/40 with no open P0/P1, e2e 35 passed + 1 skipped on a down -v stack.
+
+Tasks 9 + 10 (signup, start-box) COMPLETE — critiqued twice each, gate cleared.
+  signup 29 -> 34/40 · start-box 30 -> 35/40 · zero P0/P1 on either (login reference: 36/40).
+  Karma 291 · backend 435 · e2e 35 passed + 1 skipped on a down -v stack · build clean.
+  BATCHING TWO SCREENS PAID OFF EXACTLY WHERE PREDICTED: the short-password defect scored as a
+  separate P1 on each screen but was ONE backend cause, and the reviewer named it systemic rather
+  than reporting it twice.
+  SIX P1s FIXED:
+   1. SIGNUP'S PANEL COPY WAS FALSE, AND IT WAS THE ORCHESTRATOR'S. "Your box invited you" on a page
+      that reads no invite token — the real invite flow is /join/:token, a different page with its
+      own correct copy — and it contradicted the invite note four lines below. The premise ("most
+      people reach signup from an invite email") was asserted during shaping and never checked.
+      Now "Create your account" / "Join your gym on rxed."
+   2. Start-box's mid-submit flip was SILENT: four filled fields became a two-field waitlist form
+      with no explanation, no aria-live, focus reset to <body>, and copy identical to a cold load.
+      Now a warn bh-alert that explains it, preserves box name + email, and moves focus — AND a cold
+      load into waitlist mode shows NO notice. Both directions verified; the distinction is the
+      point, since an "alert exists" test would pass with the bug reintroduced.
+   3. Waitlist success was a dead end — zero focusable elements. Now offers Back to login.
+   4-6. Short password showed "Something went wrong" on both screens. FOUR DTOs duplicated
+      @Size(min=10) on password (register, signup-box, reset, change-password), firing before
+      PasswordPolicy and making PASSWORD_TOO_SHORT unreachable everywhere. Removed; the policy now
+      owns the minimum. THE EXECUTOR PROVED PasswordPolicy ACTUALLY RUNS ON ALL FOUR PATHS BEFORE
+      REMOVING ANYTHING — without that check this would have deleted the only length enforcement.
+      Backend 432 -> 435.
+  ALSO FIXED EN ROUTE: bh-field derives the error node's hook as <testId>-error (signup had been
+  forced to hang it on the HOST, which spans label+input+error — the trap CLAUDE.md records as
+  costing M13c four fixes); bh-benchmark-board extracted to ui/ with four consumers.
+  AN E2E-ONLY REGRESSION, INVISIBLE TO KARMA: Task 8 moved bh-button's testid onto the inner
+  <button>, and three spec files defined btn() as `[data-testid=X] button` — which then matched
+  nothing and hung the signup journey. Karma was green throughout. Helper now matches both
+  placements. TWO intermediate attempts failed before this one, and each verdict was only trusted
+  after a `down -v` rebuild.
+  ORCHESTRATOR ERROR WORTH RECORDING: five files were left UNCOMMITTED while a subagent was
+  dispatched. The executor spotted them and had staged only its own, so nothing was swallowed — but
+  that is precisely how M13b's "docs" commit ate 89 lines of TypeScript.
+  NEW P2, not blocking, not a regression: start-box's error mode has no exit but Retry.
+  STILL UNVERIFIED on both, flagged rather than assumed: the pending spinners (local backend
+  answers in <20ms, faster than any poll) and SIGNUP_RETRY.
+  Signup's User Control heuristic is held at 2 by the BOX-PICKER dead end (zero focusable elements
+  for a 0-membership account) — a different file, already scoped as Task 12. Expect signup to rise
+  when that lands.
