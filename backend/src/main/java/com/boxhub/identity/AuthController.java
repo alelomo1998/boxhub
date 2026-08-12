@@ -63,7 +63,7 @@ public class AuthController {
      * that logger) keeps it safe wherever it gets printed.
      */
     record RegisterRequest(@NotBlank @Email String email,
-                           @NotBlank @Size(min = 10, max = 100) String password,
+                           @NotBlank @Size(max = 100) String password,
                            @NotBlank @Size(max = 100) String name,
                            String inviteToken) {
         @Override public String toString() {
@@ -134,7 +134,7 @@ public class AuthController {
     record SignupBoxRequest(@NotBlank @Size(max = 80) String boxName,
                             @NotBlank @Size(max = 100) String name,
                             @NotBlank @Email String email,
-                            @NotBlank @Size(min = 10, max = 100) String password) {
+                            @NotBlank @Size(max = 100) String password) {
         @Override public String toString() {
             return "SignupBoxRequest[boxName=" + boxName + ", name=" + name + ", email=" + email + ", password=***]";
         }
@@ -189,7 +189,7 @@ public class AuthController {
                 .ifPresent(authService::sendVerification);
     }
 
-    record ResetRequest(@NotBlank String token, @NotBlank @Size(min = 10, max = 100) String password) {
+    record ResetRequest(@NotBlank String token, @NotBlank @Size(max = 100) String password) {
         @Override public String toString() { return "ResetRequest[token=***, password=***]"; }
     }
 

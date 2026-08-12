@@ -35,7 +35,7 @@ public class AccountController {
     // org.springframework.web, so a default record toString() writes plaintext passwords and
     // single-use tokens into the log file. LogHygieneTest guards this.
     record PasswordChangeRequest(@NotBlank String currentPassword,
-                                 @NotBlank @Size(min = 10, max = 100) String newPassword) {
+                                 @NotBlank @Size(max = 100) String newPassword) {
         @Override public String toString() { return "PasswordChangeRequest[currentPassword=***, newPassword=***]"; }
     }
     record EmailChangeRequest(@NotBlank String password, @NotBlank @Email String newEmail) {

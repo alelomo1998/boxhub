@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class PasswordResetTest extends AbstractIntegrationTest {
@@ -94,6 +95,25 @@ class PasswordResetTest extends AbstractIntegrationTest {
                         {"email":"%s","password":"old-password-here"}
                         """.formatted(u.getEmail())))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shortPasswordIsRejectedWithTheSpecificCodeNotAGenericValidationFailure() throws Exception {
+        User u = verifiedUser();
+        forgot(u.getEmail());
+        String token = resetToken();
+
+        mvc.perform(post("/api/auth/password/reset").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"token":"%s","password":"short"}
+                        """.formatted(token)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("PASSWORD_TOO_SHORT"));
+
+        // token survives a rejected attempt — still usable with a valid password
+        mvc.perform(post("/api/auth/password/reset").with(csrf()).contentType(APPLICATION_JSON).content("""
+                        {"token":"%s","password":"brand-new-password"}
+                        """.formatted(token)))
+                .andExpect(status().isOk());
     }
 
     @Test

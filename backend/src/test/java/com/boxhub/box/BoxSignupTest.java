@@ -84,6 +84,17 @@ class BoxSignupTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void shortPasswordIsRejectedWithTheSpecificCodeNotAGenericValidationFailure() throws Exception {
+        String email = "weak-box-" + System.nanoTime() + "@t.io";
+        mvc.perform(post("/api/auth/signup-box").with(csrf()).contentType(APPLICATION_JSON).content("""
+                {"boxName":"Weak Box","name":"Owner","email":"%s","password":"short"}
+                """.formatted(email)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("PASSWORD_TOO_SHORT"));
+        assertThat(users.findByEmail(email)).isEmpty();
+    }
+
+    @Test
     void openModeCreatesAnActiveBox() throws Exception {
         settings.set(PlatformSettings.SIGNUP_MODE, "OPEN");
         String email = "open-" + System.nanoTime() + "@t.io";

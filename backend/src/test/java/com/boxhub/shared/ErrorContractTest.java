@@ -16,8 +16,11 @@ class ErrorContractTest extends AbstractIntegrationTest {
 
     @Test
     void validationErrorsListFields() throws Exception {
+        // password is blank, not merely short: length is PasswordPolicy's job now (service layer,
+        // not the DTO — see RegistrationTest.shortPasswordIsRejectedWithTheSpecificCodeNotAGenericValidationFailure),
+        // so this still needs a DTO-level violation to keep exercising the multi-field-listing contract.
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
-                {"email":"not-an-email","password":"short","name":""}
+                {"email":"not-an-email","password":"","name":""}
                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
