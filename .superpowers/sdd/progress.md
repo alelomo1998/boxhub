@@ -1660,3 +1660,50 @@ narrow screens. Commits 78a833b (build), b9ef461 (the three P1 fixes).
   FILED TO BACKLOG, NOT FIXED (milestone lock): --faint on --surface-2 is used on ~19 other files,
   all M15/M16-owned screens. The two fixes taken so far (bh-field/bh-search-bar placeholders, and
   this screen) were both inside code this milestone owns.
+
+Task 13 (check-email) COMPLETE — **33 -> 38/40, zero P0/P1. §16 gate cleared.** Highest score in the
+family (login/join/box-picker 36, start-box 35, signup 34). Commits 5f39b88, 7e8fac5.
+  Karma 328 -> 334 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack.
+  CAVEAT ON THE DELTA, recorded rather than glossed: the two passes used DIFFERENT rubrics (8
+  heuristics x5 first, Nielsen x10 /4 on the re-run). The re-critique said so itself. The +5 is
+  directionally right and both fixes were independently re-measured, but it is not a like-for-like
+  arithmetic delta the way box-picker's 33->36 was.
+  USER DECISIONS: Resend stays ghost, ZERO volt (the real primary action is in the user's INBOX, not
+  on this page — volting Resend points at the thing that is not the point); the 60s cooldown gets a
+  live countdown; an empty address renders "We sent you a link." instead of the literal "We sent a
+  link to ." the screen shipped with.
+  THE ORCHESTRATOR CAUGHT ONE DEFECT THE EXECUTOR COULD NOT HAVE: clicking Resend disables the
+  button, and bh-button uses the NATIVE disabled attribute — so the pressed control leaves the a11y
+  tree and focus falls to <body>. Identical to box-picker's P1, one screen later. Fixed ON THIS
+  SCREEN by moving focus to the result alert rather than by changing bh-button, which 32 call sites
+  depend on and where native disabled is usually the correct semantic.
+  ** AND THEN THAT FIX ITSELF SHIPPED BROKEN, WHICH IS THE ENTRY WORTH KEEPING. ** It used
+  queueMicrotask. The app runs zone.js CD with eventCoalescing (app.config.ts:15), so the flush is
+  deferred PAST the microtask queue: the callback ran before the alert existed, querySelector
+  returned null, and the whole focus move silently no-opped behind its own `if (!el) return`. A
+  guard clause turned a broken feature into a silent one.
+  MY KARMA SPEC PASSED AGAINST IT, and for exactly the reason the (ngSubmit) P0 passed 272 specs:
+  fixture.detectChanges() forces the flush SYNCHRONOUSLY, so the spec never reproduced the real
+  timing. The negative control also passed — it proved the spec catches a MISSING call, not a call
+  that runs at the wrong moment. **A negative control only tests the mutation you thought of.**
+  Found by the design critique driving the live screen; fixed with afterNextRender (which exists for
+  this) and then verified by the orchestrator in a real browser before claiming it:
+  activeElement === BH-ALERT[check-email-resent]. Re-critique confirmed both success AND error paths.
+  A SPEC ASSERTION RETIRED FOR BEING WRONG, not for being inconvenient: the destroy spec asserted the
+  zone's ONE-SHOT timer queue was empty. afterNextRender schedules its own timeout there, so that
+  assertion was testing the framework. Replaced with behaviour — tick past 60s after destroy and the
+  button must still be disabled — which is a better test than the one it replaced, and its negative
+  control fails correctly without the clearTimeout.
+  THE EXECUTOR FOUND THE FOURTH TEST-THAT-COULD-NOT-FAIL OF THIS MILESTONE, ON ITS OWN, and did not
+  accept my brief's suggested approach: I said fakeAsync's implicit end-of-test check would catch a
+  leaked interval. It does not — flush() explicitly skips periodic tasks. The executor traced zone.js
+  source, proved it empirically with a probe (pendingPeriodicTimers: [138] while green), and replaced
+  the assertion with one that actually catches the mutation. That is the escalation culture working.
+  THREE MORE DEFECTS FIXED BEYOND THE PLAN'S LIST: "Sent again." never cleared, so a stale success
+  could sit beside a fresh error; the cooldown was silent (a dead button for 60s with no reason reads
+  as broken); and a 47-char address overflowed 375px (scrollWidth 390 vs 375) — email addresses have
+  no spaces to break on, so .muted needed overflow-wrap: anywhere. Re-measured at 343 vs 343.
+  P2 LEFT OPEN, PRE-EXISTING: the resend error copy is generic ("Could not resend — try again"), with
+  no cause. Unchanged by this task.
+  STILL UNVERIFIED, flagged rather than assumed: the "Sending…" pending label (the mocked response is
+  instant), the same caveat every auth screen in this milestone carries.
