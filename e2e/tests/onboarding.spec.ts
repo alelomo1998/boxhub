@@ -85,13 +85,11 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     const link = await mailLinkTo(OWNER_EMAIL, '/auth/verify');
     // Absolute link straight from the mail — a real user clicks exactly this, no rewriting.
     await page.goto(link);
-    await page.waitForURL(url => !url.pathname.startsWith('/app/auth/verify'));
 
-    // Verify doesn't select a box (see box-picker.page.ts / login.page.ts — that's a UI-flow
-    // step, not something bootstrap does automatically), so pick it explicitly like a real
-    // user would from the box picker.
-    await page.goto('/app/auth/boxes');
-    await page.locator('.box', { hasText: BOX_NAME }).click();
+    // The owner has exactly one membership — the box they just created — so verify's
+    // auto-select (M8 fix, shipped M13d) mints the box token itself and lands them
+    // straight on /admin. No manual box-picker step, unlike a multi-membership user
+    // (who still lands on /app/auth/boxes to choose).
     await expect(page).toHaveURL(/\/admin/);
 
     await expect(page.getByTestId('pending-banner')).toBeVisible();
