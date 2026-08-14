@@ -150,6 +150,68 @@ describe('SignupPage', () => {
     expect(el.textContent).not.toContain('OR CONTINUE WITH');
   });
 
+  it('routes a field validation error to the correct field and does NOT show the generic alert', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    flushProviders();
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('not-an-email'); cmp.password.set('whatever12'); cmp.name.set('Ann');
+    cmp.submit();
+    http.expectOne('/api/auth/register').flush(
+      { detail: 'Validation failed', errors: { email: 'must be a well-formed email address' } },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    fixture.detectChanges();
+
+    expect(cmp.emailError()).toBe('Enter a valid email address.');
+    // Both halves matter: a field message alone would also pass with the double-message bug back.
+    expect(cmp.formError()).toBe('');
+    expect(fixture.nativeElement.querySelector('[data-testid="signup-error"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="signup-email-error"]').textContent)
+      .toContain('Enter a valid email address.');
+  });
+
+  it('clears a stale field error on a second submit', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    flushProviders();
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('bad'); cmp.password.set('whatever12'); cmp.name.set('Ann');
+    cmp.submit();
+    http.expectOne('/api/auth/register').flush(
+      { detail: 'Validation failed', errors: { email: 'must be a well-formed email address' } },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    expect(cmp.emailError()).toBe('Enter a valid email address.');
+
+    cmp.email.set('a@b.io');
+    cmp.submit();
+    // submit() clears every field signal synchronously, before the request even resolves.
+    expect(cmp.emailError()).withContext('stale error must clear at the start of resubmit').toBe('');
+
+    http.expectOne('/api/auth/register').flush(null, { status: 201, statusText: 'Created' });
+  });
+
+  it('PASSWORD_TOO_SHORT (arriving as detail) wins over a generically mapped password field error', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    flushProviders();
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('a@b.io'); cmp.password.set('short'); cmp.name.set('Ann');
+    cmp.submit();
+    http.expectOne('/api/auth/register').flush(
+      { detail: 'PASSWORD_TOO_SHORT', errors: { password: 'size must be between 10 and 100' } },
+      { status: 400, statusText: 'Bad Request' },
+    );
+
+    // Not the generic mapped copy ('Enter a password with at least 10 characters.') — the more
+    // specific password-policy sentence.
+    expect(cmp.passwordError()).toBe('Use at least 10 characters.');
+  });
+
   it('clicking the submit button fires submit() and prevents the native GET-with-password-in-URL submit', () => {
     // Regression for the P0 that shipped once on login: (ngSubmit) silently binds to nothing once
     // FormsModule/NgForm is gone, so a suite calling cmp.submit() directly — never dispatching a

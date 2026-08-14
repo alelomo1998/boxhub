@@ -105,6 +105,87 @@ describe('StartBoxPage', () => {
     expect(cmp.passwordError()).toBe('');
   });
 
+  it('routes a field validation error to the correct field and does NOT show the generic alert', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/signup-mode').flush({ open: true });
+
+    const cmp = fixture.componentInstance;
+    cmp.boxName.set(''); cmp.name.set('Ann'); cmp.email.set('a@b.io'); cmp.password.set('longenoughpw');
+    cmp.submit();
+    http.expectOne('/api/auth/signup-box').flush(
+      { detail: 'Validation failed', errors: { boxName: 'must not be blank' } },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    fixture.detectChanges();
+
+    expect(cmp.boxNameError()).toBe("Enter your gym's name.");
+    // Both halves matter: a field message alone would also pass with the double-message bug back.
+    expect(cmp.formError()).toBe('');
+    expect(fixture.nativeElement.querySelector('[data-testid="start-error"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="start-box-name-error"]').textContent)
+      .toContain("Enter your gym's name.");
+  });
+
+  it('clears a stale field error on a second submit', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/signup-mode').flush({ open: true });
+
+    const cmp = fixture.componentInstance;
+    cmp.boxName.set(''); cmp.name.set('Ann'); cmp.email.set('a@b.io'); cmp.password.set('longenoughpw');
+    cmp.submit();
+    http.expectOne('/api/auth/signup-box').flush(
+      { detail: 'Validation failed', errors: { boxName: 'must not be blank' } },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    expect(cmp.boxNameError()).toBe("Enter your gym's name.");
+
+    cmp.boxName.set('Iron Box');
+    cmp.submit();
+    // submit() clears every field signal synchronously, before the request even resolves.
+    expect(cmp.boxNameError()).withContext('stale error must clear at the start of resubmit').toBe('');
+
+    http.expectOne('/api/auth/signup-box').flush(null, { status: 201, statusText: 'Created' });
+  });
+
+  it('PASSWORD_TOO_SHORT (arriving as detail) wins over a generically mapped password field error', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/signup-mode').flush({ open: true });
+
+    const cmp = fixture.componentInstance;
+    cmp.boxName.set('Iron Box'); cmp.name.set('Ann'); cmp.email.set('a@b.io'); cmp.password.set('short');
+    cmp.submit();
+    http.expectOne('/api/auth/signup-box').flush(
+      { detail: 'PASSWORD_TOO_SHORT', errors: { password: 'size must be between 10 and 100' } },
+      { status: 400, statusText: 'Bad Request' },
+    );
+
+    // Not the generic mapped copy — the more specific password-policy sentence.
+    expect(cmp.passwordError()).toBe('Use at least 10 characters.');
+  });
+
+  it('SIGNUP_RETRY (503) keeps its own message and is NOT replaced by field mapping, even ' +
+     'when an errors map rides along', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/signup-mode').flush({ open: true });
+
+    const cmp = fixture.componentInstance;
+    cmp.boxName.set('Iron Box'); cmp.name.set('Ann'); cmp.email.set('a@b.io'); cmp.password.set('longenoughpw');
+    cmp.submit();
+    // SIGNUP_RETRY returns early in the component, before fieldErrorMessages() ever runs — an
+    // errors map present alongside it must be ignored entirely, not partially applied.
+    http.expectOne('/api/auth/signup-box').flush(
+      { detail: 'SIGNUP_RETRY', errors: { boxName: 'must not be blank' } },
+      { status: 503, statusText: 'Service Unavailable' },
+    );
+
+    expect(cmp.formError()).toBe('Try again in a moment.');
+    expect(cmp.boxNameError()).toBe('');
+  });
+
   it('swaps to the waitlist form when the mode flips to full between load and submit, carrying typed values over, and explains the flip', () => {
     const fixture = setup();
     fixture.detectChanges();

@@ -129,4 +129,17 @@ describe('SelectComponent', () => {
     expect(sel().getAttribute('name')).toBeNull();
     expect(sel().required).toBe(false);
   });
+
+  it('renders the required asterisk, aria-hidden, when required is true', () => {
+    const g = TestBed.createComponent(AttrHost); // sets [required]="true"
+    g.detectChanges();
+    const marker = g.nativeElement.querySelector('label .req');
+    expect(marker).withContext('AttrHost sets required=true').not.toBeNull();
+    expect(marker!.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('omits the required asterisk when required is false (the default)', () => {
+    // Host's <bh-select> does not bind [required], so it defaults to false.
+    expect(f.nativeElement.querySelector('label .req')).toBeNull();
+  });
 });
