@@ -742,3 +742,5 @@ so those need real translation rather than a config flip. Do it with a supported
 the experimental hidden `refactor-jasmine-vitest` schematic.
 
 **Not a performance argument.** Karma runs the 184 specs in ~4 seconds.
+- `--faint` on `--surface-2` measures 4.27:1 and fails WCAG AA. Fixed so far only where M13c/M13d owned the code (bh-field + bh-search-bar placeholders, box-picker's role label). ~19 other files use the pairing, all on M15/M16-owned screens — sweep them when those milestones rebuild. The token's documented 5.1:1 is against `--ground`; measure against the surface the text actually sits on.
+- box-picker's pending row swaps the role label for "Opening…" with no `aria-live` region, so a screen-reader user relies entirely on `aria-busy` support. P2 from the M13d Task 12 critique.

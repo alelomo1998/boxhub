@@ -1611,3 +1611,52 @@ Task 11 (join) COMPLETE — **36/40 on the FIRST critique, zero P0/P1. §16 gate
   Closing that second gap needs a second seeded box.
   Help & Documentation scored 2 — a zero-contextual-help baseline shared across the whole auth
   family, not join-specific.
+
+Task 12 (box-picker) COMPLETE — **33 -> 36/40, zero P0/P1. §16 gate cleared.** First of the six
+narrow screens. Commits 78a833b (build), b9ef461 (the three P1 fixes).
+  Karma 320 -> 328 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack, run twice (once
+  after the build, once after the fixes).
+  THREE USER DECISIONS AT STEP B: a Log out control in the footer in EVERY state (the screen had no
+  sign-out and no back link, so a 0-membership account or a suspended-only account was a total dead
+  end; back-to-login was rejected because the user is authenticated and would bounce straight back);
+  ZERO VOLT on the screen (`.box:hover` was volt, but law §5 says volt means live/now and hovering a
+  row has not made it live — and the list is @for-rendered, so volt-the-primary cannot mean volt per
+  row; one volt element is a CEILING, not a quota); and `.empty`'s raw 14px -> --fs-body.
+  ORCHESTRATOR'S BRIEF WAS WRONG AGAIN, SAME FAMILY AS EVERY OTHER TIME: it said the logout control
+  is "a link, not a button". Signing out is an ACTION, and all four existing logout controls in the
+  product are buttons (admin-shell:25, coach-shell:29, console:246, security:368). The executor built
+  what the brief said — `<a href (click)="signOut($event)">` — which also slipped the no-plain-href
+  gate, because a BARE `href` attribute does not match the gate's `href="` pattern. Fixed to a
+  <button class="linkish">. Worth keeping: gate 6 has a blind spot for valueless attributes.
+  ALSO FIXED BY THE ORCHESTRATOR ON REVIEW: the pending row read "Joining…". Nobody joins here — the
+  user is ALREADY a member of every box in the list; joining is what /join/:token does. Now
+  "Opening…". And the sign-out spec called signOut() directly; it now CLICKS the real control, with a
+  negative control confirming it fails ("Expected one matching request ... found none") when the
+  (click) binding is removed. That is the login-P0 lesson applied to a new screen rather than
+  re-learned on it.
+  THE CRITIQUE FOUND THREE REAL P1s, ALL ACCESSIBILITY, ALL MEASURED:
+   1. `.role` was --faint on --surface-2 = 4.27:1, under the 4.5:1 floor -> --bone-dim, 7.17:1.
+      THE SAME TRAP AS THE PLACEHOLDER FIX, and it will keep recurring: --faint's documented 5.1:1
+      is measured against --ground, and NOTHING on this screen sits on --ground.
+   2. The rows used the NATIVE `disabled` attribute while a selection was in flight. A native
+      disabled removes the element from the a11y tree, so the row the user just clicked dropped
+      keyboard focus to <body> — no confirmation the click landed, no way back without re-tabbing
+      from the top. Now aria-disabled, with the double-click guard staying in pick() where it has to
+      be anyway. Re-critique verified BOTH halves: focus stays on the row through pending and past a
+      403, AND a second Enter mid-pending still leaves boxTokenCalls at 1 — the fix did not trade one
+      defect for another.
+   3. A long box name at 200% text pushed the WHOLE PAGE into horizontal scroll (body.scrollWidth
+      529 vs clientWidth 375). `.bn` gained min-width:0 + overflow-wrap; re-measured 375 vs 375.
+  SELF-INFLICTED, THE SECOND TIME THIS MILESTONE AND I HAD WARNED THE EXECUTOR ABOUT IT IN THE SAME
+  BRIEF: I put BACKTICKS around the word disabled inside an HTML comment in the Angular template.
+  The template is a TypeScript template literal; it terminated at the comment and the build failed
+  with TS1005/TS2554 pointing at `styles:`, three lines away from the actual cause. Straight quotes.
+  ALSO: `npx ng build --configuration production` exits 0 while Karma's tsc FAILS, because the
+  production build does not compile spec files. A green build is NOT evidence the specs compile —
+  run Karma. This nearly let a broken spec through.
+  NEW P2, NOT BLOCKING, PRE-EXISTING RATHER THAN INTRODUCED: the pending row swaps {{ m.role }} for
+  "Opening…" with no aria-live region, so a screen-reader user gets only whatever aria-busy support
+  their AT/browser pair happens to have.
+  FILED TO BACKLOG, NOT FIXED (milestone lock): --faint on --surface-2 is used on ~19 other files,
+  all M15/M16-owned screens. The two fixes taken so far (bh-field/bh-search-bar placeholders, and
+  this screen) were both inside code this milestone owns.
