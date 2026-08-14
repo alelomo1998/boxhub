@@ -1,8 +1,8 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { passwordErrorMessage } from '../../core/auth/auth.models';
+import { passwordErrorMessage, fieldErrorMessages } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
 import { FieldComponent } from '../../ui/field.component';
 import { AlertComponent } from '../../ui/alert.component';
@@ -28,11 +28,13 @@ import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
       <form class="form" (submit)="submit($event)" novalidate data-testid="signup-form">
         <bh-field label="NAME" i18n-label="@@auth.signup.name.label" type="text"
                    name="name" autocomplete="name" [required]="true" [(value)]="name"
-                   testId="signup-name" placeholder="Jane Doe" i18n-placeholder="@@auth.signup.name.placeholder" />
+                   testId="signup-name" placeholder="Jane Doe" i18n-placeholder="@@auth.signup.name.placeholder"
+                   [error]="nameError()" />
 
         <bh-field label="EMAIL" i18n-label="@@auth.signup.email.label" type="email"
                    name="email" autocomplete="username" [required]="true" [(value)]="email"
-                   testId="signup-email" placeholder="you@email.com" i18n-placeholder="@@auth.signup.email.placeholder" />
+                   testId="signup-email" placeholder="you@email.com" i18n-placeholder="@@auth.signup.email.placeholder"
+                   [error]="emailError()" />
 
         <!-- No host data-testid: bh-field derives the error node's own hook as '<testId>-error',
              so 'signup-password-error' lands on the error span itself. -->
@@ -92,11 +94,14 @@ import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 export class SignupPage implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private el: ElementRef<HTMLElement> = inject(ElementRef);
 
   name = signal('');
   email = signal('');
   password = signal('');
   pending = signal(false);
+  nameError = signal('');
+  emailError = signal('');
   passwordError = signal('');
   formError = signal('');
   showGoogle = signal(false);
@@ -106,8 +111,15 @@ export class SignupPage implements OnInit {
     this.auth.providers().subscribe({ next: p => this.showGoogle.set(p.google), error: () => {} });
   }
 
+  // DOM order — used to pick the first invalid field to focus.
+  private readonly fieldOrder: Array<[key: 'name' | 'email' | 'password', testId: string]> = [
+    ['name', 'signup-name'], ['email', 'signup-email'], ['password', 'signup-password'],
+  ];
+
   submit(event?: Event) {
     event?.preventDefault();
+    this.nameError.set('');
+    this.emailError.set('');
     this.passwordError.set('');
     this.formError.set('');
     this.pending.set(true);
@@ -119,9 +131,22 @@ export class SignupPage implements OnInit {
       },
       error: (e: HttpErrorResponse) => {
         this.pending.set(false);
-        const msg = passwordErrorMessage(e.error?.detail);
-        if (msg) this.passwordError.set(msg);
-        else this.formError.set($localize`:@@auth.signup.error.generic:Something went wrong — try again.`);
+        const fieldErrors = fieldErrorMessages(e);
+        // A password-policy code (PASSWORD_TOO_SHORT/BREACHED) is more specific than the generic
+        // mapped message for the field, so it wins when both are somehow present.
+        const pwMsg = passwordErrorMessage(e.error?.detail);
+        if (pwMsg) fieldErrors['password'] = pwMsg;
+
+        this.nameError.set(fieldErrors['name'] ?? '');
+        this.emailError.set(fieldErrors['email'] ?? '');
+        this.passwordError.set(fieldErrors['password'] ?? '');
+
+        const first = this.fieldOrder.find(([key]) => fieldErrors[key]);
+        if (first) {
+          this.el.nativeElement.querySelector<HTMLElement>(`[data-testid="${first[1]}"]`)?.focus();
+        } else {
+          this.formError.set($localize`:@@auth.signup.error.generic:Something went wrong — try again.`);
+        }
       },
     });
   }

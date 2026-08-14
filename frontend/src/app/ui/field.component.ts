@@ -16,7 +16,7 @@ let seq = 0;
   template: `
     <div class="field">
       <div class="lab-row">
-        <label class="lab" [attr.for]="id">{{ label() }}</label>
+        <label class="lab" [attr.for]="id">{{ label() }}@if (required()) {<span class="req" aria-hidden="true"> *</span>}</label>
         <ng-content select="[labelAction]" />
       </div>
       <input class="input" [id]="id" [type]="type()" [value]="value()"
@@ -43,6 +43,10 @@ let seq = 0;
     .lab-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2); }
     .lab { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--faint); }
+    /* --faint, not --danger: a required-but-untouched field is not an error, and design law
+       reserves --danger for actual invalid state. --faint already colours the label itself, so
+       the marker reads as quiet label furniture, not an alert. */
+    .req { color: var(--faint); }
     .input { background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--edge); padding: 0 var(--sp-3); min-height: var(--tap); color: var(--bone);
       font-family: var(--font-body); font-size: var(--fs-body); width: 100%; }

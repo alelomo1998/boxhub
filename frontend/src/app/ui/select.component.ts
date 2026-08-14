@@ -8,7 +8,7 @@ let seq = 0;
   standalone: true,
   template: `
     <div class="field">
-      <label class="lab" [attr.for]="id">{{ label() }}</label>
+      <label class="lab" [attr.for]="id">{{ label() }}@if (required()) {<span class="req" aria-hidden="true"> *</span>}</label>
       <select #sel class="sel" [id]="id" [disabled]="disabled()"
               [attr.name]="name() || null"
               [required]="required()"
@@ -26,6 +26,9 @@ let seq = 0;
     .field { display: flex; flex-direction: column; gap: var(--sp-1); }
     .lab { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--faint); }
+    /* Same token choice as bh-field: --faint, not --danger — a required-but-untouched field
+       is not an error state. */
+    .req { color: var(--faint); }
     .sel { background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--edge); padding: 0 var(--sp-3); min-height: var(--tap); color: var(--bone);
       font-family: var(--font-body); font-size: var(--fs-body); width: 100%; cursor: pointer; }

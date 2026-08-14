@@ -19,3 +19,8 @@ docker/.env
 docker/dev-tls/
 docs/design-md/
 docs/design-ref/
+
+# Angular build cache. frontend/.gitignore covers frontend/.angular/cache, but a build run
+# from the repo root creates one HERE — and the repo root IS the Docker build context, which
+# is how a 6.5 GB image layer happened once before.
+.angular/

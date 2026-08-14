@@ -2,7 +2,7 @@ import { Component, ElementRef, Injector, OnInit, ViewChild, afterNextRender, in
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { passwordErrorMessage } from '../../core/auth/auth.models';
+import { passwordErrorMessage, fieldErrorMessages } from '../../core/auth/auth.models';
 import { ButtonComponent } from '../../ui/button.component';
 import { FieldComponent } from '../../ui/field.component';
 import { AlertComponent } from '../../ui/alert.component';
@@ -42,15 +42,18 @@ type Mode = 'loading' | 'open' | 'full' | 'error';
           <form class="form" (submit)="submit($event)" novalidate data-testid="start-form">
             <bh-field label="BOX NAME" i18n-label="@@auth.startBox.boxName.label" type="text"
                        name="boxName" autocomplete="organization" [required]="true" [(value)]="boxName"
-                       testId="start-box-name" placeholder="Iron Box CrossFit" i18n-placeholder="@@auth.startBox.boxName.placeholder" />
+                       testId="start-box-name" placeholder="Iron Box CrossFit" i18n-placeholder="@@auth.startBox.boxName.placeholder"
+                       [error]="boxNameError()" />
 
             <bh-field label="YOUR NAME" i18n-label="@@auth.startBox.name.label" type="text"
                        name="name" autocomplete="name" [required]="true" [(value)]="name"
-                       testId="start-name" placeholder="Jane Doe" i18n-placeholder="@@auth.startBox.name.placeholder" />
+                       testId="start-name" placeholder="Jane Doe" i18n-placeholder="@@auth.startBox.name.placeholder"
+                       [error]="nameError()" />
 
             <bh-field label="EMAIL" i18n-label="@@auth.startBox.email.label" type="email"
                        name="email" autocomplete="username" [required]="true" [(value)]="email"
-                       testId="start-email" placeholder="you@email.com" i18n-placeholder="@@auth.startBox.email.placeholder" />
+                       testId="start-email" placeholder="you@email.com" i18n-placeholder="@@auth.startBox.email.placeholder"
+                       [error]="emailError()" />
 
             <!-- No host data-testid: bh-field derives the error node's own hook as '<testId>-error',
                  so 'start-password-error' lands on the error span itself. -->
@@ -143,8 +146,19 @@ export class StartBoxPage implements OnInit {
 
   mode = signal<Mode>('loading');
   pending = signal(false);
+  boxNameError = signal('');
+  nameError = signal('');
+  emailError = signal('');
   passwordError = signal('');
   formError = signal('');
+
+  private el: ElementRef<HTMLElement> = inject(ElementRef);
+
+  /** DOM order — picks which invalid field to focus after a failed submit. */
+  private readonly fieldOrder: Array<[key: 'boxName' | 'name' | 'email' | 'password', testId: string]> = [
+    ['boxName', 'start-box-name'], ['name', 'start-name'],
+    ['email', 'start-email'], ['password', 'start-password'],
+  ];
   waitlisted = signal(false);
   // True only when 'full' was reached by a submit flipping under the user, not a cold load —
   // that distinction is what tells the flip notice apart from someone landing on a closed platform.
@@ -164,6 +178,9 @@ export class StartBoxPage implements OnInit {
 
   submit(event?: Event) {
     event?.preventDefault();
+    this.boxNameError.set('');
+    this.nameError.set('');
+    this.emailError.set('');
     this.passwordError.set('');
     this.formError.set('');
     this.pending.set(true);
@@ -184,13 +201,32 @@ export class StartBoxPage implements OnInit {
       },
       error: (e: HttpErrorResponse) => {
         this.pending.set(false);
+        // SIGNUP_RETRY stays ahead of everything: it is the bounded slug-collision retry giving
+        // up, it belongs to no field, and it is retryable — a generic message would lose that.
         if (e.status === 503 && e.error?.detail === 'SIGNUP_RETRY') {
           this.formError.set($localize`:@@auth.startBox.error.retry:Try again in a moment.`);
           return;
         }
-        const msg = passwordErrorMessage(e.error?.detail);
-        if (msg) this.passwordError.set(msg);
-        else this.formError.set($localize`:@@auth.startBox.error.generic:Something went wrong — try again.`);
+
+        const fieldErrors = fieldErrorMessages(e);
+        // A password-policy code (PASSWORD_TOO_SHORT / PASSWORD_BREACHED) is more specific than
+        // the generic mapped message for that field, so it wins when both are present.
+        const pwMsg = passwordErrorMessage(e.error?.detail);
+        if (pwMsg) fieldErrors['password'] = pwMsg;
+
+        this.boxNameError.set(fieldErrors['boxName'] ?? '');
+        this.nameError.set(fieldErrors['name'] ?? '');
+        this.emailError.set(fieldErrors['email'] ?? '');
+        this.passwordError.set(fieldErrors['password'] ?? '');
+
+        // Show the top-of-form alert ONLY when nothing landed on a field — otherwise the user is
+        // told twice. Focus the first bad field: at 375px this form's submit sits below the fold.
+        const first = this.fieldOrder.find(([key]) => fieldErrors[key]);
+        if (first) {
+          this.el.nativeElement.querySelector<HTMLElement>(`[data-testid="${first[1]}"]`)?.focus();
+        } else {
+          this.formError.set($localize`:@@auth.startBox.error.generic:Something went wrong — try again.`);
+        }
       },
     });
   }
