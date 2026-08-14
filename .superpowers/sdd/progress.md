@@ -1707,3 +1707,44 @@ family (login/join/box-picker 36, start-box 35, signup 34). Commits 5f39b88, 7e8
   no cause. Unchanged by this task.
   STILL UNVERIFIED, flagged rather than assumed: the "Sending…" pending label (the mocked response is
   instant), the same caveat every auth screen in this milestone carries.
+
+Task 14 (verify) COMPLETE — **35 -> 37/40, zero P0/P1. §16 gate cleared.** Commits 68b85d8,
+37de2bf, ad51b60. Karma 334 -> 343 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack.
+  Same rubric both passes this time (Nielsen x10, /4) — the brief demanded it explicitly after
+  check-email's two passes silently used different ones and made that delta non-comparable.
+  THE APPROVED FIX: verify auto-selects a single box. Success navigated to '/', landing a
+  one-membership user on a picker holding ONE item. verifyEmail() already returns the bootstrapped
+  session, so it is login.page.ts:129-141 copied verbatim, 403 arm included. Pre-existing since M8.
+  `e2e/tests/onboarding.spec.ts` ROUTED THROUGH THE PICKER TO WORK AROUND IT, and the rule was not
+  to weaken it: it now asserts /admin directly, which is the same claim and a STRONGER one — it
+  proves the app got there itself rather than being driven there by the test.
+  USER DECISIONS: the expired state's resend button IS volt while check-email's is not, and that is
+  a justified difference rather than an inconsistency — on check-email the real action is in the
+  user's inbox, here the link has already FAILED so resending is the only way forward. And the
+  invalid-link exit became "Back to login" rather than "Back to sign up", since anyone holding a
+  verification link already has an account.
+  NEW ANGULAR TRAP, FOUND BY THE EXECUTOR VIA THE BUILD GATE: **an @case with more than one root
+  node does NOT project into a named slot** (NG8011). Panel content and body content therefore need
+  two separate top-level @switch blocks. Silent in every other respect — the eyebrow and headline
+  would simply never have appeared.
+  THE P1 WAS MINE, AND IT IS A LESSON ABOUT COPYING CODE ACROSS DIFFERENT SHELLS: I told the
+  executor to copy login's box-token 403 arm. Login has no headline to contradict; this screen's
+  'error' state does. So a user whose email verified FINE but whose box is suspended read
+  "Invalid link / Not valid" printed directly above "This box is unavailable" — the two halves of
+  the screen contradicting each other, and the heading naming the wrong thing as broken. It now has
+  its own state ("Email verified" / "Your box is unavailable."). **The spec asserts the screen does
+  NOT contain "Not valid" or "Invalid link"** — the defect itself, not a restatement of the new copy.
+  ** THEN I INTRODUCED A REGRESSION FIXING A P2, AND THE RE-CRITIQUE CAUGHT IT. ** Wrapping the
+  resend field in a <form> so Enter works made Enter a SECOND entry point into resend() — and the
+  only guard was the button's [disabled], which gates the CLICK path only. A lone-field form submits
+  on Enter regardless of any button's state, so three Enters during the cooldown fired three resends
+  at a backend that allows 3/h. The guard belongs INSIDE the handler, where both paths funnel — the
+  shape box-picker's pick() already used. Verified live: three Enters now produce one request.
+  GENERAL RULE WORTH CARRYING: **a disabled button is a guard on one path, never on the action.**
+  Every screen in this milestone that gates an action has now needed the guard in the handler.
+  ALSO REWORDED A COMMENT rather than living with a noisy gate: my own explanation of the form
+  contract spelled out the forbidden binding by name, so gate 5b reported a hit on a file that is
+  clean. A gate you have to explain away stops being a gate.
+  P2s LEFT OPEN, both cosmetic and both declared: the resend button's width wobbles ~8px at the
+  "10s -> 9s" digit boundary (no clipping at any width tested), and the pending state has no <h1>
+  (it is a bare status line by design and lasts one request).
