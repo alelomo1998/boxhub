@@ -1866,3 +1866,43 @@ passed + 1 skipped on a `down -v` stack. Third screen to score its final number 
   is invalid" with no retry — INHERITED from verify.page.ts, which has the identical collapse, so
   fixing it here alone would split the two screens; and the route title is static across all four
   outcomes.
+
+Task 18 (account/security) — **DEFERRED OUT OF THE MILESTONE, user's call, 2026-08-14. Built, then
+reverted deliberately.** M13d closes at TEN screens, not eleven.
+  THE USER REVIEWED THE SCREEN AND REJECTED IT, and the objection was about the DESIGN, which the
+  task had been told not to touch: not mobile friendly, clamped edge to edge with no side space,
+  anonymous buttons, a poor back control, and password + email + sessions + danger zone all stacked
+  on one page. What they want is a lateral menu with the sections separated so there is room to add
+  more — i.e. an account AREA with split routes, not one screen.
+  ** THE PLAN PUT IT IN THE WRONG MILESTONE, AND THE PLAN'S OWN SPEC PROVES IT. ** §7.2 declared
+  restructuring out of scope for this task, so the executed rebuild faithfully preserved the layout
+  the user objected to — it modernised the plumbing beneath a design nobody had shaped. It is also
+  the ONE task in the milestone that does not consume bh-auth-layout, because it is not an auth
+  screen at all. Shipping it would have been polishing markup we are about to delete: the exact
+  double-work this program defers i18n marking to avoid.
+  A SECURITY POINT THE USER RAISED, CHECKED RATHER THAN AGREED WITH — they were half right, and the
+  precise answer matters:
+   - CHANGING THE EMAIL IS ALREADY CORRECT and needs nothing. AccountService.startEmailChange
+     requires the current password AND the change lands only when the NEW address clicks a link
+     mailed to it. Its javadoc already says why: "anyone can type an address they do not own; only
+     its owner can click the link sent to it."
+   - CHANGING THE PASSWORD SENDS NO MAIL AT ALL. changePassword checks the current password, writes
+     the hash, returns. That is a real gap — but the fix is a NOTIFICATION ("your password was
+     changed, was this you?"), NOT a confirmation gate. Gating a password change behind an inbox
+     click, when the user has already proved the current password, adds friction and locks out
+     anyone without mail access. Filed with the deferred milestone.
+  KEPT FROM THE ABORTED TASK: `e2e/tests/account-security.spec.ts` — coverage this screen never had.
+  The plan claimed e2e/tests/security.spec.ts asserted several of its ids; IT DOES NOT, that file is
+  about HTTP headers and CSP. **No e2e touched this screen at all.** The new spec asserts only
+  behaviour that must survive the redesign — the forms actually submitting INCLUDING the Enter path,
+  the URL never gaining a query string, the new password working and the old one not, and the delete
+  flow revealing its password field only after the server asks — and it pins no layout. It passes
+  against the un-rebuilt screen, which is what proves it is behaviour coverage and not markup
+  coupling. e2e 35 -> 39 passed + 1 skipped.
+  A SECOND PLAN ERROR FOUND WHILE BRIEFING: the plan said "four separate forms". There are TWO; the
+  sessions and danger-zone controls are click-driven and the delete sheet has bare inputs with no
+  form at all.
+  THE SETUP LESSON, worth keeping for the new milestone's e2e: /account/security requires an ACTIVE
+  BOX, not merely a session — a freshly signed-up, verified, membership-less account bounces to
+  login. The cheapest way to a usable account is the INVITE flow, which creates it, lands it
+  verified (M8 T11) and grants the membership in one step.

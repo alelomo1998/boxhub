@@ -1288,37 +1288,38 @@ describes; that one was a push **to main** producing no run.
 
 ---
 
-## Task 18: `account/security` — its own layout
+## Task 18: `account/security` — **DEFERRED OUT OF M13d (2026-08-14, user's call)**
 
-**Files:**
-- Modify: `frontend/src/app/features/account/security.page.ts` (389 lines — the largest in the set)
-- Test: `frontend/src/app/features/account/security.page.spec.ts`
+**Not built. The screen stays as it is until its own milestone.**
 
-**Interfaces:** consumes Tasks 1 and 2. **Does NOT consume `bh-auth-layout`** — it is an in-app settings page reached from all three shells with a back control, not an auth screen.
+The rebuild was executed and then reverted deliberately. Why, recorded so it is not re-litigated:
 
-**Measured inventory:**
-- **35 test ids**, the most in the milestone. `e2e/tests/security.spec.ts` asserts several. Run the "no test id may disappear" gate on this file with particular care.
-- **6 legacy `.bh-input`** sites → 0 — the most in the set.
-- **Eager** line 160 → drop. **`FormsModule`/`ngModel`** → drop, across **four** separate forms plus the delete sheet's two fields.
-- **Already uses `routerLink`** for the two forgot-password links.
+- **It is not an auth screen.** It is an in-app settings page reached from all three shells, and it
+  is the one task in this milestone that does not consume `bh-auth-layout`. Grouping it with login
+  and signup was a mistake in this plan.
+- **What it actually needs is an account AREA, not a screen**: lateral navigation with the sections
+  separated so there is room to add more, sections split across routes rather than password + email
+  + sessions + danger zone stacked on one page, and a real mobile layout — the current one is
+  clamped edge to edge with no side space and unlabelled buttons.
+- **This plan's own spec §7.2 put restructuring out of scope**, which is exactly why the executed
+  rebuild preserved the layout the user objected to. It modernised the plumbing beneath a design
+  nobody had shaped. Shipping that would have been polishing markup we are about to delete — the
+  same double-work this program defers i18n marking to avoid.
+- **A real security gap belongs with it**: changing the password sends no mail at all
+  (`AccountService.changePassword` checks the current password, writes the hash, returns). The fix
+  is a *notification* — "your password was changed, was this you?" — not a confirmation gate;
+  requiring an inbox click to change a password the user has already authenticated for adds
+  friction and locks out anyone without mail access. **Changing the EMAIL is already correct** and
+  needs nothing: it requires the current password AND lands only when the new address clicks a link
+  mailed to it.
 
-**Five sections:** Password · Email · Sessions · Danger zone · the delete `bh-sheet`. **Restructuring them is out of scope** (spec §7.2) — this task rebuilds against the new contract and shapes the existing structure, it does not split the page into routes.
+**Kept from the aborted task:** `e2e/tests/account-security.spec.ts`, which is new coverage this
+screen never had. It asserts only behaviour that must survive the redesign — the forms actually
+submitting (including the Enter path), the URL never gaining a query string, the new password
+working and the old one not, and the delete flow revealing its password field only after the server
+asks. It pins no layout, and it passes against the un-rebuilt screen.
 
-**Behaviour that must survive — this screen has the most of it, and several are security properties:**
-- **The delete flow sends no password first.** A `422 WRONG_PASSWORD` back means "this account has a password and it wasn't supplied", which is what reveals the field. A Google-only account never sees the field because it never gets that 422. The comment at lines 222–224 explains it; keep both.
-- **Second-attempt copy differs**: once the field is already visible and the user typed something, the message is "That password is wrong", not "Enter your password" — telling them to do the thing they just did.
-- `LAST_ADMIN` (409) names the box and says what to do about it.
-- **`canDelete()` requires the literal string `DELETE`** plus a password when needed.
-- **`revokingId` is keyed per row**, deliberately — a single boolean would disable every button. Revoking the session you are currently holding ends it, so that branch clears and navigates to login.
-- **`NO_PASSWORD_SET` (409)** on either password or email change reveals the Google-only message.
-- Changing the password **signs out other devices**; changing the email is confirmed **at the new address** and the current one stays active until then. Both facts are in the visible copy.
-- The export builds a Blob client-side and names it from `BRAND_NAME`.
-
-**Design law on the destructive controls, and it is exact:** the control that **opens** the delete flow is a **danger-bordered ghost** (`.deletebtn` at line 185 already is), and the control that **executes** it is **filled** (`variant="danger"` at line 154 already is). `--danger` may fill a **button or chip** and nothing larger — never the section. `--on-danger` is dark, not white.
-
-**Volt budget:** this is a settings page with four independent saves and no single primary action. **Ask at Step B** — the honest reading of law §2.3 is that a screen answering no single question may legitimately have **zero** volt elements, and this is the screen where that case first arises.
-
-**Questions for Step B:** the volt question above; whether the four saves keep their current per-section placement; whether the sessions list adopts `bh-data-table`'s card mode on phone (`bh-data-table` shipped it in M13c and **nothing adopts it yet** — this is a candidate, but adopting it changes the phone layout, so it is the user's call).
+**M13d therefore closes at ten screens.** Phase 3 below runs over those ten.
 
 ---
 
