@@ -31,6 +31,17 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 - **An attribute written on a component's host does not reach the element inside it.** This cost four separate fixes in M13c — `bh-button`'s `aria-label`, and `data-testid` on `bh-field`, `bh-select` and `bh-data-table` — and it is what blocked the form-control migration entirely, because Playwright's `.fill()` requires the located node to *be* an `<input>`. A component that needs a hook on its inner element takes an explicit input and binds it there.
 - **Every component owes seven states, and the dev gallery at `/app/dev/components` IS that contract** — each section renders every state, notes the ones only checkable by hand, and **explicitly declares the ones the component cannot have**. An omitted state is indistinguishable from a forgotten one. axe-core and 54 visual-regression baselines gate the page; run `e2e/visual.sh` (Linux container) rather than Playwright locally, or you compare against baselines your renderer never wrote.
 - Type: display/body/UI = Archivo (400/500/700/800), prescription/numeric = JetBrains Mono (400/700). Self-hosted via `@fontsource` (CSP blocks font CDNs).
+- **Form contract (M13d, binding): `(ngSubmit)` DIES WITH `FormsModule`.** It is an output of the
+  `NgForm` directive. Rebuilt screens drop `FormsModule`, so a form must bind the **native** event:
+  `<form (submit)="submit($event)" novalidate>` with `event.preventDefault()`. Keep `novalidate` —
+  `NgForm` used to supply it and validation lives in the component. This shipped broken on login:
+  the button never authenticated and **the password went into the URL**, browser history and server
+  logs, past 272 green Karma specs. `bh-field`/`bh-select` are **not** `ControlValueAccessor`s;
+  bind `[(value)]` against signals. Full reasoning: `2026-08-10-m13d-auth-account-screens-design.md` §4.2.
+- **A screen is not verified until e2e runs on it.** Karma cannot see a dead submit binding: specs
+  that call `submit()` directly test the handler, never the wiring. `e2e/tests/login.spec.ts` catches
+  it in seconds. Rebuild the frontend image first, and re-run on a `down -v` stack before blaming a
+  diff — `runner`/`tracking`/`tv` are non-idempotent and fail on a dirty stack for unrelated reasons.
 - **i18n (M13a, binding): every new or rebuilt screen ships i18n-marked.** The infrastructure
   (`@angular/localize`, runtime locale loading, locale-aware date/number/currency, the brand
   constant) landed in M13a. The ~390 strings on pre-rework screens were deliberately **not** marked
