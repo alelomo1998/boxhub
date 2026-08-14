@@ -100,8 +100,17 @@ describe('VerifyPage', () => {
       tick();
 
       expect(router.navigateByUrl).not.toHaveBeenCalled();
-      expect(fixture.componentInstance.status()).toBe('error');
-      expect(fixture.componentInstance.errorMessage()).toBeTruthy();
+      // Its OWN state, not 'error'. Verification SUCCEEDED — only the box token was refused.
+      expect(fixture.componentInstance.status()).toBe('box-unavailable');
+
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent!;
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="verify-box-unavailable"]')).not.toBeNull();
+      // The actual defect this asserts against: routing here to 'error' printed the heading
+      // "Invalid link / Not valid" directly above "this box is unavailable" — the link was
+      // never invalid, and the two halves of the screen contradicted each other.
+      expect(text).withContext('must not claim the link was invalid').not.toContain('Not valid');
+      expect(text).withContext('must not claim the link was invalid').not.toContain('Invalid link');
     }));
 
     it('multiple memberships still go to the box picker, unselected', fakeAsync(() => {

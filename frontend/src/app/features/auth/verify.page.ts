@@ -10,7 +10,7 @@ import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 
 const RESEND_COOLDOWN_MS = 60_000;
 
-type Status = 'pending' | 'expired' | 'error';
+type Status = 'pending' | 'expired' | 'error' | 'box-unavailable';
 
 @Component({
   selector: 'bh-verify',
@@ -36,6 +36,16 @@ type Status = 'pending' | 'expired' | 'error';
             <h1 class="t-display title" i18n="@@auth.verify.error.headline">Not valid</h1>
           </div>
         }
+        @case ('box-unavailable') {
+          <!-- Its own state, NOT the generic error one. Verification SUCCEEDED here; only the
+               box token was refused. Reusing 'error' put the heading "Invalid link / Not valid"
+               directly above "This box is unavailable", which contradicts itself and misnames
+               what went wrong. -->
+          <div panel>
+            <p class="t-eyebrow" i18n="@@auth.verify.boxUnavailable.eyebrow">Email verified</p>
+            <h1 class="t-display title" i18n="@@auth.verify.boxUnavailable.headline">Your box is unavailable.</h1>
+          </div>
+        }
       }
 
       @switch (status()) {
@@ -45,6 +55,13 @@ type Status = 'pending' | 'expired' | 'error';
         @case ('expired') {
           <p class="muted" data-testid="verify-expired" i18n="@@auth.verify.expired.copy">This link has expired or was already used.</p>
 
+          <!-- A real form, so Enter in the field resends. Native (submit) + preventDefault per
+               the M13d form contract. The Angular submit output belongs to the NgForm
+               directive, which ships with the FormsModule this milestone drops — binding it
+               here would listen for an event that never fires, and the browser would perform a
+               native GET with every field in the URL. Gate 5b greps for that binding by name,
+               so this comment deliberately does not spell it out. -->
+          <form class="form" (submit)="resend($event)" novalidate data-testid="verify-resend-form">
           <bh-field label="EMAIL" i18n-label="@@auth.verify.resend.email.label" type="email"
                      name="resendEmail" autocomplete="email" [required]="true"
                      [(value)]="resendEmail" testId="verify-resend-email" />
@@ -65,11 +82,23 @@ type Status = 'pending' | 'expired' | 'error';
               <span i18n="@@auth.verify.resend.default">Resend verification email</span>
             }
           </bh-button>
+          </form>
+
+          <p class="footer">
+            <a routerLink="/auth/login" i18n="@@auth.verify.backToLogin.expired">Back to login</a>
+          </p>
         }
         @case ('error') {
           <bh-alert tone="danger" data-testid="verify-error">{{ errorMessage() }}</bh-alert>
           <p class="footer">
             <a routerLink="/auth/login" i18n="@@auth.verify.backToLogin">Back to login</a>
+          </p>
+        }
+        @case ('box-unavailable') {
+          <bh-alert tone="warn" data-testid="verify-box-unavailable"
+                    i18n="@@auth.verify.boxUnavailable.copy">Your email is verified, but this box is unavailable — contact your box for help.</bh-alert>
+          <p class="footer">
+            <a routerLink="/auth/login" i18n="@@auth.verify.backToLogin.boxUnavailable">Back to login</a>
           </p>
         }
       }
@@ -79,6 +108,7 @@ type Status = 'pending' | 'expired' | 'error';
     .title { font-size: var(--fs-display); margin: var(--sp-2) 0 0; }
     .stateline { color: var(--bone-dim); margin: 0; }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
+    .form { display: flex; flex-direction: column; gap: var(--sp-4); }
     .footer { font-size: var(--fs-sm); margin: 0; text-align: center; }
   `],
 })
@@ -119,11 +149,11 @@ export class VerifyPage implements OnInit, OnDestroy {
             next: () => this.router.navigateByUrl(redirectForRole(m.role)),
             // box-token mint 403s a SUSPENDED/REJECTED box (M9). Without this arm the user who
             // just verified their email would sit on the page with no feedback.
-            error: () => {
-              this.status.set('error');
-              this.errorMessage.set(
-                $localize`:@@auth.verify.error.boxUnavailable:This box is unavailable — contact your box for help.`);
-            },
+            // Its OWN state, not 'error': the email verified successfully and only the box
+            // token was refused. Routing this to 'error' rendered the heading "Invalid link /
+            // Not valid" above "This box is unavailable" — self-contradictory, and it named the
+            // wrong thing as broken.
+            error: () => this.status.set('box-unavailable'),
           });
         } else {
           this.router.navigateByUrl('/auth/boxes');
@@ -142,7 +172,8 @@ export class VerifyPage implements OnInit, OnDestroy {
     clearInterval(this.countdownInterval);
   }
 
-  resend() {
+  resend(event?: Event) {
+    event?.preventDefault();
     // A new attempt must clear whatever the previous one left behind — otherwise a stale "Sent
     // again" can sit on screen at the same time as a fresh error, or vice versa.
     this.resendError.set('');
