@@ -117,14 +117,20 @@ describe('CheckEmailPage', () => {
 
     fixture.destroy();
 
-    // Destroying before the 60s cooldown elapses must clear BOTH timers, or one leaks into the
-    // zone's pending-timer queue for the rest of the suite. fakeAsync's own end-of-test check
-    // does not reliably catch a leaked *periodic* timer (verified: it stayed green with the
-    // interval leaking), so inspect the zone's timer queues directly instead.
+    // The countdown INTERVAL must be gone. fakeAsync's own end-of-test check does not reliably
+    // catch a leaked *periodic* timer (verified: it stayed green while the interval leaked), so
+    // inspect the zone's periodic queue directly. NOT the one-shot queue — afterNextRender
+    // schedules its own timeout there, which is Angular's, not ours, and asserting that queue is
+    // empty would be testing the framework.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const spec = (window as any).Zone.current.get('FakeAsyncTestZoneSpec');
-    expect(spec.pendingPeriodicTimers).toEqual([]);
-    expect(spec.pendingTimers).toEqual([]);
+    expect(spec.pendingPeriodicTimers).withContext('countdown interval leaked').toEqual([]);
+
+    // And the cooldown TIMEOUT must be gone, asserted by behaviour rather than by zone internals:
+    // had it survived destroy, it would fire here and flip disabled back to false.
+    tick(60_000);
+    expect(cmp.disabled()).withContext('cooldown timeout fired after destroy').toBeTrue();
+    discardPeriodicTasks();
   }));
 
   it('moves focus onto the result alert, because the cooldown removes the pressed button from the a11y tree', fakeAsync(() => {

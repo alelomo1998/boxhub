@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnDestroy, afterNextRender, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { ButtonComponent } from '../../ui/button.component';
@@ -48,7 +48,9 @@ const RESEND_COOLDOWN_MS = 60_000;
   `,
   styles: [`
     .title { font-size: var(--fs-display); margin: var(--sp-2) 0 0; }
-    .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
+    /* overflow-wrap: a 47-char address overflowed the 375px viewport (scrollWidth 390 vs
+       clientWidth 375). Email addresses have no spaces to break on. */
+    .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; overflow-wrap: anywhere; }
     .muted strong { color: var(--bone); }
     .footer { font-size: var(--fs-sm); margin: 0; text-align: center; }
   `],
@@ -56,6 +58,7 @@ const RESEND_COOLDOWN_MS = 60_000;
 export class CheckEmailPage implements OnDestroy {
   private auth = inject(AuthService);
   private el: ElementRef<HTMLElement> = inject(ElementRef);
+  private injector = inject(Injector);
   email = inject(ActivatedRoute).snapshot.queryParamMap.get('email') ?? '';
   private cooldownTimer?: ReturnType<typeof setTimeout>;
   // Display-only ticker for the countdown label — the cooldown itself is still governed by
@@ -112,12 +115,16 @@ export class CheckEmailPage implements OnDestroy {
    * swapped label does not.
    */
   private focusResult(testId: string) {
-    // The alert only exists after the signal change has rendered.
-    queueMicrotask(() => {
+    // afterNextRender, NOT queueMicrotask. The app runs zone.js change detection with
+    // eventCoalescing (app.config.ts), so the CD flush is deferred past the microtask queue —
+    // a queueMicrotask callback runs BEFORE the alert exists, querySelector returns null, and
+    // the whole focus move silently no-ops. That shipped here and a Karma spec did not catch it,
+    // because fixture.detectChanges() forces the flush synchronously and hides the real timing.
+    afterNextRender(() => {
       const el = this.el.nativeElement.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
       if (!el) return;
       el.setAttribute('tabindex', '-1');
       el.focus();
-    });
+    }, { injector: this.injector });
   }
 }
