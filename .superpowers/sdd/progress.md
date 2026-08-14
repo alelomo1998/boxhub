@@ -1543,3 +1543,71 @@ Tasks 9 + 10 (signup, start-box) COMPLETE — critiqued twice each, gate cleared
   Signup's User Control heuristic is held at 2 by the BOX-PICKER dead end (zero focusable elements
   for a 0-membership account) — a different file, already scoped as Task 12. Expect signup to rise
   when that lands.
+
+Task 11 (join) COMPLETE — **36/40 on the FIRST critique, zero P0/P1. §16 gate cleared.**
+  Ties login (36) as the family ceiling; start-box 35, signup 34. Commit 89eae72.
+  Karma 305 -> 320 · production build exit 0, zero budget warnings · e2e 35 passed + 1 skipped on a
+  rebuilt image and a `down -v` stack, with invite-flow itself green — which is what proves the
+  rebuilt form actually submits.
+  FIRST SCREEN TO SCORE ITS FINAL NUMBER IN ONE PASS, and the reason is worth carrying: login went
+  22 -> 36, signup 29 -> 34, start-box 30 -> 35, because on those screens the critique DISCOVERED the
+  defects. Here the four behaviour fixes were designed in at the shape step and built from a written
+  brief, so the critique found nothing left to fix. The cycle's value moved from the critique to the
+  shape.
+  THE PRE-FLIGHT MOMENT-1 CHECK PAID FOR ITSELF AGAIN, and this time BEFORE dispatch rather than via
+  an escalation: the plan's Task 11 file list named two files. `e2e/tests/invite-flow.spec.ts:28`
+  held the suite's LAST inline `[data-testid=X] button` selector, which matches nothing since Task 8
+  moved bh-button's test id onto the inner element — the exact e2e-only regression that hung the
+  signup journey while Karma stayed green. Grepping for dependents turned it into a third authorized
+  file in the brief instead of a red suite. Three other spec files already used the tolerant btn()
+  helper; this one had been missed because it inlines the selector.
+  FOUR DECISIONS TAKEN TO THE USER AT STEP B, all four answered with the shape run's recommendation:
+  panel headline `Join {box}.` with eyebrow "You're invited"; the role+plan line stays in the BODY;
+  the raw `font-size: 44px` becomes `--fs-display` (28px), matching the three siblings' headline slot
+  rather than `--fs-hero`; and a **Back to login link added to the invalid-invite dead end** — a
+  fourth behaviour change beyond the plan's three, taken deliberately because start-box's identical
+  dead end had already been scored a critique P1 and fixed, so paying for it now was cheaper than
+  paying for it a round later.
+  WHAT THE THREE APPROVED FIXES ACTUALLY WERE, verified against the backend before the brief was
+  written rather than asserted: minlength 8 -> 10 (PasswordPolicy:41 is the real floor);
+  `e.error?.detail` was leaking BOTH raw codes (PASSWORD_TOO_SHORT/BREACHED) AND untranslatable
+  English server prose ("Invite expired or already used", "Already a member of this box") — two
+  different failure shapes behind one line of code; and neither submit path had a `pending` signal at
+  all, against design law §11.6, on a FOUR-stage switchMap chain.
+  ALSO FOUND AND FIXED EN ROUTE, not in the plan: the screen rendered an ENTIRELY EMPTY CARD while
+  previewInvite was in flight — `@if (invalid()) … @else if (boxName()) …` with no `@else` arm. It
+  now has a real loading state.
+  MEASURED BY THE ORCHESTRATOR IN A BROWSER, not read from a report: volt elements painted on the
+  live screen are exactly TWO — the wordmark's "ed" highlighter (brand, not an accent, per spec
+  §2.3/§3) and the primary button — so the accent budget is ONE. roleline 8.52:1, footer link
+  17.18:1 underlined, focus ring 2px inset at `outline-offset: -2px` measuring 16.81:1 ON the volt
+  fill (login's P1 fix carried correctly), and at 375x812 `scrollHeight === innerHeight` so the
+  primary action needs no scrolling.
+  A FALSE ALARM WORTH RECORDING SO IT IS NOT RE-DERIVED: a `textContent` dump reads "rxedrxed". That
+  is NOT the duplicated-wordmark bug M13b shipped — bh-wordmark renders "rx" + "ed" `aria-hidden`
+  plus a visually-hidden `.sr` span carrying the accessible name, so textContent legitimately
+  contains the brand twice while a screen reader hears it once. Also: a first volt audit reported
+  ZERO volt elements because the probe guessed the wrong RGB; `--volt` is `#dfff4e`. Both of my own
+  measurement bugs, caught by checking the token rather than trusting the number.
+  THE ONE P2, AND ITS PREMISE IS WRONG: the critique flagged the Back-to-login link as unauthorized
+  scope against shape doc §9, which does say the dead ends stay message-only. It did not know the
+  user had overruled §9 at Step B — MY omission, the critique brief listed the shape doc but not the
+  four decisions. The finding's SECOND half stands and is left open: the invalid-token state now has
+  an exit and the already-member state does not, with no stated reason they differ. Not blocking —
+  neither is a zero-focusable dead end (the already-member state still renders its accept button, the
+  logged-out branch still renders the form and its Log in link).
+  CRITIQUE INFRASTRUCTURE FAILURE, COST ONE FULL RETRY: the first critique run fanned out into two
+  background assessments per the impeccable protocol and BOTH died on "You've hit your session limit".
+  Same failure that blocked login's critique in an earlier session. The retry ran as ONE inline agent
+  with my already-taken measurements handed to it, and completed. For a screen this size, one pass
+  with pre-supplied measurements is the cheaper shape.
+  ALSO MY ERROR, cost two stalled agents and several minutes: the critique brief said the app was at
+  `localhost:8080`. It is on port **80** (`HTTP_PORT:-80` in docker-compose, `baseURL: 'http://localhost'`
+  in playwright.config). Verify the port from the compose file, not from memory.
+  STATES THE CRITIQUE DECLARED UNDRIVEABLE rather than scoring from source, correctly: true 200%
+  BROWSER zoom (approximated with a 720x450 viewport — Playwright has no zoom control and CSP blocks
+  injecting a style rule), and the logged-in branch's own success->navigate transition (the seeded
+  stack has ONE tenant box, so a logged-in member accepting a second-box invite always 409s first).
+  Closing that second gap needs a second seeded box.
+  Help & Documentation scored 2 — a zero-contextual-help baseline shared across the whole auth
+  family, not join-specific.
