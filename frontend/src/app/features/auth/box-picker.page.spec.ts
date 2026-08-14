@@ -124,8 +124,11 @@ describe('BoxPickerPage', () => {
     cmp.pick(memberships[1] as any);
     fixture.detectChanges();
     expect(cmp.selecting()).toBe('b1');
+    // aria-disabled, not the native disabled property: a native `disabled` would drop keyboard
+    // focus to <body> the moment the clicked row went busy. The row must stay focusable.
     const row2 = fixture.nativeElement.querySelector('[data-testid="box-steel-gym"]') as HTMLButtonElement;
-    expect(row2.disabled).toBeTrue();
+    expect(row2.getAttribute('aria-disabled')).toBe('true');
+    expect(row2.disabled).withContext('must stay focusable — see the comment above').toBeFalse();
 
     http.expectOne('/api/auth/box-token').flush(null);
     fixture.detectChanges();
