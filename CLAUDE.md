@@ -51,6 +51,14 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   user-facing string, ever. No new hand-written `€`.
 - **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through impeccable (shape → build → critique ≥28/40, no open P0/P1)**.
 
+## Pre-flight (binding) — `docs/PREFLIGHT.md`
+
+**Read it at four moments: before writing an executor brief, before running a shell gate, before
+accepting a test, and before claiming anything is done.** It is a checklist keyed to those moments,
+not a log — every entry on it recurred *after* being recorded somewhere else, which is the whole
+point. The single most repeated failure is writing a brief that lists the files a change **is**
+rather than the files that **depend on it**; grep for dependents first.
+
 ## Communication (binding)
 - **Caveman mode, level `full` (not ultra):** terse prose, drop articles/filler/pleasantries, fragments OK. All technical substance stays. Code, commits, PRs, security warnings written normally. Goal: cut token burn, not clarity.
 
