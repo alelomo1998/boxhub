@@ -1748,3 +1748,46 @@ Task 14 (verify) COMPLETE — **35 -> 37/40, zero P0/P1. §16 gate cleared.** Co
   P2s LEFT OPEN, both cosmetic and both declared: the resend button's width wobbles ~8px at the
   "10s -> 9s" digit boundary (no clipping at any width tested), and the pending state has no <h1>
   (it is a bare status line by design and lasts one request).
+
+Task 15 (forgot) COMPLETE — **37 -> 39/40, zero P0/P1. §16 gate cleared.** Highest in the family
+(check-email 38, verify 37, login/join/box-picker 36, start-box 35, signup 34). Commits 2da0bf3,
+3083d74, 7e68e41. Karma 343 -> 347 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack.
+  DELTA CAVEAT, stated by the re-critique itself rather than hidden: it did not have the first
+  pass's per-heuristic sheet, only the total and the two named defects, so its table is a FRESH
+  score on the same rubric rather than an edit of the old one. Same rubric both times (Nielsen x10,
+  /4); the +2 tracks to the two heuristics the defects lived in.
+  THE SECURITY PROPERTY SURVIVED AND FINALLY HAS A TEST THAT CAN FAIL: success and rate-limit must
+  render the IDENTICAL sentence, or the screen becomes an account-enumeration oracle. The spec now
+  captures both strings and asserts EQUALITY — the old shape (assert each is non-empty) would have
+  passed against a screen that branched. Verified live too: the 202 and 429 arms render byte-
+  identical copy.
+  USER DECISIONS: the submitted state gets its own headline ("Check your email") while the eyebrow
+  keeps naming the flow; and it gains "Use a different address", which returns to the form for the
+  typo case — safe under no-enumeration precisely because the response is identical for every
+  address. Previously a typo left "Back to login" as the only exit.
+  ORCHESTRATOR CAUGHT ON REVIEW: the executor had put "Check your email" in BOTH the eyebrow and the
+  headline. It read as a rendering fault and gave the heading a duplicated accessible name.
+  ** A KILLED AGENT'S WORK WAS RECOVERED RATHER THAN DISCARDED, AND IT PAID. ** The first critique
+  died on the session limit mid-run, leaving three .spec.ts files in `e2e/tests/` — which would have
+  JOINED THE REAL SUITE on the next run. Rather than just delete them I RAN the driver first: it
+  returned the whole measurement set (validation copy, URL stability, the pending guard, identical
+  202/429 text, axe clean, no overflow at 375) and one probe the agent never got to execute. That
+  probe found a real defect: **after a failed validation, typing a VALID address left the error
+  visible and aria-invalid="true"** — the field went on asserting it was wrong while the user looked
+  at a correct value. bh-field's `value` is a model input, so `(valueChange)` already existed; one
+  line. Those measurements were then handed to the fresh critique, per the standing rule that a
+  critique runs inline and is given what has already been measured.
+  THE P1 WAS THE FOURTH FOCUS-LOSS OF THIS MILESTONE: submitting unmounts the form and the focused
+  submit button with it, so focus fell to <body>. **AND THE OBVIOUS FIX WOULD HAVE BEEN SILENTLY
+  INERT**: focusField() called .focus() with no tabindex, which works on an <input> and does NOTHING
+  on a <p>. It now sets tabindex="-1" ONLY where the element is not natively focusable — putting it
+  on an <input> would take that input OUT of the tab order, the opposite of the intent. Verified
+  live in both directions: activeElement is P[forgot-confirm] after submit, and the round trip still
+  lands in the email field with no tabindex on it.
+  FOUR SCREENS HAVE NOW NEEDED THE SAME POST-STATE-SWAP FOCUS MOVE (check-email, verify, box-picker's
+  variant, forgot). Three carry their own copy of afterNextRender + querySelector + focus. **FILED
+  rather than extracted**: pulling a shared helper now would edit two screens already built,
+  critiqued and closed, for no behaviour change. It belongs in Task 21's consistency pass.
+  P2 ALSO FIXED: "Use a different address" and "Back to login" rendered at identical colour, weight
+  and size — nothing signalled that one stays on the page and the other leaves the flow. The exit is
+  --bone-dim now, 8.5:1 on --ground, quieter without reading as disabled.
