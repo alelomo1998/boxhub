@@ -1827,3 +1827,42 @@ none — all four findings are P2. Commit 9a3b666. Karma 347 -> 356 · build cle
       the 410 route never reassures the user that the password they just typed was NOT saved.
    4. The box-unavailable branch gives the success the small eyebrow and the problem the headline.
       Defensible, and the alert below resolves it.
+
+Task 17 (account/email) COMPLETE — **37/40 on the FIRST critique, zero P0/P1. §16 gate cleared.**
+Ties verify. Commits 8ef2855 + the done-headline fix. Karma 356 -> 361 · build clean · e2e 35
+passed + 1 skipped on a `down -v` stack. Third screen to score its final number in one pass.
+  No re-critique: the cycle requires one after fixing P0/P1 and there were none. All three findings
+  were P2; one was taken because it was a one-word copy change, two were filed.
+  THE ONLY SCREEN IN THE SET WITH NO FORM IN ANY STATE. It is permitAll and never assumes a session
+  — the link is clicked from an inbox, possibly on a device that has never logged in. The javadoc
+  saying so is kept.
+  BOTH DEAD ENDS FIXED (the sixth and seventh of the milestone): expired and error had no exit and
+  nothing focusable at all.
+  ** THE EXECUTOR STOPPED ON A FORK THE BRIEF HAD ANTICIPATED, AND IT WAS RIGHT. ** The user chose a
+  volt primary for `done`. It cannot be built: bh-button renders an anchor ONLY for real/external
+  navigation, has no router input, and its own docstring says internal navigation should be a text
+  link instead — while nesting bh-button inside an anchor is an invalid content model. The brief
+  said "if bh-button does not support routerLink, STOP AND ASK" and it did, with the evidence, having
+  changed nothing. Taken back to the user, who chose the text link. **This screen now carries ZERO
+  volt in every state, deliberately, with a comment saying so** — the first screen in the milestone
+  where the right answer is none.
+  IT ALSO FOUND A REAL PRE-EXISTING BUG WHILE CHECKING: `wod-library.page.ts:16` ALREADY nests
+  bh-button inside an <a routerLink> — a <button> inside an <a>. Found only because it read the
+  component's API instead of assuming it.
+  M13c DEFERRED THIS EXACT QUESTION to "M13d, with real consumers in front of it". There are now
+  TWO, and both are FILED rather than half-answered inside one screen: adding routerLink to
+  bh-button would touch a component all eleven screens use plus the gallery contract, mid-task.
+  ORCHESTRATOR CAUGHT ON REVIEW, and it is a small lesson about consistency in a11y: the executor
+  gave `done` and `error` bh-alerts (role=status / role=alert, per the component's tone mapping) but
+  left `expired` a plain <p>, arguing verify's precedent. Expired is an OUTCOME exactly as the other
+  two are, on a screen that resolves with NO user action — so it was the one outcome of three a
+  screen reader was never told about. Now an alert too. Verified live: status, alert, alert.
+  bh-alert's own doc earns a mention: role=alert/status announce reliably only when the element is
+  FRESHLY INSERTED, not when a mounted one has its tone flipped. The @switch here inserts it fresh,
+  so the contract is satisfied — checked rather than assumed.
+  P2 TAKEN: `done`'s headline was "Done", which added nothing its eyebrow "Email confirmed" had not
+  already said, and was the thinnest pair on the page. Now "Address updated."
+  P2s FILED: every non-410 failure (a 500, a timeout, a 403) collapses into "This confirmation link
+  is invalid" with no retry — INHERITED from verify.page.ts, which has the identical collapse, so
+  fixing it here alone would split the two screens; and the route title is static across all four
+  outcomes.

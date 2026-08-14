@@ -27,7 +27,7 @@ type Status = 'pending' | 'done' | 'expired' | 'error';
         @case ('done') {
           <div panel>
             <p class="t-eyebrow" i18n="@@account.emailConfirm.done.eyebrow">Email confirmed</p>
-            <h1 class="t-display title" i18n="@@account.emailConfirm.done.headline">Done</h1>
+            <h1 class="t-display title" i18n="@@account.emailConfirm.done.headline">Address updated.</h1>
           </div>
         }
         @case ('expired') {
