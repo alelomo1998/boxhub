@@ -66,6 +66,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); }
     .footer { font-size: var(--fs-sm); margin: 0; text-align: center; }
+    /* The exit reads quieter than the in-page retry: they sat at identical weight and colour,
+       so nothing signalled that one leaves the flow and the other does not. */
+    .footer a { color: var(--bone-dim); }
     .linklike { background: none; border: none; padding: 0; font: inherit; color: var(--bone);
       text-decoration: underline; text-underline-offset: 2px; cursor: pointer; min-height: var(--tap); }
     .linklike:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--edge); }
@@ -98,9 +101,13 @@ export class ForgotPage {
     // 202 always, and 429 on rate-limit — both look identical to the user by design. Branching
     // here, even for a friendlier message, would turn this screen into an account-enumeration
     // oracle.
+    // Both arms are identical on purpose, including the focus move: the submit button unmounts
+    // with the form, so without this focus falls to <body> and a keyboard or screen-reader user
+    // is dumped at the top of the document with no announcement that anything happened. Fourth
+    // screen in this milestone to need it — see check-email and verify.
     this.auth.forgotPassword(value).subscribe({
-      next: () => { this.pending.set(false); this.submitted.set(true); },
-      error: () => { this.pending.set(false); this.submitted.set(true); },
+      next: () => { this.pending.set(false); this.submitted.set(true); this.focusField('forgot-confirm'); },
+      error: () => { this.pending.set(false); this.submitted.set(true); this.focusField('forgot-confirm'); },
     });
   }
 
@@ -114,7 +121,13 @@ export class ForgotPage {
     // @if flip (submitted -> form), and the target input doesn't exist in the DOM until Angular
     // re-renders. See verify.page.ts for the same fix and its rationale.
     afterNextRender(() => {
-      this.el.nativeElement.querySelector<HTMLElement>(`[data-testid="${testId}"]`)?.focus();
+      const el = this.el.nativeElement.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+      if (!el) return;
+      // A <p> is not focusable without tabindex, so focusing the confirmation would silently do
+      // nothing. Only add it where it is missing: putting tabindex="-1" on an <input> would take
+      // that input OUT of the tab order, which is the opposite of what this method is for.
+      if (!el.matches('input, button, a[href], select, textarea')) el.setAttribute('tabindex', '-1');
+      el.focus();
     }, { injector: this.injector });
   }
 }
