@@ -133,6 +133,31 @@ describe('VerifyPage', () => {
     // NEGATIVE CONTROL: change `next - 1` to `next` in the countdown interval (or drop the
     // `disabled.set(true)` call) and rerun — both tests below fail. Reverted after confirming.
 
+    it('a second submit during the cooldown is refused, whichever path it comes from', fakeAsync(() => {
+      // Regression: the resend field sits in a <form>, so Enter submits it. A button's
+      // [disabled] gates only the CLICK path — Enter fires regardless — so without a guard
+      // inside resend() the form quietly reopened a way past the cooldown and onto the
+      // backend's 3/h limit. Calling resend() directly is the right shape here: it is exactly
+      // what BOTH entry points funnel into, and the form's own wiring is proven live.
+      const fixture = setup();
+      fixture.detectChanges();
+      http.expectOne('/api/auth/verify').flush('gone', { status: 410, statusText: 'Gone' });
+      fixture.detectChanges();
+
+      const cmp = fixture.componentInstance;
+      cmp.resendEmail.set('a@b.io');
+      cmp.resend();
+      http.expectOne('/api/auth/verify/resend').flush(null, { status: 202, statusText: 'Accepted' });
+      expect(cmp.disabled()).toBeTrue();
+
+      // Second attempt while the cooldown is running must issue NO request at all —
+      // http.verify() in afterEach fails the spec if one escapes.
+      cmp.resend();
+      http.expectNone('/api/auth/verify/resend');
+
+      discardPeriodicTasks();
+    }));
+
     it('disables Resend for 60s after a send, then re-enables it', fakeAsync(() => {
       const fixture = setup();
       fixture.detectChanges();

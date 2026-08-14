@@ -174,6 +174,11 @@ export class VerifyPage implements OnInit, OnDestroy {
 
   resend(event?: Event) {
     event?.preventDefault();
+    // The guard belongs HERE, not on the button. The button's [disabled] only gates the CLICK
+    // path; Enter in the email field submits the form regardless of any button's disabled
+    // state, so adding the form quietly opened a second way past the cooldown — and the
+    // cooldown is what keeps a frustrated user off the backend's 3/h limit.
+    if (this.disabled() || this.resendPending()) return;
     // A new attempt must clear whatever the previous one left behind — otherwise a stale "Sent
     // again" can sit on screen at the same time as a fresh error, or vice versa.
     this.resendError.set('');
