@@ -1791,3 +1791,39 @@ Task 15 (forgot) COMPLETE — **37 -> 39/40, zero P0/P1. §16 gate cleared.** Hi
   P2 ALSO FIXED: "Use a different address" and "Back to login" rendered at identical colour, weight
   and size — nothing signalled that one stays on the page and the other leaves the flow. The exit is
   --bone-dim now, 8.5:1 on --ground, quieter without reading as disabled.
+
+Task 16 (reset) COMPLETE — **37/40 on the FIRST critique, zero P0/P1. §16 gate cleared.** No
+re-critique run, and that is correct: the cycle requires one after fixing P0/P1, and there were
+none — all four findings are P2. Commit 9a3b666. Karma 347 -> 356 · build clean · e2e 35 passed +
+1 skipped on a `down -v` stack.
+  Second screen to score its final number in one pass (after join). Same cause: the defects were
+  designed out at shape and in review, so the critique had nothing structural left to find.
+  USER DECISIONS: reset auto-selects a single box on success — the SAME defect verify carried, and
+  resetPassword() returns the same bootstrapped session, so it is the same block copied; and the
+  screen now DISCLOSES that a successful reset signs the user out on every other device. The backend
+  has always revoked every session and the screen never said so. It sits under the field, ahead of
+  the button that causes it, informational rather than an alert.
+  THE FORM CONTRACT VERIFIED ON THE SCREEN IT MATTERS MOST, AND VIA THE ENTER PATH: after submit the
+  URL is still `?token=abc` and does not contain the password. This is the exact payload login put
+  in the query string; reset is the worst screen to repeat it on, so it was measured rather than
+  assumed.
+  ORCHESTRATOR CAUGHT ON REVIEW — THE EXECUTOR'S ONE ADAPTATION WAS THE WRONG CALL, AND IT WAS A
+  REASONABLE-SOUNDING ONE: told to copy verify's 403 arm, it instead followed login's, setting a
+  form-level danger alert inside the still-visible form. Login can do that because login's submit
+  failed. Here the PASSWORD IS ALREADY CHANGED by the time the box token is refused — so the screen
+  read "your reset failed" under a "New password" heading, and invited a retry with a SPENT TOKEN,
+  which would 410 into "Expired" and turn a success into an apparent total failure. Now its own
+  branch: "Password changed / Your box is unavailable.", the spent form removed, an exit offered,
+  focus moved. Verified live. **The lesson is about copying across shells: the same arm is right or
+  wrong depending on whether the action before it succeeded.**
+  FOUR P2s FILED, NOT FIXED, each with a reason:
+   1. **A volt focus ring wraps a danger border on an invalid field.** Systemic — `ui/field.component.ts`
+      affects every field in the product. NOT a bug: `--focus: var(--volt)` in _tokens.scss is a
+      deliberate, documented product-wide decision. Changing it for the invalid state is a DESIGN-LAW
+      question for the user, not an orchestrator fix, and it would repaint every form in the app.
+   2. The `min 10 characters` guidance lives only in the placeholder, which vanishes on the first
+      keystroke. A persistent hint needs a new `bh-field` input — a ui/ change with 20+ consumers.
+   3. Both routes into `expired` (no token at init, and a 410 mid-submit) render identical copy, and
+      the 410 route never reassures the user that the password they just typed was NOT saved.
+   4. The box-unavailable branch gives the success the small eyebrow and the problem the headline.
+      Defensible, and the alert below resolves it.
