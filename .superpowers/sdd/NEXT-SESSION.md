@@ -53,6 +53,13 @@ Its panel gets `<bh-benchmark-board panel testId="join-benchmark" />` (split scr
 
 Expect **3–5 review rounds per screen** from the user. Every round so far has found a real defect. Budget for it.
 
+## `docs/PREFLIGHT.md` — read it at the four moments it names
+
+Added 2026-08-14. A checklist keyed to *when to look*: before writing an executor brief, before
+running a shell gate, before accepting a test, before claiming done. `CLAUDE.md` points at it.
+Everything in the section below is on it — the list below is context, the checklist is the thing you
+actually run.
+
 ## Things that will bite you, all hit this session
 
 - **Bash cwd PERSISTS between tool calls.** It produced a whole gate block reporting zero matches from one bad path, a `docker compose` failure that would have measured a stale image, and two bogus "file not found" reads. **Use absolute paths.**
