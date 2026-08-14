@@ -42,6 +42,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         <form class="form" (submit)="submit($event)" novalidate data-testid="forgot-form">
           <bh-field label="EMAIL" i18n-label="@@auth.forgot.email.label" type="email"
                      name="email" autocomplete="email" [required]="true" [(value)]="email"
+                     (valueChange)="emailError.set('')"
                      testId="forgot-email" placeholder="you@email.com" i18n-placeholder="@@auth.forgot.email.placeholder"
                      [error]="emailError()" />
 

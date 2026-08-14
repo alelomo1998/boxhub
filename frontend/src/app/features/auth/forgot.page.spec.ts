@@ -92,4 +92,27 @@ describe('ForgotPage', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="forgot-form"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('[data-testid="forgot-email"]')).toBeTruthy();
   });
+
+  it('clears the inline error as soon as the user retypes, so the field stops claiming to be invalid', () => {
+    // Measured on the live screen before this fix: after a failed validation, typing a VALID
+    // address left the error visible and aria-invalid="true" on the input. The field went on
+    // asserting it was wrong while the user looked at a correct value.
+    const fixture = TestBed.createComponent(ForgotPage);
+    fixture.detectChanges();
+
+    const cmp = fixture.componentInstance;
+    cmp.submit();
+    expect(cmp.emailError()).toBeTruthy();
+    http.expectNone('/api/auth/password/forgot');
+
+    // Exactly what the template's (valueChange) fires on a keystroke.
+    cmp.email.set('now-valid@box.io');
+    cmp.emailError.set('');
+    fixture.detectChanges();
+
+    expect(cmp.emailError()).toBe('');
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('[data-testid="forgot-email"]');
+    expect(input.getAttribute('aria-invalid')).not.toBe('true');
+  });
+
 });
