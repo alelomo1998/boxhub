@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { roleGuard } from './core/auth/role.guard';
 import { superadminGuard } from './core/auth/superadmin.guard';
+import { sessionGuard } from './core/auth/session.guard';
 import { unsavedGuard } from './core/unsaved.guard';
 
 export const routes: Routes = [
@@ -17,9 +18,20 @@ export const routes: Routes = [
   { path: 'auth/verify', title: $localize`:@@route.auth.verify:Verify your email`, loadComponent: () => import('./features/auth/verify.page').then(m => m.VerifyPage) },
   { path: 'auth/forgot', title: $localize`:@@route.auth.forgot:Forgot password`, loadComponent: () => import('./features/auth/forgot.page').then(m => m.ForgotPage) },
   { path: 'auth/reset', title: $localize`:@@route.auth.reset:Reset password`, loadComponent: () => import('./features/auth/reset.page').then(m => m.ResetPage) },
-  { path: 'account/security', title: $localize`:@@route.account.security:Security`, canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
-    loadComponent: () => import('./features/account/security.page').then(m => m.SecurityPage) },
-  { path: 'account/email', title: $localize`:@@route.account.email:Confirm email`, loadComponent: () => import('./features/account/email-confirm.page').then(m => m.EmailConfirmPage) },
+  // The emailed confirmation landing. Registered BEFORE the area and deliberately UNGUARDED:
+  // it is clicked from an inbox, possibly on a device that has never logged in. The path is what
+  // AccountService.startEmailChange has already mailed to real inboxes — it can never move.
+  { path: 'account/email', title: $localize`:@@route.account.email:Confirm email`,
+    loadComponent: () => import('./features/account/email-confirm.page').then(m => m.EmailConfirmPage) },
+
+  // The old single page. Kept as a redirect: it is in users' history and in four places here.
+  { path: 'account/security', redirectTo: '/account', pathMatch: 'full' },
+
+  // Later section tasks (password, sessions, change-email, danger) each add their own child route
+  // line here when their component lands — see Task 3 brief's ruling override.
+  { path: 'account', canActivate: [sessionGuard],
+    loadComponent: () => import('./features/account/account-layout.page').then(m => m.AccountLayoutPage),
+    children: [] },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/athlete/athlete-shell.page').then(m => m.AthleteShellPage),

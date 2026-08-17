@@ -39,6 +39,6 @@ describe('AdminShellPage', () => {
     const fixture = setup('ACTIVE');
     const link = fixture.nativeElement.querySelector('[data-testid="admin-security-link"]');
     expect(link.matches('a[href]')).toBe(true);
-    expect(link.getAttribute('href')).toBe('/account/security');
+    expect(link.getAttribute('href')).toBe('/account');
   });
 });
