@@ -24,3 +24,6 @@ docs/design-ref/
 # from the repo root creates one HERE — and the repo root IS the Docker build context, which
 # is how a 6.5 GB image layer happened once before.
 .angular/
+
+# Playwright output if the runner is ever invoked from the repo root instead of e2e/
+test-results/
