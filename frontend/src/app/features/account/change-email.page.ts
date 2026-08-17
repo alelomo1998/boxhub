@@ -48,7 +48,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           <bh-alert tone="good" data-testid="email-success" i18n="@@account.email.success">Check {{ success() }} to confirm the change. Your current address stays active until you do.</bh-alert>
         }
 
-        <bh-button type="submit" variant="ghost" [loading]="pending()" testId="email-submit">
+        <bh-button type="submit" variant="solid" [loading]="pending()" testId="email-submit">
           @if (pending()) {
             <span i18n="@@account.email.submit.pending">Sending…</span>
           } @else {

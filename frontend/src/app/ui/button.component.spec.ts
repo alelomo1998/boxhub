@@ -8,7 +8,7 @@ import { ButtonComponent } from './button.component';
   template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()" [ariaDisabled]="ad()" [dangerBorder]="db()">Save</bh-button>`,
 })
 class Host {
-  v = signal<'primary' | 'ghost' | 'danger' | 'icon'>('primary');
+  v = signal<'primary' | 'ghost' | 'danger' | 'icon' | 'solid'>('primary');
   d = signal(false);
   l = signal(false);
   lbl = signal('');
@@ -146,6 +146,19 @@ describe('ButtonComponent', () => {
     f.detectChanges();
     expect(btn().className).toContain('danger-border');
     expect(getComputedStyle(btn()).borderColor).toBe('rgb(229, 72, 77)'); // --danger
+  });
+
+  it('solid fills with --surface-2 and --bone text — not transparent like ghost, no accent colour', () => {
+    f.componentInstance.v.set('solid');
+    f.detectChanges();
+    expect(btn().className).toContain('solid');
+    expect(getComputedStyle(btn()).backgroundColor).toBe('rgb(29, 35, 30)'); // --surface-2
+    expect(getComputedStyle(btn()).color).toBe('rgb(242, 244, 239)'); // --bone
+
+    // Existing ghost variant provably unchanged by the addition.
+    f.componentInstance.v.set('ghost');
+    f.detectChanges();
+    expect(getComputedStyle(btn()).backgroundColor).toBe('rgba(0, 0, 0, 0)');
   });
 
   it('toggling loading back off restores the button', () => {

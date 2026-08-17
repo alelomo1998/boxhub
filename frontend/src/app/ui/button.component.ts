@@ -43,6 +43,10 @@ import { NgTemplateOutlet } from '@angular/common';
     .btn.md { padding: 0 17px; }
     .btn.primary { background: var(--volt); color: var(--on-volt); }
     .btn.ghost { background: transparent; color: var(--bone); border: 1px solid var(--hairline); }
+    /* Neutral filled — reads as pressable without spending the volt budget (zero-volt rule
+       stands). For screens with no single "the" primary action, e.g. account's four co-equal
+       section saves, where a transparent ghost button reads as an empty/disabled box. */
+    .btn.solid { background: var(--surface-2); color: var(--bone); border: 1px solid var(--hairline); }
     /* Opt-in via dangerBorder(), not an external page-level class: the host tag a screen authors
        (<bh-button>) is a different encapsulation boundary than the <button> this template renders
        inside it, so a class from the *page's* styles never reaches it. Same trap CLAUDE.md records
@@ -58,7 +62,8 @@ import { NgTemplateOutlet } from '@angular/common';
        live, and hovering it has not. Law §5. */
     .btn.ghost:hover:not(:disabled) { background: var(--surface-2); }
     .btn.icon:hover:not(:disabled) { color: var(--bone); background: var(--surface-2); }
-    .btn.primary:hover:not(:disabled), .btn.danger:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn.primary:hover:not(:disabled), .btn.danger:hover:not(:disabled),
+    .btn.solid:hover:not(:disabled) { filter: brightness(1.08); }
     .btn:active:not(:disabled) { transform: translateY(1px); }
 
     .btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -92,7 +97,7 @@ import { NgTemplateOutlet } from '@angular/common';
   `],
 })
 export class ButtonComponent {
-  variant = input<'primary' | 'ghost' | 'danger' | 'icon'>('primary');
+  variant = input<'primary' | 'ghost' | 'danger' | 'icon' | 'solid'>('primary');
   size = input<'md' | 'sm'>('md');
   type = input<'button' | 'submit'>('button');
   disabled = input(false);

@@ -17,7 +17,7 @@ describe('AccountIndexPage', () => {
     const nav = spyOn(TestBed.inject(Router), 'navigateByUrl');
     fixture.componentInstance.isDesktop = () => true;
     fixture.detectChanges();
-    expect(nav).toHaveBeenCalledWith('/account/password');
+    expect(nav).toHaveBeenCalledWith('/account/password', { replaceUrl: true });
   });
 
   it('stays put on phone, where the nav itself is the menu', () => {
@@ -37,6 +37,6 @@ describe('AccountIndexPage', () => {
     // Headless Chrome's default viewport (800px) is >= the 720px breakpoint, so the real,
     // un-stubbed expression resolves to desktop and navigates — verified by running this
     // assertion both ways before picking it (see task report).
-    expect(nav).toHaveBeenCalledWith('/account/password');
+    expect(nav).toHaveBeenCalledWith('/account/password', { replaceUrl: true });
   });
 });

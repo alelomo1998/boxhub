@@ -26,7 +26,7 @@ import { BRAND_NAME } from '../../core/brand';
       @if (exportError()) {
         <bh-alert tone="danger" data-testid="export-error">{{ exportError() }}</bh-alert>
       }
-      <bh-button variant="ghost" size="sm" [loading]="exportPending()" (click)="downloadExport()" testId="export-download">
+      <bh-button variant="solid" size="sm" [loading]="exportPending()" (click)="downloadExport()" testId="export-download">
         @if (exportPending()) {
           <span i18n="@@account.danger.export.pending">Preparing…</span>
         } @else {

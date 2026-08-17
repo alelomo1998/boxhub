@@ -20,6 +20,6 @@ export class AccountIndexPage implements OnInit {
   isDesktop = () => window.matchMedia('(min-width: 720px)').matches;
 
   ngOnInit() {
-    if (this.isDesktop()) this.router.navigateByUrl('/account/password');
+    if (this.isDesktop()) this.router.navigateByUrl('/account/password', { replaceUrl: true });
   }
 }

@@ -121,6 +121,26 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           </div>
         </div>
 
+        <p class="gsub" i18n="@@dev.gallery.button.variant.solid">Solid</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-button variant="solid" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-button variant="solid" [disabled]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
+            <bh-button variant="solid" [loading]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.solid">
+          Solid: a neutral --surface-2 fill for screens with no single primary action (account's four
+          co-equal section saves) — reads as pressable without spending the zero-volt budget.
+        </p>
+
         <p class="gsub" i18n="@@dev.gallery.button.variant.danger">Danger</p>
         <div class="row">
           <div class="cell">

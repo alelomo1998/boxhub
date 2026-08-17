@@ -83,7 +83,7 @@ type SessionsState = 'loading' | 'error' | 'ready';
           <bh-alert tone="danger" data-testid="signout-error">{{ signOutError() }}</bh-alert>
         }
 
-        <bh-button variant="ghost" size="sm" [loading]="signOutPending()" (click)="signOutEverywhere()" testId="signout-all">
+        <bh-button variant="solid" size="sm" [loading]="signOutPending()" (click)="signOutEverywhere()" testId="signout-all">
           @if (signOutPending()) {
             <span i18n="@@account.sessions.signOutAll.pending">Signing out…</span>
           } @else {

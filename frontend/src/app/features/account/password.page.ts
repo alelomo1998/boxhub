@@ -49,7 +49,7 @@ const MIN_PASSWORD_LENGTH = 10;
           <bh-alert tone="good" data-testid="password-success" i18n="@@account.password.success">Password changed. We've signed out your other devices and emailed you to confirm.</bh-alert>
         }
 
-        <bh-button type="submit" variant="ghost" [loading]="pending()" testId="password-submit">
+        <bh-button type="submit" variant="solid" [loading]="pending()" testId="password-submit">
           @if (pending()) {
             <span i18n="@@account.password.submit.pending">Saving…</span>
           } @else {
