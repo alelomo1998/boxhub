@@ -35,6 +35,8 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', loadComponent: () => import('./features/account/account-index.page').then(m => m.AccountIndexPage) },
       { path: 'password', title: $localize`:@@route.account.password:Password`,
         loadComponent: () => import('./features/account/password.page').then(m => m.PasswordPage) },
+      { path: 'change-email', title: $localize`:@@route.account.changeEmail:Email`,
+        loadComponent: () => import('./features/account/change-email.page').then(m => m.ChangeEmailPage) },
     ] },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
