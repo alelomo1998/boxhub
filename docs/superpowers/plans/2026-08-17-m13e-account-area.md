@@ -657,6 +657,81 @@ git commit -m "feat(m13e): the email section"
 
 ---
 
+## Task 7b: parse the device label (backend)
+
+**Files:**
+- Create: `backend/src/main/java/com/boxhub/identity/DeviceLabel.java`
+- Create: `backend/src/test/java/com/boxhub/identity/DeviceLabelTest.java`
+- Modify: `backend/src/main/java/com/boxhub/identity/AccountService.java` — where `SessionDto` is built
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `DeviceLabel.of(String userAgent) -> String`, and `SessionDto.device` now carries a readable label instead of the raw User-Agent.
+
+**Why, and why it is here rather than in the backlog.** `SessionDto.device` is the raw `User-Agent`, 80–150 characters (see `RefreshTokenService.mint` / `RefreshToken.java`). Recognising your own device is the entire point of a sessions list, and a 150-character UA string defeats it. The user chose this deliberately over shipping as-is.
+
+**Parse at READ time**, where `AccountService` builds `SessionDto` — **not** at mint time into a new column. No Flyway migration, no schema change, and every existing session row gets the benefit rather than only newly-minted ones.
+
+**Keep it dumb and total.** User-Agents are spoofable, endless and change constantly. This is a best-effort label, not identification: a short ordered list of substring checks, and an honest fallback. It must never throw and never return empty.
+
+- [ ] **Step 1: Write the failing test**
+
+```java
+class DeviceLabelTest {
+    @Test void namesCommonBrowserAndPlatformPairs() {
+        assertThat(DeviceLabel.of("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"))
+                .isEqualTo("Chrome on macOS");
+        assertThat(DeviceLabel.of("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"))
+                .isEqualTo("Safari on iPhone");
+        assertThat(DeviceLabel.of("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0"))
+                .isEqualTo("Edge on Windows");
+    }
+
+    @Test void neverThrowsAndNeverReturnsEmpty() {
+        // A User-Agent is attacker-controlled: null, blank and junk must all produce a label.
+        assertThat(DeviceLabel.of(null)).isNotBlank();
+        assertThat(DeviceLabel.of("")).isNotBlank();
+        assertThat(DeviceLabel.of("!!! not a user agent !!!")).isNotBlank();
+    }
+
+    @Test void doesNotEchoAnUnboundedAttackerControlledStringBackToTheUser() {
+        // The whole point is a SHORT label. Echoing the raw UA on no match would reintroduce the
+        // 150-character row this task exists to remove, and hand an attacker a text injection
+        // surface into another session's row.
+        String hostile = "x".repeat(4000);
+        assertThat(DeviceLabel.of(hostile).length()).isLessThan(40);
+    }
+}
+```
+
+- [ ] **Step 2: Run it, watch it fail**
+
+```bash
+cd /Users/alessandrolomonaco/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn -Dtest=DeviceLabelTest test
+```
+
+- [ ] **Step 3: Implement `DeviceLabel`** — a final class with a private constructor and one static `of`. Ordered substring checks (Edge before Chrome, since Edge's UA contains "Chrome"; Chrome before Safari, since Chrome's contains "Safari"), platform from the parenthesised section, and a fallback of `"Unknown device"`. Never interpolate the raw UA into the result.
+
+- [ ] **Step 4: Use it where `SessionDto` is built** in `AccountService`, replacing the raw value.
+
+- [ ] **Step 5: Run the backend suite**
+
+```bash
+cd /Users/alessandrolomonaco/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
+```
+Report the new total. **If an existing test asserts a raw User-Agent in a session response, that test moves with the behaviour — report it rather than weakening it.**
+
+- [ ] **Step 6: Negative control** — make `of` return the raw input, watch the length test fail, revert.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add backend/src/main/java/com/boxhub/identity/DeviceLabel.java backend/src/test/java/com/boxhub/identity/DeviceLabelTest.java backend/src/main/java/com/boxhub/identity/AccountService.java
+git commit -m "feat(m13e): a readable device label for the sessions list"
+```
+
+---
+
 ## Task 7: the sessions section
 
 **Files:**
@@ -718,6 +793,8 @@ git commit -m "feat(m13e): the sessions section"
 **Interfaces:**
 - Consumes: `AuthService.exportData()`, `AuthService.deleteAccount(password?)`, `SheetComponent`, `BRAND_NAME`.
 - Produces: nothing later tasks depend on.
+
+**The delete confirmation stays a `bh-sheet`** (decided at shape): it already works and is tested, the consequence is irreversible — the one place interrupting on purpose beats exhausting inline — and `bh-sheet`'s confirm-close is free protection once the field has input.
 
 **THE SECURITY PROPERTY THAT MUST SURVIVE EXACTLY (spec §6.4).** The first delete submit sends **no** password. A `422 WRONG_PASSWORD` coming back is what *reveals* the field — which is how a Google-only account never sees one. It looks like a missing field and is a deliberate probe. **Do not "fix" it by sending the password eagerly.**
 
