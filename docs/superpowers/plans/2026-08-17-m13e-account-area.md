@@ -1026,3 +1026,52 @@ Never `npx playwright test visual.spec.ts` locally — macOS baselines enforced 
 **Placeholder scan.** Tasks 6 and 7 describe their tests by shape rather than repeating four near-identical code blocks; each names the exact URL, namespace and assertion required. Task 7's second test and Task 8's third are stated as behaviour with the arrange/assert named. These are the plan's thinnest points — an executor blocked by either should ask rather than guess.
 
 **Type consistency.** `sessionGuard` (Task 1) is consumed by name in Task 3. `AccountLayoutPage`, `AccountIndexPage`, `PasswordPage`, `ChangeEmailPage`, `SessionsPage`, `DangerPage` are the six component names, used identically in their `loadComponent` imports. The area's email section is `/account/change-email` **everywhere it appears** — Task 2's `sections` array, Task 2's spec, and Task 3's route table — because `/account/email` belongs to the unguarded mail landing. An earlier draft of this plan had Task 3 correcting Task 2 after the fact; that was fixed rather than documented, since an executor reading Task 2 alone would otherwise build the wrong link.
+
+---
+
+## Task 15: the structure fixes (added 2026-08-17 after user review)
+
+**The user reviewed the built area and rejected its structure and chrome.** Three defects, all from the orchestrator's design rather than the implementation, all decided with the user after a shape run (`.superpowers/sdd/2026-08-17-m13e-account-area/structure-shape.md`). **The four sections' content, the routes, the guard and the backend are NOT in scope — the objection was to structure and chrome only.**
+
+**Files:**
+- Modify: `frontend/src/app/features/account/account-layout.page.ts` + spec
+- Modify: `frontend/src/app/ui/button.component.ts` + spec
+- Modify: `frontend/src/app/features/dev/dev-gallery.page.ts`
+- Modify: the four section pages, one line each (the submit's `variant`)
+- Modify: `e2e/tests/visual.spec.ts-snapshots/` — regenerate
+
+### 15.1 — Phone becomes true list → detail
+
+Today `.wrap` is a column of `.side` (four nav links) then `.content`, so **both are always visible below 720px**. That is the defect: the user sees four labels stacked above the section. The spec's rule — "ONE markup tree, layout switched by CSS" — **cannot express list → detail**, because list → detail needs the nav *absent* once a section is active. That rule is hereby withdrawn for this component.
+
+- Below 720px: when a **section** is active, the nav is not rendered; when the **index** is active, the nav IS the page.
+- Drive it from the router (a signal off router events), not from a CSS-only trick — CSS cannot know which child is active.
+- **Desktop is untouched**: above 720px the nav and the section are side by side exactly as now.
+- The section needs a way back to the menu on phone: a `‹ Account` control in the header. Gesture-only back is not enough for keyboard and screen-reader users.
+- **Fix `.s-item.active` while here**: it currently sets `color: var(--bone)`, identical to the inactive colour, so the active row was never distinguishable. Give it a real, token-based distinction.
+
+### 15.2 — "Done" leaves in one press
+
+In-area `routerLink`s push history entries, so `Location.back()` walks back through the sections visited. Add **`[replaceUrl]="true"`** to the in-area nav links so moving between sections *replaces* rather than *pushes*. One press of Done then exits to wherever the user came from.
+
+Keep the existing no-history fallback to the role home.
+
+### 15.3 — Actions stop reading as empty boxes
+
+Every section's submit is `variant="ghost"` — transparent with a `1px var(--hairline)` border, which on this dark ground reads as empty or disabled.
+
+Add a new **`variant="solid"`** to `bh-button`: filled with `var(--surface-2)`, `--bone` text, **no accent colour**. Apply it to the four sections' primary actions. **The zero-volt rule stands and is not being reopened** — this fixes the complaint without spending volt.
+
+- Existing variants must be provably unchanged; `solid` is additive.
+- The dev gallery gets the new variant with a one-line note — the gallery is the component contract.
+
+### Steps
+
+- [ ] **1.** Write the failing specs first: the nav is absent below 720px with a section active and present at the index; the active row is visually distinct; the in-area links carry `replaceUrl`; `solid` renders a filled background and the other variants do not.
+- [ ] **2.** Run them, watch them fail.
+- [ ] **3.** Implement 15.1, 15.2, 15.3.
+- [ ] **4.** Karma + `npx ng build --configuration production`.
+- [ ] **5.** Negative controls, reported: remove the nav-hiding condition (the phone spec must fail); drop `replaceUrl` (its spec must fail); make `solid` transparent (its spec must fail). Revert each.
+- [ ] **6.** e2e — the area's spec must still pass; the phone nav change may move test ids it depends on.
+- [ ] **7.** **Regenerate baselines.** 15.1 and 15.3 change every account section's rendering, and 15.3 changes the gallery's button section again. Regenerate the 8 account baselines AND `button-{phone,tablet,desktop}.png`, inside the Linux container via `e2e/visual.sh` only.
+- [ ] **8.** Commit.
