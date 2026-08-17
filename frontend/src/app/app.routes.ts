@@ -37,6 +37,8 @@ export const routes: Routes = [
         loadComponent: () => import('./features/account/password.page').then(m => m.PasswordPage) },
       { path: 'change-email', title: $localize`:@@route.account.changeEmail:Email`,
         loadComponent: () => import('./features/account/change-email.page').then(m => m.ChangeEmailPage) },
+      { path: 'sessions', title: $localize`:@@route.account.sessions:Sessions`,
+        loadComponent: () => import('./features/account/sessions.page').then(m => m.SessionsPage) },
     ] },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],

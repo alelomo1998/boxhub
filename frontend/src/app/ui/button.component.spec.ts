@@ -5,13 +5,14 @@ import { ButtonComponent } from './button.component';
 @Component({
   standalone: true,
   imports: [ButtonComponent],
-  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()">Save</bh-button>`,
+  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()" [ariaDisabled]="ad()">Save</bh-button>`,
 })
 class Host {
   v = signal<'primary' | 'ghost' | 'danger' | 'icon'>('primary');
   d = signal(false);
   l = signal(false);
   lbl = signal('');
+  ad = signal(false);
 }
 
 describe('ButtonComponent', () => {
@@ -113,6 +114,21 @@ describe('ButtonComponent', () => {
     expect(defaultOffset).toBe('2px');
     expect(primaryOffset).withContext('primary must pull its ring inward, onto the volt surface itself').toBe('-2px');
     expect(primaryOffset).not.toBe(defaultOffset);
+  });
+
+  it('ariaDisabled marks the button for assistive tech without touching the native disabled property', () => {
+    // A native `disabled` here would drop the pressed row-action out of the a11y tree and send
+    // focus to <body> — the P1 this input exists to avoid. Regression: swap the template's
+    // `[attr.aria-disabled]` binding back to `[disabled]="ariaDisabled()"` and this fails because
+    // `btn().disabled` flips true.
+    f.componentInstance.ad.set(true);
+    f.detectChanges();
+    expect(btn().getAttribute('aria-disabled')).toBe('true');
+    expect(btn().disabled).withContext('must stay in the a11y tree — this is aria-only').toBe(false);
+
+    f.componentInstance.ad.set(false);
+    f.detectChanges();
+    expect(btn().getAttribute('aria-disabled')).toBeNull();
   });
 
   it('toggling loading back off restores the button', () => {
