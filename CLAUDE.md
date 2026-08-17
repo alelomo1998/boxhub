@@ -38,6 +38,17 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   the button never authenticated and **the password went into the URL**, browser history and server
   logs, past 272 green Karma specs. `bh-field`/`bh-select` are **not** `ControlValueAccessor`s;
   bind `[(value)]` against signals. Full reasoning: `2026-08-10-m13d-auth-account-screens-design.md` §4.2.
+- **A disabled button guards ONE path, never the action.** Enter in a form submits regardless of any
+  button's `[disabled]`, and a native `disabled` attribute also drops the pressed control out of the
+  a11y tree, sending focus to `<body>`. Put the guard in the handler, and move focus onto whatever
+  replaced the control. Four M13d screens needed this; three needed it twice.
+- **A gate you have to explain away stops being a gate.** The greps match comments too, so never
+  name `ngSubmit`/`FormsModule` (or any token a gate hunts) in a comment on a clean file — the next
+  person reads the red as noise. Same rule for a spec: `ng build` does NOT compile spec files, so a
+  green production build is not evidence your specs compile. Karma is what catches that.
+- **axe does not protect a label on a field that has a placeholder** — its `label` rule accepts a
+  non-empty placeholder as a fallback. Most `bh-field` consumers carry one. Verified by trying to
+  make the gate fail and watching it pass.
 - **A screen is not verified until e2e runs on it.** Karma cannot see a dead submit binding: specs
   that call `submit()` directly test the handler, never the wiring. `e2e/tests/login.spec.ts` catches
   it in seconds. Rebuild the frontend image first, and re-run on a `down -v` stack before blaming a
