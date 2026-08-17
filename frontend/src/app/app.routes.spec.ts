@@ -3,6 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { routes } from './app.routes';
+import { sessionGuard } from './core/auth/session.guard';
 
 describe('account routes', () => {
   beforeEach(() => {
@@ -24,7 +25,7 @@ describe('account routes', () => {
   it('guards the account area itself', () => {
     const area = routes.find(r => r.path === 'account');
     expect(area).toBeDefined();
-    expect(area!.canActivate?.length).toBe(1);
+    expect(area!.canActivate).toEqual([sessionGuard]);
   });
 
   it('redirects the old security URL into the area', () => {
