@@ -239,3 +239,109 @@ for (const vp of [PHONE, DESKTOP]) {
     await invitee.close();
   });
 }
+
+// ---------------------------------------------------------------------------------------------
+// M13e Task 13: visual baselines for the four account sections. Full-page like the auth SCREENS
+// above, not per-section like the gallery — each is one form/list, not a catalogue. Named
+// account-<section> to avoid colliding with account-email-*.png, the EXISTING baseline for
+// /app/account/email — the unguarded email-CONFIRM landing page, a different screen entirely
+// from the change-email FORM captured here.
+//
+// These need a real session (account is behind sessionGuard, not roleGuard) — login() as
+// admin@demo.io. The area deliberately doesn't require an active box; admin@demo.io happens to
+// have one, which is fine, nothing rendered here depends on it.
+//
+// sessions is NOT in this table — see the dedicated block below for why admin@demo.io can't be
+// used there.
+const ACCOUNT_SECTIONS: Array<{
+  name: string;
+  path: string;
+  ready: (page: Page) => Promise<unknown>;
+}> = [
+  {
+    name: 'account-password', path: '/app/account/password',
+    ready: page => expect(page.locator('[data-testid="password-form"]')).toBeVisible(),
+  },
+  {
+    name: 'account-change-email', path: '/app/account/change-email',
+    ready: page => expect(page.locator('[data-testid="email-form"]')).toBeVisible(),
+  },
+  {
+    name: 'account-danger', path: '/app/account/danger',
+    ready: page => expect(page.locator('[data-testid="delete-open"]')).toBeVisible(),
+  },
+];
+
+for (const section of ACCOUNT_SECTIONS) {
+  for (const vp of [PHONE, DESKTOP]) {
+    test(`${section.name} (${vp.name}) is visually unchanged`, async ({ page }) => {
+      await page.clock.setFixedTime(FROZEN_TIME);
+      await freezeRandomBenchmark(page);
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await login(page, 'admin@demo.io');
+      await page.goto(section.path);
+      await section.ready(page);
+      await page.evaluate(() => document.fonts.ready);
+
+      await expect(page).toHaveScreenshot(`${section.name}-${vp.name}.png`, {
+        animations: 'disabled',
+        threshold: 0,
+        maxDiffPixels: 100,
+      });
+    });
+  }
+}
+
+// sessions renders the account's FULL list of active sessions, and RefreshTokenService.issue()
+// (the path both login() and registration go through) mints a brand-new session family on EVERY
+// call, with no reuse and no cap. That means admin@demo.io's list grows by one every time
+// anything in this suite — or a previous ./visual.sh run — logs in as it, so a baseline built
+// against admin@demo.io is never stable. Confirmed empirically: the very first re-run after
+// generating admin@demo.io-based baselines here failed on desktop only, from nothing but the
+// extra logins this same suite made earlier in that run.
+//
+// A throwaway invitee sidesteps this the same way join (above) does: it exists for exactly one
+// registration, so it always has exactly one session ("This device"). Suffix is `sessions-<vp>`,
+// not just `<vp>` like the join test uses, to avoid colliding with join's own invite email
+// (both would otherwise land on the same runId()-stamped address).
+for (const vp of [PHONE, DESKTOP]) {
+  test(`account-sessions (${vp.name}) is visually unchanged`, async ({ page, context }) => {
+    const link = await createInvite(page, `sessions-${vp.name}`);
+
+    const invitee = await context.browser()!.newContext();
+    const sessionsPage = await invitee.newPage();
+    await sessionsPage.clock.setFixedTime(FROZEN_TIME);
+    await sessionsPage.setViewportSize({ width: vp.width, height: vp.height });
+    await sessionsPage.goto(link);
+    await sessionsPage.fill('[data-testid="join-name"]', 'Sessions Baseline');
+    await sessionsPage.fill('[data-testid="join-password"]', 'e2e-visual-sessions-pw-1');
+    await sessionsPage.click('button[data-testid="join-register"], [data-testid="join-register"] button');
+    // The join route is /app/join/:token (no /auth/ prefix) — NOT the same shape as the other
+    // auth/* routes this file's waitForURL predicates key off. Checking for '/auth/join' here
+    // resolves instantly (the pathname never contains it, before OR after the redirect), which
+    // let this navigate to account/sessions while registration was still in flight, aborting it.
+    await sessionsPage.waitForURL(u => !u.pathname.includes('/join/'));
+
+    await sessionsPage.goto('/app/account/sessions');
+    await expect(sessionsPage.locator('[data-testid="sessions-list"]')).toBeVisible();
+    await sessionsPage.evaluate(() => document.fonts.ready);
+
+    // The "last seen" text is `s.lastSeen | date:'dd MMM yyyy, HH:mm'` — an ABSOLUTE format over
+    // a value the SERVER stamped (RefreshToken.lastUsedAt, set from the real backend clock at
+    // registration). page.clock only freezes the browser's Date/Date.now(), which this format
+    // never calls — there's no client-side "now" in an absolute-date pipe — so FROZEN_TIME does
+    // NOT make this row reproducible, unlike bh-day-pager's `{{ day() | date }}` elsewhere in this
+    // file, which genuinely does call `new Date()` client-side. Confirmed empirically: three
+    // ./visual.sh runs in a row happened to land in the same minute and passed by luck; a run an
+    // hour (or a day) later would not. Masked the same way join masks its runId()-stamped email —
+    // '.meta' is sessions.page.ts's own class for the ip+date line, scoped inside the one list
+    // this test renders.
+    await expect(sessionsPage).toHaveScreenshot(`account-sessions-${vp.name}.png`, {
+      animations: 'disabled',
+      threshold: 0,
+      maxDiffPixels: 100,
+      mask: [sessionsPage.locator('[data-testid="sessions-list"] .meta')],
+    });
+    await invitee.close();
+  });
+}
