@@ -997,6 +997,7 @@ Expected: **53 passed + 1 skipped** plus the new cases. If `runner`/`tracking`/`
 **This task is LAST of the test tasks and that ordering is not negotiable** — baselines churning while sections are still being designed is why this gate was cut once before.
 
 - [ ] Add the four sections at phone and desktop (8 baselines, on top of 80).
+- [ ] **REGENERATE `button-{phone,tablet,desktop}.png`.** Task 7 added an `ariaDisabled` example and note to the dev gallery's button section, which changes that section's rendered height at `threshold: 0`. Nothing regenerated them at the time, deliberately — this task owns baselines and runs last so they do not churn while sections are still being designed. **If this line is skipped the visual gate fails on the next container run**, and it will not surface in Karma or the production build, because the visual suite is excluded from the default run. That exact oversight left M13d's gallery gate red for a whole milestone.
 - [ ] **Generate and verify ONLY inside the Linux container:**
 
 ```bash
