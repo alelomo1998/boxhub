@@ -5,7 +5,7 @@ import { ButtonComponent } from './button.component';
 @Component({
   standalone: true,
   imports: [ButtonComponent],
-  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()" [ariaDisabled]="ad()">Save</bh-button>`,
+  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()" [ariaDisabled]="ad()" [dangerBorder]="db()">Save</bh-button>`,
 })
 class Host {
   v = signal<'primary' | 'ghost' | 'danger' | 'icon'>('primary');
@@ -13,6 +13,7 @@ class Host {
   l = signal(false);
   lbl = signal('');
   ad = signal(false);
+  db = signal(false);
 }
 
 describe('ButtonComponent', () => {
@@ -129,6 +130,22 @@ describe('ButtonComponent', () => {
     f.componentInstance.ad.set(false);
     f.detectChanges();
     expect(btn().getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('dangerBorder colours a ghost button --danger, and defaults off for every existing call site', () => {
+    // Regression for the P1 the reviewer measured on danger.page.ts: an external page-level class
+    // (`.opener { color: var(--danger) }`) never reached this component's own encapsulated
+    // <button>, because that button lives inside bh-button's template, a different Angular
+    // encapsulation boundary than the page that authored the class. Reading getComputedStyle is
+    // the only check that actually proves the colour renders, rather than restating the input.
+    f.componentInstance.v.set('ghost');
+    f.detectChanges();
+    expect(getComputedStyle(btn()).borderColor).not.toBe('rgb(229, 72, 77)');
+
+    f.componentInstance.db.set(true);
+    f.detectChanges();
+    expect(btn().className).toContain('danger-border');
+    expect(getComputedStyle(btn()).borderColor).toBe('rgb(229, 72, 77)'); // --danger
   });
 
   it('toggling loading back off restores the button', () => {

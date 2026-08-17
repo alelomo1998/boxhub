@@ -37,7 +37,7 @@ import { BRAND_NAME } from '../../core/brand';
 
     <section class="delete">
       <h2 class="t-h3" i18n="@@account.danger.delete.heading">Delete my account</h2>
-      <bh-button variant="ghost" size="sm" class="opener" (click)="openDelete()" testId="delete-open">
+      <bh-button variant="ghost" size="sm" [dangerBorder]="true" (click)="openDelete()" testId="delete-open">
         <span i18n="@@account.danger.delete.open">Delete my account</span>
       </bh-button>
     </section>
@@ -89,7 +89,6 @@ import { BRAND_NAME } from '../../core/brand';
     :host { display: flex; flex-direction: column; gap: var(--sp-8); }
     .export, .delete { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
-    .opener { color: var(--danger); border-color: var(--danger); }
     .del { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
     .explain { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
   `],

@@ -79,6 +79,21 @@ describe('DangerPage', () => {
     expect(cmp.canDelete()).toBeTrue();
   });
 
+  // Fix-round regression: the opener used to be `<bh-button variant="ghost" class="opener">` with
+  // `.opener { color: var(--danger); border-color: var(--danger); }` in THIS page's own
+  // encapsulated styles — a rule that can only ever match the <bh-button> host tag, not the
+  // <button> bh-button renders inside its own template. It computed to plain --hairline/--bone,
+  // not --danger, and no prior spec caught it because none read actual computed style. This one
+  // would fail against that old markup; it only passes because the opener now sets
+  // `[dangerBorder]="true"`, a signal input bh-button's own template consumes.
+  it('the delete opener actually renders danger-bordered, not just plain ghost', () => {
+    const fixture = setup();
+    const opener: HTMLElement = fixture.nativeElement.querySelector('[data-testid="delete-open"]');
+    const style = getComputedStyle(opener);
+    expect(style.borderColor).toBe('rgb(229, 72, 77)'); // --danger
+    expect(style.color).toBe('rgb(229, 72, 77)');
+  });
+
   it('a Google-only account deletes on the first attempt: no 422, no password field ever mounts', () => {
     const fixture = setup();
     const cmp = fixture.componentInstance;

@@ -115,6 +115,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             <span class="stlabel" i18n="@@dev.gallery.state.ariaDisabled">Aria-disabled</span>
             <bh-button variant="ghost" [ariaDisabled]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.dangerBorder">Danger-bordered</span>
+            <bh-button variant="ghost" [dangerBorder]="true" i18n="@@dev.gallery.button.sampleDangerLabel">Delete</bh-button>
+          </div>
         </div>
 
         <p class="gsub" i18n="@@dev.gallery.button.variant.danger">Danger</p>
@@ -169,6 +173,13 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           native disabled attribute, so the control the user just pressed stays in the accessibility
           tree and keeps focus, rather than dropping it to &lt;body&gt;. For a row action whose own
           click has to guard against a double-fire while pending (account sessions' per-row sign-out).
+        </p>
+        <p class="note" i18n="@@dev.gallery.button.note.dangerBorder">
+          Danger-bordered is a signal input (dangerBorder), not a page-level CSS class — a class
+          from the page's own encapsulated styles can only ever match the &lt;bh-button&gt; host
+          tag, never the &lt;button&gt; this component renders inside its own template. For the
+          control that OPENS a destructive flow (account danger zone's "Delete my account"),
+          escalating against the filled variant="danger" control that EXECUTES it.
         </p>
       </section>
 

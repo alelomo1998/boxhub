@@ -20,12 +20,12 @@ import { NgTemplateOutlet } from '@angular/common';
       <!-- A link styled as a button must BE an anchor: routerLink/href on a bh-button host emits
            no href at all, losing ctrl/cmd-click, open-in-new-tab and the correct role. Two real
            consumers: the Google control on login and on signup. -->
-      <a [href]="href()" [class]="'btn ' + variant() + ' ' + size()"
+      <a [href]="href()" [class]="'btn ' + variant() + ' ' + size() + (dangerBorder() ? ' danger-border' : '')"
          [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
         <ng-container [ngTemplateOutlet]="body" />
       </a>
     } @else {
-      <button [type]="type()" [class]="'btn ' + variant() + ' ' + size()"
+      <button [type]="type()" [class]="'btn ' + variant() + ' ' + size() + (dangerBorder() ? ' danger-border' : '')"
               [disabled]="disabled() || loading()" [attr.aria-busy]="loading()"
               [attr.aria-disabled]="ariaDisabled() ? 'true' : null"
               [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
@@ -43,6 +43,11 @@ import { NgTemplateOutlet } from '@angular/common';
     .btn.md { padding: 0 17px; }
     .btn.primary { background: var(--volt); color: var(--on-volt); }
     .btn.ghost { background: transparent; color: var(--bone); border: 1px solid var(--hairline); }
+    /* Opt-in via dangerBorder(), not an external page-level class: the host tag a screen authors
+       (<bh-button>) is a different encapsulation boundary than the <button> this template renders
+       inside it, so a class from the *page's* styles never reaches it. Same trap CLAUDE.md records
+       for bh-field/bh-select's testId, in CSS form instead of an attribute. */
+    .btn.ghost.danger-border { color: var(--danger); border-color: var(--danger); }
     /* Destructive confirms only — the click you least want. Never the action that merely OPENS a
        destroy flow; that one is a danger-bordered ghost, so the pair reads as an escalation. */
     .btn.danger { background: var(--danger); color: var(--on-danger); }
@@ -96,6 +101,10 @@ export class ButtonComponent {
    *  stay in the a11y tree while its action is pending (see the CSS comment above); the real guard
    *  against a double-fire belongs in the click handler, not here. */
   ariaDisabled = input(false);
+  /** Danger-bordered ghost: the control that OPENS a destructive flow, escalating against the
+   *  filled `variant="danger"` control that EXECUTES it (design law). Defaults false so all
+   *  existing call sites are unchanged; only meaningful on `variant="ghost"`. */
+  dangerBorder = input(false);
   label = input('');
   /** Set to render an <a> instead of a <button>. For real navigation only — an OAuth start, an
    *  external destination. Internal navigation is a text link with routerLink, not this. */
