@@ -31,7 +31,9 @@ export const routes: Routes = [
   // line here when their component lands — see Task 3 brief's ruling override.
   { path: 'account', canActivate: [sessionGuard],
     loadComponent: () => import('./features/account/account-layout.page').then(m => m.AccountLayoutPage),
-    children: [] },
+    children: [
+      { path: '', pathMatch: 'full', loadComponent: () => import('./features/account/account-index.page').then(m => m.AccountIndexPage) },
+    ] },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/athlete/athlete-shell.page').then(m => m.AthleteShellPage),
