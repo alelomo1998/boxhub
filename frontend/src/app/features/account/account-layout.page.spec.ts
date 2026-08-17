@@ -27,12 +27,13 @@ describe('AccountLayoutPage', () => {
   });
 
   it('Done goes back through history when there is history to go back to', () => {
-    const location = TestBed.inject(Location);
-    const back = spyOn(location, 'back');
     // Karma's headless tab never performs a real navigation, so window.history.length is
-    // permanently 1 in this harness — the default hasHistory() would never see "true" here
-    // regardless of the component logic. Override it, symmetric with the false-case test below.
-    fixture.componentInstance.hasHistory = () => true;
+    // permanently 1 by default in this harness. Push a real entry so the component's actual,
+    // UNSTUBBED hasHistory() — `window.history.length > 1` — reads true for real, instead of
+    // stubbing the exact expression this test exists to cover.
+    history.pushState(null, '', location.href);
+    const ngLocation = TestBed.inject(Location);
+    const back = spyOn(ngLocation, 'back');
     (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLButtonElement>('[data-testid="account-done"]')!.click();
     expect(back).toHaveBeenCalled();
