@@ -33,6 +33,8 @@ export const routes: Routes = [
     loadComponent: () => import('./features/account/account-layout.page').then(m => m.AccountLayoutPage),
     children: [
       { path: '', pathMatch: 'full', loadComponent: () => import('./features/account/account-index.page').then(m => m.AccountIndexPage) },
+      { path: 'password', title: $localize`:@@route.account.password:Password`,
+        loadComponent: () => import('./features/account/password.page').then(m => m.PasswordPage) },
     ] },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
