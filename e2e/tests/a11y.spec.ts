@@ -68,7 +68,8 @@ for (const shell of SHELLS) {
 
 // ---------------------------------------------------------------------------------------------
 // M13d Task 19: axe coverage over the milestone's ten rebuilt auth/account screens.
-// account/security was deferred out of this milestone (2026-08-14) and is NOT included here.
+// The old single account/security page was deferred out of this milestone (2026-08-14); its
+// replacement, the four account sections, is covered by Task 12 below instead.
 //
 // Unlike SHELLS/TARGETS above, these are whole-page audits (no `.include()` scope) — the
 // plumbing-vs-hero split that justifies scoping the shells doesn't apply inside a screen body,

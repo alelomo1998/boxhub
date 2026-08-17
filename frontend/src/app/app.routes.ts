@@ -27,9 +27,7 @@ export const routes: Routes = [
   // The old single page. Kept as a redirect: it is in users' history and in four places here.
   { path: 'account/security', redirectTo: '/account', pathMatch: 'full' },
 
-  // Later section tasks (password, sessions, change-email, danger) each add their own child route
-  // line here when their component lands — see Task 3 brief's ruling override.
-  { path: 'account', canActivate: [sessionGuard],
+  { path: 'account', title: $localize`:@@route.account.area:Account`, canActivate: [sessionGuard],
     loadComponent: () => import('./features/account/account-layout.page').then(m => m.AccountLayoutPage),
     children: [
       { path: '', pathMatch: 'full', loadComponent: () => import('./features/account/account-index.page').then(m => m.AccountIndexPage) },

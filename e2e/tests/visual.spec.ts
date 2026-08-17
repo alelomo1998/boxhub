@@ -93,8 +93,8 @@ for (const vp of VIEWPORTS) {
 
 // ---------------------------------------------------------------------------------------------
 // M13d Task 20: visual baselines for the milestone's ten rebuilt auth/account screens.
-// account/security was deferred out of this milestone (2026-08-14, user's decision) and is NOT
-// included here.
+// The old single account/security page was deferred out of this milestone (2026-08-14, user's
+// decision); its replacement, the four account sections, is covered by Task 13 below instead.
 //
 // Full-page screenshots, not per-section like the gallery above — these are single-purpose
 // screens (one form, one message), not a component catalogue with independent sections to

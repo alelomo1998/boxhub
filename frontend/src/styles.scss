@@ -38,7 +38,7 @@ nav a { text-decoration: none; }
    These survive because their 54 call sites sit inside template-driven <form>s with ngModel and
    carry data-testids the e2e suite drives with .fill(); bh-field is deliberately not a
    ControlValueAccessor yet (that is M13d's decision). Each consumer dies with its own milestone:
-   M13d — join, signup, reset, verify, forgot, start-box, account/security
+   M13d — join, signup, reset, verify, forgot, start-box
    M14  — schedule        M15 — invites, members, settings
    M16  — box-stripe, subscriptions, plans                M18 — superadmin console
    Spec: docs/superpowers/specs/2026-08-06-m13c-component-library-design.md §3.8 */
