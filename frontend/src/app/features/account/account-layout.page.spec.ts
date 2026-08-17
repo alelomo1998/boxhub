@@ -98,6 +98,27 @@ describe('AccountLayoutPage', () => {
     expect(el.querySelector('[data-testid="account-back"]')).toBeNull();
   });
 
+  it('titles the phone header with the active section, not a constant that duplicates the back control', async () => {
+    const phoneTitle = () => (fixture.nativeElement as HTMLElement).querySelector('.title-phone')!;
+    expect(phoneTitle().textContent?.trim()).toBe('Account');
+
+    await router.navigateByUrl('/account/password');
+    fixture.detectChanges();
+    expect(phoneTitle().textContent?.trim()).toBe('Password');
+
+    await router.navigateByUrl('/account');
+    fixture.detectChanges();
+    expect(phoneTitle().textContent?.trim()).toBe('Account');
+  });
+
+  it('gives the back chevron an accessible name instead of shipping a bare, unlabelled glyph', async () => {
+    await router.navigateByUrl('/account/password');
+    fixture.detectChanges();
+    const back = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('[data-testid="account-back"]')!;
+    expect(back.textContent?.trim()).toBe('‹');
+    expect(back.getAttribute('aria-label')).toBeTruthy();
+  });
+
   it('gives the active nav item a background distinct from an inactive one', () => {
     const item: HTMLElement = fixture.nativeElement.querySelector('.s-item');
     const inactiveBg = getComputedStyle(item).backgroundColor;

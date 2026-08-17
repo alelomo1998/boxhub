@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
@@ -25,10 +25,17 @@ import { WordmarkComponent } from '../../ui/wordmark.component';
     <header class="top">
       <bh-wordmark />
       @if (!atIndex()) {
-        <a class="back" routerLink="/account" [replaceUrl]="true"
-           data-testid="account-back" i18n="@@account.back">‹ Account</a>
+        <a class="back" routerLink="/account" [replaceUrl]="true" data-testid="account-back"
+           aria-label="Back to account" i18n-aria-label="@@account.back">‹</a>
       }
-      <h1 class="t-h3 title" i18n="@@account.title">Account</h1>
+      <h1 class="t-h3 title">
+        <span class="title-desktop" i18n="@@account.title">Account</span>
+        @if (activeSection(); as section) {
+          <span class="title-phone">{{ section.label }}</span>
+        } @else {
+          <span class="title-phone" i18n="@@account.title">Account</span>
+        }
+      </h1>
       <button type="button" class="done" (click)="done()"
               data-testid="account-done" i18n="@@account.done">Done</button>
     </header>
@@ -50,6 +57,11 @@ import { WordmarkComponent } from '../../ui/wordmark.component';
     .top { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-4);
       border-bottom: 1px solid var(--hairline); }
     .title { margin: 0; flex: 1; }
+    /* Phone shows the active section's own name (nothing else on the phone header says it, now
+       that the back control is a bare chevron); desktop keeps the constant "Account" — the nav
+       is visible there and already names the section. */
+    .title-desktop { display: none; }
+    .title-phone { display: inline; }
     .back { background: none; border: 0; padding: 0 var(--sp-2); min-height: var(--tap);
       display: inline-flex; align-items: center; font: inherit; color: var(--bone);
       text-decoration: none; }
@@ -77,6 +89,8 @@ import { WordmarkComponent } from '../../ui/wordmark.component';
 
     @media (min-width: 720px) {
       .back { display: none; }
+      .title-desktop { display: inline; }
+      .title-phone { display: none; }
       .wrap { flex-direction: row; align-items: flex-start; gap: var(--sp-8); }
       .side { flex: 0 0 200px; }
       .s-item { border-bottom: none; padding: var(--sp-2) var(--sp-3); border-radius: var(--edge); }
@@ -90,16 +104,6 @@ export class AccountLayoutPage {
   private router = inject(Router);
   private auth = inject(AuthService);
 
-  /** True at the bare '/account' index, false once any section is active. Fed off NavigationEnd
-   *  rather than a CSS-only rule — CSS cannot know which child route is active. */
-  atIndex = toSignal(
-    this.router.events.pipe(
-      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      map(() => this.router.url === '/account'),
-    ),
-    { initialValue: this.router.url === '/account' },
-  );
-
   readonly sections = [
     { id: 'password', link: '/account/password', label: $localize`:@@account.nav.password:Password` },
     // /account/change-email, NOT /account/email: the latter is the unguarded confirmation
@@ -108,6 +112,24 @@ export class AccountLayoutPage {
     { id: 'sessions', link: '/account/sessions', label: $localize`:@@account.nav.sessions:Sessions` },
     { id: 'danger', link: '/account/danger', label: $localize`:@@account.nav.danger:Danger zone` },
   ];
+
+  /** The router's current URL, fed off NavigationEnd rather than a CSS-only rule — CSS cannot
+   *  know which child route is active. Everything phone-header-related keys off this one signal
+   *  so the section name can never drift out of sync with the nav that owns the label. */
+  private currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map(() => this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+
+  /** True at the bare '/account' index, false once any section is active. */
+  atIndex = computed(() => this.currentUrl() === '/account');
+
+  /** The active section, keyed off the same `sections` list the nav renders — not a hand-
+   *  maintained parallel list that could drift. Undefined at the index. */
+  activeSection = computed(() => this.sections.find(s => s.link === this.currentUrl()));
 
   /** Overridable in tests; window.history.length is 1 when this tab has no prior entry. */
   hasHistory = () => window.history.length > 1;
