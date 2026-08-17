@@ -1906,3 +1906,54 @@ reverted deliberately.** M13d closes at TEN screens, not eleven.
   BOX, not merely a session — a freshly signed-up, verified, membership-less account bounces to
   login. The cheapest way to a usable account is the INVITE flow, which creates it, lands it
   verified (M8 T11) and grants the membership in one step.
+
+Tasks 19-21 (Phase 3) COMPLETE. **M13d CLOSED at ten screens.**
+  FINAL GATES, all measured on a `down -v` stack: Karma **361** · backend **435/0/0** · e2e
+  **53 passed + 1 skipped** · axe **21 cases, zero WCAG 2.2 AA violations** · visual **23 tests /
+  80 baselines** · production build exit 0 with **zero budget warnings**. The 1 skip is the
+  quarantined TV/SSE defect (Project 2), untouched by scope.
+  TASK 19 — axe went from 7 cases to 21. Split screens are audited at BOTH 375 and 1440, because
+  the split layout only exists above 720px and a single-width audit never exercises one of the two.
+  Every case asserts a screen-specific locator is visible BEFORE axe runs — generalising this file's
+  own recorded lesson (its first version audited bh-dock at a width where it is display:none and so
+  inspected ZERO nodes) into "prove you landed on the state you meant, not a redirect or a bounce".
+  ** A LIMIT OF THE AXE GATE, FOUND ONLY BY TRYING TO MAKE IT FAIL: ** stripping the label off a
+  field that has a PLACEHOLDER does NOT trip axe — its label rule accepts a non-empty placeholder as
+  a fallback. The executor's first vacuity proof passed after a genuine --no-cache rebuild, and it
+  root-caused that rather than shrugging. Redone on login's password field, which has no
+  placeholder: failed correctly at both widths. **Most bh-field consumers carry placeholders, so axe
+  alone does not protect their labels.**
+  TASK 20 — 54 -> 80 baselines. **THE GALLERY'S THREE TESTS WERE ALREADY FAILING before this task
+  started, against committed baselines, and that was M13d's own doing**: Tasks 1, 2 and 8 changed
+  bh-field/bh-select/bh-button/bh-search-bar, and the two new gallery sections (bh-auth-layout,
+  bh-benchmark-board) never had baselines at all. Nobody regenerated them at the time, so the gate
+  had been RED rather than protective for the whole milestone. Regenerating was correct, but was
+  reviewed by eye rather than accepted wholesale: field-phone shows exactly the two intended changes
+  (Task 8's WITH LABEL ACTION state, and the brighter --faint -> --bone-dim placeholder) and nothing
+  else, and wordmark-phone — a section that should NOT have moved — was compared old against new and
+  is visually identical, i.e. re-render churn.
+  bh-benchmark-board picks its workouts with Math.random() BY DESIGN, so any screenshot containing
+  it is non-reproducible — content AND element height change per run, which is why masking does not
+  help (the mask box is recomputed and the height shift leaves an unmasked sliver). Math.random is
+  stubbed before navigation. **The gallery needed the same stub, not just the screens, and that was
+  only discovered by running the WHOLE suite rather than the new tests alone.**
+  DISCRIMINATION RE-PROVEN BY THE ORCHESTRATOR after the spec changed, not merely taken from the
+  executor's report: login's headline forced to 61px failed its baseline by 74,360 pixels (25% of
+  the image); reverted, rebuilt, re-verified green.
+  TASK 21 — the cross-screen consistency pass, which per-screen critiques are structurally blind to.
+  The set holds: the states that repeat across screens are WORD-IDENTICAL ("Link expired"/"Expired",
+  "Invalid link"/"Not valid", "Your box is unavailable."), and the four split screens are
+  structurally identical. Two registers of eyebrow exist and are defensible rather than accidental:
+  the front-door screens use positioning ("Rx · as prescribed", "For box owners") and the mid-flow
+  screens name the state ("Link expired", "Reset password"). No changes were manufactured to make a
+  report look busy.
+  A LAST GATE-HYGIENE SWEEP: three of my own explanatory comments named the very tokens the gates
+  grep for (`FormsModule`, the submit output), so clean files reported hits. All reworded. **A gate
+  you have to explain away stops being a gate**, and the next person reads a red grep as noise.
+  AN ENVIRONMENTAL FLAKE DIAGNOSED RATHER THAN BLAMED ON THE DIFF: programming.spec.ts failed on
+  "Burn It" not being visible. It is seeded for EVERY weekday deliberately, and driving the page by
+  hand showed both rows present. Cause: `sleep 50` after `up -d --build` is not long enough for
+  DevDataSeeder to finish (it also generates placeholder PNGs). It passed in 1.4s on a warm stack.
+  Then runner+tracking failed on the by-then-dirty stack — the exact pair the handoff documents as
+  non-idempotent. A `down -v` plus a 100s settle gave the clean 53+1. **Neither was a defect, and
+  neither was assumed to be one.**

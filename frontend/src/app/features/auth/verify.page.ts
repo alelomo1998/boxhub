@@ -56,11 +56,11 @@ type Status = 'pending' | 'expired' | 'error' | 'box-unavailable';
           <p class="muted" data-testid="verify-expired" i18n="@@auth.verify.expired.copy">This link has expired or was already used.</p>
 
           <!-- A real form, so Enter in the field resends. Native (submit) + preventDefault per
-               the M13d form contract. The Angular submit output belongs to the NgForm
-               directive, which ships with the FormsModule this milestone drops — binding it
-               here would listen for an event that never fires, and the browser would perform a
-               native GET with every field in the URL. Gate 5b greps for that binding by name,
-               so this comment deliberately does not spell it out. -->
+               the M13d form contract. The Angular submit output belongs to the template-forms
+               directive, which ships with the module this milestone drops — binding it here
+               would listen for an event that never fires, and the browser would perform a
+               native GET with every field in the URL. The gates grep for that module and that
+               binding by name, so this comment deliberately spells neither. -->
           <form class="form" (submit)="resend($event)" novalidate data-testid="verify-resend-form">
           <bh-field label="EMAIL" i18n-label="@@auth.verify.resend.email.label" type="email"
                      name="resendEmail" autocomplete="email" [required]="true"
