@@ -1957,3 +1957,62 @@ Tasks 19-21 (Phase 3) COMPLETE. **M13d CLOSED at ten screens.**
   Then runner+tracking failed on the by-then-dirty stack — the exact pair the handoff documents as
   non-idempotent. A `down -v` plus a 100s settle gave the clean 53+1. **Neither was a defect, and
   neither was assumed to be one.**
+
+## M13e — the account area (branch `m13e-account-area`, from `06dda82`)
+
+Spec `docs/superpowers/specs/2026-08-17-m13e-account-area-design.md`,
+plan `docs/superpowers/plans/2026-08-17-m13e-account-area.md`.
+Full task-by-task ledger, with every ruling: `.superpowers/sdd/2026-08-17-m13e-account-area/progress.md`.
+
+Deferred out of M13d and rebuilt properly: `/account` is now a routed area behind a **session-only
+guard** — password, change-email, sessions, danger — with a lateral nav at desktop and list -> detail
+on phone. One backend feature (a notification mail after a password change), one backend parser
+(readable device labels), and three additive inputs to `bh-button`.
+
+FINAL GATES: Karma **405** · backend **439** · e2e **64 passed + 1 skipped** on a rebuilt `down -v`
+stack · axe **29 cases, zero violations** · visual **31 specs / 88 baselines** · production build
+clean.
+
+** THE MILESTONE'S REAL LESSON: I SHAPED THE SECTIONS AND NOT THE STRUCTURE. ** An agent shaped the
+four sections' content, states and copy. The AREA's layout, chrome and navigation came from my own
+brainstorm and never went through shape at all. All three defects the user rejected on review came
+from exactly that gap:
+ 1. "Done" walked back through the sections visited, because in-area links push history entries and
+    I specified Location.back().
+ 2. The phone layout stacked four nav labels above the section. I sold list -> detail, then wrote a
+    layout rule — "ONE markup tree, layout switched by CSS" — that STRUCTURALLY CANNOT express it,
+    because list -> detail needs the nav absent once a section is active. My own spec contradicted
+    the design it was implementing.
+ 3. Every action rendered as a transparent hairline outline — the honest consequence of a zero-volt
+    reading I recommended, described in words and never SHOWN before it was approved.
+The fix was to run shape on the STRUCTURE and bring the user options with ASCII sketches at 375 and
+1440. They chose list -> detail, `replaceUrl` to collapse the in-area history, and a new filled
+non-accent `solid` variant that fixes the look WITHOUT reopening the volt rule.
+
+** TWO TESTS THAT COULD NOT FAIL, BOTH DEFERRED BY ME, BOTH PROMOTED BY THE FINAL REVIEW: ** the
+seventh and eighth of this program.
+ - `sessions.page.spec.ts` asserted `router.url !== '/auth/login'` on a fixture that never navigates,
+   so it read `'/'` unconditionally. Making revoke() navigate on EVERY row left 405/405 green.
+ - `app.routes.spec.ts` asserted `canActivate.length === 1` — a count, not an identity. Swapping
+   sessionGuard back to roleGuard, restoring the exact lockout §4 exists to remove, left 405/405
+   green. **The branch's central claim was unguarded**, and I had deferred it as a Task 3 minor.
+   Only the e2e no-box case caught it. Both now assert identity.
+
+PROCESS MISS, MINE: **Task 14 was never executed.** I halted at Task 13 on the user's review, went
+to Task 15, and never returned for the cross-section consistency pass or the doc closure. The final
+whole-branch review caught it, and it is the direct cause of several Minor findings that a
+cross-section look would have surfaced first (button sizes differing across the four sections,
+heading -> content spacing differing, `t-h3` resolving to `--fs-body` so no heading tier is in use
+at all). Those are filed, not fixed.
+
+`bh-button` GAINED THREE INPUTS IN ONE MILESTONE — `ariaDisabled`, `dangerBorder`, `solid` — each
+individually justified, inert by default, gallery-documented and reviewed. Judged TOGETHER by the
+final review, the API is usable but no longer coherent: `dangerBorder` is a boolean on a component
+whose look already lives in a 5-value enum, and 8 of the 10 variant x flag combinations render a
+class with no matching rule and **fail silently**. Folding it into `variant` is filed as follow-up.
+
+A RENDERING BUG FOUND BY MEASURING RATHER THAN REASONING: the control that OPENS the delete flow was
+styled with a class on the `<bh-button>` host, which view encapsulation stops from reaching the inner
+`<button>` — so the danger-bordered ghost design law requires rendered as an ordinary ghost. Caught
+by a reviewer mounting the page and reading getComputedStyle (`--hairline`, not `--danger`). The
+legacy page carried the identical bug. This is CLAUDE.md's host-vs-inner-element trap in CSS form.
