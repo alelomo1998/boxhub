@@ -1,18 +1,33 @@
 import { TestBed, fakeAsync, flushMicrotasks } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { LoginPage } from './login.page';
+
+// Verbatim from the seeded prescriptions in backend/src/main/resources/db/migration/V5*.sql —
+// independent of login.page.ts's own BENCHMARKS const, so a corrupted entry there (empty,
+// mistyped, wrong load) fails this instead of the test just echoing the same bug back.
+const KNOWN_BENCHMARKS: Record<string, { scheme: string; movements: string[] }> = {
+  Fran: { scheme: '21-15-9 reps for time', movements: ['Thrusters (95/65 lb)', 'Pull-Ups'] },
+  Grace: { scheme: '30 for time', movements: ['Clean and Jerks (135/95 lb)'] },
+  Isabel: { scheme: '30 for time', movements: ['Snatches (135/95 lb)'] },
+  Diane: { scheme: '21-15-9 reps for time', movements: ['Deadlifts (225/155 lb)', 'Handstand Push-Ups'] },
+  Elizabeth: { scheme: '21-15-9 reps for time', movements: ['Cleans (135/95 lb)', 'Ring Dips'] },
+  Karen: { scheme: '150 for time', movements: ['Wall Balls (20/14 lb)'] },
+  Annie: { scheme: '50-40-30-20-10 reps for time', movements: ['Double-Unders', 'Sit-Ups'] },
+  Cindy: { scheme: 'AMRAP 20', movements: ['5 Pull-Ups', '10 Push-Ups', '15 Air Squats'] },
+};
 
 describe('LoginPage', () => {
   let http: HttpTestingController;
 
-  function setup(errorParam: string | null = null) {
+  function setup(errorParam: string | null = null, returnUrl: string | null = null) {
     TestBed.configureTestingModule({
       imports: [LoginPage],
       providers: [
         provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]),
-        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (k: string) => (k === 'error' ? errorParam : null) } } } },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (k: string) =>
+          k === 'error' ? errorParam : k === 'returnUrl' ? returnUrl : null } } } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -21,18 +36,73 @@ describe('LoginPage', () => {
 
   afterEach(() => http.verify());
 
+  it('renders two distinct real benchmark prescriptions in the panel, each with its label', () => {
+    // The board itself (picker, verbatim data, markup) now lives in and is fully covered by
+    // BenchmarkBoardComponent's own spec — this just proves login wires it up: mounted, testId
+    // applied, and two genuinely different boards land in the DOM under it.
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const el: HTMLElement = fixture.nativeElement.querySelector('[data-testid="login-benchmark"]');
+    expect(el).withContext('benchmark block must render').not.toBeNull();
+
+    const boards = Array.from(el.querySelectorAll('.benchmark-board'));
+    expect(boards.length).withContext('exactly two boards must render').toBe(2);
+
+    const names = boards.map(b => {
+      const label = b.querySelector('.benchmark-label')!.textContent!.replace(/\s+/g, ' ').trim();
+      const known = Object.keys(KNOWN_BENCHMARKS).find(n => label === `Benchmark ${n}`);
+      expect(known).withContext(`label "${label}" must name a known seeded benchmark`).toBeDefined();
+      return known;
+    });
+    expect(names[0]).withContext('the two boards must not be the same benchmark').not.toBe(names[1]);
+
+    // Not proven here: that the pair is drawn uniformly at random across runs (a single test run
+    // only ever sees one pair), and this Karma spec cannot see the CSS media query that hides the
+    // block below 720px — that was checked in a real browser instead.
+    expect(el.querySelector('.benchmark-rule')).withContext('a rule must separate the two boards').not.toBeNull();
+  });
+
   it('403 EMAIL_NOT_VERIFIED shows a message and the resend control', () => {
     const fixture = setup();
     fixture.detectChanges();
     http.expectOne('/api/auth/providers').flush({ google: false });
 
     const cmp = fixture.componentInstance;
-    cmp.email = 'a@b.io'; cmp.password = 'whatever12';
+    cmp.email.set('a@b.io'); cmp.password.set('whatever12');
     cmp.submit();
     http.expectOne('/api/auth/login').flush({ detail: 'EMAIL_NOT_VERIFIED' }, { status: 403, statusText: 'Forbidden' });
 
     expect(cmp.unverified()).toBeTrue();
     expect(cmp.error()).toBe('Verify your email to sign in');
+  });
+
+  it('a plain 401 shows the generic no-enumeration message', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('a@b.io'); cmp.password.set('wrong');
+    cmp.submit();
+    http.expectOne('/api/auth/login').flush({ detail: 'BAD_CREDENTIALS' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(cmp.error()).toBe('Invalid email or password');
+    expect(cmp.unverified()).toBeFalse();
+  });
+
+  it('a 429 on login shows a rate-limit message distinct from bad credentials', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('a@b.io'); cmp.password.set('whatever12');
+    cmp.submit();
+    http.expectOne('/api/auth/login').flush({ detail: 'RATE_LIMITED' }, { status: 429, statusText: 'Too Many Requests' });
+
+    expect(cmp.error()).toBe('Too many attempts — try again later.');
   });
 
   it('renders a human message for the google_email_unverified oauth redirect', () => {
@@ -52,13 +122,21 @@ describe('LoginPage', () => {
     expect(fixture.componentInstance.error()).toBe('Google sign-in failed — try again.');
   });
 
+  it('keeps the Google control hidden when the providers lookup itself fails', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush('boom', { status: 500, statusText: 'Server Error' });
+
+    expect(fixture.componentInstance.showGoogle()).toBeFalse();
+  });
+
   it('a single-membership login into a SUSPENDED box surfaces a message instead of stalling', fakeAsync(() => {
     const fixture = setup();
     fixture.detectChanges();
     http.expectOne('/api/auth/providers').flush({ google: false });
 
     const cmp = fixture.componentInstance;
-    cmp.email = 'a@b.io'; cmp.password = 'correct-horse-battery';
+    cmp.email.set('a@b.io'); cmp.password.set('correct-horse-battery');
     cmp.submit();
     // login() re-bootstraps (csrf then /api/me, sequential awaits); the page reads memberships
     // from that session, so drain the microtasks between each flushed request.
@@ -77,17 +155,112 @@ describe('LoginPage', () => {
     expect(cmp.error()).toContain('unavailable');
   }));
 
+  it('honours returnUrl ahead of the role redirect, even with a membership present', fakeAsync(() => {
+    const fixture = setup(null, '/wod/today');
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigateByUrl');
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('a@b.io'); cmp.password.set('correct-horse-battery');
+    cmp.submit();
+    http.expectOne('/api/auth/login').flush({ memberships: [] });
+    flushMicrotasks();
+    http.expectOne('/api/auth/csrf').flush(null, { status: 204, statusText: 'No Content' });
+    flushMicrotasks();
+    http.expectOne('/api/me').flush(
+      { id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+        memberships: [{ boxId: 'b1', boxName: 'Live Gym', boxSlug: 'live', role: 'ATHLETE', boxStatus: 'ACTIVE' }] });
+    flushMicrotasks();
+
+    // returnUrl wins before box-token is ever minted — no /api/auth/box-token request follows.
+    expect(navSpy).toHaveBeenCalledWith('/wod/today');
+  }));
+
+  it('routes to the box picker when the user has more than one membership', fakeAsync(() => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigateByUrl');
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('a@b.io'); cmp.password.set('correct-horse-battery');
+    cmp.submit();
+    http.expectOne('/api/auth/login').flush({ memberships: [] });
+    flushMicrotasks();
+    http.expectOne('/api/auth/csrf').flush(null, { status: 204, statusText: 'No Content' });
+    flushMicrotasks();
+    http.expectOne('/api/me').flush(
+      { id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false,
+        memberships: [
+          { boxId: 'b1', boxName: 'Gym One', boxSlug: 'one', role: 'ATHLETE', boxStatus: 'ACTIVE' },
+          { boxId: 'b2', boxName: 'Gym Two', boxSlug: 'two', role: 'COACH', boxStatus: 'ACTIVE' },
+        ] });
+    flushMicrotasks();
+
+    expect(navSpy).toHaveBeenCalledWith('/auth/boxes');
+  }));
+
+  it('clicking the submit button fires submit() and prevents the native GET-with-password-in-URL submit', () => {
+    // Regression for the P0: (ngSubmit) silently binds to nothing once FormsModule/NgForm is gone,
+    // so the earlier version of this suite — which called cmp.submit() directly, never dispatching
+    // a real DOM event — stayed green while the button was completely dead. This test only proves
+    // something if it exercises the actual click-to-submit path and checks defaultPrevented; a
+    // "handler ran" assertion alone would still pass on a page that also navigates away.
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+
+    const cmp = fixture.componentInstance;
+    spyOn(cmp, 'submit').and.callThrough();
+    cmp.email.set('a@b.io');
+    cmp.password.set('whatever12');
+    fixture.detectChanges();
+
+    const form: HTMLFormElement = fixture.nativeElement.querySelector('[data-testid="login-form"]');
+    let captured: Event | undefined;
+    form.addEventListener('submit', e => (captured = e));
+    const submitBtn: HTMLButtonElement = form.querySelector('button[type="submit"]')!;
+    submitBtn.click();
+
+    expect(cmp.submit).withContext('the component handler must run').toHaveBeenCalled();
+    expect(captured).withContext('a real submit event must reach the form').toBeDefined();
+    expect(captured!.defaultPrevented)
+      .withContext('preventDefault must fire, or the browser performs a native GET with the password in the URL')
+      .toBeTrue();
+
+    http.expectOne('/api/auth/login').flush({ detail: 'BAD_CREDENTIALS' }, { status: 401, statusText: 'Unauthorized' });
+  });
+
   it('a resend that 429s shows an error instead of failing silently', () => {
     const fixture = setup();
     fixture.detectChanges();
     http.expectOne('/api/auth/providers').flush({ google: false });
 
     const cmp = fixture.componentInstance;
-    cmp.email = 'a@b.io';
+    cmp.email.set('a@b.io');
     cmp.resend();
     http.expectOne('/api/auth/verify/resend').flush({ detail: 'RATE_LIMITED' }, { status: 429, statusText: 'Too Many Requests' });
 
     expect(cmp.resendPending()).toBeFalse();
     expect(cmp.resendError()).toBe('Could not resend — try again.');
+  });
+
+  it('a successful resend navigates to check-email with the address attached', () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    http.expectOne('/api/auth/providers').flush({ google: false });
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate');
+
+    const cmp = fixture.componentInstance;
+    cmp.email.set('a@b.io');
+    cmp.resend();
+    http.expectOne('/api/auth/verify/resend').flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(cmp.resendPending()).toBeFalse();
+    expect(navSpy).toHaveBeenCalledWith(['/auth/check-email'], { queryParams: { email: 'a@b.io' } });
   });
 });

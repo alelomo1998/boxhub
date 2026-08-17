@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { login } from './_support';
 
+// bh-button puts the data-testid on the custom-element HOST for a legacy screen, or on the inner
+// <button> for a rebuilt one (Task 8 moved join's own testid onto the inner button). Match both so
+// this keeps working regardless of which shape the target screen currently has — same helper as
+// memberships.spec.ts.
+const btn = (testId: string) => `button[data-testid="${testId}"], [data-testid="${testId}"] button`;
+
 test('full invite flow: create -> join -> visible in members', async ({ page, context }) => {
   const stamp = Date.now();
   const inviteeEmail = `e2e-joiner-${stamp}@t.io`;
@@ -23,9 +29,7 @@ test('full invite flow: create -> join -> visible in members', async ({ page, co
   await expect(joinPage.locator('h1')).toContainText('Join');
   await joinPage.fill('[data-testid="join-name"]', 'E2E Joiner');
   await joinPage.fill('[data-testid="join-password"]', 'boxhub-demo-2026');
-  // bh-button's testid is on the host, which is wider than the real <button> inside — a
-  // click on the host centre misses it entirely. Target the inner native button.
-  await joinPage.click('[data-testid="join-register"] button');
+  await joinPage.click(btn('join-register'));
   await expect(joinPage).toHaveURL(/\/athlete/);
   await invitee.close();
 

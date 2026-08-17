@@ -31,6 +31,28 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 - **An attribute written on a component's host does not reach the element inside it.** This cost four separate fixes in M13c — `bh-button`'s `aria-label`, and `data-testid` on `bh-field`, `bh-select` and `bh-data-table` — and it is what blocked the form-control migration entirely, because Playwright's `.fill()` requires the located node to *be* an `<input>`. A component that needs a hook on its inner element takes an explicit input and binds it there.
 - **Every component owes seven states, and the dev gallery at `/app/dev/components` IS that contract** — each section renders every state, notes the ones only checkable by hand, and **explicitly declares the ones the component cannot have**. An omitted state is indistinguishable from a forgotten one. axe-core and 54 visual-regression baselines gate the page; run `e2e/visual.sh` (Linux container) rather than Playwright locally, or you compare against baselines your renderer never wrote.
 - Type: display/body/UI = Archivo (400/500/700/800), prescription/numeric = JetBrains Mono (400/700). Self-hosted via `@fontsource` (CSP blocks font CDNs).
+- **Form contract (M13d, binding): `(ngSubmit)` DIES WITH `FormsModule`.** It is an output of the
+  `NgForm` directive. Rebuilt screens drop `FormsModule`, so a form must bind the **native** event:
+  `<form (submit)="submit($event)" novalidate>` with `event.preventDefault()`. Keep `novalidate` —
+  `NgForm` used to supply it and validation lives in the component. This shipped broken on login:
+  the button never authenticated and **the password went into the URL**, browser history and server
+  logs, past 272 green Karma specs. `bh-field`/`bh-select` are **not** `ControlValueAccessor`s;
+  bind `[(value)]` against signals. Full reasoning: `2026-08-10-m13d-auth-account-screens-design.md` §4.2.
+- **A disabled button guards ONE path, never the action.** Enter in a form submits regardless of any
+  button's `[disabled]`, and a native `disabled` attribute also drops the pressed control out of the
+  a11y tree, sending focus to `<body>`. Put the guard in the handler, and move focus onto whatever
+  replaced the control. Four M13d screens needed this; three needed it twice.
+- **A gate you have to explain away stops being a gate.** The greps match comments too, so never
+  name `ngSubmit`/`FormsModule` (or any token a gate hunts) in a comment on a clean file — the next
+  person reads the red as noise. Same rule for a spec: `ng build` does NOT compile spec files, so a
+  green production build is not evidence your specs compile. Karma is what catches that.
+- **axe does not protect a label on a field that has a placeholder** — its `label` rule accepts a
+  non-empty placeholder as a fallback. Most `bh-field` consumers carry one. Verified by trying to
+  make the gate fail and watching it pass.
+- **A screen is not verified until e2e runs on it.** Karma cannot see a dead submit binding: specs
+  that call `submit()` directly test the handler, never the wiring. `e2e/tests/login.spec.ts` catches
+  it in seconds. Rebuild the frontend image first, and re-run on a `down -v` stack before blaming a
+  diff — `runner`/`tracking`/`tv` are non-idempotent and fail on a dirty stack for unrelated reasons.
 - **i18n (M13a, binding): every new or rebuilt screen ships i18n-marked.** The infrastructure
   (`@angular/localize`, runtime locale loading, locale-aware date/number/currency, the brand
   constant) landed in M13a. The ~390 strings on pre-rework screens were deliberately **not** marked
@@ -39,6 +61,14 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   strings are marked and its dates/money go through locale-aware formatting.** No new hardcoded
   user-facing string, ever. No new hand-written `€`.
 - **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through impeccable (shape → build → critique ≥28/40, no open P0/P1)**.
+
+## Pre-flight (binding) — `docs/PREFLIGHT.md`
+
+**Read it at four moments: before writing an executor brief, before running a shell gate, before
+accepting a test, and before claiming anything is done.** It is a checklist keyed to those moments,
+not a log — every entry on it recurred *after* being recorded somewhere else, which is the whole
+point. The single most repeated failure is writing a brief that lists the files a change **is**
+rather than the files that **depend on it**; grep for dependents first.
 
 ## Communication (binding)
 - **Caveman mode, level `full` (not ultra):** terse prose, drop articles/filler/pleasantries, fragments OK. All technical substance stays. Code, commits, PRs, security warnings written normally. Goal: cut token burn, not clarity.

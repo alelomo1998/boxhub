@@ -84,6 +84,17 @@ class BoxSignupTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void shortPasswordIsRejectedWithTheSpecificCodeNotAGenericValidationFailure() throws Exception {
+        String email = "weak-box-" + System.nanoTime() + "@t.io";
+        mvc.perform(post("/api/auth/signup-box").with(csrf()).contentType(APPLICATION_JSON).content("""
+                {"boxName":"Weak Box","name":"Owner","email":"%s","password":"short"}
+                """.formatted(email)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("PASSWORD_TOO_SHORT"));
+        assertThat(users.findByEmail(email)).isEmpty();
+    }
+
+    @Test
     void openModeCreatesAnActiveBox() throws Exception {
         settings.set(PlatformSettings.SIGNUP_MODE, "OPEN");
         String email = "open-" + System.nanoTime() + "@t.io";
@@ -187,6 +198,44 @@ class BoxSignupTest extends AbstractIntegrationTest {
         } finally {
             pool.shutdown();
         }
+    }
+
+    @Test
+    void selfServeOwnerGetsTheBrowsersLanguage() throws Exception {
+        mvc.perform(post("/api/auth/signup-box").with(csrf())
+                        .header("Accept-Language", "it-IT,it;q=0.9,en;q=0.8")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"boxName":"Locale Box","name":"Owner","email":"locale-owner@demo.io",
+                             "password":"correct-horse-battery"}"""))
+                .andExpect(status().isCreated());
+
+        var owner = users.findByEmail("locale-owner@demo.io").orElseThrow();
+        assertThat(owner.getLocale()).isEqualTo("it");
+    }
+
+    /**
+     * NOTE ON WHAT THIS TEST DOES NOT PROVE — it is a refactor guard, not a guard on the M13d fix.
+     *
+     * It passes against the OLD hardcoded code too: that path called insertUser(..., "en")
+     * unconditionally, and the new path sends null (no header) which RegisterTx:42 maps to "en".
+     * Both produce "en", so this assertion cannot tell them apart. Only
+     * selfServeOwnerGetsTheBrowsersLanguage discriminates the defect.
+     *
+     * Kept anyway, because it does pin something real: threading a locale parameter through three
+     * files must not break the header-less default. Named honestly so the next reader does not
+     * count it as coverage of the bug. Caught in review; the misleading name was the orchestrator's.
+     */
+    @Test
+    void headerlessSignupStillDefaultsToEnglishAfterTheLocaleRefactor() throws Exception {
+        mvc.perform(post("/api/auth/signup-box").with(csrf())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"boxName":"No Header Box","name":"Owner","email":"no-header@demo.io",
+                             "password":"correct-horse-battery"}"""))
+                .andExpect(status().isCreated());
+
+        assertThat(users.findByEmail("no-header@demo.io").orElseThrow().getLocale()).isEqualTo("en");
     }
 
     @Test

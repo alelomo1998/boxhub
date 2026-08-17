@@ -222,7 +222,9 @@ class LogHygieneTest extends AbstractIntegrationTest {
                         .content("{\"email\":\"" + inviteeEmail + "\",\"role\":\"ATHLETE\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String inviteToken = inviteJson.replaceAll("(?s).*\"link\"\\s*:\\s*\"/join/([^\"]+)\".*", "$1");
+        // The link is app-base-prefixed (e.g. "/app/join/<token>"); [^"]*? absorbs whatever
+        // prefix precedes it without hardcoding "/app", so this survives a future app-base change.
+        String inviteToken = inviteJson.replaceAll("(?s).*\"link\"\\s*:\\s*\"[^\"]*?/join/([^\"]+)\".*", "$1");
         assertThat(inviteToken).as("raw invite token extracted from the response").doesNotContain("{");
 
         // 6. TV pairing — the pair response legitimately hands the display its claim secret, which

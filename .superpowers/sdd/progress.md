@@ -1146,3 +1146,814 @@ M13c MAIL PALETTE (8d3b955, orchestrator — user asked for it before merge). Ba
   `Could not initialize class AbstractIntegrationTest`. Not the template change: THE DOCKER DAEMON
   HAD STOPPED, so Testcontainers had no environment. `open -a Docker`, wait, re-run: 428/0/0. A wall
   of identical NoClassDefFound on a base class means the environment, not the diff.
+
+## M13d — auth & account screens (branch `m13d-auth-account-screens`, from `0c5117e`)
+
+Spec `docs/superpowers/specs/2026-08-10-m13d-auth-account-screens-design.md`,
+plan `docs/superpowers/plans/2026-08-10-m13d-auth-account-screens.md`.
+
+PRE-FLIGHT CAUGHT AN ERROR IN THE ORCHESTRATOR'S OWN PLAN (`e906764`): the running Karma totals
+said 245 -> 253 -> 256 -> 261, but Task 1 adds three specs per component, not four. Corrected to
+245 -> 251 -> 254 -> 259 before Task 1 was dispatched. Same class as M13c's thirteen brief errors,
+found one step earlier this time.
+
+Task 1: complete (commits e906764..6a2d932, review clean — spec PASS, quality Good)
+  bh-field/bh-select gain name + required, bh-field alone gains autocomplete; the error <span>
+  moves from @if to @for tracked by the message.
+  NEGATIVE CONTROL VERIFIED, and it is the reason to believe the fix: pre-fix run produced
+  `Expected <span role="alert" id="bh-f16-err"> not to be <span role="alert" id="bh-f16-err">`
+  — literally the same node reused — with TOTAL: 2 FAILED, 246 SUCCESS. Post-fix 251/251.
+  MINOR 1 (process, not code): executor wrote field.component.ts before running the mandated
+  pre-fix check, then used git stash/pop to produce the evidence retroactively. Self-disclosed,
+  evidence credible, nothing wrong shipped.
+  MINOR 2 (orchestrator's brief was wrong): the brief predicted the attribute test would fail
+  `Expected null to be 'email'`. It actually failed NG0303 — with the inputs not yet existing the
+  template cannot compile at all, so it never runs far enough to misroute an attribute. The
+  executor reasoned the root cause was identical and proceeded instead of escalating. Correct call.
+  DEVIATION ACCEPTED: select.component.spec.ts's existing Host had no [error] binding (field's
+  did), so the executor added one to drive the mirrored remount test. Inside an authorized file,
+  defaults unchanged, no existing assertion touched.
+
+Task 2: complete (commits 4a10f75..5a62baa, review clean — spec PASS, quality PASS)
+  bh-button gains `href`: set, it renders <a> with the identical .btn classes; unset, the
+  <button> is unchanged. Two consumers coming (Continue-with-Google on login + signup), each
+  today a hand-rolled anchor with ~10 duplicated CSS lines. routerLink support deliberately NOT
+  added — no consumer for it in M13d.
+  THE TRAP, AVOIDED RATHER THAN DEBUGGED: <ng-content /> projects ONCE, statically. Two @if
+  branches each holding their own <ng-content /> leaves one silently EMPTY. Template declares it
+  once in <ng-template #body> and renders it per branch via ngTemplateOutlet.
+  WORTH KEEPING, from the reviewer: projection resolves by TEMPLATE ORDER, not by which branch is
+  active. The anchor branch is written first, so a regression to duplicated <ng-content /> would
+  starve the SECOND one — the ordinary <button> — and the `PlainHost` half of the "projects its
+  content in BOTH modes" spec is exactly what fails. The negative control points the right way.
+  No new CSS beyond `a.btn { text-decoration: none; }`: :disabled never matches <a>, so the
+  existing :not(:disabled) hover/active rules apply naturally and the disabled/busy rules
+  naturally never fire. 254/254. Production build clean — which is what proves all 32 existing
+  bh-button call sites still compile.
+
+Task 3: complete (commits 19fa905..6ddc6d4, review clean after one fix — spec PASS, quality PASS)
+  bh-auth-layout: one markup tree, layout switched by CSS on [data-variant]. split (panel beside
+  the form above 720px) for the four screens a stranger arrives at from outside; narrow for the
+  six mid-flow ones. Panel content renders in BOTH variants — base CSS is column with .panel
+  before .body in DOM order, so it needs no override to sit above the form; only split's desktop
+  reflow is an addition. 259/259, build clean, four ui/ greps empty.
+
+  ESCALATION #2, AND THE ORCHESTRATOR'S BRIEF WAS WRONG AGAIN: the brief named three files. A
+  NINETEENTH ui/ component cannot avoid a fourth — dev-gallery.page.spec.ts asserts an EXHAUSTIVE
+  sorted list of gallery sections, so it fails until the new section is declared. That is the
+  gallery-is-the-contract rule being enforceable rather than aspirational. Executor stopped instead
+  of editing an unauthorized file; orchestrator verified the list and authorized it.
+
+  IMPORTANT REVIEW FINDING, FIXED IN 6ddc6d4 — A TEST THAT COULD NOT FAIL, THE THIRD OF ITS KIND
+  IN THIS REPO (after M11's conformance sweep and M13b's font guard): the spec named "renders the
+  wordmark once, NOT ONCE PER VARIANT BRANCH" cannot detect that. @if/@else are mutually
+  exclusive, so a component rewritten with duplicated per-branch markup still renders exactly one
+  <main> and one <bh-wordmark> — both counts are invariant across the wanted AND the unwanted
+  implementation. Inherited verbatim from the orchestrator's brief.
+  The fix was the CLAIM, not the assertion, and that reasoning is worth carrying: single-markup-
+  tree is a MAINTAINABILITY property and no behavioural test can see it. Inventing a cleverer
+  assertion would have manufactured false confidence. Both tests keep real value — two <main>s is
+  a broken landmark structure, two wordmarks duplicate the accessible name, which is the exact bug
+  M13b shipped as "rxedrxed". The spec file now states in a comment what the tests do and do not
+  protect.
+  MINOR, also fixed: the shared .wrap rule's comment said narrow "needs no rules at all" while
+  that rule is load-bearing for it; redundant align-items:stretch (the flexbox default) dropped.
+  NOT DEFECTS — two errors in the ORCHESTRATOR'S REVIEW BRIEF, caught by the reviewer: (a) it said
+  the component may render no volt at all, but <bh-wordmark variant="hero"> fills volt behind
+  "ed", and spec §2.3/§3 explicitly decide that the brand highlighter is not an accent and is
+  rendered in both variants; (b) its permitted-px inventory omitted max-width 420px, which is this
+  codebase's existing form-column width (box-picker, settings, subscriptions, box-stripe).
+
+Task 4: complete (commit c23c6b8, orchestrator-implemented — one CSS rule is trivial glue, and
+  the plan makes the verification sweep the orchestrator's job explicitly)
+  `a { color: var(--volt) }` -> `color: var(--bone); text-decoration: underline`. The underline is
+  load-bearing: dropping colour as the affordance without replacing it trades a design-law bug for
+  a WCAG 1.4.1 one.
+  PROVEN ON THE SCREEN THE CRITIQUE MEASURED: login went from FOUR volt elements to ONE (the Log
+  in button). Measured in a real browser via computed styles, not by eye — note the two volt hits
+  the audit reports on login are ONE element counted twice, the bh-button host plus its inner
+  <button>.
+  THE SWEEP EARNED ITS KEEP, AND FOUND THE INVERSE OF WHAT THE PLAN PREDICTED. The plan said to
+  watch for "a link only findable because it was volt". The actual regression was NAVIGATION
+  READING AS PROSE: admin side-nav items and half the dock came back underlined, while the half
+  carrying a local `text-decoration: none` did not — so the shells were inconsistently underlined,
+  across ~40 screens. Fixed with ONE structural rule, `nav a { text-decoration: none; }`: both the
+  admin side nav (admin-shell.page.ts:30) and bh-dock (dock.component.ts:22) render a real <nav>,
+  so it scopes correctly WITHOUT editing screens M15/M16 own. Re-measured after: zero underlined
+  nav items on admin, athlete and coach.
+  A CLAIM I MADE AND WITHDREW, recorded so it is not re-derived: I first read
+  shell-header.component.ts:47 (`.acts a:hover { color: var(--bone) }`) as a hover affordance
+  killed by the new base colour. Reading four lines up, :44-46 already sets `.acts a { color:
+  var(--faint); text-decoration: none }` locally, so that faint->bone hover is untouched. Grepping
+  one line and reasoning from it nearly produced a fix for a non-bug.
+  BLAST RADIUS MEASURED, smaller than filed: 33 files contain an anchor, not the "~40 screens"
+  the backlog estimated.
+  FILED, NOT FIXED: dashboard.page.ts:140 `.s-body a { color: var(--bone) }` is now redundant —
+  a screen that had already compensated locally. Harmless (same value), M16 owns it.
+  DATA FOR TASK 18's OPEN QUESTION: account/security currently renders TWO volt-filled buttons
+  ("Change password", "Change email"). The plan flags the volt budget there as a Step B question
+  for the user; this is the measurement behind it.
+  ALSO: `docker compose -f docker/docker-compose.yml` from inside frontend/ exits 1 on a relative
+  path. Bash cwd persists between calls in this harness. Caught only because the exit code was
+  checked — otherwise the next measurement would have run against a STALE IMAGE, which is exactly
+  how M13c's e2e once reported 28 passed.
+
+Task 5: complete (commits 561f065..49468ea, review clean after one fix — spec PASS, quality PASS)
+  Accept-Language now reaches the self-serve box owner: AuthController.signupBox ->
+  BoxSignupService.signup -> BoxSignupTx.createOwnerAndBox -> RegisterTx.insertUser. Reuses the
+  existing primaryLanguageTag() rather than writing a second parser. 430/0/0.
+  ESCALATION #3, AND THE ORCHESTRATOR'S BRIEF WAS WRONG A THIRD TIME: the brief named three
+  production files and forgot that CHANGING A SIGNATURE MOVES ITS CALLERS. BoxSignupRetryTest is a
+  Mockito unit test calling both changed signatures — two service.signup(...) and four
+  tx.createOwnerAndBox(...) stubs/verifies — so test-compile failed with 6 errors. Authorized as
+  ARITY ONLY: a 7th any(), and null as the 5th signup argument. That test pins the retry BOUND
+  (3-attempt dive, SIGNUP_RETRY 503) and not one times()/never()/assertion moved.
+  null rather than "en" on purpose: null is what a header-less request actually produces, and
+  hardcoding "en" would assert a value that test has no opinion about.
+  IMPORTANT REVIEW FINDING, FIXED IN 49468ea — THE SECOND TEST-THAT-CANNOT-FAIL THIS MILESTONE:
+  selfServeOwnerFallsBackToEnglishWithNoHeader passed against the OLD code too. Old path:
+  insertUser(..., "en") hardcoded -> "en". New path: no header -> null -> RegisterTx:42 maps to
+  "en". Both produce "en", so it cannot discriminate the defect at all; only
+  selfServeOwnerGetsTheBrowsersLanguage does. The test body was the orchestrator's brief verbatim.
+  KEPT rather than deleted — it genuinely pins that threading a parameter through three files did
+  not break the header-less default — but RENAMED to
+  headerlessSignupStillDefaultsToEnglishAfterTheLocaleRefactor with a comment stating what it does
+  not prove. Same resolution as Task 3's wordmark count: FIX THE CLAIM, NOT THE ASSERTION.
+  Reviewer also noted the null 5th arg in BoxSignupRetryTest is inert plumbing — tx is a mock, so
+  RegisterTx's fallback is never actually reached there. True; it satisfies arity and nothing more.
+  Clean on the high-risk axes: no tenancy change, no transaction-boundary move, no mail/audit
+  ordering change, AuthzConformanceTest untouched, no Flyway. Next migration stays V19.
+
+Task 6: complete (commits b5790b1..4c5d326, review clean — spec PASS, quality PASS)
+  AppUrls gains appPath() = base + path (a PATH, not an absolute URL: the frontend prepends
+  location.origin, so appLink() there would render origin+origin). InviteAdminController returns
+  appPath("/join/"+token) so the copied admin link lands directly instead of via a 301. Line 75's
+  mailer.link() was already correct and is untouched. 432/0/0.
+  TEN FILES, FROM A BRIEF THAT NAMED TWO. This was the worst brief of the milestone and the gap
+  was found in three stages:
+   - PRE-DISPATCH (orchestrator grepped for dependents first, having learned from Tasks 3 and 5):
+     SIX test files parse this field as link.substring("/join/".length()), which silently yields a
+     CORRUPTED token the moment the prefix changes — "/app/join/T".substring(6) is "oin/T", not a
+     token. Corrected to 8 files before dispatch.
+   - THE SUITE FOUND TWO MORE, which no grep of mine would have: LogHygieneTest:225's extraction
+     regex hardcoded "link":"/join/, and InviteAdminApiTest:44's Mailer stub.
+  Token extraction became link.substring(link.lastIndexOf('/') + 1) rather than hardcoding
+  "/app/join/": the app base is CONFIGURABLE and AppUrlsTest proves an empty base is supported, so
+  six tests pinned to one config value would be wrong. Reviewer verified this is unambiguous —
+  invite tokens are Base64.getUrlEncoder().withoutPadding(), which never emits '/'.
+  A MOCK THAT HAD BEEN LYING SINCE THE /app MOVE: InviteAdminApiTest:44 stubbed mailer.link(path)
+  as origin + path, while real Mailer.link -> AppUrls.appLink is origin + BASE + path. It never
+  mattered because both strings happened to share the /join/ substring. FIXED THE MOCK, NOT THE
+  ASSERTION IT BROKE: :113 asserts the mailed link contains the response link, and it guards the
+  M8 incident where three emailed links shipped pointing at routes that did not exist. In
+  production the assertion still holds — appLink (origin+base+path) always contains appPath
+  (base+path) as a suffix. A test that passes only because a mock is unfaithful is the same family
+  as the two tests-that-cannot-fail already found this milestone.
+  LogHygieneTest's regex is prefix-tolerant now ([^"]*?/join/) rather than weakened to match any
+  link: reviewer traced the backtracking by hand and confirmed the /join/ anchor still forces a
+  real match, so its doesNotContain("{") vacuous-pass guard still fires.
+  MINOR, no action: the executor widened an existing assertion (startsWith("/join/") ->
+  startsWith("/app/join/")) instead of adding the new test the brief asked for. Coverage-identical
+  and leaner than a near-duplicate test; recorded because the report did not flag it as a
+  deviation.
+
+ORCHESTRATOR PATTERN, WORTH CARRYING INTO M14+: four of six briefs were incomplete, always the
+same way — LISTING THE FILES A CHANGE *IS*, NOT THE FILES THAT *DEPEND ON IT*. Task 3 (a 19th ui/
+component cannot avoid the gallery's exhaustive-list test), Task 5 (a signature change moves its
+Mockito callers), Task 6 twice. Every one was caught by an executor stopping. Grepping for
+dependents BEFORE writing the brief turned Task 6's first gap from an escalation into a correction
+shipped with the brief; do that by default.
+
+Task 7: complete (Phase 1 checkpoint, orchestrator-run — a gate task, no implementation)
+  frontend 259/259 · production build exit 0 with ZERO budget warnings · backend 432/0/0 ·
+  e2e 35 passed + 1 skipped at retries:0 on a `down -v` REBUILT stack · all four ui/ standing
+  greps empty · legacy form-class count still 53 (correct — Phase 2 does that work) · Phase 2's
+  own targets still 21 legacy classes and 11 Eager pins across the eleven screens, untouched.
+  The 1 skip is the quarantined TV/SSE defect (Project 2). Not investigated, per scope.
+  PLAN CORRECTED, MEASURED NOT ASSUMED: backend is 432, not the 431 the plan predicted — Task 6
+  added TWO AppUrls cases (base-prefixed and empty-base).
+  PLAN CORRECTED AGAIN — CI: step 5 said "push and check CI". `.github/workflows/ci.yml` triggers
+  on `push: branches: [main]` and on `pull_request`, so pushing a FEATURE BRANCH queues NOTHING.
+  Zero runs here is correct and is NOT the silent-drop failure the hand-off documents — that one
+  was a push TO MAIN producing no run. This branch gets Linux CI only at PR or merge (Task 21).
+  ENVIRONMENT TRAP, HIT THREE TIMES IN ONE SESSION, WORTH PROMOTING: **Bash cwd PERSISTS between
+  tool calls in this harness.** It produced (1) a whole gate block reporting zero matches because
+  `grep -rn pat $D` got one nonexistent path, (2) `docker compose -f docker/docker-compose.yml`
+  exiting 1 on a relative path from inside frontend/ — which would have left the next browser
+  measurement running against a STALE IMAGE, exactly M13c's e2e mistake — and (3) `ls graphify-out`
+  reporting "No such file" from inside backend/ when it exists at the root and is gitignored.
+  Every one looked like a real finding. Prefix gate commands with an absolute `cd`.
+
+Task 8 — login: BUILT AND REVIEWED, **NOT CLOSED** (commits d6b65f9..ad954e5)
+  655026e build · 30a07ad review fixes · ad954e5 card layout + a real bug fix. 271/271, prod build
+  clean, hex gate empty.
+  SHAPED WITH THE USER FIRST, which is the half of design law §16 no milestone had ever run: three
+  question rounds via /impeccable shape, brief at .superpowers/sdd/task-8-shape.md. Panel copy
+  "Rx · as prescribed / Today's board is already up.", Google icon-only, "Create a box account"
+  DROPPED because it routes to a signup that dead-ends (verified: that account lands on the box
+  picker reading "No memberships yet").
+  THE LIBRARY COULD NOT ANSWER THE QUESTION IT WAS ASKED. User asked for evidence from
+  docs/design-md/ on login-form conventions. Measured across all 74 systems: ZERO mention "forgot
+  password", exactly ONE mentions login forms (wired, only that its corners are square). They are
+  marketing-site extractions — input STYLING, not auth-form COMPOSITION. Decided instead from
+  convention among the tools product.md names as the bar. Worth knowing before anyone else plans to
+  mine that library for product-UI rules.
+  TWO IMPORTANT REVIEW FINDINGS, BOTH MEASURED IN A BROWSER, BOTH FIXED IN 30a07ad:
+   - `Forgot?` was positioned absolutely over bh-field (no label-row slot existed). At 320px with
+     Spanish strings at 200% TEXT RESIZE: 139px OVERLAP, both strings unreadable — a WCAG 1.4.4 AA
+     failure, which design law §11 makes binding. Fixed properly: bh-field gained an optional
+     projected label-row action slot laid out with FLEXBOX, so overlap is impossible BY
+     CONSTRUCTION rather than by tuning. Overlap now 0.
+   - data-testid="login-google" landed on the bh-button HOST, not the inner <a>. bh-field,
+     bh-select and bh-data-table all got a testId input in M13c; bh-button never did. It only
+     worked by accident of href being a static attribute. bh-button now has testId, bound on BOTH
+     the button and anchor branches.
+  A REAL LAYOUT BUG THE USER CAUGHT BY EYE, ORCHESTRATOR'S OWN, FROM TASK 3: at 1440 the split
+  panel started at x=208 with 208px of dead ground each side. Cause — `.wrap` set
+  `justify-content: center` for the COLUMN axis; the >=720px block flipped flex-direction to row
+  and re-declared everything EXCEPT justify-content, which then centred on the HORIZONTAL axis.
+  THE STRUCTURAL LESSON: the centring and the axis-flip were on the same element. Fixed by moving
+  the direction onto a new inner `.card`, so `.wrap` no longer owns a direction to flip and the
+  bug cannot recur. Regression spec added that fails against the pre-fix markup.
+  DESIGN CHANGE, user-chosen from two live-rendered options: the split is now a BOUNDED CARD
+  (760px, min-height 480, hairline + --r-card, panel 46% in --surface, no dividing rule) rather
+  than a full-height slab. min-height NOT height, so login's tallest state (alert + resend + resend
+  error) grows instead of clipping.
+  CSP CONFIRMED WORKING, incidentally: injecting a <style> element to probe layout was REFUSED —
+  style-src is 'self' + nonce. Had to drive the CSSOM instead.
+  ** STILL OWED: /impeccable critique. All three critique agents died on "You've hit your session
+  limit · resets 8pm (Europe/Rome)". The screen has had a CODE review, not a DESIGN critique, so
+  per the per-screen cycle Task 8 is NOT done. Re-run before Task 9. **
+
+Task 8 — login panel, four user-driven iterations after the first build (19d3c79, 564f84f, 8c3c87c):
+  The user reviewed the rendered screen four times and each round found something real. Recorded
+  because it is the argument FOR the shape-then-look cycle, not against it.
+  1. "at full screen the vertical separation is ugly" -> exposed a REAL BUG, orchestrator's own from
+     Task 3: `.wrap` set justify-content:center for the COLUMN axis; the >=720px block flipped
+     flex-direction to row and re-declared everything EXCEPT justify-content, which then centred
+     HORIZONTALLY — 208px of dead ground each side. Structural fix: centring and axis-flip were on
+     the SAME element; the direction moved to a new inner `.card`, so `.wrap` owns no direction to
+     flip. Regression spec added that fails against the pre-fix markup.
+  2. Split became a BOUNDED CARD (760 wide, min-height 480 — min-height NOT height, so login's
+     tallest state grows instead of clipping).
+  3. "on the left is a little empty" -> a random seeded benchmark, typed like a board. Chosen over a
+     fabricated sample because Fran et al are REAL public benchmarks this product already ships
+     (V5 seeds 15). Hardcoded, NOT fetched: login is unauthenticated, so an endpoint would be a new
+     public route needing an AuthzConformanceTest entry, and a decorative fetch would owe
+     loading/error/empty states under design law §11.6.
+     EXECUTOR'S REPORT WAS WRONG AND MEASURING CAUGHT IT: it claimed "the void reads as gone". It
+     had MOVED — 181px gap under the wordmark, measured. Cause was two things stacking: login
+     projected ONE <div panel> holding both blocks, and the layout wrapped the slot in .panel-copy.
+     Either alone collapses the panel to two flex children so space-between has nothing to
+     distribute. Fixed both; gaps became 107 and 146.
+  4. "still pretty empty, maybe 2 wod" -> TWO distinct benchmarks with a hairline rule, DESKTOP
+     ONLY. Hidden below 720px because the panel stacks ABOVE the form on phone and boards would
+     push Log in down, against "thirty seconds, one thumb". Verified at 375x812: board display:none,
+     Log in at y=489-533, page scrollHeight == viewport, no scrolling to reach the primary action.
+     Offered a third option (a realistic strength+metcon board) and argued against it in the same
+     breath: it is the only one that would have INVENTED programming, giving up the
+     nothing-is-fabricated property that made a board defensible on a login screen at all.
+  SELF-INFLICTED, worth remembering: an HTML comment I wrote inside the Angular template contained
+  a BACKTICK, which terminated the TypeScript template literal — build failed with TS1005. Caught by
+  the build in seconds. Never put a backtick in a component template comment.
+  272/272, prod build clean, hex gate empty, gallery's auth-layout section verified unaffected.
+  ** STILL OWED, UNCHANGED: /impeccable critique on login. Every critique agent died on the session
+  limit. The panel has changed substantially four times since, so re-running earlier would have been
+  wasted — but Task 8 does NOT close until it runs. **
+
+Task 8 — CRITIQUE RUN AT LAST, AND IT FOUND A P0 (fix 80e84f7). Score 22/40.
+  ** THE MILESTONE'S MOST EXPENSIVE ERROR, AND IT WAS THE ORCHESTRATOR'S SPEC. **
+  `(ngSubmit)` is an OUTPUT OF THE NgForm DIRECTIVE, which ships with FormsModule. Spec §4 told every
+  screen to drop FormsModule AND keep `<form (ngSubmit)>`. Incompatible: with no NgForm the binding
+  listens for an event the browser never fires, Angular never intercepts, and the form does a NATIVE
+  GET. On login the button did not authenticate and THE PASSWORD WENT INTO THE URL — browser
+  history, access logs, Referer headers.
+  Reproduced by the orchestrator before acting: attach a submit listener, click the button,
+  `event.defaultPrevented === false`. Confirmed, not suspected.
+  §4.1 had spotted that NgForm supplies `novalidate` and MISSED that it also supplies `(ngSubmit)`.
+  Half the trap found, half shipped.
+  FOUR LAYERS OF DEFENCE FAILED IN ORDER, and each is worth keeping:
+   1. The spec was wrong; every remaining screen would have inherited it.
+   2. 272 GREEN KARMA SPECS DID NOT SEE IT. login.page.spec.ts called cmp.submit() DIRECTLY six
+      times and never dispatched a real DOM submit — it tested the handler, never the wiring. This
+      is the third test-that-could-not-fail this milestone, and the worst.
+   3. e2e WOULD have caught it in seconds (login.spec fills, clicks submit, waits for the URL to
+      leave /auth/login) — but Task 8's brief said "I will run e2e myself" and then nobody did.
+   4. The design critique found it in one click, on the live screen. THIS IS THE ARGUMENT FOR THE
+      PER-SCREEN CYCLE. Had login been the first of eleven screens built and critiqued only at the
+      end, all eleven would have shipped dead forms with credentials in the URL.
+  CONTAINMENT VERIFIED, not assumed: the other six auth screens still pair FormsModule WITH
+  (ngSubmit), so they work. Only login was rebuilt under the new contract, so only login broke.
+  ALSO FIXED (P1, WCAG 2.4.11 AA): the primary button's focus ring was INVISIBLE. --focus-inv is
+  #0d110e === --ground, and a POSITIVE outline-offset drew the ring OUTSIDE the volt button onto
+  that same ground. 1:1 contrast. The token exists for "a ring on a volt surface" but the offset
+  put it off the volt surface — the inversion was applied against the wrong thing. Fixed with a
+  negative offset on the primary variant so the ring sits ON the volt. Affected all 32 bh-button
+  call sites since M13c.
+  SPEC AND PLAN CORRECTED so Tasks 9-18 cannot repeat it: new §4.2 gives the corrected contract
+  (`<form (submit)="submit($event)" novalidate>` + `event.preventDefault()`), a new per-screen gate
+  5b greps for `ngSubmit`, and Step D of the cycle now REQUIRES an e2e run per screen.
+  e2e: first run showed 2 failures (runner, tracking) on a dirty stack; on a `down -v` rebuild,
+  35 passed + 1 skipped. Verified rather than assumed in either direction — the documented
+  non-idempotency, not the diff.
+  274/274 Karma, prod build clean, hex gate empty.
+  P2s left open and NOT blocking: google_email_unverified gives no next step; --faint on --surface
+  measures 4.70:1 (clears AA by 0.2 — the token doc's 5.1:1 is against --ground, not --surface).
+  UNVERIFIED, honestly flagged by the critique: half the ten states could not be driven because the
+  P0 blocked the only path to them. Re-check them first, next session.
+
+Task 8 — CRITIQUE RE-RUN AFTER THE FIXES: **36/40, no open P0/P1 — §16 gate CLEARED.**
+  Trend for this screen: 22 -> 36. The +14 is not a "looks better" bump: the reviewer reproduced
+  the OLD P0 failure path and confirmed it is gone (POST /api/auth/login fires, URL stays clean,
+  full login reaches the dashboard), and confirmed the focus ring now sits inset on the volt under
+  a real keyboard Tab. Heuristics 1 and 9 had been floored at 0 and 1 purely because the task was
+  uncompletable; they are 3-4 now because it completes AND recovers.
+  Also drove the states the first pass could not reach at all (wrong password, EMAIL_NOT_VERIFIED
+  + resend + its error) — the first pass refused to score them from source, which was the right
+  call and is why the second pass is worth more than a re-read.
+  NEW P2, AND IT IS A REAL WCAG AA FAILURE, SYSTEMIC: `--faint` placeholder text on `--surface-2`
+  measures 4.27:1, UNDER the 4.5:1 floor. field.component.ts sets `.input { background:
+  var(--surface-2) }` and `.input::placeholder { color: var(--faint) }`. Affects EVERY bh-field
+  placeholder in the product, not just login. It hid because the token's documented 5.1:1 is
+  measured against --ground and NOTHING renders a placeholder on --ground.
+  P2 carried over, unchanged: --faint on --surface (the benchmark board) re-measured 4.699:1 —
+  passes AA with no headroom; google_email_unverified still offers no next step, now more glaring
+  because the sibling EMAIL_NOT_VERIFIED branch on the same screen demonstrates a good one.
+  STILL UNVERIFIED, flagged rather than assumed: the pending spinner (local backend answers in
+  <20ms, faster than the poll), 429 copy (25 rapid POSTs never tripped the dev limit), the
+  box-unavailable 403 arm (no seeded suspended box), and the Google-absent state (providers always
+  returns true in this env).
+
+  AA PLACEHOLDER FIX (4c3f6e5), taken rather than filed because it was systemic and cheap:
+  bh-field and bh-search-bar placeholders moved --faint -> --bone-dim (an existing token; the
+  --faint token itself was NOT touched, since it is used widely on --ground/--surface where it is
+  fine, and changing it would repaint the product). Measured by the orchestrator, not just the
+  executor: 4.27:1 -> 7.17:1 against --surface-2, with entered text at 14.46:1 — so the placeholder
+  still reads as clearly secondary rather than as content, which is the failure mode a naive
+  "make it brighter" fix would have introduced. bh-select has no ::placeholder and was correctly
+  left alone.
+  THE GENERAL LESSON, worth more than the fix: the token file documents --faint at 5.1:1, measured
+  against --ground. Placeholders sit on the INSET --surface-2, which is lighter, so the real ratio
+  was lower and nothing in the docs would ever have shown it. MEASURE CONTRAST AGAINST THE SURFACE
+  THE TEXT ACTUALLY SITS ON, never against --ground by default. --faint on --surface is already at
+  4.699:1 with no headroom, so this token is being used near its limit in more than one place.
+  274/274, build clean, hex gate empty.
+
+TASK 8 (login) IS CLOSED: shaped with the user, built, code-reviewed, four user-driven design
+iterations, critiqued 22 -> 36/40 with no open P0/P1, e2e 35 passed + 1 skipped on a down -v stack.
+
+Tasks 9 + 10 (signup, start-box) COMPLETE — critiqued twice each, gate cleared.
+  signup 29 -> 34/40 · start-box 30 -> 35/40 · zero P0/P1 on either (login reference: 36/40).
+  Karma 291 · backend 435 · e2e 35 passed + 1 skipped on a down -v stack · build clean.
+  BATCHING TWO SCREENS PAID OFF EXACTLY WHERE PREDICTED: the short-password defect scored as a
+  separate P1 on each screen but was ONE backend cause, and the reviewer named it systemic rather
+  than reporting it twice.
+  SIX P1s FIXED:
+   1. SIGNUP'S PANEL COPY WAS FALSE, AND IT WAS THE ORCHESTRATOR'S. "Your box invited you" on a page
+      that reads no invite token — the real invite flow is /join/:token, a different page with its
+      own correct copy — and it contradicted the invite note four lines below. The premise ("most
+      people reach signup from an invite email") was asserted during shaping and never checked.
+      Now "Create your account" / "Join your gym on rxed."
+   2. Start-box's mid-submit flip was SILENT: four filled fields became a two-field waitlist form
+      with no explanation, no aria-live, focus reset to <body>, and copy identical to a cold load.
+      Now a warn bh-alert that explains it, preserves box name + email, and moves focus — AND a cold
+      load into waitlist mode shows NO notice. Both directions verified; the distinction is the
+      point, since an "alert exists" test would pass with the bug reintroduced.
+   3. Waitlist success was a dead end — zero focusable elements. Now offers Back to login.
+   4-6. Short password showed "Something went wrong" on both screens. FOUR DTOs duplicated
+      @Size(min=10) on password (register, signup-box, reset, change-password), firing before
+      PasswordPolicy and making PASSWORD_TOO_SHORT unreachable everywhere. Removed; the policy now
+      owns the minimum. THE EXECUTOR PROVED PasswordPolicy ACTUALLY RUNS ON ALL FOUR PATHS BEFORE
+      REMOVING ANYTHING — without that check this would have deleted the only length enforcement.
+      Backend 432 -> 435.
+  ALSO FIXED EN ROUTE: bh-field derives the error node's hook as <testId>-error (signup had been
+  forced to hang it on the HOST, which spans label+input+error — the trap CLAUDE.md records as
+  costing M13c four fixes); bh-benchmark-board extracted to ui/ with four consumers.
+  AN E2E-ONLY REGRESSION, INVISIBLE TO KARMA: Task 8 moved bh-button's testid onto the inner
+  <button>, and three spec files defined btn() as `[data-testid=X] button` — which then matched
+  nothing and hung the signup journey. Karma was green throughout. Helper now matches both
+  placements. TWO intermediate attempts failed before this one, and each verdict was only trusted
+  after a `down -v` rebuild.
+  ORCHESTRATOR ERROR WORTH RECORDING: five files were left UNCOMMITTED while a subagent was
+  dispatched. The executor spotted them and had staged only its own, so nothing was swallowed — but
+  that is precisely how M13b's "docs" commit ate 89 lines of TypeScript.
+  NEW P2, not blocking, not a regression: start-box's error mode has no exit but Retry.
+  STILL UNVERIFIED on both, flagged rather than assumed: the pending spinners (local backend
+  answers in <20ms, faster than any poll) and SIGNUP_RETRY.
+  Signup's User Control heuristic is held at 2 by the BOX-PICKER dead end (zero focusable elements
+  for a 0-membership account) — a different file, already scoped as Task 12. Expect signup to rise
+  when that lands.
+
+Task 11 (join) COMPLETE — **36/40 on the FIRST critique, zero P0/P1. §16 gate cleared.**
+  Ties login (36) as the family ceiling; start-box 35, signup 34. Commit 89eae72.
+  Karma 305 -> 320 · production build exit 0, zero budget warnings · e2e 35 passed + 1 skipped on a
+  rebuilt image and a `down -v` stack, with invite-flow itself green — which is what proves the
+  rebuilt form actually submits.
+  FIRST SCREEN TO SCORE ITS FINAL NUMBER IN ONE PASS, and the reason is worth carrying: login went
+  22 -> 36, signup 29 -> 34, start-box 30 -> 35, because on those screens the critique DISCOVERED the
+  defects. Here the four behaviour fixes were designed in at the shape step and built from a written
+  brief, so the critique found nothing left to fix. The cycle's value moved from the critique to the
+  shape.
+  THE PRE-FLIGHT MOMENT-1 CHECK PAID FOR ITSELF AGAIN, and this time BEFORE dispatch rather than via
+  an escalation: the plan's Task 11 file list named two files. `e2e/tests/invite-flow.spec.ts:28`
+  held the suite's LAST inline `[data-testid=X] button` selector, which matches nothing since Task 8
+  moved bh-button's test id onto the inner element — the exact e2e-only regression that hung the
+  signup journey while Karma stayed green. Grepping for dependents turned it into a third authorized
+  file in the brief instead of a red suite. Three other spec files already used the tolerant btn()
+  helper; this one had been missed because it inlines the selector.
+  FOUR DECISIONS TAKEN TO THE USER AT STEP B, all four answered with the shape run's recommendation:
+  panel headline `Join {box}.` with eyebrow "You're invited"; the role+plan line stays in the BODY;
+  the raw `font-size: 44px` becomes `--fs-display` (28px), matching the three siblings' headline slot
+  rather than `--fs-hero`; and a **Back to login link added to the invalid-invite dead end** — a
+  fourth behaviour change beyond the plan's three, taken deliberately because start-box's identical
+  dead end had already been scored a critique P1 and fixed, so paying for it now was cheaper than
+  paying for it a round later.
+  WHAT THE THREE APPROVED FIXES ACTUALLY WERE, verified against the backend before the brief was
+  written rather than asserted: minlength 8 -> 10 (PasswordPolicy:41 is the real floor);
+  `e.error?.detail` was leaking BOTH raw codes (PASSWORD_TOO_SHORT/BREACHED) AND untranslatable
+  English server prose ("Invite expired or already used", "Already a member of this box") — two
+  different failure shapes behind one line of code; and neither submit path had a `pending` signal at
+  all, against design law §11.6, on a FOUR-stage switchMap chain.
+  ALSO FOUND AND FIXED EN ROUTE, not in the plan: the screen rendered an ENTIRELY EMPTY CARD while
+  previewInvite was in flight — `@if (invalid()) … @else if (boxName()) …` with no `@else` arm. It
+  now has a real loading state.
+  MEASURED BY THE ORCHESTRATOR IN A BROWSER, not read from a report: volt elements painted on the
+  live screen are exactly TWO — the wordmark's "ed" highlighter (brand, not an accent, per spec
+  §2.3/§3) and the primary button — so the accent budget is ONE. roleline 8.52:1, footer link
+  17.18:1 underlined, focus ring 2px inset at `outline-offset: -2px` measuring 16.81:1 ON the volt
+  fill (login's P1 fix carried correctly), and at 375x812 `scrollHeight === innerHeight` so the
+  primary action needs no scrolling.
+  A FALSE ALARM WORTH RECORDING SO IT IS NOT RE-DERIVED: a `textContent` dump reads "rxedrxed". That
+  is NOT the duplicated-wordmark bug M13b shipped — bh-wordmark renders "rx" + "ed" `aria-hidden`
+  plus a visually-hidden `.sr` span carrying the accessible name, so textContent legitimately
+  contains the brand twice while a screen reader hears it once. Also: a first volt audit reported
+  ZERO volt elements because the probe guessed the wrong RGB; `--volt` is `#dfff4e`. Both of my own
+  measurement bugs, caught by checking the token rather than trusting the number.
+  THE ONE P2, AND ITS PREMISE IS WRONG: the critique flagged the Back-to-login link as unauthorized
+  scope against shape doc §9, which does say the dead ends stay message-only. It did not know the
+  user had overruled §9 at Step B — MY omission, the critique brief listed the shape doc but not the
+  four decisions. The finding's SECOND half stands and is left open: the invalid-token state now has
+  an exit and the already-member state does not, with no stated reason they differ. Not blocking —
+  neither is a zero-focusable dead end (the already-member state still renders its accept button, the
+  logged-out branch still renders the form and its Log in link).
+  CRITIQUE INFRASTRUCTURE FAILURE, COST ONE FULL RETRY: the first critique run fanned out into two
+  background assessments per the impeccable protocol and BOTH died on "You've hit your session limit".
+  Same failure that blocked login's critique in an earlier session. The retry ran as ONE inline agent
+  with my already-taken measurements handed to it, and completed. For a screen this size, one pass
+  with pre-supplied measurements is the cheaper shape.
+  ALSO MY ERROR, cost two stalled agents and several minutes: the critique brief said the app was at
+  `localhost:8080`. It is on port **80** (`HTTP_PORT:-80` in docker-compose, `baseURL: 'http://localhost'`
+  in playwright.config). Verify the port from the compose file, not from memory.
+  STATES THE CRITIQUE DECLARED UNDRIVEABLE rather than scoring from source, correctly: true 200%
+  BROWSER zoom (approximated with a 720x450 viewport — Playwright has no zoom control and CSP blocks
+  injecting a style rule), and the logged-in branch's own success->navigate transition (the seeded
+  stack has ONE tenant box, so a logged-in member accepting a second-box invite always 409s first).
+  Closing that second gap needs a second seeded box.
+  Help & Documentation scored 2 — a zero-contextual-help baseline shared across the whole auth
+  family, not join-specific.
+
+Task 12 (box-picker) COMPLETE — **33 -> 36/40, zero P0/P1. §16 gate cleared.** First of the six
+narrow screens. Commits 78a833b (build), b9ef461 (the three P1 fixes).
+  Karma 320 -> 328 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack, run twice (once
+  after the build, once after the fixes).
+  THREE USER DECISIONS AT STEP B: a Log out control in the footer in EVERY state (the screen had no
+  sign-out and no back link, so a 0-membership account or a suspended-only account was a total dead
+  end; back-to-login was rejected because the user is authenticated and would bounce straight back);
+  ZERO VOLT on the screen (`.box:hover` was volt, but law §5 says volt means live/now and hovering a
+  row has not made it live — and the list is @for-rendered, so volt-the-primary cannot mean volt per
+  row; one volt element is a CEILING, not a quota); and `.empty`'s raw 14px -> --fs-body.
+  ORCHESTRATOR'S BRIEF WAS WRONG AGAIN, SAME FAMILY AS EVERY OTHER TIME: it said the logout control
+  is "a link, not a button". Signing out is an ACTION, and all four existing logout controls in the
+  product are buttons (admin-shell:25, coach-shell:29, console:246, security:368). The executor built
+  what the brief said — `<a href (click)="signOut($event)">` — which also slipped the no-plain-href
+  gate, because a BARE `href` attribute does not match the gate's `href="` pattern. Fixed to a
+  <button class="linkish">. Worth keeping: gate 6 has a blind spot for valueless attributes.
+  ALSO FIXED BY THE ORCHESTRATOR ON REVIEW: the pending row read "Joining…". Nobody joins here — the
+  user is ALREADY a member of every box in the list; joining is what /join/:token does. Now
+  "Opening…". And the sign-out spec called signOut() directly; it now CLICKS the real control, with a
+  negative control confirming it fails ("Expected one matching request ... found none") when the
+  (click) binding is removed. That is the login-P0 lesson applied to a new screen rather than
+  re-learned on it.
+  THE CRITIQUE FOUND THREE REAL P1s, ALL ACCESSIBILITY, ALL MEASURED:
+   1. `.role` was --faint on --surface-2 = 4.27:1, under the 4.5:1 floor -> --bone-dim, 7.17:1.
+      THE SAME TRAP AS THE PLACEHOLDER FIX, and it will keep recurring: --faint's documented 5.1:1
+      is measured against --ground, and NOTHING on this screen sits on --ground.
+   2. The rows used the NATIVE `disabled` attribute while a selection was in flight. A native
+      disabled removes the element from the a11y tree, so the row the user just clicked dropped
+      keyboard focus to <body> — no confirmation the click landed, no way back without re-tabbing
+      from the top. Now aria-disabled, with the double-click guard staying in pick() where it has to
+      be anyway. Re-critique verified BOTH halves: focus stays on the row through pending and past a
+      403, AND a second Enter mid-pending still leaves boxTokenCalls at 1 — the fix did not trade one
+      defect for another.
+   3. A long box name at 200% text pushed the WHOLE PAGE into horizontal scroll (body.scrollWidth
+      529 vs clientWidth 375). `.bn` gained min-width:0 + overflow-wrap; re-measured 375 vs 375.
+  SELF-INFLICTED, THE SECOND TIME THIS MILESTONE AND I HAD WARNED THE EXECUTOR ABOUT IT IN THE SAME
+  BRIEF: I put BACKTICKS around the word disabled inside an HTML comment in the Angular template.
+  The template is a TypeScript template literal; it terminated at the comment and the build failed
+  with TS1005/TS2554 pointing at `styles:`, three lines away from the actual cause. Straight quotes.
+  ALSO: `npx ng build --configuration production` exits 0 while Karma's tsc FAILS, because the
+  production build does not compile spec files. A green build is NOT evidence the specs compile —
+  run Karma. This nearly let a broken spec through.
+  NEW P2, NOT BLOCKING, PRE-EXISTING RATHER THAN INTRODUCED: the pending row swaps {{ m.role }} for
+  "Opening…" with no aria-live region, so a screen-reader user gets only whatever aria-busy support
+  their AT/browser pair happens to have.
+  FILED TO BACKLOG, NOT FIXED (milestone lock): --faint on --surface-2 is used on ~19 other files,
+  all M15/M16-owned screens. The two fixes taken so far (bh-field/bh-search-bar placeholders, and
+  this screen) were both inside code this milestone owns.
+
+Task 13 (check-email) COMPLETE — **33 -> 38/40, zero P0/P1. §16 gate cleared.** Highest score in the
+family (login/join/box-picker 36, start-box 35, signup 34). Commits 5f39b88, 7e8fac5.
+  Karma 328 -> 334 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack.
+  CAVEAT ON THE DELTA, recorded rather than glossed: the two passes used DIFFERENT rubrics (8
+  heuristics x5 first, Nielsen x10 /4 on the re-run). The re-critique said so itself. The +5 is
+  directionally right and both fixes were independently re-measured, but it is not a like-for-like
+  arithmetic delta the way box-picker's 33->36 was.
+  USER DECISIONS: Resend stays ghost, ZERO volt (the real primary action is in the user's INBOX, not
+  on this page — volting Resend points at the thing that is not the point); the 60s cooldown gets a
+  live countdown; an empty address renders "We sent you a link." instead of the literal "We sent a
+  link to ." the screen shipped with.
+  THE ORCHESTRATOR CAUGHT ONE DEFECT THE EXECUTOR COULD NOT HAVE: clicking Resend disables the
+  button, and bh-button uses the NATIVE disabled attribute — so the pressed control leaves the a11y
+  tree and focus falls to <body>. Identical to box-picker's P1, one screen later. Fixed ON THIS
+  SCREEN by moving focus to the result alert rather than by changing bh-button, which 32 call sites
+  depend on and where native disabled is usually the correct semantic.
+  ** AND THEN THAT FIX ITSELF SHIPPED BROKEN, WHICH IS THE ENTRY WORTH KEEPING. ** It used
+  queueMicrotask. The app runs zone.js CD with eventCoalescing (app.config.ts:15), so the flush is
+  deferred PAST the microtask queue: the callback ran before the alert existed, querySelector
+  returned null, and the whole focus move silently no-opped behind its own `if (!el) return`. A
+  guard clause turned a broken feature into a silent one.
+  MY KARMA SPEC PASSED AGAINST IT, and for exactly the reason the (ngSubmit) P0 passed 272 specs:
+  fixture.detectChanges() forces the flush SYNCHRONOUSLY, so the spec never reproduced the real
+  timing. The negative control also passed — it proved the spec catches a MISSING call, not a call
+  that runs at the wrong moment. **A negative control only tests the mutation you thought of.**
+  Found by the design critique driving the live screen; fixed with afterNextRender (which exists for
+  this) and then verified by the orchestrator in a real browser before claiming it:
+  activeElement === BH-ALERT[check-email-resent]. Re-critique confirmed both success AND error paths.
+  A SPEC ASSERTION RETIRED FOR BEING WRONG, not for being inconvenient: the destroy spec asserted the
+  zone's ONE-SHOT timer queue was empty. afterNextRender schedules its own timeout there, so that
+  assertion was testing the framework. Replaced with behaviour — tick past 60s after destroy and the
+  button must still be disabled — which is a better test than the one it replaced, and its negative
+  control fails correctly without the clearTimeout.
+  THE EXECUTOR FOUND THE FOURTH TEST-THAT-COULD-NOT-FAIL OF THIS MILESTONE, ON ITS OWN, and did not
+  accept my brief's suggested approach: I said fakeAsync's implicit end-of-test check would catch a
+  leaked interval. It does not — flush() explicitly skips periodic tasks. The executor traced zone.js
+  source, proved it empirically with a probe (pendingPeriodicTimers: [138] while green), and replaced
+  the assertion with one that actually catches the mutation. That is the escalation culture working.
+  THREE MORE DEFECTS FIXED BEYOND THE PLAN'S LIST: "Sent again." never cleared, so a stale success
+  could sit beside a fresh error; the cooldown was silent (a dead button for 60s with no reason reads
+  as broken); and a 47-char address overflowed 375px (scrollWidth 390 vs 375) — email addresses have
+  no spaces to break on, so .muted needed overflow-wrap: anywhere. Re-measured at 343 vs 343.
+  P2 LEFT OPEN, PRE-EXISTING: the resend error copy is generic ("Could not resend — try again"), with
+  no cause. Unchanged by this task.
+  STILL UNVERIFIED, flagged rather than assumed: the "Sending…" pending label (the mocked response is
+  instant), the same caveat every auth screen in this milestone carries.
+
+Task 14 (verify) COMPLETE — **35 -> 37/40, zero P0/P1. §16 gate cleared.** Commits 68b85d8,
+37de2bf, ad51b60. Karma 334 -> 343 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack.
+  Same rubric both passes this time (Nielsen x10, /4) — the brief demanded it explicitly after
+  check-email's two passes silently used different ones and made that delta non-comparable.
+  THE APPROVED FIX: verify auto-selects a single box. Success navigated to '/', landing a
+  one-membership user on a picker holding ONE item. verifyEmail() already returns the bootstrapped
+  session, so it is login.page.ts:129-141 copied verbatim, 403 arm included. Pre-existing since M8.
+  `e2e/tests/onboarding.spec.ts` ROUTED THROUGH THE PICKER TO WORK AROUND IT, and the rule was not
+  to weaken it: it now asserts /admin directly, which is the same claim and a STRONGER one — it
+  proves the app got there itself rather than being driven there by the test.
+  USER DECISIONS: the expired state's resend button IS volt while check-email's is not, and that is
+  a justified difference rather than an inconsistency — on check-email the real action is in the
+  user's inbox, here the link has already FAILED so resending is the only way forward. And the
+  invalid-link exit became "Back to login" rather than "Back to sign up", since anyone holding a
+  verification link already has an account.
+  NEW ANGULAR TRAP, FOUND BY THE EXECUTOR VIA THE BUILD GATE: **an @case with more than one root
+  node does NOT project into a named slot** (NG8011). Panel content and body content therefore need
+  two separate top-level @switch blocks. Silent in every other respect — the eyebrow and headline
+  would simply never have appeared.
+  THE P1 WAS MINE, AND IT IS A LESSON ABOUT COPYING CODE ACROSS DIFFERENT SHELLS: I told the
+  executor to copy login's box-token 403 arm. Login has no headline to contradict; this screen's
+  'error' state does. So a user whose email verified FINE but whose box is suspended read
+  "Invalid link / Not valid" printed directly above "This box is unavailable" — the two halves of
+  the screen contradicting each other, and the heading naming the wrong thing as broken. It now has
+  its own state ("Email verified" / "Your box is unavailable."). **The spec asserts the screen does
+  NOT contain "Not valid" or "Invalid link"** — the defect itself, not a restatement of the new copy.
+  ** THEN I INTRODUCED A REGRESSION FIXING A P2, AND THE RE-CRITIQUE CAUGHT IT. ** Wrapping the
+  resend field in a <form> so Enter works made Enter a SECOND entry point into resend() — and the
+  only guard was the button's [disabled], which gates the CLICK path only. A lone-field form submits
+  on Enter regardless of any button's state, so three Enters during the cooldown fired three resends
+  at a backend that allows 3/h. The guard belongs INSIDE the handler, where both paths funnel — the
+  shape box-picker's pick() already used. Verified live: three Enters now produce one request.
+  GENERAL RULE WORTH CARRYING: **a disabled button is a guard on one path, never on the action.**
+  Every screen in this milestone that gates an action has now needed the guard in the handler.
+  ALSO REWORDED A COMMENT rather than living with a noisy gate: my own explanation of the form
+  contract spelled out the forbidden binding by name, so gate 5b reported a hit on a file that is
+  clean. A gate you have to explain away stops being a gate.
+  P2s LEFT OPEN, both cosmetic and both declared: the resend button's width wobbles ~8px at the
+  "10s -> 9s" digit boundary (no clipping at any width tested), and the pending state has no <h1>
+  (it is a bare status line by design and lasts one request).
+
+Task 15 (forgot) COMPLETE — **37 -> 39/40, zero P0/P1. §16 gate cleared.** Highest in the family
+(check-email 38, verify 37, login/join/box-picker 36, start-box 35, signup 34). Commits 2da0bf3,
+3083d74, 7e68e41. Karma 343 -> 347 · build clean · e2e 35 passed + 1 skipped on a `down -v` stack.
+  DELTA CAVEAT, stated by the re-critique itself rather than hidden: it did not have the first
+  pass's per-heuristic sheet, only the total and the two named defects, so its table is a FRESH
+  score on the same rubric rather than an edit of the old one. Same rubric both times (Nielsen x10,
+  /4); the +2 tracks to the two heuristics the defects lived in.
+  THE SECURITY PROPERTY SURVIVED AND FINALLY HAS A TEST THAT CAN FAIL: success and rate-limit must
+  render the IDENTICAL sentence, or the screen becomes an account-enumeration oracle. The spec now
+  captures both strings and asserts EQUALITY — the old shape (assert each is non-empty) would have
+  passed against a screen that branched. Verified live too: the 202 and 429 arms render byte-
+  identical copy.
+  USER DECISIONS: the submitted state gets its own headline ("Check your email") while the eyebrow
+  keeps naming the flow; and it gains "Use a different address", which returns to the form for the
+  typo case — safe under no-enumeration precisely because the response is identical for every
+  address. Previously a typo left "Back to login" as the only exit.
+  ORCHESTRATOR CAUGHT ON REVIEW: the executor had put "Check your email" in BOTH the eyebrow and the
+  headline. It read as a rendering fault and gave the heading a duplicated accessible name.
+  ** A KILLED AGENT'S WORK WAS RECOVERED RATHER THAN DISCARDED, AND IT PAID. ** The first critique
+  died on the session limit mid-run, leaving three .spec.ts files in `e2e/tests/` — which would have
+  JOINED THE REAL SUITE on the next run. Rather than just delete them I RAN the driver first: it
+  returned the whole measurement set (validation copy, URL stability, the pending guard, identical
+  202/429 text, axe clean, no overflow at 375) and one probe the agent never got to execute. That
+  probe found a real defect: **after a failed validation, typing a VALID address left the error
+  visible and aria-invalid="true"** — the field went on asserting it was wrong while the user looked
+  at a correct value. bh-field's `value` is a model input, so `(valueChange)` already existed; one
+  line. Those measurements were then handed to the fresh critique, per the standing rule that a
+  critique runs inline and is given what has already been measured.
+  THE P1 WAS THE FOURTH FOCUS-LOSS OF THIS MILESTONE: submitting unmounts the form and the focused
+  submit button with it, so focus fell to <body>. **AND THE OBVIOUS FIX WOULD HAVE BEEN SILENTLY
+  INERT**: focusField() called .focus() with no tabindex, which works on an <input> and does NOTHING
+  on a <p>. It now sets tabindex="-1" ONLY where the element is not natively focusable — putting it
+  on an <input> would take that input OUT of the tab order, the opposite of the intent. Verified
+  live in both directions: activeElement is P[forgot-confirm] after submit, and the round trip still
+  lands in the email field with no tabindex on it.
+  FOUR SCREENS HAVE NOW NEEDED THE SAME POST-STATE-SWAP FOCUS MOVE (check-email, verify, box-picker's
+  variant, forgot). Three carry their own copy of afterNextRender + querySelector + focus. **FILED
+  rather than extracted**: pulling a shared helper now would edit two screens already built,
+  critiqued and closed, for no behaviour change. It belongs in Task 21's consistency pass.
+  P2 ALSO FIXED: "Use a different address" and "Back to login" rendered at identical colour, weight
+  and size — nothing signalled that one stays on the page and the other leaves the flow. The exit is
+  --bone-dim now, 8.5:1 on --ground, quieter without reading as disabled.
+
+Task 16 (reset) COMPLETE — **37/40 on the FIRST critique, zero P0/P1. §16 gate cleared.** No
+re-critique run, and that is correct: the cycle requires one after fixing P0/P1, and there were
+none — all four findings are P2. Commit 9a3b666. Karma 347 -> 356 · build clean · e2e 35 passed +
+1 skipped on a `down -v` stack.
+  Second screen to score its final number in one pass (after join). Same cause: the defects were
+  designed out at shape and in review, so the critique had nothing structural left to find.
+  USER DECISIONS: reset auto-selects a single box on success — the SAME defect verify carried, and
+  resetPassword() returns the same bootstrapped session, so it is the same block copied; and the
+  screen now DISCLOSES that a successful reset signs the user out on every other device. The backend
+  has always revoked every session and the screen never said so. It sits under the field, ahead of
+  the button that causes it, informational rather than an alert.
+  THE FORM CONTRACT VERIFIED ON THE SCREEN IT MATTERS MOST, AND VIA THE ENTER PATH: after submit the
+  URL is still `?token=abc` and does not contain the password. This is the exact payload login put
+  in the query string; reset is the worst screen to repeat it on, so it was measured rather than
+  assumed.
+  ORCHESTRATOR CAUGHT ON REVIEW — THE EXECUTOR'S ONE ADAPTATION WAS THE WRONG CALL, AND IT WAS A
+  REASONABLE-SOUNDING ONE: told to copy verify's 403 arm, it instead followed login's, setting a
+  form-level danger alert inside the still-visible form. Login can do that because login's submit
+  failed. Here the PASSWORD IS ALREADY CHANGED by the time the box token is refused — so the screen
+  read "your reset failed" under a "New password" heading, and invited a retry with a SPENT TOKEN,
+  which would 410 into "Expired" and turn a success into an apparent total failure. Now its own
+  branch: "Password changed / Your box is unavailable.", the spent form removed, an exit offered,
+  focus moved. Verified live. **The lesson is about copying across shells: the same arm is right or
+  wrong depending on whether the action before it succeeded.**
+  FOUR P2s FILED, NOT FIXED, each with a reason:
+   1. **A volt focus ring wraps a danger border on an invalid field.** Systemic — `ui/field.component.ts`
+      affects every field in the product. NOT a bug: `--focus: var(--volt)` in _tokens.scss is a
+      deliberate, documented product-wide decision. Changing it for the invalid state is a DESIGN-LAW
+      question for the user, not an orchestrator fix, and it would repaint every form in the app.
+   2. The `min 10 characters` guidance lives only in the placeholder, which vanishes on the first
+      keystroke. A persistent hint needs a new `bh-field` input — a ui/ change with 20+ consumers.
+   3. Both routes into `expired` (no token at init, and a 410 mid-submit) render identical copy, and
+      the 410 route never reassures the user that the password they just typed was NOT saved.
+   4. The box-unavailable branch gives the success the small eyebrow and the problem the headline.
+      Defensible, and the alert below resolves it.
+
+Task 17 (account/email) COMPLETE — **37/40 on the FIRST critique, zero P0/P1. §16 gate cleared.**
+Ties verify. Commits 8ef2855 + the done-headline fix. Karma 356 -> 361 · build clean · e2e 35
+passed + 1 skipped on a `down -v` stack. Third screen to score its final number in one pass.
+  No re-critique: the cycle requires one after fixing P0/P1 and there were none. All three findings
+  were P2; one was taken because it was a one-word copy change, two were filed.
+  THE ONLY SCREEN IN THE SET WITH NO FORM IN ANY STATE. It is permitAll and never assumes a session
+  — the link is clicked from an inbox, possibly on a device that has never logged in. The javadoc
+  saying so is kept.
+  BOTH DEAD ENDS FIXED (the sixth and seventh of the milestone): expired and error had no exit and
+  nothing focusable at all.
+  ** THE EXECUTOR STOPPED ON A FORK THE BRIEF HAD ANTICIPATED, AND IT WAS RIGHT. ** The user chose a
+  volt primary for `done`. It cannot be built: bh-button renders an anchor ONLY for real/external
+  navigation, has no router input, and its own docstring says internal navigation should be a text
+  link instead — while nesting bh-button inside an anchor is an invalid content model. The brief
+  said "if bh-button does not support routerLink, STOP AND ASK" and it did, with the evidence, having
+  changed nothing. Taken back to the user, who chose the text link. **This screen now carries ZERO
+  volt in every state, deliberately, with a comment saying so** — the first screen in the milestone
+  where the right answer is none.
+  IT ALSO FOUND A REAL PRE-EXISTING BUG WHILE CHECKING: `wod-library.page.ts:16` ALREADY nests
+  bh-button inside an <a routerLink> — a <button> inside an <a>. Found only because it read the
+  component's API instead of assuming it.
+  M13c DEFERRED THIS EXACT QUESTION to "M13d, with real consumers in front of it". There are now
+  TWO, and both are FILED rather than half-answered inside one screen: adding routerLink to
+  bh-button would touch a component all eleven screens use plus the gallery contract, mid-task.
+  ORCHESTRATOR CAUGHT ON REVIEW, and it is a small lesson about consistency in a11y: the executor
+  gave `done` and `error` bh-alerts (role=status / role=alert, per the component's tone mapping) but
+  left `expired` a plain <p>, arguing verify's precedent. Expired is an OUTCOME exactly as the other
+  two are, on a screen that resolves with NO user action — so it was the one outcome of three a
+  screen reader was never told about. Now an alert too. Verified live: status, alert, alert.
+  bh-alert's own doc earns a mention: role=alert/status announce reliably only when the element is
+  FRESHLY INSERTED, not when a mounted one has its tone flipped. The @switch here inserts it fresh,
+  so the contract is satisfied — checked rather than assumed.
+  P2 TAKEN: `done`'s headline was "Done", which added nothing its eyebrow "Email confirmed" had not
+  already said, and was the thinnest pair on the page. Now "Address updated."
+  P2s FILED: every non-410 failure (a 500, a timeout, a 403) collapses into "This confirmation link
+  is invalid" with no retry — INHERITED from verify.page.ts, which has the identical collapse, so
+  fixing it here alone would split the two screens; and the route title is static across all four
+  outcomes.
+
+Task 18 (account/security) — **DEFERRED OUT OF THE MILESTONE, user's call, 2026-08-14. Built, then
+reverted deliberately.** M13d closes at TEN screens, not eleven.
+  THE USER REVIEWED THE SCREEN AND REJECTED IT, and the objection was about the DESIGN, which the
+  task had been told not to touch: not mobile friendly, clamped edge to edge with no side space,
+  anonymous buttons, a poor back control, and password + email + sessions + danger zone all stacked
+  on one page. What they want is a lateral menu with the sections separated so there is room to add
+  more — i.e. an account AREA with split routes, not one screen.
+  ** THE PLAN PUT IT IN THE WRONG MILESTONE, AND THE PLAN'S OWN SPEC PROVES IT. ** §7.2 declared
+  restructuring out of scope for this task, so the executed rebuild faithfully preserved the layout
+  the user objected to — it modernised the plumbing beneath a design nobody had shaped. It is also
+  the ONE task in the milestone that does not consume bh-auth-layout, because it is not an auth
+  screen at all. Shipping it would have been polishing markup we are about to delete: the exact
+  double-work this program defers i18n marking to avoid.
+  A SECURITY POINT THE USER RAISED, CHECKED RATHER THAN AGREED WITH — they were half right, and the
+  precise answer matters:
+   - CHANGING THE EMAIL IS ALREADY CORRECT and needs nothing. AccountService.startEmailChange
+     requires the current password AND the change lands only when the NEW address clicks a link
+     mailed to it. Its javadoc already says why: "anyone can type an address they do not own; only
+     its owner can click the link sent to it."
+   - CHANGING THE PASSWORD SENDS NO MAIL AT ALL. changePassword checks the current password, writes
+     the hash, returns. That is a real gap — but the fix is a NOTIFICATION ("your password was
+     changed, was this you?"), NOT a confirmation gate. Gating a password change behind an inbox
+     click, when the user has already proved the current password, adds friction and locks out
+     anyone without mail access. Filed with the deferred milestone.
+  KEPT FROM THE ABORTED TASK: `e2e/tests/account-security.spec.ts` — coverage this screen never had.
+  The plan claimed e2e/tests/security.spec.ts asserted several of its ids; IT DOES NOT, that file is
+  about HTTP headers and CSP. **No e2e touched this screen at all.** The new spec asserts only
+  behaviour that must survive the redesign — the forms actually submitting INCLUDING the Enter path,
+  the URL never gaining a query string, the new password working and the old one not, and the delete
+  flow revealing its password field only after the server asks — and it pins no layout. It passes
+  against the un-rebuilt screen, which is what proves it is behaviour coverage and not markup
+  coupling. e2e 35 -> 39 passed + 1 skipped.
+  A SECOND PLAN ERROR FOUND WHILE BRIEFING: the plan said "four separate forms". There are TWO; the
+  sessions and danger-zone controls are click-driven and the delete sheet has bare inputs with no
+  form at all.
+  THE SETUP LESSON, worth keeping for the new milestone's e2e: /account/security requires an ACTIVE
+  BOX, not merely a session — a freshly signed-up, verified, membership-less account bounces to
+  login. The cheapest way to a usable account is the INVITE flow, which creates it, lands it
+  verified (M8 T11) and grants the membership in one step.
+
+Tasks 19-21 (Phase 3) COMPLETE. **M13d CLOSED at ten screens.**
+  FINAL GATES, all measured on a `down -v` stack: Karma **361** · backend **435/0/0** · e2e
+  **53 passed + 1 skipped** · axe **21 cases, zero WCAG 2.2 AA violations** · visual **23 tests /
+  80 baselines** · production build exit 0 with **zero budget warnings**. The 1 skip is the
+  quarantined TV/SSE defect (Project 2), untouched by scope.
+  TASK 19 — axe went from 7 cases to 21. Split screens are audited at BOTH 375 and 1440, because
+  the split layout only exists above 720px and a single-width audit never exercises one of the two.
+  Every case asserts a screen-specific locator is visible BEFORE axe runs — generalising this file's
+  own recorded lesson (its first version audited bh-dock at a width where it is display:none and so
+  inspected ZERO nodes) into "prove you landed on the state you meant, not a redirect or a bounce".
+  ** A LIMIT OF THE AXE GATE, FOUND ONLY BY TRYING TO MAKE IT FAIL: ** stripping the label off a
+  field that has a PLACEHOLDER does NOT trip axe — its label rule accepts a non-empty placeholder as
+  a fallback. The executor's first vacuity proof passed after a genuine --no-cache rebuild, and it
+  root-caused that rather than shrugging. Redone on login's password field, which has no
+  placeholder: failed correctly at both widths. **Most bh-field consumers carry placeholders, so axe
+  alone does not protect their labels.**
+  TASK 20 — 54 -> 80 baselines. **THE GALLERY'S THREE TESTS WERE ALREADY FAILING before this task
+  started, against committed baselines, and that was M13d's own doing**: Tasks 1, 2 and 8 changed
+  bh-field/bh-select/bh-button/bh-search-bar, and the two new gallery sections (bh-auth-layout,
+  bh-benchmark-board) never had baselines at all. Nobody regenerated them at the time, so the gate
+  had been RED rather than protective for the whole milestone. Regenerating was correct, but was
+  reviewed by eye rather than accepted wholesale: field-phone shows exactly the two intended changes
+  (Task 8's WITH LABEL ACTION state, and the brighter --faint -> --bone-dim placeholder) and nothing
+  else, and wordmark-phone — a section that should NOT have moved — was compared old against new and
+  is visually identical, i.e. re-render churn.
+  bh-benchmark-board picks its workouts with Math.random() BY DESIGN, so any screenshot containing
+  it is non-reproducible — content AND element height change per run, which is why masking does not
+  help (the mask box is recomputed and the height shift leaves an unmasked sliver). Math.random is
+  stubbed before navigation. **The gallery needed the same stub, not just the screens, and that was
+  only discovered by running the WHOLE suite rather than the new tests alone.**
+  DISCRIMINATION RE-PROVEN BY THE ORCHESTRATOR after the spec changed, not merely taken from the
+  executor's report: login's headline forced to 61px failed its baseline by 74,360 pixels (25% of
+  the image); reverted, rebuilt, re-verified green.
+  TASK 21 — the cross-screen consistency pass, which per-screen critiques are structurally blind to.
+  The set holds: the states that repeat across screens are WORD-IDENTICAL ("Link expired"/"Expired",
+  "Invalid link"/"Not valid", "Your box is unavailable."), and the four split screens are
+  structurally identical. Two registers of eyebrow exist and are defensible rather than accidental:
+  the front-door screens use positioning ("Rx · as prescribed", "For box owners") and the mid-flow
+  screens name the state ("Link expired", "Reset password"). No changes were manufactured to make a
+  report look busy.
+  A LAST GATE-HYGIENE SWEEP: three of my own explanatory comments named the very tokens the gates
+  grep for (`FormsModule`, the submit output), so clean files reported hits. All reworded. **A gate
+  you have to explain away stops being a gate**, and the next person reads a red grep as noise.
+  AN ENVIRONMENTAL FLAKE DIAGNOSED RATHER THAN BLAMED ON THE DIFF: programming.spec.ts failed on
+  "Burn It" not being visible. It is seeded for EVERY weekday deliberately, and driving the page by
+  hand showed both rows present. Cause: `sleep 50` after `up -d --build` is not long enough for
+  DevDataSeeder to finish (it also generates placeholder PNGs). It passed in 1.4s on a warm stack.
+  Then runner+tracking failed on the by-then-dirty stack — the exact pair the handoff documents as
+  non-idempotent. A `down -v` plus a 100s settle gave the clean 53+1. **Neither was a defect, and
+  neither was assumed to be one.**

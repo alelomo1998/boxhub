@@ -6,7 +6,12 @@ import { login } from './_support';
  * real <button> inside. Clicking the host can land in empty space and submit nothing. Always
  * click the inner native button — see onboarding.spec.ts / auth.spec.ts for the same note.
  */
-const btn = (testId: string) => `[data-testid="${testId}"] button`;
+// Matches BOTH testid placements. Pre-M13d screens put data-testid on the <bh-button> HOST
+// with the real <button> inside; rebuilt screens pass bh-button's testId input, which lands
+// it ON the button. Playwright accepts a descendant as the hit target, so the plain selector
+// Both branches target the real <button>: the first matches a rebuilt screen, the second a
+// legacy one. Exactly one matches per call, so Playwright strict mode stays happy.
+const btn = (testId: string) => `button[data-testid="${testId}"], [data-testid="${testId}"] button`;
 
 // The rp-member / rp-plan <select> options carry more than the bare name (email, price), so an
 // exact-label selectOption is fragile — match by substring on the option text, then select by

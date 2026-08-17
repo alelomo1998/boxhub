@@ -67,7 +67,16 @@ This is design law §16 (`shape → build → critique ≥28/40, no open P0/P1`)
 
 **Step C — build (executor).** One Sonnet executor, self-contained brief carrying the agreed design, the file list, this plan's Global Constraints, and the screen's gates. The executor writes the screen and its Karma specs.
 
-**Step D — gates (orchestrator).** Review the diff. Run the screen's own gates (below), then `npm test -- --watch=false --browsers=ChromeHeadless` and `npx ng build --configuration production`.
+**Step D — gates (orchestrator).** Review the diff. Run the screen's own gates (below), then `npm test -- --watch=false --browsers=ChromeHeadless`, `npx ng build --configuration production`, **and the e2e suite on a rebuilt image.**
+
+> **e2e is not optional per screen, and this rule was bought.** Task 8 shipped a login button that
+> never authenticated and wrote the password into the URL. 272 Karma specs passed, because they
+> called `submit()` directly and never dispatched a real DOM submit. `e2e/tests/login.spec.ts` fills
+> the form, clicks the button and waits for the URL to leave `/auth/login` — it would have failed in
+> seconds. It was skipped because the task brief said "I will run e2e myself" and then nobody did.
+> **Rebuild the frontend image first** (the container serves a built bundle), and if a spec fails,
+> re-run on a `down -v` stack before blaming the diff — `runner`/`tracking`/`tv` are documented as
+> non-idempotent and will fail on a dirty stack for reasons that have nothing to do with your change.
 
 **Step E — critique (orchestrator).** `/impeccable critique <the screen>`. Fix P0/P1. **The screen is not done until this is clean.** Then commit.
 
@@ -89,6 +98,13 @@ grep -n 'ChangeDetectionStrategy.Eager' PATH
 
 # 5. Every <form> owns its validation (§4.1) — NgForm no longer supplies novalidate
 grep -n '<form' PATH | grep -v novalidate
+
+# 5b. (ngSubmit) MUST NOT APPEAR (§4.2). It is an output of the NgForm directive, which ships with
+# FormsModule — dropped by this milestone's form contract. Without NgForm it binds to an event the
+# browser never fires, so the native GET proceeds and every field lands in the URL. This shipped on
+# login: the button did not authenticate and the PASSWORD went into the query string. Forms bind the
+# native (submit) and call event.preventDefault().
+grep -n 'ngSubmit' PATH
 
 # 6. No plain hrefs; internal navigation is routerLink
 grep -nE '\[?href\]?="' PATH | grep -v 'oauth2/authorization/google'
@@ -246,7 +262,7 @@ Mirror both new specs into `select.component.spec.ts`, adapted to `<select>` (`q
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-Expected: PASS, with the suite total risen from **245** by the number of specs added (4 in `field`, 4 in `select` → **253**).
+Expected: PASS, with the suite total risen from **245** by the number of specs added (3 in `field`, 3 in `select` → **251**).
 
 - [ ] **Step 6: Verify the `ui/` standing guarantees still hold**
 
@@ -420,7 +436,7 @@ Leave every other style rule and every existing comment untouched.
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-Expected: PASS, suite total **256**.
+Expected: PASS, suite total **254**.
 
 - [ ] **Step 5: Verify no existing call site regressed**
 
@@ -631,7 +647,7 @@ No `changeDetection` field — Angular 22's implicit default when omitted is `On
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-Expected: PASS, suite total **261**.
+Expected: PASS, suite total **259**.
 
 - [ ] **Step 5: Add the gallery section**
 
@@ -726,7 +742,7 @@ Expected failure mode to look for specifically: a link that was only findable *b
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npx ng build --configuration production
 ```
 
-Expected: 261 passing, build clean.
+Expected: 259 passing, build clean.
 
 - [ ] **Step 5: Commit**
 
@@ -952,7 +968,7 @@ Leave line 75's `mailer.link("/join/" + created.rawToken())` **exactly as it is*
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
 ```
 
-Expected: **431/0/0**.
+Expected: **432/0/0**.
 
 - [ ] **Step 5: Commit**
 
@@ -987,7 +1003,7 @@ cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 npx ng build --configuration production
 ```
 
-Expected: **261** passing; build exit 0 with **zero** budget warnings.
+Expected: **259** passing; build exit 0 with **zero** budget warnings.
 
 - [ ] **Step 2: Backend**
 
@@ -995,7 +1011,7 @@ Expected: **261** passing; build exit 0 with **zero** budget warnings.
 cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
 ```
 
-Expected: **431/0/0**. Not concurrently with Step 1.
+Expected: **432/0/0**. Not concurrently with Step 1.
 
 - [ ] **Step 3: e2e on a rebuilt stack**
 
@@ -1025,9 +1041,15 @@ Expected: all zero bytes.
 - [ ] **Step 5: Push and check CI**
 
 ```bash
-git push
-gh run list --limit 2
+git push -u origin m13d-auth-account-screens
+gh run list --branch m13d-auth-account-screens --limit 3
 ```
+
+**Expect ZERO runs, and that is correct here.** `.github/workflows/ci.yml` triggers on
+`push: branches: [main]` and on `pull_request` — a feature-branch push queues nothing. This
+milestone's work is therefore verified on Linux CI only when a PR is opened or the branch merges,
+which is Task 21's business. Do not read the empty list as the silent-drop failure the hand-off
+describes; that one was a push **to main** producing no run.
 
 **A local green is not the gate.** Three M11 failures appeared only on Linux CI, and one had been failing silently since M10's push, unnoticed for six days while the hand-off claimed CI was green. Also compare any red against `main`'s pre-existing signature before blaming it on this work.
 
@@ -1266,37 +1288,38 @@ gh run list --limit 2
 
 ---
 
-## Task 18: `account/security` — its own layout
+## Task 18: `account/security` — **DEFERRED OUT OF M13d (2026-08-14, user's call)**
 
-**Files:**
-- Modify: `frontend/src/app/features/account/security.page.ts` (389 lines — the largest in the set)
-- Test: `frontend/src/app/features/account/security.page.spec.ts`
+**Not built. The screen stays as it is until its own milestone.**
 
-**Interfaces:** consumes Tasks 1 and 2. **Does NOT consume `bh-auth-layout`** — it is an in-app settings page reached from all three shells with a back control, not an auth screen.
+The rebuild was executed and then reverted deliberately. Why, recorded so it is not re-litigated:
 
-**Measured inventory:**
-- **35 test ids**, the most in the milestone. `e2e/tests/security.spec.ts` asserts several. Run the "no test id may disappear" gate on this file with particular care.
-- **6 legacy `.bh-input`** sites → 0 — the most in the set.
-- **Eager** line 160 → drop. **`FormsModule`/`ngModel`** → drop, across **four** separate forms plus the delete sheet's two fields.
-- **Already uses `routerLink`** for the two forgot-password links.
+- **It is not an auth screen.** It is an in-app settings page reached from all three shells, and it
+  is the one task in this milestone that does not consume `bh-auth-layout`. Grouping it with login
+  and signup was a mistake in this plan.
+- **What it actually needs is an account AREA, not a screen**: lateral navigation with the sections
+  separated so there is room to add more, sections split across routes rather than password + email
+  + sessions + danger zone stacked on one page, and a real mobile layout — the current one is
+  clamped edge to edge with no side space and unlabelled buttons.
+- **This plan's own spec §7.2 put restructuring out of scope**, which is exactly why the executed
+  rebuild preserved the layout the user objected to. It modernised the plumbing beneath a design
+  nobody had shaped. Shipping that would have been polishing markup we are about to delete — the
+  same double-work this program defers i18n marking to avoid.
+- **A real security gap belongs with it**: changing the password sends no mail at all
+  (`AccountService.changePassword` checks the current password, writes the hash, returns). The fix
+  is a *notification* — "your password was changed, was this you?" — not a confirmation gate;
+  requiring an inbox click to change a password the user has already authenticated for adds
+  friction and locks out anyone without mail access. **Changing the EMAIL is already correct** and
+  needs nothing: it requires the current password AND lands only when the new address clicks a link
+  mailed to it.
 
-**Five sections:** Password · Email · Sessions · Danger zone · the delete `bh-sheet`. **Restructuring them is out of scope** (spec §7.2) — this task rebuilds against the new contract and shapes the existing structure, it does not split the page into routes.
+**Kept from the aborted task:** `e2e/tests/account-security.spec.ts`, which is new coverage this
+screen never had. It asserts only behaviour that must survive the redesign — the forms actually
+submitting (including the Enter path), the URL never gaining a query string, the new password
+working and the old one not, and the delete flow revealing its password field only after the server
+asks. It pins no layout, and it passes against the un-rebuilt screen.
 
-**Behaviour that must survive — this screen has the most of it, and several are security properties:**
-- **The delete flow sends no password first.** A `422 WRONG_PASSWORD` back means "this account has a password and it wasn't supplied", which is what reveals the field. A Google-only account never sees the field because it never gets that 422. The comment at lines 222–224 explains it; keep both.
-- **Second-attempt copy differs**: once the field is already visible and the user typed something, the message is "That password is wrong", not "Enter your password" — telling them to do the thing they just did.
-- `LAST_ADMIN` (409) names the box and says what to do about it.
-- **`canDelete()` requires the literal string `DELETE`** plus a password when needed.
-- **`revokingId` is keyed per row**, deliberately — a single boolean would disable every button. Revoking the session you are currently holding ends it, so that branch clears and navigates to login.
-- **`NO_PASSWORD_SET` (409)** on either password or email change reveals the Google-only message.
-- Changing the password **signs out other devices**; changing the email is confirmed **at the new address** and the current one stays active until then. Both facts are in the visible copy.
-- The export builds a Blob client-side and names it from `BRAND_NAME`.
-
-**Design law on the destructive controls, and it is exact:** the control that **opens** the delete flow is a **danger-bordered ghost** (`.deletebtn` at line 185 already is), and the control that **executes** it is **filled** (`variant="danger"` at line 154 already is). `--danger` may fill a **button or chip** and nothing larger — never the section. `--on-danger` is dark, not white.
-
-**Volt budget:** this is a settings page with four independent saves and no single primary action. **Ask at Step B** — the honest reading of law §2.3 is that a screen answering no single question may legitimately have **zero** volt elements, and this is the screen where that case first arises.
-
-**Questions for Step B:** the volt question above; whether the four saves keep their current per-section placement; whether the sessions list adopts `bh-data-table`'s card mode on phone (`bh-data-table` shipped it in M13c and **nothing adopts it yet** — this is a candidate, but adopting it changes the phone layout, so it is the user's call).
+**M13d therefore closes at ten screens.** Phase 3 below runs over those ten.
 
 ---
 
@@ -1415,7 +1438,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 - [ ] **Step 2: Full gate run**
 
-Repeat every step of Task 7, plus `./visual.sh` and `a11y.spec.ts`. Expected: frontend **≥261** plus every screen's specs, backend **431/0/0**, e2e **35 passed + 1 skipped** plus the new axe cases, visual **76**, build clean with zero budget warnings.
+Repeat every step of Task 7, plus `./visual.sh` and `a11y.spec.ts`. Expected: frontend **≥259** plus every screen's specs, backend **432/0/0**, e2e **35 passed + 1 skipped** plus the new axe cases, visual **76**, build clean with zero budget warnings.
 
 Then the milestone's own capped gate:
 

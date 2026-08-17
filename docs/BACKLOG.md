@@ -194,6 +194,49 @@ Two consequences worth holding separately:
   than assumed distinct, and the fixed-name TV devices the `runner`/`tv` specs leave behind are the
   first thing to look at.
 
+## PROJECT 3 (proposed) · Box discovery — the app as a way to FIND a gym
+
+**Raised by the user 2026-08-11. This is a new product surface, not a backlog item, and it needs its
+own brainstorm -> spec -> plan cycle before any of it is built.** Recorded here in full so the
+thinking is not lost, and filed OUTSIDE the rework program because it does not belong to any
+existing milestone.
+
+**The idea:** a user can create an account with no gym, enter the app, and browse the boxes
+registered on the platform. rxed becomes two products sharing one account: a way to FIND a box for
+the unaffiliated user, and the classic box experience for members. To support it, box registration
+asks for far more — location, staff, courses, and whatever else a consultable public box page needs.
+
+**Why this is large, stated so nobody scopes it as "a screen":**
+
+1. **It needs a PUBLIC, CROSS-TENANT read path, and that is the most dangerous shape in this
+   codebase.** Every box-scoped entity is `@TenantId`, and `docs/TENANCY.md` is explicit that a
+   tenant-less read fails **OPEN to root** rather than closed. A directory reads across all boxes
+   with no box token at all. Whatever serves it needs a deliberately designed access path —
+   native SQL or an explicit unfiltered projection — plus its own conformance coverage, because
+   `AuthzConformanceTest` defaults to DENY and a new public route must declare its intent.
+2. **Box registration grows a schema.** Location (and therefore geo/search), staff, courses,
+   photos, opening hours. New columns, new admin editing surface, new media handling — note that
+   M11 made media reads signed and short-lived, which a PUBLIC page contradicts and must resolve.
+3. **Two new public screens** — a directory/search list and a box detail page — which overlap
+   **M19 (landing site)**. Ordering between them is a real decision: a public box page is marketing
+   register, not product register.
+4. **Moderation.** A publicly listed box page is marketing copy the platform hosts. M9 already has
+   a PENDING/ACTIVE/SUSPENDED box lifecycle and a superadmin approval queue; a public page probably
+   has to hang off that rather than invent a second one.
+5. **GDPR.** Staff names and photos are personal data belonging to people who are not the account
+   holder. The export and anonymize flows exist and would need to cover it.
+
+**It reverses a decision already shipped.** M13d removed "Create a box account" from login and added
+"you'll need an invite from your gym" to signup, because signing up without a gym dead-ends on an
+empty box picker. **Under discovery that is exactly backwards** — a gym-less account becomes the
+intended entry path and the box picker's empty state becomes a directory. Both changes are correct
+for the product as it stands today and must be revisited together the moment this is scheduled.
+
+**Open before anything is built:** is the directory public to the internet or only to signed-in
+users? Does a box opt in to being listed? Who edits the public page — the box or the platform? Is
+there search by location, and does that mean geocoding? What does the unaffiliated user's app shell
+even look like, given the current three shells all assume a box?
+
 ## The rework program — items by destination milestone
 
 *The old "M12 · UX/UI rework" section is gone: it was one bucket for what is now eight milestones
@@ -299,6 +342,36 @@ enough to change the base palette later.**
 M13b ships `public/favicon.svg` only. `index.html` references exactly one icon and there is no
 `apple-touch-icon`, no web manifest, and no `theme-color`. Deliberately not smuggled into the design
 milestone. Decide when the marketing site (M19) or the pilot forces it.
+
+### → M15 Admin: people — signup collects only name + email; birthday / gender / address are missing
+
+Raised by the user 2026-08-11 while M13d rebuilt signup. **Deliberately not built in M13d**: the
+milestone rebuilds screens, and this is a data-model change. Deferring is cheap — signup is a
+vertical form, so extra fields are additive rather than a rebuild — while building it now costs a
+Flyway migration, entity + DTO + validation, and an extension of the GDPR export and anonymize
+flows to cover new PII.
+
+**`users` holds only** `id`, `email`, `password_hash`, `name`, `created_at`, plus `email_verified`,
+the backoff columns, `locale` (V18) and `anonymized_at` (V12). None of the three exist.
+
+**Each field needs its own answer before any of it is built — they are not one item:**
+
+- **Gender — probably NOT a signup field, and this is the one worth thinking about first.** CrossFit
+  RX loads are gendered: the seeded benchmarks read `Thrusters (95/65 lb)`, male/female. So what the
+  product actually needs is an **RX load category on the athlete's scoring identity**, which belongs
+  with leaderboards and scoring (**M17**), not with the account. Asking "gender" at signup and
+  asking "which RX loads do you use" at scoring are different questions with different answers, and
+  conflating them is how a schema gets stuck. Also the more sensitive of the three under GDPR.
+- **Birthday** — needs a stated purpose. Age-banded programming? A legal minimum age? Birthday
+  shout-outs on the board? Each implies a different requiredness and a different surface.
+- **Address** — needs a purpose too. Billing already runs through Stripe, which collects its own
+  billing address, so this may be redundant. Emergency contact would be a different field entirely.
+
+**Whoever picks this up must also decide:** required or optional; asked at signup or later in a
+profile screen (M5 already shipped athlete profiles, which is the natural home); what an existing
+user sees; and whether each field joins `GET /api/me/export` and the anonymizing `DELETE /api/me`.
+The GDPR flows are not optional extras here — the project is the processor and EU gyms are the
+controllers.
 
 ### → M13d Auth & account screens
 
@@ -669,3 +742,18 @@ so those need real translation rather than a config flip. Do it with a supported
 the experimental hidden `refactor-jasmine-vitest` schematic.
 
 **Not a performance argument.** Karma runs the 184 specs in ~4 seconds.
+- `--faint` on `--surface-2` measures 4.27:1 and fails WCAG AA. Fixed so far only where M13c/M13d owned the code (bh-field + bh-search-bar placeholders, box-picker's role label). ~19 other files use the pairing, all on M15/M16-owned screens — sweep them when those milestones rebuild. The token's documented 5.1:1 is against `--ground`; measure against the surface the text actually sits on.
+- box-picker's pending row swaps the role label for "Opening…" with no `aria-live` region, so a screen-reader user relies entirely on `aria-busy` support. P2 from the M13d Task 12 critique.
+- Four M13d screens (check-email, verify, forgot, and box-picker in its own variant) each carry a private copy of the same "move focus after a state swap" helper — `afterNextRender` + `querySelector` + conditional `tabindex="-1"` + `focus()`. Extract one shared helper in M13d Task 21's consistency pass; not done per-screen because it would edit screens already built, critiqued and closed.
+- DESIGN-LAW QUESTION (needs the user, not a fix): `--focus` is `var(--volt)`, so a focused-and-invalid `bh-field` renders a volt outer ring around a danger border. Volt otherwise means live/now/primary and is never a status colour. Decide whether the focus ring should invert on an invalid field. Product-wide — every form field. Raised by the M13d Task 16 critique.
+- `bh-field` has no persistent hint slot: `min 10 characters` guidance sits in the placeholder and vanishes on the first keystroke, so the requirement is only visible before typing and after failing. Needs a new input on a component with 20+ consumers.
+- reset's two routes into the expired branch (no token at init, and a 410 mid-submit) render identical copy; the 410 route never tells the user the password they just submitted was not saved.
+- BUG (invalid content model, pre-existing): `frontend/src/app/features/programming/wod-library.page.ts:16` nests `<bh-button>` inside `<a routerLink>`, producing a `<button>` inside an `<a>`. Found by the M13d Task 17 executor while checking whether `bh-button` supports routerLink.
+- COMPONENT QUESTION, now with two real consumers: `bh-button` has `href` (real/external navigation) but no `routerLink`, and its docstring says internal navigation should be a text link instead. M13c deferred this to "M13d with real consumers in front of it" — M13d Task 17 wanted a volt primary that navigates internally and settled for a text link. Decide once, with the wod-library bug above in view: either add routerLink support, or affirm the text-link rule and fix wod-library to match.
+- `verify` and `account/email` both collapse every non-410 failure (500, timeout, 403) into "this link is invalid", with no retry offered — a transient server error is misdiagnosed as a bad link. Fix both together, or they split.
+- `account/email`'s route title is static ("Confirm email") across all four outcomes; a multi-tab user cannot tell from the tab whether it succeeded.
+
+## Proposed milestone — the account area (deferred out of M13d, 2026-08-14)
+- `account/security` is not an auth screen and was wrongly grouped with login/signup. It needs to become an ACCOUNT AREA, shaped as a whole rather than as one page: lateral navigation with the sections separated so there is room to add more, password / email / sessions / danger zone split across routes instead of stacked, and a real mobile layout (today it is clamped edge to edge with no side space, with unlabelled buttons and a poor back control).
+- Backend, ships with it: changing the password sends no mail at all. Add a NOTIFICATION ("your password was changed, was this you?"), not a confirmation gate — the user has already proved the current password, and a gate locks out anyone without inbox access. Changing the email is already correct and needs nothing: current password required, and the change lands only when the new address clicks its link.
+- `e2e/tests/account-security.spec.ts` already exists and pins the behaviour that must survive the redesign. Start from it.

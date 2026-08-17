@@ -54,7 +54,8 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .content("{\"email\":\"" + email + "\",\"role\":\"" + role + "\"}"))
                 .andReturn().getResponse().getContentAsString();
-        return om.readTree(body).get("link").asText().substring("/join/".length());
+        String link = om.readTree(body).get("link").asText();
+        return link.substring(link.lastIndexOf('/') + 1);
     }
 
     @Test
@@ -165,7 +166,8 @@ class InviteAcceptApiTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .content("{\"email\":\"planprev-" + n + "@t.io\",\"role\":\"ATHLETE\",\"planId\":\"" + planId + "\"}"))
                 .andReturn().getResponse().getContentAsString();
-        String token = om.readTree(body).get("link").asText().substring("/join/".length());
+        String link = om.readTree(body).get("link").asText();
+        String token = link.substring(link.lastIndexOf('/') + 1);
 
         // a user who is ALREADY an admin of a DIFFERENT box, holding that box's token
         Box otherBox = new Box();

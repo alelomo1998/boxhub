@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { AlertComponent } from '../../ui/alert.component';
+import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 import { AvatarComponent } from '../../ui/avatar.component';
+import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
 import { DayPagerComponent } from '../../ui/day-pager.component';
@@ -38,7 +40,8 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
-    AvatarComponent, PillComponent, DayPagerComponent, SheetComponent,
+    AvatarComponent, PillComponent, DayPagerComponent, SheetComponent, AuthLayoutComponent,
+    BenchmarkBoardComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -179,6 +182,12 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           <div class="cell">
             <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
             <bh-field label="Box name" i18n-label="@@dev.gallery.field.label" value="CrossFit Riverside" [disabled]="true" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.field.state.withAction">With label action</span>
+            <bh-field label="PASSWORD" i18n-label="@@dev.gallery.field.passwordLabel">
+              <a labelAction href="#" i18n="@@dev.gallery.field.actionLabel">Forgot?</a>
+            </bh-field>
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.field.note.hoverFocus">
@@ -574,6 +583,58 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           active, disabled, loading or error state of its own.
         </p>
       </section>
+
+      <section class="gsec" data-gallery="auth-layout">
+        <h2 class="t-h2" i18n="@@dev.gallery.authLayout.heading">Auth layout</h2>
+        <p class="note" i18n="@@dev.gallery.authLayout.note.noStates">
+          A frame, not a control — bh-auth-layout has no hover, focus, active, disabled, loading or
+          error state of its own; those belong to the projected form's fields and buttons, shown in
+          their own sections above. Variant is assigned per screen and never per state.
+        </p>
+
+        <p class="gsub" i18n="@@dev.gallery.authLayout.variant.split">Split</p>
+        <div class="authwrap">
+          <bh-auth-layout variant="split">
+            <div panel>
+              <p class="t-eyebrow" i18n="@@dev.gallery.authLayout.split.eyebrow">Welcome back</p>
+              <h1 class="t-h2" i18n="@@dev.gallery.authLayout.split.headline">Log in to your box.</h1>
+            </div>
+            <bh-field label="Email" i18n-label="@@dev.gallery.authLayout.split.emailLabel" />
+            <bh-button variant="primary" i18n="@@dev.gallery.authLayout.split.cta">Log in</bh-button>
+          </bh-auth-layout>
+        </div>
+
+        <p class="gsub" i18n="@@dev.gallery.authLayout.variant.narrow">Narrow</p>
+        <div class="authwrap">
+          <bh-auth-layout variant="narrow">
+            <div panel>
+              <h1 class="t-h2" i18n="@@dev.gallery.authLayout.narrow.headline">Check your email.</h1>
+            </div>
+            <p class="t-body" i18n="@@dev.gallery.authLayout.narrow.body">
+              We sent a confirmation link to your inbox.
+            </p>
+          </bh-auth-layout>
+        </div>
+
+        <p class="note" i18n="@@dev.gallery.authLayout.note.viewport">
+          Split only shows its side-by-side panel above 720px — shrink the viewport below that to
+          see it collapse to the same stacked, centred column narrow uses at every width, with the
+          panel content moving above the form.
+        </p>
+      </section>
+
+      <section class="gsec" data-gallery="benchmark-board">
+        <h2 class="t-h2" i18n="@@dev.gallery.benchmarkBoard.heading">Benchmark board</h2>
+        <p class="note" i18n="@@dev.gallery.benchmarkBoard.note.noStates">
+          Pure information, not a control — no hover, focus, active, disabled, loading or error
+          state of its own. Two distinct seeded prescriptions are drawn at random on every mount;
+          reload this page to see a different pair. Hides below 720px in the real auth screens
+          (checked in the browser, not shown here).
+        </p>
+        <div class="benchwrap">
+          <bh-benchmark-board testId="gallery-benchmark" />
+        </div>
+      </section>
     </div>
   `,
   styles: [`
@@ -603,6 +664,14 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     .iconname { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
       text-align: center; word-break: break-word; }
     .shellwrap { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden; }
+    /* bh-auth-layout's .wrap is min-height:100vh by design (a real screen fills the viewport) — the
+       border + overflow:hidden here is purely to frame the demo on this scrolling page; it plays
+       no part in the component's own layout. */
+    .authwrap { border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden; }
+    /* Framed like the auth panel it actually sits in (bh-auth-layout's split panel is --surface,
+       padding var(--sp-8)) so the board is checked against its real background, not bare --ground. */
+    .benchwrap { max-width: 320px; padding: var(--sp-8); background: var(--surface);
+      border: 1px solid var(--hairline); border-radius: var(--r-card); }
     /* Real shells project nav items sized to --tap; this demo anchor needs the same minimum so the
        gallery doesn't model an undersized tap target (impeccable finding). */
     .demo-navlink { display: inline-flex; align-items: center; min-height: var(--tap); }

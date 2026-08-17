@@ -1,4 +1,5 @@
 import { Component, input } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 
 /**
  * The product's button. 32 call sites, so the input names and their accepted values are a public
@@ -11,18 +12,32 @@ import { Component, input } from '@angular/core';
 @Component({
   selector: 'bh-button',
   standalone: true,
+  imports: [NgTemplateOutlet],
   template: `
-    <button [type]="type()" [class]="'btn ' + variant() + ' ' + size()"
-            [disabled]="disabled() || loading()" [attr.aria-busy]="loading()"
-            [attr.aria-label]="label() || null">
-      @if (loading()) { <span class="spin" aria-hidden="true"></span> }
-      @if (!(loading() && variant() === 'icon')) { <ng-content /> }
-    </button>`,
+    <ng-template #body><ng-content /></ng-template>
+
+    @if (href()) {
+      <!-- A link styled as a button must BE an anchor: routerLink/href on a bh-button host emits
+           no href at all, losing ctrl/cmd-click, open-in-new-tab and the correct role. Two real
+           consumers: the Google control on login and on signup. -->
+      <a [href]="href()" [class]="'btn ' + variant() + ' ' + size()"
+         [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
+        <ng-container [ngTemplateOutlet]="body" />
+      </a>
+    } @else {
+      <button [type]="type()" [class]="'btn ' + variant() + ' ' + size()"
+              [disabled]="disabled() || loading()" [attr.aria-busy]="loading()"
+              [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
+        @if (loading()) { <span class="spin" aria-hidden="true"></span> }
+        @if (!(loading() && variant() === 'icon')) { <ng-container [ngTemplateOutlet]="body" /> }
+      </button>
+    }`,
   styles: [`
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
       border: none; border-radius: var(--edge); font-family: var(--font-body);
       font-weight: 700; font-size: var(--fs-sm); letter-spacing: 0.01em; cursor: pointer;
       min-height: var(--tap); }
+    a.btn { text-decoration: none; }
     .btn.sm { padding: 0 13px; }
     .btn.md { padding: 0 17px; }
     .btn.primary { background: var(--volt); color: var(--on-volt); }
@@ -45,8 +60,11 @@ import { Component, input } from '@angular/core';
 
     .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     /* A volt ring on the volt-filled primary is invisible — law §11.2, the single
-       highest-traffic control in the product. */
-    .btn.primary:focus-visible { outline-color: var(--focus-inv); }
+       highest-traffic control in the product. --focus-inv only reads against the volt surface
+       itself, so the ring has to sit ON that surface: a negative offset pulls it inside the
+       button instead of out onto --ground (identical to --focus-inv, which made the positive
+       offset invisible too). */
+    .btn.primary:focus-visible { outline-color: var(--focus-inv); outline-offset: -2px; }
 
     /* No gradient (law §2.4): the spinner is a ring with one transparent side. */
     .spin { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
@@ -68,4 +86,8 @@ export class ButtonComponent {
   disabled = input(false);
   loading = input(false);
   label = input('');
+  /** Set to render an <a> instead of a <button>. For real navigation only — an OAuth start, an
+   *  external destination. Internal navigation is a text link with routerLink, not this. */
+  href = input('');
+  testId = input('');
 }

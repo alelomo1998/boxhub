@@ -75,7 +75,8 @@ class InviteRegistrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .content("{\"email\":\"" + email + "\",\"role\":\"ATHLETE\"}"))
                 .andReturn().getResponse().getContentAsString();
-        return om.readTree(body).get("link").asText().substring("/join/".length());
+        String link = om.readTree(body).get("link").asText();
+        return link.substring(link.lastIndexOf('/') + 1);
     }
 
     /** Registration itself gets NO Authorization header — a real public registration is

@@ -19,7 +19,12 @@ async function xsrfHeaders(page: Page): Promise<Record<string, string>> {
  * lands dead centre — i.e. in the empty space beside the button — and nothing submits. Always
  * click the inner native button.
  */
-const btn = (testId: string) => `[data-testid="${testId}"] button`;
+// Matches BOTH testid placements. Pre-M13d screens put data-testid on the <bh-button> HOST
+// with the real <button> inside; rebuilt screens pass bh-button's testId input, which lands
+// it ON the button. Playwright accepts a descendant as the hit target, so the plain selector
+// Both branches target the real <button>: the first matches a rebuilt screen, the second a
+// legacy one. Exactly one matches per call, so Playwright strict mode stays happy.
+const btn = (testId: string) => `button[data-testid="${testId}"], [data-testid="${testId}"] button`;
 
 function linkFrom(html: string, path: string): string {
   const m = html.match(new RegExp(`href="([^"]*${path}[^"]*)"`));

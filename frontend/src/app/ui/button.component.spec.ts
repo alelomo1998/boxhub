@@ -84,6 +84,37 @@ describe('ButtonComponent', () => {
     expect(btn().querySelector('.spin')).not.toBeNull();
   });
 
+  it('the primary variant draws its focus ring inside the button, not outside it', () => {
+    // What this CAN prove: the primary variant's :focus-visible rule carries a different
+    // outline-offset geometry than the default rule (negative vs. positive) — the actual fix for
+    // the P1 bug, where a positive offset drew the ring outside the volt button, onto --ground,
+    // which shares --focus-inv's token value, making the ring invisible.
+    // What this CANNOT prove: that :focus-visible itself engages correctly on a real keyboard Tab
+    // in a real browser — Karma/ChromeHeadless doesn't reliably reproduce that interaction
+    // heuristic, so the visible-on-keyboard-focus claim is the manual browser check, not this test.
+    const rules: CSSStyleRule[] = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      let cssRules: CSSRuleList;
+      try { cssRules = sheet.cssRules; } catch { continue; }
+      for (const rule of Array.from(cssRules)) {
+        if (rule instanceof CSSStyleRule && rule.selectorText?.includes(':focus-visible')) rules.push(rule);
+      }
+    }
+
+    const primaryRule = rules.find(r => r.selectorText.includes('.primary'));
+    const defaultRule = rules.find(r => !r.selectorText.includes('.primary'));
+
+    expect(primaryRule).withContext('a .primary:focus-visible rule must exist').toBeDefined();
+    expect(defaultRule).withContext('a default :focus-visible rule must exist').toBeDefined();
+
+    const primaryOffset = primaryRule!.style.getPropertyValue('outline-offset').trim();
+    const defaultOffset = defaultRule!.style.getPropertyValue('outline-offset').trim();
+
+    expect(defaultOffset).toBe('2px');
+    expect(primaryOffset).withContext('primary must pull its ring inward, onto the volt surface itself').toBe('-2px');
+    expect(primaryOffset).not.toBe(defaultOffset);
+  });
+
   it('toggling loading back off restores the button', () => {
     f.componentInstance.l.set(true);
     f.detectChanges();
@@ -91,5 +122,94 @@ describe('ButtonComponent', () => {
     f.detectChanges();
     expect(btn().disabled).toBe(false);
     expect(btn().getAttribute('aria-busy')).toBe('false');
+  });
+});
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button href="/oauth2/authorization/google">Continue with Google</bh-button>`,
+})
+class LinkHost {}
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button>Log in</bh-button>`,
+})
+class PlainHost {}
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button testId="login-google" href="/oauth2/authorization/google">Google</bh-button>`,
+})
+class TestIdLinkHost {}
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button testId="save-btn">Save</bh-button>`,
+})
+class TestIdButtonHost {}
+
+describe('ButtonComponent as a link', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [LinkHost, PlainHost, TestIdLinkHost, TestIdButtonHost],
+    }).compileComponents();
+  });
+
+  it('renders an anchor with a real href when href is set', () => {
+    const f = TestBed.createComponent(LinkHost);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a).toBeTruthy();
+    expect(a.getAttribute('href')).toBe('/oauth2/authorization/google');
+    expect(f.nativeElement.querySelector('button')).toBeNull();
+    // Same visual contract as the button it replaces.
+    expect(a.className).toContain('btn');
+  });
+
+  it('projects its content in BOTH modes', () => {
+    // <ng-content> projects once, statically. Two @if branches each containing their own
+    // <ng-content> silently leaves one of them empty. This assertion is the reason the template
+    // declares it once in an <ng-template>.
+    const link = TestBed.createComponent(LinkHost);
+    link.detectChanges();
+    expect(link.nativeElement.textContent).toContain('Continue with Google');
+
+    const plain = TestBed.createComponent(PlainHost);
+    plain.detectChanges();
+    expect(plain.nativeElement.textContent).toContain('Log in');
+  });
+
+  it('still renders a button when href is unset', () => {
+    const f = TestBed.createComponent(PlainHost);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('button')).toBeTruthy();
+    expect(f.nativeElement.querySelector('a')).toBeNull();
+  });
+
+  it('puts testId on the inner anchor, never the host, in link mode', () => {
+    const f = TestBed.createComponent(TestIdLinkHost);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a.getAttribute('data-testid')).toBe('login-google');
+    // An attribute written on a component's host does not reach the element inside it — the
+    // failure this fixes (CLAUDE.md, four prior fixes on bh-field/bh-select/bh-data-table).
+    expect(f.nativeElement.getAttribute('data-testid')).toBeNull();
+  });
+
+  it('puts testId on the inner button, never the host, in button mode, and omits it when unset', () => {
+    const f = TestBed.createComponent(TestIdButtonHost);
+    f.detectChanges();
+    const btn: HTMLButtonElement = f.nativeElement.querySelector('button');
+    expect(btn.getAttribute('data-testid')).toBe('save-btn');
+    expect(f.nativeElement.getAttribute('data-testid')).toBeNull();
+
+    const plain = TestBed.createComponent(PlainHost);
+    plain.detectChanges();
+    expect(plain.nativeElement.querySelector('button').getAttribute('data-testid')).toBeNull();
   });
 });

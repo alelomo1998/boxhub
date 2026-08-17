@@ -32,7 +32,9 @@ let seq = 0;
     .in { flex: 1; min-width: 0; background: none; border: none; color: var(--bone);
       font-family: var(--font-body); font-size: var(--fs-body); min-height: var(--tap); }
     .in:focus { outline: none; } /* the ring is on .sb, so the control reads as one thing */
-    .in::placeholder { color: var(--faint); }
+    /* --faint on --surface-2 measures 4.27:1, under AA's 4.5:1 floor — --bone-dim clears it
+       (7.18:1) and stays visually secondary to entered text (--bone, 14.46:1). */
+    .in::placeholder { color: var(--bone-dim); }
     /* A visible label above a search field costs a line and buys nothing; the placeholder is not
        an accessible name, so the real label is present and visually hidden. */
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);

@@ -92,6 +92,15 @@ class AccountApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void aShortNewPasswordIsRejectedWithTheSpecificCodeNotAGenericValidationFailure() throws Exception {
+        mvc.perform(patch("/api/me/password").with(csrf()).cookie(at).contentType(APPLICATION_JSON).content("""
+                        {"currentPassword":"correct-horse-battery","newPassword":"short"}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("PASSWORD_TOO_SHORT"));
+    }
+
+    @Test
     void anEmailChangeTakesEffectOnlyAfterTheNEWAddressConfirms() throws Exception {
         String oldEmail = user.getEmail();
         String newEmail = "moved-" + System.nanoTime() + "@t.io";

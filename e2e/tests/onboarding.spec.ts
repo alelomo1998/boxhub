@@ -36,7 +36,12 @@ async function mailLinkTo(email: string, path: string, timeoutMs = 20000): Promi
  * real <button> inside. Clicking the host can land in empty space and submit nothing. Always
  * click the inner native button — see auth.spec.ts for the same note.
  */
-const btn = (testId: string) => `[data-testid="${testId}"] button`;
+// Matches BOTH testid placements. Pre-M13d screens put data-testid on the <bh-button> HOST
+// with the real <button> inside; rebuilt screens pass bh-button's testId input, which lands
+// it ON the button. Playwright accepts a descendant as the hit target, so the plain selector
+// Both branches target the real <button>: the first matches a rebuilt screen, the second a
+// legacy one. Exactly one matches per call, so Playwright strict mode stays happy.
+const btn = (testId: string) => `button[data-testid="${testId}"], [data-testid="${testId}"] button`;
 
 // Serial: shares the one seeded backend stack with every other spec (workers: 1). Fresh
 // addresses per run so a rerun never collides with a previous run's leftovers.
@@ -80,13 +85,11 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     const link = await mailLinkTo(OWNER_EMAIL, '/auth/verify');
     // Absolute link straight from the mail — a real user clicks exactly this, no rewriting.
     await page.goto(link);
-    await page.waitForURL(url => !url.pathname.startsWith('/app/auth/verify'));
 
-    // Verify doesn't select a box (see box-picker.page.ts / login.page.ts — that's a UI-flow
-    // step, not something bootstrap does automatically), so pick it explicitly like a real
-    // user would from the box picker.
-    await page.goto('/app/auth/boxes');
-    await page.locator('.box', { hasText: BOX_NAME }).click();
+    // The owner has exactly one membership — the box they just created — so verify's
+    // auto-select (M8 fix, shipped M13d) mints the box token itself and lands them
+    // straight on /admin. No manual box-picker step, unlike a multi-membership user
+    // (who still lands on /app/auth/boxes to choose).
     await expect(page).toHaveURL(/\/admin/);
 
     await expect(page.getByTestId('pending-banner')).toBeVisible();

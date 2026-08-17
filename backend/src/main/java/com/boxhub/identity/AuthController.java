@@ -63,7 +63,7 @@ public class AuthController {
      * that logger) keeps it safe wherever it gets printed.
      */
     record RegisterRequest(@NotBlank @Email String email,
-                           @NotBlank @Size(min = 10, max = 100) String password,
+                           @NotBlank @Size(max = 100) String password,
                            @NotBlank @Size(max = 100) String name,
                            String inviteToken) {
         @Override public String toString() {
@@ -134,7 +134,7 @@ public class AuthController {
     record SignupBoxRequest(@NotBlank @Size(max = 80) String boxName,
                             @NotBlank @Size(max = 100) String name,
                             @NotBlank @Email String email,
-                            @NotBlank @Size(min = 10, max = 100) String password) {
+                            @NotBlank @Size(max = 100) String password) {
         @Override public String toString() {
             return "SignupBoxRequest[boxName=" + boxName + ", name=" + name + ", email=" + email + ", password=***]";
         }
@@ -145,8 +145,9 @@ public class AuthController {
     record SignupModeResponse(boolean open) {}
 
     @PostMapping("/signup-box")
-    public ResponseEntity<?> signupBox(@Valid @RequestBody SignupBoxRequest req) {
-        var outcome = boxSignup.signup(req.boxName(), req.name(), req.email(), req.password());
+    public ResponseEntity<?> signupBox(@Valid @RequestBody SignupBoxRequest req, HttpServletRequest http) {
+        var outcome = boxSignup.signup(req.boxName(), req.name(), req.email(), req.password(),
+                primaryLanguageTag(http.getHeader(HttpHeaders.ACCEPT_LANGUAGE)));
         if (outcome.full()) return ResponseEntity.ok(new FullResponse(true));
         // Body from the request only — echoing anything persisted is an enumeration oracle (M8 T5).
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -188,7 +189,7 @@ public class AuthController {
                 .ifPresent(authService::sendVerification);
     }
 
-    record ResetRequest(@NotBlank String token, @NotBlank @Size(min = 10, max = 100) String password) {
+    record ResetRequest(@NotBlank String token, @NotBlank @Size(max = 100) String password) {
         @Override public String toString() { return "ResetRequest[token=***, password=***]"; }
     }
 

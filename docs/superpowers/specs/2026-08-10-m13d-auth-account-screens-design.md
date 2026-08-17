@@ -128,6 +128,50 @@ have never shown one.
 which is exactly where it already lives. Behaviour is unchanged; only the mechanism supplying the
 attribute changes hands.
 
+### 4.2 `(ngSubmit)` DIES WITH `FormsModule` — corrected 2026-08-11, after it shipped broken
+
+**This section is a correction to §4 above, and it is the most expensive error in this milestone.**
+
+§4.1 spotted that `NgForm` supplies `novalidate` and missed that **`NgForm` also supplies
+`(ngSubmit)`** — it is an *output of that directive*, not a DOM event. A form with no `FormsModule`
+import has no `NgForm`, so `(ngSubmit)` binds to an event the browser never fires, Angular never
+intercepts the submit, and **the browser performs a native `GET` with every field in the query
+string.**
+
+On login that meant the button did not log anyone in, and **the password was written into the URL** —
+therefore into browser history, server access logs and `Referer` headers.
+
+**The contract, corrected. Every form in M13d and in M14–M18 uses this:**
+
+```html
+<form (submit)="submit($event)" novalidate>
+```
+```ts
+submit(event?: Event) {
+  event?.preventDefault();
+  …
+}
+```
+
+Keep `novalidate` (§4.1 still holds). Do **not** re-import `FormsModule` to make `(ngSubmit)` work —
+that reverses the §4 decision and drags `ngModel` back with it.
+
+**How it reached `main`, stated so the lesson is not lost:**
+
+1. **The spec was wrong**, and every screen would have inherited it.
+2. **272 green Karma specs did not see it.** `login.page.spec.ts` called `cmp.submit()` *directly*,
+   six times, and never dispatched a real DOM submit — so it tested the handler, never the wiring.
+3. **e2e would have caught it instantly** — `login.spec.ts` fills the form, clicks
+   `button[type="submit"]` and waits for the URL to leave `/auth/login`. It was not run after the
+   rebuild, because Task 8's brief told the executor not to and the orchestrator did not run it
+   either.
+4. **The design critique found it**, on the live screen, by clicking the button — which is the
+   entire argument for running `/impeccable critique` per screen rather than once at the end.
+
+**Binding consequence:** every screen task from Task 9 on ends with an **e2e run**, not just Karma
+and the build. A form spec that never dispatches a real submit event does not count as coverage of
+the submit path.
+
 ---
 
 ## 5. Component changes

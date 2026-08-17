@@ -63,11 +63,12 @@ class RegistrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void shortPasswordIs400() throws Exception {
+    void shortPasswordIsRejectedWithTheSpecificCodeNotAGenericValidationFailure() throws Exception {
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(APPLICATION_JSON).content("""
                 {"email":"weak@test.io","password":"short","name":"Weak"}
                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("PASSWORD_TOO_SHORT"));
     }
 
     @Test

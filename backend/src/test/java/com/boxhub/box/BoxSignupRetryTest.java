@@ -46,18 +46,18 @@ class BoxSignupRetryTest {
         when(boxes.existsBySlug(anyString())).thenReturn(false);
         when(encoder.encode(anyString())).thenReturn("hash");
         // every attempt collides, and the email never resolves — the pathological pure-slug race
-        when(tx.createOwnerAndBox(any(), any(), any(), any(), any(), any()))
+        when(tx.createOwnerAndBox(any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("boxes_slug_key"));
         when(users.findByEmail(anyString())).thenReturn(Optional.empty());
 
         BoxSignupService service = new BoxSignupService(
                 authService, users, boxes, waitlist, settings, policy, encoder, tx, subscriptionService);
 
-        assertThatThrownBy(() -> service.signup("Iron Temple", "Owner", "o@t.io", "correct-horse-battery"))
+        assertThatThrownBy(() -> service.signup("Iron Temple", "Owner", "o@t.io", "correct-horse-battery", null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("SIGNUP_RETRY");
 
-        verify(tx, times(3)).createOwnerAndBox(any(), any(), any(), any(), any(), any());
+        verify(tx, times(3)).createOwnerAndBox(any(), any(), any(), any(), any(), any(), any());
         verify(authService, never()).sendVerification(any());
     }
 
@@ -78,7 +78,7 @@ class BoxSignupRetryTest {
         when(boxes.countByStatusIn(List.of("ACTIVE", "PENDING"))).thenReturn(0L);
         when(boxes.existsBySlug(anyString())).thenReturn(false);
         when(encoder.encode(anyString())).thenReturn("hash");
-        when(tx.createOwnerAndBox(any(), any(), any(), any(), any(), any()))
+        when(tx.createOwnerAndBox(any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("users_email_key"));
         var owner = new com.boxhub.identity.User();
         when(users.findByEmail("o@t.io")).thenReturn(Optional.of(owner));
@@ -86,10 +86,10 @@ class BoxSignupRetryTest {
         BoxSignupService service = new BoxSignupService(
                 authService, users, boxes, waitlist, settings, policy, encoder, tx, subscriptionService);
 
-        var outcome = service.signup("Iron Temple", "Owner", "o@t.io", "correct-horse-battery");
+        var outcome = service.signup("Iron Temple", "Owner", "o@t.io", "correct-horse-battery", null);
 
         assertThat(outcome.full()).isFalse();
-        verify(tx, times(1)).createOwnerAndBox(any(), any(), any(), any(), any(), any());
+        verify(tx, times(1)).createOwnerAndBox(any(), any(), any(), any(), any(), any(), any());
         verify(authService).notifyTakenEmailAttempt(owner);
         verify(authService, never()).sendVerification(any());
     }
