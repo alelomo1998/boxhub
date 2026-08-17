@@ -90,6 +90,8 @@ const SCREENS: Array<{
   path: string;
   widths: Array<{ width: number; height: number }>;
   ready: (page: Page) => Promise<unknown>;
+  /** Task 12: the four account sections need a session; every other screen here is logged-out. */
+  needsLogin?: boolean;
 }> = [
   // Split screens (brand panel + form, >=720px only) — audited at BOTH widths, or a single-width
   // audit would never exercise one of the two layouts bh-auth-layout renders.
@@ -135,6 +137,40 @@ const SCREENS: Array<{
     name: 'account-email', path: '/app/account/email?token=nope', widths: [MOBILE],
     ready: page => expect(page.locator('[data-testid="email-confirm-error"]')).toBeVisible(),
   },
+
+  // Task 12: the four account sections. Unlike the screens above these need a session (login()
+  // below, before goto) — the account area deliberately doesn't require an active box, so the
+  // seeded admin@demo.io is fine. Audited at BOTH widths (no split layout here, but the brief
+  // calls for both explicitly).
+  {
+    // passwordGoogleOnly is only known after a failed 409 — the form always renders first, and
+    // admin@demo.io is a local-auth (non-Google) seeded account, so the form is the state reached.
+    name: 'account-password', path: '/app/account/password', widths: [MOBILE, SCREEN_DESKTOP],
+    ready: page => expect(page.locator('[data-testid="password-form"]')).toBeVisible(),
+    needsLogin: true,
+  },
+  {
+    name: 'account-change-email', path: '/app/account/change-email', widths: [MOBILE, SCREEN_DESKTOP],
+    ready: page => expect(page.locator('[data-testid="email-form"]')).toBeVisible(),
+    needsLogin: true,
+  },
+  {
+    // sessions.page.ts starts in a 'loading' skeleton state; sessions-list only renders once state
+    // flips to 'ready' AND at least one session came back. login() just created the current
+    // session via a real request, so the list is non-empty — same proof-of-non-vacuity as
+    // box-picker's "at least one membership row" below.
+    name: 'account-sessions', path: '/app/account/sessions', widths: [MOBILE, SCREEN_DESKTOP],
+    ready: page => expect(page.locator('[data-testid="sessions-list"]')).toBeVisible(),
+    needsLogin: true,
+  },
+  {
+    // Both sections (export, delete) render unconditionally — the delete-confirm sheet is closed
+    // by default, so its contents (delete-explain, delete-confirm-text, etc.) are excluded here on
+    // purpose: they don't exist in the DOM until openDelete() runs, and are not this task's scope.
+    name: 'account-danger', path: '/app/account/danger', widths: [MOBILE, SCREEN_DESKTOP],
+    ready: page => expect(page.locator('[data-testid="delete-open"]')).toBeVisible(),
+    needsLogin: true,
+  },
 ];
 
 for (const screen of SCREENS) {
@@ -142,6 +178,7 @@ for (const screen of SCREENS) {
     const widthName = vp.width === MOBILE.width ? 'mobile' : 'desktop';
     test(`${screen.name} (${widthName}) has zero WCAG 2.2 AA violations`, async ({ page }) => {
       await page.setViewportSize(vp);
+      if (screen.needsLogin) await login(page, 'admin@demo.io');
       await page.goto(screen.path);
       await screen.ready(page);
 
