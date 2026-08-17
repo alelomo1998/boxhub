@@ -77,14 +77,16 @@ describe('SessionsPage', () => {
     const fixture = setup([
       { id: 's1', device: 'Mac', ip: '1.1.1.1', lastSeen: new Date().toISOString(), current: false },
     ]);
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate');
+
     fixture.componentInstance.revoke({ id: 's1', current: false } as AccountSession);
     http.expectOne('/api/auth/sessions/s1').flush(null);
     http.expectOne('/api/auth/sessions').flush([]);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.revokingId()).toBeNull();
-    const router = TestBed.inject(Router);
-    expect(router.url).not.toBe('/auth/login');
+    expect(navSpy).not.toHaveBeenCalled();
   });
 
   it('revoking the current row clears auth state and navigates to login instead of reloading', () => {
