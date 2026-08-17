@@ -20,10 +20,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   template: `
     <h1 class="t-h3" i18n="@@account.email.heading">Email</h1>
 
-    <!-- Above the form (not pre-button like Password's disclosure): this explains how the whole
-         flow works, so it needs reading before typing, not a per-click consequence. -->
-    <p class="framing" i18n="@@account.email.framing">This changes only after the new address confirms it — click the link we send there. Your current email keeps working until then.</p>
-
     @if (googleOnly()) {
       <p class="muted" data-testid="email-google-only">
         <span i18n="@@account.email.googleOnly">You sign in with Google. To add a password, use</span>
@@ -31,6 +27,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       </p>
     } @else {
       <form class="form" (submit)="submit($event)" novalidate data-testid="email-form">
+        <!-- Above the fields (not pre-button like Password's disclosure): this explains how the
+             whole flow works, so it needs reading before typing, not a per-click consequence. -->
+        <p class="framing" i18n="@@account.email.framing">This changes only after the new address confirms it — click the link we send there. Your current email keeps working until then.</p>
+
         <bh-field label="NEW EMAIL" i18n-label="@@account.email.new.label" type="email"
                    name="newEmail" autocomplete="email" [required]="true"
                    [(value)]="newEmail" (valueChange)="newEmailError.set('')"
