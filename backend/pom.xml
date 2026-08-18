@@ -25,11 +25,19 @@
           accepts a server that skips SCRAM channel binding, so a MITM can downgrade it away.
         jackson-databind 2.21.4 -> 2.21.5: GHSA-5gvw-p9qm-jgwh, GHSA-mhm7-754m-9p8w (both 6.5,
           @JsonView bypasses) and GHSA-5jmj-h7xm-6q6v (5.3, case-insensitive deserialization).
+        log4j-api 2.24.3 -> 2.25.5: GHSA-qv9r-c865-cp47 (MODERATE) — non-finite floats are
+          improperly encoded during MapMessage JSON serialization. NOT reachable here: this app
+          logs through Logback, log4j-api arrives only under log4j-to-slf4j (Boot's bridge to
+          SLF4J), log4j-core is not on the classpath at all, and nothing in src/ touches log4j or
+          MapMessage. Pinned rather than ignored because the bump is a same-line patch on an API
+          jar with no core to be incompatible with, and a green gate people trust beats an
+          ignore entry people stop reading.
       There is deliberately NO tomcat/thymeleaf override: 3.4.13 needed one, 3.5.16 already
       manages the fixed versions, so re-pinning them would be exactly the stale config above.
     -->
     <postgresql.version>42.7.12</postgresql.version>
     <jackson-bom.version>2.21.5</jackson-bom.version>
+    <log4j2.version>2.25.5</log4j2.version>
   </properties>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
