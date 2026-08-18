@@ -1,95 +1,101 @@
-# Next session — rework the roadmap
-
-Paste the block below into a fresh session. Everything it references is committed and on `main`.
-
----
-
 Continue rxed at `~/dev/boxhub`. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker
 Compose behind nginx, GitHub `alelomo1998/boxhub` private.
 
-**This session is not a build session. I want to rework the milestone plan** — change some
-milestones, add new ones, and restructure the programme. Do not start implementing anything.
+**This IS a build session.** The milestone is **M14a — class & programming model**. It is specced,
+planned and approved. Execute the plan; do not re-brainstorm it, and do not re-open decisions the spec
+already records with reasons.
 
-**Start with `superpowers:brainstorming`.** This is architectural: it changes how the remaining work
-is decomposed and what depends on what. Ask me questions one at a time, propose options, and do not
-write a plan until I have approved the shape. When we get to writing, the output is a **revised
-roadmap document**, and only then individual milestone specs.
+## Do this before anything else
 
-## Read before you ask me anything
+**Merge `worktree-v3-roadmap` into `main`.** It is docs-only — four commits, no code — and it holds the
+v3 roadmap, the M14a spec and the M14a plan. If you skip this, the plan you execute is not the plan on
+`main`, and the next session inherits the divergence.
 
-1. **`docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`** — the current programme, and
-   the thing being reworked. Read all of it, including **"Boundaries that were decided, and are
-   binding"** and **"Out of scope for the whole program"**. Some of those boundaries are the reason
-   the current shape exists; I may want to overturn some, and you should be able to tell me what
-   each one was protecting before I do.
-2. **`docs/HANDOFF.md`** — what is actually built and merged, and the current milestone order.
-3. **`.superpowers/sdd/progress.md`** — the per-milestone record. The M13d and M13e sections at the
-   bottom are the most recent and the most useful.
-4. **`docs/BACKLOG.md`** — organised by destination. A roadmap rework is largely a question of what
-   comes out of here and into a milestone.
-5. `CLAUDE.md` — the operating rules. They are binding on any plan you propose.
+## Read before you touch code
 
-## Where the product actually is
+1. **`docs/superpowers/plans/2026-08-18-m14a-class-programming-model.md`** — the plan you are
+   executing. Eleven tasks, three migrations, real SQL and real test code per task.
+2. **`docs/superpowers/specs/2026-08-18-m14a-class-programming-model-design.md`** — the spec the plan
+   argues from. **Twelve decisions, each recorded with its reason.** The reasons matter: several
+   decisions look arbitrary until you read what the alternative broke. §3 lists what the milestone
+   deliberately does NOT model, and that list is binding — building any of it is scope leak.
+3. **`docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`** — the programme. Read at
+   least "The decisions this document rests on" and Phase 1, so you know why a backend-only milestone
+   with no screens exists at all.
+4. **`CLAUDE.md`** — binding, and it overrides anything here.
+5. **`docs/PREFLIGHT.md`** — read at its four stated moments. The single most repeated failure in this
+   project is writing a brief that lists the files a change **is** rather than the files that **depend
+   on it**. M14a deletes an entity used by nine files; grep for dependents first.
+6. **`docs/TENANCY.md`** — authority for `@TenantId`. The failure mode is a *wrong ambient tenant*, not
+   an absent one, and a genuinely tenant-less read fails **OPEN**.
 
-**Shipped and merged:** M0–M12 (auth, scheduling and booking, programming, tracking, UX overhaul,
-TV, class runner, accounts, onboarding, memberships and payments, security hardening, test/CI
-reliability, correctness, production readiness), then the rework programme's M13a (baseline: Angular
-22, `/app`, local HTTPS, i18n infrastructure), M13b (design language), M13c (component library),
-M13d (ten auth screens), M13e (the account area).
+## What M14a actually does
 
-**Gates on `main`:** Karma **408** · backend **439** · e2e **64 passed + 1 skipped** · axe **29
-cases, zero WCAG 2.2 AA violations** · visual **31 specs / 88 baselines** · production build clean.
-CI and dependency-scan both green. The 1 e2e skip is the quarantined TV/SSE defect — Project 2 owns
-it, do not investigate.
+Splits `class_templates` — which holds a class's identity and its weekly slot in one row — into
+`class_type` × `schedule_slot`. Gives a programming piece three independent axes (macro, timing, score)
+where `wod_type` was one flat list mixing two of them with no TABATA at all. Lets a class own its
+programming content by copying on attach, which is the root-cause fix for the filed unbounded-library-
+growth bug. And turns cancellation from `bookings.delete()` into a recorded fact.
 
-**Not yet built, per the current programme:** M14 (class model, schedule and programming schema),
-M15 (admin: people), M16 (admin: commerce), M17 (athlete), M18 (superadmin), M19 (landing site),
-M20 (2FA/TOTP), Project 2 (The Room), and Launch → Production.
+**Schema, entities and domain services only. No new endpoints, no new DTOs, no screens.** Controllers
+are edited exactly as far as required to keep the build and the suite green.
 
-**Current stated order:** M13d → M19 landing → M14 coach. M13e was inserted out of order because it
-was deferred out of M13d on review.
+## Traps specific to this milestone
 
-## Things worth knowing before proposing a new shape
+- **`AuthzConformanceTest` must pass with no edit to it.** This milestone adds no route. An edit to
+  that file means scope leaked — stop and escalate. Per `CLAUDE.md` the orchestrator, not an executor,
+  audits every edit to it.
+- **Task 4 is the one that looks mechanical and is not.** `ClassTemplateController` exposes a contract
+  that now spans two entities. The brief forbids redesigning it and tells the executor to stop and
+  escalate rather than invent API surface. Redesigning it is M14b's work.
+- **`schedule_slot.id` deliberately reuses `class_templates.id`** so existing `class_sessions` rows
+  need no remapping. Do not let anyone "fix" that into a `gen_random_uuid()`.
+- **Two tests guard failures that are invisible without them**, and both are specified in the plan with
+  their reasons. `was_late` must not move when a box changes its cutoff afterwards — otherwise the
+  late-cancel rate is not a fact but a function of today's settings. And a `CANCELLED` booking must not
+  block regeneration — otherwise accumulated cancels freeze a slot permanently, which nobody notices
+  for a month.
+- **Do not add a mail send to the waitlist promotion path.** It is silent today and that is a real
+  defect, but the notification strategy is M17's decision. Adding one here pre-empts it.
+- **Do not touch the runner's timer auto-arm.** Coach tour decision 9 puts it in Project 2. M14a
+  defines the segment shape; Project 2 consumes it. `ClassTimer.spec_json` is free-form text, so this
+  costs no migration.
+- **`time_cap_seconds` stays.** It has live consumers including `runner.page.ts:299-301`. M14c folds it
+  into `timing_json`.
+- **The 1 e2e skip is the quarantined TV/SSE defect.** Project 2 owns it. Do not investigate it.
 
-- **The coach tour spec is done** — `docs/superpowers/specs/2026-08-09-m14-coach-tour.md`. It was
-  the stated blocker on M14 and no longer blocks it. Ten decisions taken, six questions deliberately
-  left open to be asked at the screen.
-- **The design system is real and enforced.** Tokens, a component library with a dev gallery that is
-  its contract, 88 visual baselines, axe over 29 cases. Any new milestone that ships screens
-  inherits those gates and the per-screen cycle (shape → build → critique ≥28/40, no open P0/P1).
-- **Three open items from M13e** are filed in `docs/BACKLOG.md` and are candidates for a small
-  consolidation milestone: `bh-button` gained three inputs in one milestone (`ariaDisabled`,
-  `dangerBorder`, `solid`) and **8 of its 10 variant×flag combinations now emit a class with no
-  matching rule and fail silently**; the account area's cross-section consistency pass was skipped;
-  and the delete sheet has no axe coverage.
-- **Rough sizing from the two most recent milestones**, for estimating: M13d rebuilt ten screens
-  over 21 tasks; M13e built one area of four sections plus two backend changes over 15 tasks, with
-  two rounds of rework after review.
+## How to run the session
 
-## Two lessons that should shape how you plan, not just what
+- **ALWAYS subagent** (binding, `CLAUDE.md`). The orchestrator dispatches, reviews every diff, runs the
+  gates, commits and merges. It implements only genuinely difficult or delicate work and trivial glue.
+- Executors are Sonnet subagents, one per plan task, each with a self-contained brief. **Executors
+  never guess** — blocked, ambiguous, or plan-conflicts-with-reality goes back to the orchestrator.
+  Roughly half the briefs written in a recent session contained a factual error, and every one was
+  caught because briefs tell executors to stop rather than improvise.
+- **A stop-rule must name what it forbids.** "Do not tune" once made an executor retire a test whose
+  fix was one line.
+- Build env: `export JAVA_HOME=/opt/homebrew/opt/openjdk@21`. The system JDK is 26 and is too new.
+- **Check the CI run after every push. A local green is not the gate.**
 
-**1. Shape the container, not only the contents.** M13e shaped its four sections but never its own
-navigation and chrome — and every defect the user rejected on sight came from that gap, including a
-spec rule that structurally contradicted the design the same spec promised. If a milestone
-introduces navigation, a shell, or a way of moving between things, that is a design object in its
-own right and needs its own shaping, with sketches the user can *see*.
+## Gates to hit before the milestone closes
 
-**2. A code review does not discharge the design gate.** M13e passed fourteen code reviews and a
-clean whole-branch review and was declared ready to merge without `/impeccable critique` ever being
-run. The critique then found three P1s no test caught, because all three were invisible from source.
-Any milestone you propose that ships screens must budget for the critique explicitly, not assume
-reviews cover it.
+Karma **408** · backend **439 + whatever M14a adds** · e2e **64 passed + 1 skipped** on a rebuilt
+`down -v` stack · axe **29 cases, zero violations** · visual **31 specs / 88 baselines** · production
+build clean. Frontend gates should be unchanged — if a frontend number moves, something leaked out of
+scope, so find out what before accepting it.
 
-## How I want this session to run
+## Two open items that are not yours to decide
 
-- **Questions one at a time.** Multiple choice where it fits.
-- **Tell me what each existing boundary was protecting** before I overturn it. Some are load-bearing
-  (`every route has exactly one milestone` exists because a first draft left seven unassigned,
-  including two hero screens).
-- **Say plainly when a proposed milestone is too big**, and where it splits. The current programme
-  already learned this once: M13 became M13a–M13e.
-- Out-of-scope ideas go to `docs/BACKLOG.md`, one line, not into the plan.
-- When the shape is agreed, write the revised roadmap to
-  `docs/superpowers/specs/YYYY-MM-DD-v3-roadmap-<topic>.md`, and **retire the v2 document
-  explicitly** rather than leaving two live roadmaps — the v2 doc has its own "Why the old numbering
-  is retired" section, and the next one needs the same.
+- **Dependabot PR #22** (`actions/setup-java` 5 → 5.6.0) has been open since 2026-08-01. Separately,
+  `dependency-scan` has been red on `main` since 2026-08-17 on a newly-published advisory against an
+  unchanged dependency — read the advisory before reaching for `osv-scanner.toml`.
+- **`oc/m19-landing` is checked out in a second worktree at `~/dev/boxhub-oc`**, carrying landing-site
+  work including e2e specs. The v3 roadmap places M19 in Phase 5. If that work is live, M19's position
+  needs revisiting — ask the user rather than assuming either way.
+
+## After M14a
+
+M14b (schedule & classes surfaces) and M14c (the builder) are next in Phase 2, but **M13f consolidation
+opens that phase** — `bh-button`'s silently-broken variant matrix and the gallery's scroll-coupled
+baselines are paid by every screen milestone that follows. Both need their own brainstorm → spec → plan
+cycle. The v3 roadmap has their scope.

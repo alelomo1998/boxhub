@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-06. Read this first, then the authoritative docs it points to. Everything here is current as of `main`.
+**Updated:** 2026-08-18. Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -133,6 +133,32 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
   **Tests:** backend **428** (untouched — no backend change, no Flyway, next is still V19) ·
   frontend **245** · e2e **35 passed + 1 skipped** (28 + 7 axe) · visual **54 baselines** ·
   production build clean with **zero** budget warnings.
+
+- **M13d auth & account screens (2026-08-11)** — ten screens rebuilt as the component library's first
+  real consumer, over 21 tasks. Bought two binding rules now in `CLAUDE.md`: **`(ngSubmit)` dies with
+  `FormsModule`** (it is an output of the `NgForm` directive, so a rebuilt screen must bind the native
+  `(submit)` — this shipped broken on login, where the button never authenticated and **the password
+  went into the URL**, past 272 green Karma specs), and **a disabled button guards one path, never the
+  action** (Enter submits regardless, and a native `disabled` drops the control out of the a11y tree,
+  sending focus to `<body>`).
+
+- **M13e the account area (2026-08-17)** — `/account` as a routed area behind a session-only guard:
+  password, change-email, sessions, danger. Lateral nav at desktop, list → detail on phone. One backend
+  feature (a notification mail after a password change), one backend parser (readable device labels),
+  three additive `bh-button` inputs.
+
+  **Its two lessons are now boundaries in the v3 roadmap, because they are the same shape twice.**
+  (1) *Shape the container, not only the contents* — the four sections were shaped, the area's own
+  navigation and chrome never were, and every defect the user rejected on sight came from that gap,
+  including a spec rule that structurally contradicted the design the same spec promised. (2) *A code
+  review does not discharge the design gate* — fourteen code reviews and a clean whole-branch review
+  passed, the milestone was declared ready to merge, and `/impeccable critique` had never run. It then
+  found three P1s no test caught, all invisible from source and only visible by driving live screens.
+
+  **Left behind, and now owned by M13f:** `bh-button` gained three inputs in one milestone and **8 of
+  its 10 variant × flag combinations emit a class with no matching rule and fail silently**; the
+  cross-section consistency pass was never executed; the delete sheet has no axe coverage; and the dev
+  gallery's sections are coupled through scroll position, so one edit dirtied 54 unrelated baselines.
 
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
@@ -282,7 +308,37 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13c is MERGED and PUSHED.** `main` is at `1e4ad1b`. Nothing is in flight; no branch is open.
+**M13a–M13e are all merged. The next milestone is M14a, and it is specced and planned but NOT built.**
+
+**There is an open branch: `worktree-v3-roadmap`.** It is docs-only — four commits, no code — and it
+holds the v3 roadmap, the M14a spec, and the M14a implementation plan. **Merge it before starting
+work**, or the plan you execute is not the plan on `main`.
+
+**The roadmap changed shape on 2026-08-18.** `docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`
+supersedes v2 in full; the v2 document carries a retirement banner. Four product pillars were added and
+all four land **before** the beta: multi-box + discovery, workout-scoped social, coach personal
+reservation, and native iOS/Android via Capacitor. The programme is now five phases — backend
+foundations, athlete/coach frontend, an analytics brief, admin frontend, then the rest — followed by the
+beta, then Project 2, then v1.0. **Milestone numbering was deliberately NOT retired**: M14–M20 keep
+their labels so `docs/BACKLOG.md`'s destination entries stay valid. New numbers are M13f and M21–M27.
+
+**Four boundaries are overturned** and the v3 document records what each protected: "M14 carries every
+schema change", "no Stripe Connect, rxed never touches funds", "the first VPS deploy happens when
+Project 1 is complete", and v1's "pilot = the launch, not a learning exercise".
+
+**The production deploy is unscheduled and user-triggered.** It is not a phase. The readiness list is
+in the v3 document; `deploy/deploy.sh` still has never successfully run.
+
+**Two things left deliberately untouched, both needing a decision:** dependabot PR **#22**
+(`actions/setup-java` 5 → 5.6.0) has been open since 2026-08-01, and **`oc/m19-landing` is checked out
+in a second worktree at `~/dev/boxhub-oc`** carrying landing-site work — including e2e specs — that the
+v3 roadmap places in Phase 5. If that work is live, M19's position needs revisiting.
+
+**Next Flyway is V19.** The M14a plan claims V19, V20 and V21 in that order.
+
+**Gates on `main` as of M13e:** Karma **408** · backend **439** · e2e **64 passed + 1 skipped** · axe
+**29 cases, zero WCAG 2.2 AA violations** · visual **31 specs / 88 baselines** · production build clean.
+**The 1 e2e skip is the quarantined TV/SSE defect. Project 2 owns it — do not investigate it.**
 
 **CI is GREEN on both workflows** — first time since before M13a. `main` was RED at `70a7565`
 (both `ci` and `dependency-scan` failed on 2026-08-06) and is green now, so three milestones of
