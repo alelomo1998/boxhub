@@ -13,7 +13,7 @@ public class ClassSession {
     @TenantId
     @Column(name = "box_id", nullable = false)
     private UUID boxId;
-    @Column(name = "template_id") private UUID templateId;
+    @Column(name = "schedule_slot_id") private UUID scheduleSlotId;
     @Column(nullable = false) private String name;
     @Column(name = "start_at", nullable = false) private Instant startAt;
     @Column(name = "duration_min", nullable = false) private int durationMin;
@@ -24,8 +24,8 @@ public class ClassSession {
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
-    public UUID getTemplateId() { return templateId; }
-    public void setTemplateId(UUID templateId) { this.templateId = templateId; }
+    public UUID getScheduleSlotId() { return scheduleSlotId; }
+    public void setScheduleSlotId(UUID scheduleSlotId) { this.scheduleSlotId = scheduleSlotId; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public Instant getStartAt() { return startAt; }

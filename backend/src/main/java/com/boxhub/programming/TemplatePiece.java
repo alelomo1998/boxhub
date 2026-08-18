@@ -13,15 +13,15 @@ public class TemplatePiece {
     @TenantId
     @Column(name = "box_id", nullable = false)
     private UUID boxId;
-    @Column(name = "template_id", nullable = false) private UUID templateId;
+    @Column(name = "class_type_id", nullable = false) private UUID classTypeId;
     @Column(name = "sort_order", nullable = false) private int sortOrder;
     @Column(nullable = false) private String label;
     @Column(name = "wod_type", nullable = false) private String wodType;
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
-    public UUID getTemplateId() { return templateId; }
-    public void setTemplateId(UUID templateId) { this.templateId = templateId; }
+    public UUID getClassTypeId() { return classTypeId; }
+    public void setClassTypeId(UUID classTypeId) { this.classTypeId = classTypeId; }
     public int getSortOrder() { return sortOrder; }
     public void setSortOrder(int sortOrder) { this.sortOrder = sortOrder; }
     public String getLabel() { return label; }
