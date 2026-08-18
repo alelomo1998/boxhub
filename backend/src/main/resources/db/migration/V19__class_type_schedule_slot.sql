@@ -49,13 +49,20 @@ alter table template_piece drop column template_id;
 
 -- Merging same-named templates merges their skeletons too, and the pre-M14a seeder keyed its
 -- "already seeded" check off the per-row template id — so a class that ran seven days a week
--- accumulated seven identical skeletons that now collide on the constraint below. They are copies
--- of one skeleton, so keep the first of each (box, type, sort_order) and drop the rest.
-delete from template_piece tp
-where tp.ctid <> (select min(keep.ctid) from template_piece keep
-                  where keep.box_id = tp.box_id
-                    and keep.class_type_id = tp.class_type_id
-                    and keep.sort_order = tp.sort_order);
+-- accumulated seven identical skeletons that now collide on the constraint below. They are assumed
+-- to be copies of one skeleton, so this keeps the first of each (box, type, sort_order) and drops the
+-- rest — but that assumption isn't verified, so report what was dropped rather than dropping silently.
+do $$
+declare dropped int;
+begin
+    delete from template_piece tp
+    where tp.ctid <> (select min(keep.ctid) from template_piece keep
+                      where keep.box_id = tp.box_id
+                        and keep.class_type_id = tp.class_type_id
+                        and keep.sort_order = tp.sort_order);
+    get diagnostics dropped = row_count;
+    raise notice 'V19: dropped % duplicate template_piece row(s) merging into (box_id, class_type_id, sort_order)', dropped;
+end $$;
 
 alter table template_piece add unique (box_id, class_type_id, sort_order);
 

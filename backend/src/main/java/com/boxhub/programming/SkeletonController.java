@@ -1,5 +1,6 @@
 package com.boxhub.programming;
 
+import com.boxhub.box.ClassTypeRepository;
 import com.boxhub.box.ScheduleSlot;
 import com.boxhub.box.ScheduleSlotRepository;
 import com.boxhub.shared.RoleGuard;
@@ -22,10 +23,12 @@ public class SkeletonController {
 
     private final TemplatePieceRepository pieces;
     private final ScheduleSlotRepository slots;
+    private final ClassTypeRepository types;
 
-    public SkeletonController(TemplatePieceRepository pieces, ScheduleSlotRepository slots) {
+    public SkeletonController(TemplatePieceRepository pieces, ScheduleSlotRepository slots, ClassTypeRepository types) {
         this.pieces = pieces;
         this.slots = slots;
+        this.types = types;
     }
 
     public record PieceDto(UUID id, int sortOrder, String label, String wodType) {}
@@ -51,6 +54,11 @@ public class SkeletonController {
     public List<PieceDto> put(@PathVariable UUID templateId, @Valid @RequestBody SkeletonRequest req) {
         RoleGuard.requireStaff();
         UUID classTypeId = classTypeId(templateId);
+        // The shipped frontend fans one PUT out per slot of a name group, all landing on this same
+        // class type — pessimistic lock serializes them so N concurrent saves become N identical
+        // successful writes instead of colliding on unique (box_id, class_type_id, sort_order).
+        // Mirrors ClassSessionRepository.findWithLockById / BookingService.book.
+        types.findWithLockById(classTypeId).orElseThrow(NoSuchElementException::new);
         for (PieceInput in : req.pieces()) {
             if (!PieceTypes.ALL.contains(in.wodType()))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown piece type");
