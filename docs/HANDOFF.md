@@ -399,7 +399,10 @@ a **readable device label** on the sessions list in place of a 150-character Use
 
 Gates at merge: Karma **408**, backend **439**, e2e **64 passed + 1 skipped**, axe **29 cases zero
 violations**, visual **31 specs over 88 baselines**, production build clean. Critique **35/40**,
-zero open P0/P1.
+zero open P0/P1. **CI and dependency-scan both green** — the scan had been red since 2026-08-17 from
+GHSA-qv9r-c865-cp47 against `log4j-api` 2.24.3, a transitive neither milestone touched; it was not
+reachable (Logback is the implementation, `log4j-core` is absent) and is now pinned to 2.25.5 with
+the reasoning and the drop-when-Boot-catches-up rule in `backend/pom.xml`.
 
 **Two process failures in M13e, both the same shape — running the ceremony on the parts and not the
 whole. Both are worth carrying into every later milestone:**

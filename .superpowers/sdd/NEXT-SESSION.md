@@ -25,11 +25,13 @@ There is no milestone in flight — the first thing to do is decide what the nex
 cases, zero WCAG 2.2 AA violations** · visual **31 specs / 88 baselines** · production build clean.
 The 1 e2e skip is the quarantined TV/SSE defect — Project 2 owns it, do not investigate.
 
-**`dependency-scan` has been red on `main` since 2026-08-17**, from a newly-published advisory
-against an unchanged backend dependency. It first failed on a *scheduled* run, before M13d merged.
-Not caused by either milestone. `osv-scanner.toml` is the documented place for findings that are
-real but deliberately non-blocking — read the advisory first and decide, do not reach for the
-ignore file by reflex.
+**CI and `dependency-scan` are both green on `main`.** The scan had been red since 2026-08-17 from
+a newly-published advisory (GHSA-qv9r-c865-cp47) against `log4j-api` 2.24.3, a transitive neither
+milestone touched. It was **not reachable** — this app logs through Logback, `log4j-api` arrives
+only under `log4j-to-slf4j`, and `log4j-core` is not on the classpath — but it was pinned to 2.25.5
+rather than ignored, because a same-line patch on an API jar is cheap and a green gate people trust
+beats an ignore entry people stop reading. `backend/pom.xml` carries the reasoning and the standing
+rule: **drop the override once Boot's managed version catches up**.
 
 ## Candidate next milestones
 
