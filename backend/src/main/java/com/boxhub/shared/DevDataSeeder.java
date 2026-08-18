@@ -8,8 +8,10 @@ import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
 import com.boxhub.box.ClassSession;
 import com.boxhub.box.ClassSessionRepository;
-import com.boxhub.box.ClassTemplate;
-import com.boxhub.box.ClassTemplateRepository;
+import com.boxhub.box.ClassType;
+import com.boxhub.box.ClassTypeRepository;
+import com.boxhub.box.ScheduleSlot;
+import com.boxhub.box.ScheduleSlotRepository;
 import com.boxhub.box.Plan;
 import com.boxhub.box.PlanRepository;
 import com.boxhub.box.SessionGenerator;
@@ -45,7 +47,8 @@ public class DevDataSeeder implements CommandLineRunner {
     private final BoxRepository boxes;
     private final MembershipRepository memberships;
     private final AuthService authService;
-    private final ClassTemplateRepository templates;
+    private final ClassTypeRepository types;
+    private final ScheduleSlotRepository slots;
     private final ClassSessionRepository sessions;
     private final SessionGenerator sessionGenerator;
     private final TemplatePieceRepository skeletons;
@@ -62,7 +65,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private final SubscriptionService subscriptionService;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
-                         ClassTemplateRepository templates, ClassSessionRepository sessions,
+                         ClassTypeRepository types, ScheduleSlotRepository slots, ClassSessionRepository sessions,
                          SessionGenerator sessionGenerator, TemplatePieceRepository skeletons,
                          SessionItemRepository items, WodRepository wods, MovementRepository movements,
                          WodScoreRepository wodScores, LiftEntryRepository liftEntries,
@@ -71,7 +74,8 @@ public class DevDataSeeder implements CommandLineRunner {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
-        this.templates = templates;
+        this.types = types;
+        this.slots = slots;
         this.sessions = sessions;
         this.sessionGenerator = sessionGenerator;
         this.skeletons = skeletons;
@@ -138,11 +142,11 @@ public class DevDataSeeder implements CommandLineRunner {
                     "WOD Class", new java.awt.Color(0x8a2f1a),
                     "Burn It", new java.awt.Color(0x1a5a52),
                     "Weekend Team WOD", new java.awt.Color(0x3a2f6b));
-            for (ClassTemplate t : templates.findByActiveTrue()) {
+            for (ClassType t : types.findAll()) {
                 if (t.getImagePath() != null) continue;
                 java.awt.Color c = classColors.getOrDefault(t.getName(), new java.awt.Color(0x444444));
                 String path = writePng(box.getId(), 640, 360, c, "cl-" + t.getId());
-                if (path != null) { t.setImagePath(path); templates.save(t); }
+                if (path != null) { t.setImagePath(path); types.save(t); }
             }
             java.awt.Color[] avatarColors = { new java.awt.Color(0xB0562F), new java.awt.Color(0x2F6BB0),
                     new java.awt.Color(0x5A8A3C), new java.awt.Color(0x8A3C7A) };
@@ -190,16 +194,22 @@ public class DevDataSeeder implements CommandLineRunner {
     /** Class types with skeletons + a weekly schedule; today's instances get published programming. */
     private void seedClassesAndProgramming(Box box, UUID coachId, UUID coach2Id) {
         runAsBox(box.getId(), () -> {
+            // one class type per name, with one slot per weekday it runs — a class that ran twice
+            // a week used to be two template rows; it is now one type with two slots.
+            UUID wodClassType = classType("WOD Class");
+            UUID burnItType = classType("Burn It");
+            UUID teamWodType = classType("Weekend Team WOD");
+
             // every day (incl. weekends) so a fresh box always has a WOD Class + Burn It today
             for (int weekday = 0; weekday <= 6; weekday++) {
-                template("WOD Class", weekday, LocalTime.of(18, 0), 14, coachId);
-                template("Burn It", weekday, LocalTime.of(19, 0), 12, coach2Id);
+                slot(wodClassType, weekday, LocalTime.of(18, 0), 14, coachId);
+                slot(burnItType, weekday, LocalTime.of(19, 0), 12, coach2Id);
             }
-            template("Weekend Team WOD", 5, LocalTime.of(10, 0), 20, coachId);
+            slot(teamWodType, 5, LocalTime.of(10, 0), 20, coachId);
 
-            // skeletons per type name
-            for (ClassTemplate t : templates.findByActiveTrue()) {
-                if (!skeletons.findByTemplateIdOrderBySortOrderAsc(t.getId()).isEmpty()) continue;
+            // skeletons per class type
+            for (ClassType t : types.findAll()) {
+                if (!skeletons.findByClassTypeIdOrderBySortOrderAsc(t.getId()).isEmpty()) continue;
                 if ("Burn It".equals(t.getName())) {
                     skeleton(t.getId(), 0, "Warm-up", "WARMUP");
                     skeleton(t.getId(), 1, "Engine circuit", "CIRCUIT");
@@ -392,20 +402,26 @@ public class DevDataSeeder implements CommandLineRunner {
         sessions.save(s);
     }
 
-    private void template(String name, int weekday, LocalTime start, int capacity, UUID coachId) {
-        ClassTemplate t = new ClassTemplate();
+    private UUID classType(String name) {
+        ClassType t = new ClassType();
         t.setName(name);
-        t.setWeekday(weekday);
-        t.setStartTime(start);
-        t.setDurationMin(60);
-        t.setCapacity(capacity);
-        t.setCoachId(coachId);
-        templates.save(t);
+        return types.save(t).getId();
     }
 
-    private void skeleton(UUID templateId, int sort, String label, String type) {
+    private void slot(UUID classTypeId, int weekday, LocalTime start, int capacity, UUID coachId) {
+        ScheduleSlot s = new ScheduleSlot();
+        s.setClassTypeId(classTypeId);
+        s.setWeekday(weekday);
+        s.setStartTime(start);
+        s.setDurationMin(60);
+        s.setCapacity(capacity);
+        s.setCoachId(coachId);
+        slots.save(s);
+    }
+
+    private void skeleton(UUID classTypeId, int sort, String label, String type) {
         TemplatePiece p = new TemplatePiece();
-        p.setTemplateId(templateId);
+        p.setClassTypeId(classTypeId);
         p.setSortOrder(sort);
         p.setLabel(label);
         p.setWodType(type);

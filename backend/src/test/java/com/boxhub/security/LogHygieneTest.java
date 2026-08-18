@@ -6,8 +6,10 @@ import ch.qos.logback.core.read.ListAppender;
 import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
-import com.boxhub.box.ClassTemplate;
-import com.boxhub.box.ClassTemplateRepository;
+import com.boxhub.box.ClassType;
+import com.boxhub.box.ClassTypeRepository;
+import com.boxhub.box.ScheduleSlot;
+import com.boxhub.box.ScheduleSlotRepository;
 import com.boxhub.box.Payment;
 import com.boxhub.box.PaymentRepository;
 import com.boxhub.box.Plan;
@@ -97,7 +99,8 @@ class LogHygieneTest extends AbstractIntegrationTest {
     @Autowired PlanRepository plans;
     @Autowired SubscriptionRepository subscriptions;
     @Autowired PaymentRepository payments;
-    @Autowired ClassTemplateRepository classTemplates;
+    @Autowired ClassTypeRepository classTypes;
+    @Autowired ScheduleSlotRepository scheduleSlots;
 
     private Logger root;
     private ListAppender<ILoggingEvent> captured;
@@ -155,17 +158,21 @@ class LogHygieneTest extends AbstractIntegrationTest {
         sub.setPriceCents(0);
         UUID subscriptionId = subscriptions.save(sub).getId();
 
-        // Gives step 7 something to serialize: ClassTemplate is @TenantId, so without a row here
-        // the listing comes back empty, TemplateDto.of never runs, and MediaSigner.sign() is
+        // Gives step 7 something to serialize: ClassType/ScheduleSlot are @TenantId, so without a row
+        // here the listing comes back empty, TemplateDto.of never runs, and MediaSigner.sign() is
         // never called inside the capture window — the media-secret assertion would be vacuous.
-        ClassTemplate tpl = new ClassTemplate();
+        ClassType tpl = new ClassType();
         tpl.setName("Hygiene " + n);
-        tpl.setWeekday(1);
-        tpl.setStartTime(java.time.LocalTime.of(7, 0));
-        tpl.setDurationMin(60);
-        tpl.setCapacity(10);
         tpl.setImagePath("/media/" + box.getId() + "/hygiene.jpg");
-        classTemplates.save(tpl);
+        classTypes.save(tpl);
+
+        ScheduleSlot tplSlot = new ScheduleSlot();
+        tplSlot.setClassTypeId(tpl.getId());
+        tplSlot.setWeekday(1);
+        tplSlot.setStartTime(java.time.LocalTime.of(7, 0));
+        tplSlot.setDurationMin(60);
+        tplSlot.setCapacity(10);
+        scheduleSlots.save(tplSlot);
 
         String sessionId = "cs_test_hygiene_" + n;
         Payment payment = new Payment();

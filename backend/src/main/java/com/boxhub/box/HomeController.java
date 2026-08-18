@@ -30,7 +30,8 @@ public class HomeController {
 
     private final BookingRepository bookings;
     private final ClassSessionRepository sessions;
-    private final ClassTemplateRepository templates;
+    private final ScheduleSlotRepository slots;
+    private final ClassTypeRepository types;
     private final MembershipRepository memberships;
     private final AnnouncementRepository announcements;
     private final PerformanceQueries queries;
@@ -40,13 +41,14 @@ public class HomeController {
     private final MediaSigner mediaSigner;
 
     public HomeController(BookingRepository bookings, ClassSessionRepository sessions,
-                          ClassTemplateRepository templates, MembershipRepository memberships,
+                          ScheduleSlotRepository slots, ClassTypeRepository types, MembershipRepository memberships,
                           AnnouncementRepository announcements, PerformanceQueries queries,
                           LiftEntryRepository lifts, MovementRepository movements,
                           SubscriptionService subscriptions, MediaSigner mediaSigner) {
         this.bookings = bookings;
         this.sessions = sessions;
-        this.templates = templates;
+        this.slots = slots;
+        this.types = types;
         this.memberships = memberships;
         this.announcements = announcements;
         this.queries = queries;
@@ -116,8 +118,9 @@ public class HomeController {
         if (next == null) return null;
 
         ClassSession s = sessionById.get(next.getSessionId());
-        String image = mediaSigner.sign(s.getTemplateId() == null ? null
-                : templates.findById(s.getTemplateId()).map(ClassTemplate::getImagePath).orElse(null));
+        String image = mediaSigner.sign(s.getScheduleSlotId() == null ? null
+                : slots.findById(s.getScheduleSlotId()).flatMap(sl -> types.findById(sl.getClassTypeId()))
+                        .map(ClassType::getImagePath).orElse(null));
 
         Map<UUID, Membership> memberById = memberships.findAll().stream()
                 .collect(Collectors.toMap(Membership::getId, m -> m, (a, b) -> a));

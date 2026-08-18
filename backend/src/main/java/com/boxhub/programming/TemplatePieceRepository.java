@@ -6,6 +6,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface TemplatePieceRepository extends JpaRepository<TemplatePiece, UUID> {
-    List<TemplatePiece> findByTemplateIdOrderBySortOrderAsc(UUID templateId);
-    void deleteByTemplateId(UUID templateId);
+    List<TemplatePiece> findByClassTypeIdOrderBySortOrderAsc(UUID classTypeId);
+    void deleteByClassTypeId(UUID classTypeId);
 }

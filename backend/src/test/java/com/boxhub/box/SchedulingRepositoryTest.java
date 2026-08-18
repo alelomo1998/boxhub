@@ -17,7 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SchedulingRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired BoxRepository boxes;
-    @Autowired ClassTemplateRepository templates;
+    @Autowired ClassTypeRepository types;
+    @Autowired ScheduleSlotRepository slots;
     @Autowired ClassSessionRepository sessions;
     @Autowired BookingRepository bookings;
     @Autowired org.springframework.transaction.PlatformTransactionManager txManager;
@@ -50,23 +51,27 @@ class SchedulingRepositoryTest extends AbstractIntegrationTest {
         UUID boxId = newBox("sched-" + n);
         actAsBox(boxId);
 
-        ClassTemplate t = new ClassTemplate();
+        ClassType t = new ClassType();
         t.setName("WOD 06:00");
-        t.setWeekday(0);
-        t.setStartTime(LocalTime.of(6, 0));
-        t.setDurationMin(60);
-        t.setCapacity(12);
-        templates.save(t);
-        assertThat(templates.findByActiveTrue()).extracting(ClassTemplate::getName).contains("WOD 06:00");
+        types.save(t);
+
+        ScheduleSlot slot = new ScheduleSlot();
+        slot.setClassTypeId(t.getId());
+        slot.setWeekday(0);
+        slot.setStartTime(LocalTime.of(6, 0));
+        slot.setDurationMin(60);
+        slot.setCapacity(12);
+        slots.save(slot);
+        assertThat(slots.findByActiveTrue()).extracting(ScheduleSlot::getId).contains(slot.getId());
 
         ClassSession s = new ClassSession();
-        s.setTemplateId(t.getId());
+        s.setScheduleSlotId(slot.getId());
         s.setName("WOD 06:00");
         s.setStartAt(Instant.now().plusSeconds(3600));
         s.setDurationMin(60);
         s.setCapacity(12);
         sessions.save(s);
-        assertThat(sessions.existsByTemplateIdAndStartAt(t.getId(), s.getStartAt())).isTrue();
+        assertThat(sessions.existsByScheduleSlotIdAndStartAt(slot.getId(), s.getStartAt())).isTrue();
         // pessimistic lock query needs an active tx (prod callers are @Transactional)
         UUID sid = s.getId();
         new org.springframework.transaction.support.TransactionTemplate(txManager)

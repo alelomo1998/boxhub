@@ -4,8 +4,10 @@ import com.boxhub.box.Booking;
 import com.boxhub.box.BookingRepository;
 import com.boxhub.box.ClassSession;
 import com.boxhub.box.ClassSessionRepository;
-import com.boxhub.box.ClassTemplate;
-import com.boxhub.box.ClassTemplateRepository;
+import com.boxhub.box.ClassType;
+import com.boxhub.box.ClassTypeRepository;
+import com.boxhub.box.ScheduleSlot;
+import com.boxhub.box.ScheduleSlotRepository;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.TenantContext;
@@ -27,18 +29,20 @@ import java.util.stream.Collectors;
 public class MyClassController {
 
     private final ClassSessionRepository sessions;
-    private final ClassTemplateRepository templates;
+    private final ScheduleSlotRepository slots;
+    private final ClassTypeRepository types;
     private final BookingRepository bookings;
     private final MembershipRepository memberships;
     private final SessionItemRepository items;
     private final SessionItemController itemsApi; // dto mapping
     private final MediaSigner mediaSigner;
 
-    public MyClassController(ClassSessionRepository sessions, ClassTemplateRepository templates,
+    public MyClassController(ClassSessionRepository sessions, ScheduleSlotRepository slots, ClassTypeRepository types,
                              BookingRepository bookings, MembershipRepository memberships,
                              SessionItemRepository items, SessionItemController itemsApi, MediaSigner mediaSigner) {
         this.sessions = sessions;
-        this.templates = templates;
+        this.slots = slots;
+        this.types = types;
         this.bookings = bookings;
         this.memberships = memberships;
         this.items = items;
@@ -62,9 +66,12 @@ public class MyClassController {
         List<ClassSession> today = sessions.findByStartAtBetweenOrderByStartAt(from, to).stream()
                 .filter(s -> !"CANCELLED".equals(s.getStatus())).toList();
 
-        Map<UUID, String> images = templates.findAll().stream()
+        Map<UUID, String> typeImages = types.findAll().stream()
                 .filter(t -> t.getImagePath() != null)
-                .collect(Collectors.toMap(ClassTemplate::getId, ClassTemplate::getImagePath));
+                .collect(Collectors.toMap(ClassType::getId, ClassType::getImagePath));
+        Map<UUID, String> images = slots.findAll().stream()
+                .filter(sl -> typeImages.containsKey(sl.getClassTypeId()))
+                .collect(Collectors.toMap(ScheduleSlot::getId, sl -> typeImages.get(sl.getClassTypeId())));
 
         ClassSession mine = today.stream()
                 .filter(s -> bookings.findBySessionIdAndMembershipId(s.getId(), mid)
@@ -86,7 +93,7 @@ public class MyClassController {
 
     private SessionRef ref(ClassSession s, Map<UUID, String> images) {
         return new SessionRef(s.getId(), s.getName(), s.getStartAt(),
-                mediaSigner.sign(s.getTemplateId() == null ? null : images.get(s.getTemplateId())),
+                mediaSigner.sign(s.getScheduleSlotId() == null ? null : images.get(s.getScheduleSlotId())),
                 s.getProgrammingStatus());
     }
 }

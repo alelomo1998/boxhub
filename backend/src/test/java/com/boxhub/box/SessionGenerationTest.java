@@ -18,7 +18,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SessionGenerationTest extends AbstractIntegrationTest {
 
     @Autowired BoxRepository boxes;
-    @Autowired ClassTemplateRepository templates;
+    @Autowired ClassTypeRepository types;
+    @Autowired ScheduleSlotRepository slots;
     @Autowired ClassSessionRepository sessions;
     @Autowired SessionGenerator generator;
 
@@ -47,15 +48,19 @@ class SessionGenerationTest extends AbstractIntegrationTest {
         boxes.save(box);
         UUID boxId = box.getId();
 
-        // a template on Wednesday (weekday 2) at 10:00
+        // a slot on Wednesday (weekday 2) at 10:00
         actAsBox(boxId);
-        ClassTemplate t = new ClassTemplate();
+        ClassType t = new ClassType();
         t.setName("Wed 10:00");
-        t.setWeekday(2);
-        t.setStartTime(LocalTime.of(10, 0));
-        t.setDurationMin(60);
-        t.setCapacity(10);
-        templates.save(t);
+        types.save(t);
+
+        ScheduleSlot slot = new ScheduleSlot();
+        slot.setClassTypeId(t.getId());
+        slot.setWeekday(2);
+        slot.setStartTime(LocalTime.of(10, 0));
+        slot.setDurationMin(60);
+        slot.setCapacity(10);
+        slots.save(slot);
         SecurityContextHolder.clearContext();
 
         generator.generateForBox(boxId);

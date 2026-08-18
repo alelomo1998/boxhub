@@ -1,6 +1,7 @@
 package com.boxhub.programming;
 
-import com.boxhub.box.ClassTemplateRepository;
+import com.boxhub.box.ScheduleSlot;
+import com.boxhub.box.ScheduleSlotRepository;
 import com.boxhub.shared.RoleGuard;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -20,22 +21,28 @@ import java.util.UUID;
 public class SkeletonController {
 
     private final TemplatePieceRepository pieces;
-    private final ClassTemplateRepository templates;
+    private final ScheduleSlotRepository slots;
 
-    public SkeletonController(TemplatePieceRepository pieces, ClassTemplateRepository templates) {
+    public SkeletonController(TemplatePieceRepository pieces, ScheduleSlotRepository slots) {
         this.pieces = pieces;
-        this.templates = templates;
+        this.slots = slots;
     }
 
     public record PieceDto(UUID id, int sortOrder, String label, String wodType) {}
     record PieceInput(@NotBlank String label, @NotBlank String wodType) {}
     record SkeletonRequest(@NotNull List<PieceInput> pieces) {}
 
+    /** {templateId} is the class-templates resource id (a schedule_slot id); the skeleton lives on its class type. */
+    private UUID classTypeId(UUID templateId) {
+        ScheduleSlot slot = slots.findById(templateId).orElseThrow(NoSuchElementException::new);
+        return slot.getClassTypeId();
+    }
+
     @GetMapping
     public List<PieceDto> get(@PathVariable UUID templateId) {
         RoleGuard.requireStaff();
-        templates.findById(templateId).orElseThrow(NoSuchElementException::new);
-        return pieces.findByTemplateIdOrderBySortOrderAsc(templateId).stream()
+        UUID classTypeId = classTypeId(templateId);
+        return pieces.findByClassTypeIdOrderBySortOrderAsc(classTypeId).stream()
                 .map(p -> new PieceDto(p.getId(), p.getSortOrder(), p.getLabel(), p.getWodType())).toList();
     }
 
@@ -43,17 +50,17 @@ public class SkeletonController {
     @Transactional
     public List<PieceDto> put(@PathVariable UUID templateId, @Valid @RequestBody SkeletonRequest req) {
         RoleGuard.requireStaff();
-        templates.findById(templateId).orElseThrow(NoSuchElementException::new);
+        UUID classTypeId = classTypeId(templateId);
         for (PieceInput in : req.pieces()) {
             if (!PieceTypes.ALL.contains(in.wodType()))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown piece type");
         }
-        pieces.deleteByTemplateId(templateId);
+        pieces.deleteByClassTypeId(classTypeId);
         pieces.flush();
         int sort = 0;
         for (PieceInput in : req.pieces()) {
             TemplatePiece p = new TemplatePiece();
-            p.setTemplateId(templateId);
+            p.setClassTypeId(classTypeId);
             p.setSortOrder(sort++);
             p.setLabel(in.label().trim());
             p.setWodType(in.wodType());
