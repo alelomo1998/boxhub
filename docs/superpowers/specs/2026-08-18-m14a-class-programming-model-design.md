@@ -134,7 +134,9 @@ nothing has yet been attached by copy.
 ### 4.6 `bookings`
 
 - `cancelled_at` `timestamptz` nullable, `was_late` `boolean` nullable — both set only on cancel.
-- `status` gains `CANCELLED`.
+- **`status` already permits `CANCELLED`.** V3's check constraint lists it; the value has simply never
+  been used, because cancel deletes the row. No constraint change is needed — only the code that
+  writes it.
 - **`uq_active_booking unique (session_id, membership_id)` is dropped and recreated as partial:**
   `... where status <> 'CANCELLED'`. Same pattern as `uq_subscription_active` in V14.
 
