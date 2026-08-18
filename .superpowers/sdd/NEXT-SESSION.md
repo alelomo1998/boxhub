@@ -7,7 +7,7 @@ already records with reasons.
 
 ## Do this before anything else
 
-**Merge `worktree-v3-roadmap` into `main`.** It is docs-only — five commits, no code — and it holds the
+**Merge `worktree-v3-roadmap` into `main`.** It is docs-only — no code at all — and it holds the
 v3 roadmap, the M14a spec, the M14a plan, and this prompt. If you skip this, the plan you execute is not the plan on
 `main`, and the next session inherits the divergence.
 
