@@ -753,11 +753,22 @@ the experimental hidden `refactor-jasmine-vitest` schematic.
 - `verify` and `account/email` both collapse every non-410 failure (500, timeout, 403) into "this link is invalid", with no retry offered — a transient server error is misdiagnosed as a bad link. Fix both together, or they split.
 - `account/email`'s route title is static ("Confirm email") across all four outcomes; a multi-tab user cannot tell from the tab whether it succeeded.
 
-## Proposed milestone — the account area (deferred out of M13d, 2026-08-14)
-- `account/security` is not an auth screen and was wrongly grouped with login/signup. It needs to become an ACCOUNT AREA, shaped as a whole rather than as one page: lateral navigation with the sections separated so there is room to add more, password / email / sessions / danger zone split across routes instead of stacked, and a real mobile layout (today it is clamped edge to edge with no side space, with unlabelled buttons and a poor back control).
-- Backend, ships with it: changing the password sends no mail at all. Add a NOTIFICATION ("your password was changed, was this you?"), not a confirmation gate — the user has already proved the current password, and a gate locks out anyone without inbox access. Changing the email is already correct and needs nothing: current password required, and the change lands only when the new address clicks its link.
-- `e2e/tests/account-security.spec.ts` already exists and pins the behaviour that must survive the redesign. Start from it.
+## The account area — SHIPPED in M13e (2026-08-17)
+
+This section used to propose the milestone. It is done and merged: `/account` is a routed area with
+a session-only guard, a layout (lateral nav at desktop, list -> detail on phone) and four sections;
+a password change now mails a notification; the sessions list shows a readable device label.
+
+What was **not** done, and is genuinely still open, is filed as individual lines above rather than
+here — desktop sparseness, the heading tier, the `bh-button` API consolidation, the delete sheet's
+missing axe coverage, and the gallery's scroll-coupled baselines.
 
 ## dependency-scan is red on main (not caused by M13d)
 - `osv-scan` exits 1 against `backend/target/bom.json` (107 packages). It **first failed on the scheduled run at 04:40 on 2026-08-17, before M13d merged**, and last succeeded 2026-08-10 — so it is a newly-published advisory against an unchanged dependency. Verified M13d changed no dependencies at all: the only `package.json` diff in the whole milestone adds an `extract-i18n` npm script, and the scan gates the backend SBOM only.
 - The workflow has no severity threshold by design — it fails on any finding — and `osv-scanner.toml` at the repo root is the documented place for findings that are real but deliberately not blocking. Read the advisory first and decide; do not reach for the ignore file by reflex.
+- `passwordErrorMessage()` (`frontend/src/app/core/auth/auth.models.ts:28-34`) returns **unmarked English** for `PASSWORD_TOO_SHORT` and `PASSWORD_BREACHED`, so those two sentences are untranslatable. Six consumers now: reset, signup, join, start-box, the legacy security page, and M13e's password section. Repeatedly described as "already filed" during M13d and M13e — it was not; a reviewer grepped and found no entry. Filed now.
+- `AccountService.startEmailChange` sends its confirmation mail from **inside** an `@Transactional` method, violating the project's mail-fires-strictly-after-commit rule. `Mailer.send` is `@Async`, which moves it off-thread but does not make it after-commit — so a rollback after the send still leaves the mail delivered. Pre-existing, found while adding the password-change notification (M13e Task 10), which deliberately puts its own send in the controller for exactly this reason. Fix by moving the send to `AccountController` after the service call returns, as the password path now does.
+- Account area, desktop: the content is a 900px column centred in a 1440 viewport, so the fields occupy roughly a third of the width with dead space right and below. Same family as the original "clamped, no side space" complaint, milder. Raised at M13e review; user chose not to fix then.
+- Account area: the in-page section heading duplicates the active nav item on desktop ("Password" appears as both). Could drop the heading at desktop only, keeping it on phone where the nav is hidden. Raised at M13e review; user chose not to fix then.
+- Account area: the phone MENU state (the list half of list→detail) has no visual-regression baseline, so nothing guards the layout the user originally objected to. Raised at M13e review; user chose not to add it then.
+- The dev gallery's `data-gallery` sections are coupled through scroll position, so any edit that changes one section's height cascades dirty visual baselines for every section after it — M13e's `solid` addition dirtied 54 unrelated files this way. Decouple by resetting scroll/viewport per section screenshot so gallery growth stops churning the whole baseline set.

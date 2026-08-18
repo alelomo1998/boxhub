@@ -36,7 +36,7 @@ import { HomeService, Profile } from './home.service';
             <input type="checkbox" [checked]="p.isPrivate" (change)="togglePrivacy($any($event.target).checked)" />
           </label>
 
-          <a class="row asbtn" routerLink="/account/security" data-testid="profile-security-link">
+          <a class="row asbtn" routerLink="/account" data-testid="profile-security-link">
             <span class="rl">Security</span>
             <span class="rh">Password, email, sessions</span>
             <span aria-hidden="true">›</span>

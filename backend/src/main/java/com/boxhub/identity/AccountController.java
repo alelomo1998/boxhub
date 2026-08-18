@@ -1,5 +1,6 @@
 package com.boxhub.identity;
 
+import com.boxhub.shared.Mailer;
 import com.boxhub.shared.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -21,13 +22,15 @@ public class AccountController {
     private final RefreshTokenService refreshTokens;
     private final TokenService tokens;
     private final CookieService cookies;
+    private final Mailer mailer;
 
     public AccountController(AccountService accounts, RefreshTokenService refreshTokens,
-                             TokenService tokens, CookieService cookies) {
+                             TokenService tokens, CookieService cookies, Mailer mailer) {
         this.accounts = accounts;
         this.refreshTokens = refreshTokens;
         this.tokens = tokens;
         this.cookies = cookies;
+        this.mailer = mailer;
     }
 
     // Every record below redacts toString() for the reason documented on
@@ -58,6 +61,13 @@ public class AccountController {
     public ResponseEntity<Void> changePassword(@Valid @RequestBody PasswordChangeRequest req,
                                                HttpServletRequest http) {
         User u = accounts.changePassword(TenantContext.userId(), req.currentPassword(), req.newPassword());
+
+        // AFTER the transactional service call returns, never inside it: a mail sent in a
+        // transaction that rolls back is a lie. @Async moves it off-thread; it does not make it
+        // after-commit. Mailer resolves the recipient's locale from users.locale itself.
+        mailer.send(u.getEmail(), "Your password was changed", "password-changed",
+                Map.of("name", u.getName(), "link", mailer.link("/auth/forgot")));
+
         refreshTokens.revokeAllFor(u.getId());
         String refresh = refreshTokens.issue(u, http.getHeader(HttpHeaders.USER_AGENT), AuthController.clientIp(http));
 

@@ -15,6 +15,6 @@ describe('CoachShellPage', () => {
     fixture.detectChanges();
     const link = fixture.nativeElement.querySelector('[data-testid="coach-security-link"]');
     expect(link.matches('a[href]')).toBe(true);
-    expect(link.getAttribute('href')).toBe('/account/security');
+    expect(link.getAttribute('href')).toBe('/account');
   });
 });

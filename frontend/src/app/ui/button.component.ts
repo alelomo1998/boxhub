@@ -20,13 +20,14 @@ import { NgTemplateOutlet } from '@angular/common';
       <!-- A link styled as a button must BE an anchor: routerLink/href on a bh-button host emits
            no href at all, losing ctrl/cmd-click, open-in-new-tab and the correct role. Two real
            consumers: the Google control on login and on signup. -->
-      <a [href]="href()" [class]="'btn ' + variant() + ' ' + size()"
+      <a [href]="href()" [class]="'btn ' + variant() + ' ' + size() + (dangerBorder() ? ' danger-border' : '')"
          [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
         <ng-container [ngTemplateOutlet]="body" />
       </a>
     } @else {
-      <button [type]="type()" [class]="'btn ' + variant() + ' ' + size()"
+      <button [type]="type()" [class]="'btn ' + variant() + ' ' + size() + (dangerBorder() ? ' danger-border' : '')"
               [disabled]="disabled() || loading()" [attr.aria-busy]="loading()"
+              [attr.aria-disabled]="ariaDisabled() ? 'true' : null"
               [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
         @if (loading()) { <span class="spin" aria-hidden="true"></span> }
         @if (!(loading() && variant() === 'icon')) { <ng-container [ngTemplateOutlet]="body" /> }
@@ -42,6 +43,15 @@ import { NgTemplateOutlet } from '@angular/common';
     .btn.md { padding: 0 17px; }
     .btn.primary { background: var(--volt); color: var(--on-volt); }
     .btn.ghost { background: transparent; color: var(--bone); border: 1px solid var(--hairline); }
+    /* Neutral filled — reads as pressable without spending the volt budget (zero-volt rule
+       stands). For screens with no single "the" primary action, e.g. account's four co-equal
+       section saves, where a transparent ghost button reads as an empty/disabled box. */
+    .btn.solid { background: var(--surface-2); color: var(--bone); border: 1px solid var(--hairline); }
+    /* Opt-in via dangerBorder(), not an external page-level class: the host tag a screen authors
+       (<bh-button>) is a different encapsulation boundary than the <button> this template renders
+       inside it, so a class from the *page's* styles never reaches it. Same trap CLAUDE.md records
+       for bh-field/bh-select's testId, in CSS form instead of an attribute. */
+    .btn.ghost.danger-border { color: var(--danger); border-color: var(--danger); }
     /* Destructive confirms only — the click you least want. Never the action that merely OPENS a
        destroy flow; that one is a danger-bordered ghost, so the pair reads as an escalation. */
     .btn.danger { background: var(--danger); color: var(--on-danger); }
@@ -52,11 +62,18 @@ import { NgTemplateOutlet } from '@angular/common';
        live, and hovering it has not. Law §5. */
     .btn.ghost:hover:not(:disabled) { background: var(--surface-2); }
     .btn.icon:hover:not(:disabled) { color: var(--bone); background: var(--surface-2); }
-    .btn.primary:hover:not(:disabled), .btn.danger:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn.primary:hover:not(:disabled), .btn.danger:hover:not(:disabled),
+    .btn.solid:hover:not(:disabled) { filter: brightness(1.08); }
     .btn:active:not(:disabled) { transform: translateY(1px); }
 
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn[aria-busy="true"] { cursor: progress; }
+    /* aria-disabled, not the native attribute: a row action (e.g. per-session sign-out) that goes
+       natively disabled the instant it's pressed drops out of the a11y tree, dropping focus to
+       <body> — no confirmation, no way back without re-tabbing from the top. The click guard lives
+       in the handler; this is visual-only. */
+    .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+    .btn.ghost[aria-disabled="true"]:hover { background: transparent; }
 
     .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     /* A volt ring on the volt-filled primary is invisible — law §11.2, the single
@@ -80,11 +97,19 @@ import { NgTemplateOutlet } from '@angular/common';
   `],
 })
 export class ButtonComponent {
-  variant = input<'primary' | 'ghost' | 'danger' | 'icon'>('primary');
+  variant = input<'primary' | 'ghost' | 'danger' | 'icon' | 'solid'>('primary');
   size = input<'md' | 'sm'>('md');
   type = input<'button' | 'submit'>('button');
   disabled = input(false);
   loading = input(false);
+  /** Visual/aria-only guard — never the native `disabled` attribute. For a control whose row must
+   *  stay in the a11y tree while its action is pending (see the CSS comment above); the real guard
+   *  against a double-fire belongs in the click handler, not here. */
+  ariaDisabled = input(false);
+  /** Danger-bordered ghost: the control that OPENS a destructive flow, escalating against the
+   *  filled `variant="danger"` control that EXECUTES it (design law). Defaults false so all
+   *  existing call sites are unchanged; only meaningful on `variant="ghost"`. */
+  dangerBorder = input(false);
   label = input('');
   /** Set to render an <a> instead of a <button>. For real navigation only — an OAuth start, an
    *  external destination. Internal navigation is a text link with routerLink, not this. */

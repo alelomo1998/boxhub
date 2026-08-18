@@ -5,13 +5,15 @@ import { ButtonComponent } from './button.component';
 @Component({
   standalone: true,
   imports: [ButtonComponent],
-  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()">Save</bh-button>`,
+  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()" [ariaDisabled]="ad()" [dangerBorder]="db()">Save</bh-button>`,
 })
 class Host {
-  v = signal<'primary' | 'ghost' | 'danger' | 'icon'>('primary');
+  v = signal<'primary' | 'ghost' | 'danger' | 'icon' | 'solid'>('primary');
   d = signal(false);
   l = signal(false);
   lbl = signal('');
+  ad = signal(false);
+  db = signal(false);
 }
 
 describe('ButtonComponent', () => {
@@ -113,6 +115,50 @@ describe('ButtonComponent', () => {
     expect(defaultOffset).toBe('2px');
     expect(primaryOffset).withContext('primary must pull its ring inward, onto the volt surface itself').toBe('-2px');
     expect(primaryOffset).not.toBe(defaultOffset);
+  });
+
+  it('ariaDisabled marks the button for assistive tech without touching the native disabled property', () => {
+    // A native `disabled` here would drop the pressed row-action out of the a11y tree and send
+    // focus to <body> — the P1 this input exists to avoid. Regression: swap the template's
+    // `[attr.aria-disabled]` binding back to `[disabled]="ariaDisabled()"` and this fails because
+    // `btn().disabled` flips true.
+    f.componentInstance.ad.set(true);
+    f.detectChanges();
+    expect(btn().getAttribute('aria-disabled')).toBe('true');
+    expect(btn().disabled).withContext('must stay in the a11y tree — this is aria-only').toBe(false);
+
+    f.componentInstance.ad.set(false);
+    f.detectChanges();
+    expect(btn().getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('dangerBorder colours a ghost button --danger, and defaults off for every existing call site', () => {
+    // Regression for the P1 the reviewer measured on danger.page.ts: an external page-level class
+    // (`.opener { color: var(--danger) }`) never reached this component's own encapsulated
+    // <button>, because that button lives inside bh-button's template, a different Angular
+    // encapsulation boundary than the page that authored the class. Reading getComputedStyle is
+    // the only check that actually proves the colour renders, rather than restating the input.
+    f.componentInstance.v.set('ghost');
+    f.detectChanges();
+    expect(getComputedStyle(btn()).borderColor).not.toBe('rgb(229, 72, 77)');
+
+    f.componentInstance.db.set(true);
+    f.detectChanges();
+    expect(btn().className).toContain('danger-border');
+    expect(getComputedStyle(btn()).borderColor).toBe('rgb(229, 72, 77)'); // --danger
+  });
+
+  it('solid fills with --surface-2 and --bone text — not transparent like ghost, no accent colour', () => {
+    f.componentInstance.v.set('solid');
+    f.detectChanges();
+    expect(btn().className).toContain('solid');
+    expect(getComputedStyle(btn()).backgroundColor).toBe('rgb(29, 35, 30)'); // --surface-2
+    expect(getComputedStyle(btn()).color).toBe('rgb(242, 244, 239)'); // --bone
+
+    // Existing ghost variant provably unchanged by the addition.
+    f.componentInstance.v.set('ghost');
+    f.detectChanges();
+    expect(getComputedStyle(btn()).backgroundColor).toBe('rgba(0, 0, 0, 0)');
   });
 
   it('toggling loading back off restores the button', () => {

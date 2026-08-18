@@ -111,7 +111,35 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
             <bh-button variant="ghost" [loading]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.ariaDisabled">Aria-disabled</span>
+            <bh-button variant="ghost" [ariaDisabled]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.dangerBorder">Danger-bordered</span>
+            <bh-button variant="ghost" [dangerBorder]="true" i18n="@@dev.gallery.button.sampleDangerLabel">Delete</bh-button>
+          </div>
         </div>
+
+        <p class="gsub" i18n="@@dev.gallery.button.variant.solid">Solid</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-button variant="solid" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-button variant="solid" [disabled]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
+            <bh-button variant="solid" [loading]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.solid">
+          Solid: a neutral --surface-2 fill for screens with no single primary action (account's four
+          co-equal section saves) — reads as pressable without spending the zero-volt budget.
+        </p>
 
         <p class="gsub" i18n="@@dev.gallery.button.variant.danger">Danger</p>
         <div class="row">
@@ -159,6 +187,19 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         </p>
         <p class="note" i18n="@@dev.gallery.button.note.noError">
           No error state — a button doesn't own an error; the field or alert beside it renders it.
+        </p>
+        <p class="note" i18n="@@dev.gallery.button.note.ariaDisabled">
+          Aria-disabled looks like Disabled but isn't it — it sets aria-disabled instead of the
+          native disabled attribute, so the control the user just pressed stays in the accessibility
+          tree and keeps focus, rather than dropping it to &lt;body&gt;. For a row action whose own
+          click has to guard against a double-fire while pending (account sessions' per-row sign-out).
+        </p>
+        <p class="note" i18n="@@dev.gallery.button.note.dangerBorder">
+          Danger-bordered is a signal input (dangerBorder), not a page-level CSS class — a class
+          from the page's own encapsulated styles can only ever match the &lt;bh-button&gt; host
+          tag, never the &lt;button&gt; this component renders inside its own template. For the
+          control that OPENS a destructive flow (account danger zone's "Delete my account"),
+          escalating against the filled variant="danger" control that EXECUTES it.
         </p>
       </section>
 

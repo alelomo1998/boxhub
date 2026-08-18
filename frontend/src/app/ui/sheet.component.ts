@@ -11,7 +11,7 @@ import { Component, ElementRef, ViewChild, effect, input, output, signal } from 
  * stays stuck `true` while the dialog is actually closed, and setting it `true` again later won't
  * re-run the effect — the sheet will not reopen. This isn't new: the old `@Input() set open` had
  * the same requirement. Current callers that reset correctly: `admin-shell.page.ts`,
- * `security.page.ts`, `athlete-shell.page.ts`, `wod.page.ts`.
+ * `danger.page.ts`, `athlete-shell.page.ts`, `wod.page.ts`.
  */
 @Component({
   selector: 'bh-sheet',

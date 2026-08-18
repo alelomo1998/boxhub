@@ -73,6 +73,16 @@ class AccountApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void changingThePasswordMailsTheAccountAddress() throws Exception {
+        mvc.perform(patch("/api/me/password").with(csrf()).cookie(at).contentType(APPLICATION_JSON).content("""
+                        {"currentPassword":"correct-horse-battery","newPassword":"a-brand-new-secret"}
+                        """))
+                .andExpect(status().isNoContent());
+
+        verify(mailer).send(eq(user.getEmail()), any(), eq("password-changed"), any());
+    }
+
+    @Test
     void changingThePasswordRequiresTheCurrentOne() throws Exception {
         // Wrong body password is a field-validation failure, not a dead session — 422, never 401
         // (401 would be indistinguishable from an expired access token to the client).

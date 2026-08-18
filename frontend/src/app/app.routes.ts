@@ -1,7 +1,9 @@
 import { Routes } from '@angular/router';
 import { roleGuard } from './core/auth/role.guard';
 import { superadminGuard } from './core/auth/superadmin.guard';
+import { sessionGuard } from './core/auth/session.guard';
 import { unsavedGuard } from './core/unsaved.guard';
+import { accountIndexGuard } from './features/account/account-index.page';
 
 export const routes: Routes = [
   // Unguarded on purpose — fabricated data, no API call, needs to be reachable on a real device
@@ -17,9 +19,29 @@ export const routes: Routes = [
   { path: 'auth/verify', title: $localize`:@@route.auth.verify:Verify your email`, loadComponent: () => import('./features/auth/verify.page').then(m => m.VerifyPage) },
   { path: 'auth/forgot', title: $localize`:@@route.auth.forgot:Forgot password`, loadComponent: () => import('./features/auth/forgot.page').then(m => m.ForgotPage) },
   { path: 'auth/reset', title: $localize`:@@route.auth.reset:Reset password`, loadComponent: () => import('./features/auth/reset.page').then(m => m.ResetPage) },
-  { path: 'account/security', title: $localize`:@@route.account.security:Security`, canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
-    loadComponent: () => import('./features/account/security.page').then(m => m.SecurityPage) },
-  { path: 'account/email', title: $localize`:@@route.account.email:Confirm email`, loadComponent: () => import('./features/account/email-confirm.page').then(m => m.EmailConfirmPage) },
+  // The emailed confirmation landing. Registered BEFORE the area and deliberately UNGUARDED:
+  // it is clicked from an inbox, possibly on a device that has never logged in. The path is what
+  // AccountService.startEmailChange has already mailed to real inboxes — it can never move.
+  { path: 'account/email', title: $localize`:@@route.account.email:Confirm email`,
+    loadComponent: () => import('./features/account/email-confirm.page').then(m => m.EmailConfirmPage) },
+
+  // The old single page. Kept as a redirect: it is in users' history and in four places here.
+  { path: 'account/security', redirectTo: '/account', pathMatch: 'full' },
+
+  { path: 'account', title: $localize`:@@route.account.area:Account`, canActivate: [sessionGuard],
+    loadComponent: () => import('./features/account/account-layout.page').then(m => m.AccountLayoutPage),
+    children: [
+      { path: '', pathMatch: 'full', canActivate: [accountIndexGuard],
+        loadComponent: () => import('./features/account/account-index.page').then(m => m.AccountIndexPage) },
+      { path: 'password', title: $localize`:@@route.account.password:Password`,
+        loadComponent: () => import('./features/account/password.page').then(m => m.PasswordPage) },
+      { path: 'change-email', title: $localize`:@@route.account.changeEmail:Email`,
+        loadComponent: () => import('./features/account/change-email.page').then(m => m.ChangeEmailPage) },
+      { path: 'sessions', title: $localize`:@@route.account.sessions:Sessions`,
+        loadComponent: () => import('./features/account/sessions.page').then(m => m.SessionsPage) },
+      { path: 'danger', title: $localize`:@@route.account.danger:Danger zone`,
+        loadComponent: () => import('./features/account/danger.page').then(m => m.DangerPage) },
+    ] },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/athlete/athlete-shell.page').then(m => m.AthleteShellPage),

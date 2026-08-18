@@ -387,6 +387,13 @@ set that M13c correctly did not build; its central claim depends on The Room, wh
 and unbuilt, so the hero copy would be written twice; and its CTAs land on the very auth screens
 M13d rebuilds. Order is now **M13d → M19 landing → M14 coach**.
 
+**M13e (the account area) shipped 2026-08-17**, out of order: it was deferred out of M13d on review
+(`account/security` is not an auth screen and its restructure was out of that milestone's scope).
+`/account` is now a routed area behind a session-only guard — password, change-email, sessions,
+danger — with a notification mail after a password change and readable device labels on the sessions
+list. Gates at merge: Karma 405, backend 439, e2e 64 passed + 1 skipped, axe 29 cases clean, visual
+31 specs over 88 baselines, production build clean.
+
 **THE COACH TOUR IS DONE** — `docs/superpowers/specs/2026-08-09-m14-coach-tour.md`. It was the
 stated blocker on M14's spec and it is no longer blocking. Ten decisions taken, six questions left
 deliberately open to be asked at the screen. Read it before speccing M14, not before M13d.

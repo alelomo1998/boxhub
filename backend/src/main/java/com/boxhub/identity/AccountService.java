@@ -115,7 +115,7 @@ public class AccountService {
     public List<SessionDto> sessions(UUID userId, String rawRefreshToken) {
         String callerHash = rawRefreshToken == null ? null : RefreshTokenService.sha256(rawRefreshToken);
         return refreshTokens.activeSessions(userId).stream()
-                .map(t -> new SessionDto(t.getFamilyId(), t.getUserAgent(), t.getIp(), t.getLastUsedAt(),
+                .map(t -> new SessionDto(t.getFamilyId(), DeviceLabel.of(t.getUserAgent()), t.getIp(), t.getLastUsedAt(),
                         callerHash != null && callerHash.equals(t.getTokenHash())))
                 .toList();
     }

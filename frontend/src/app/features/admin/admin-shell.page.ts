@@ -19,7 +19,7 @@ import { IconComponent } from '../../ui/icon.component';
   template: `
     <div class="admin">
       <bh-shell-header class="top" [boxName]="boxName" area="Admin">
-        <a actions routerLink="/account/security" aria-label="Security" title="Security" data-testid="admin-security-link">
+        <a actions routerLink="/account" aria-label="Security" title="Security" data-testid="admin-security-link">
           <bh-icon name="settings" />
         </a>
         <bh-button actions variant="icon" (click)="logout()" label="Log out" title="Log out">
@@ -131,6 +131,6 @@ export class AdminShellPage {
     { link: 'movements', label: 'Movements' },
     { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
-    { link: '/account/security', label: 'Security' },
+    { link: '/account', label: 'Security' },
   ];
 }
