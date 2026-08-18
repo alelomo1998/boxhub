@@ -130,7 +130,8 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
     @Autowired SubscriptionRepository subscriptions;
     @Autowired PaymentRepository payments;
     @Autowired InviteService inviteService;
-    @Autowired ClassTemplateRepository templates;
+    @Autowired ClassTypeRepository classTypes;
+    @Autowired ScheduleSlotRepository slots;
     @Autowired ClassSessionRepository sessions;
     @Autowired WodRepository wods;
     @Autowired SessionItemRepository items;
@@ -224,13 +225,20 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
 
         InviteService.CreatedInvite invite = inviteService.create(mark.toLowerCase() + "@t.io", "ATHLETE", null);
 
-        ClassTemplate template = new ClassTemplate();
-        template.setName("Template " + mark);
+        // M14a: class_templates split into class_type (identity) x schedule_slot (when it runs).
+        // The /api/box/class-templates resource id is the SLOT id, so `template` stays a slot and
+        // every pathIds entry below is unchanged.
+        ClassType classType = new ClassType();
+        classType.setName("Template " + mark);
+        classType = classTypes.save(classType);
+
+        ScheduleSlot template = new ScheduleSlot();
+        template.setClassTypeId(classType.getId());
         template.setWeekday(1);
         template.setStartTime(LocalTime.of(10, 0));
         template.setDurationMin(60);
         template.setCapacity(12);
-        template = templates.save(template);
+        template = slots.save(template);
 
         ClassSession session = new ClassSession();
         session.setName("Session " + mark);
