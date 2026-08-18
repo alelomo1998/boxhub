@@ -109,10 +109,15 @@ Also carries, because they are one-way and cheap to batch here:
 - **Cancellation history.** `BookingService.java:79` does `bookings.delete(booking)` — cancel
   destroys the row. "Who cancels a lot", "late-cancel rate", "cancellations this month" are
   therefore not hard but *impossible*, and every day without this is history that never existed.
-- **Country**, for M18's geographic analytics. Nothing stores it today.
 
 Deliberately not modelled here: **team WOD depth** (tour decision 10), and the runner's timer spec —
 `ClassTimer.spec_json` is a free-form text column, so a richer spec needs no migration.
+
+**Specced 2026-08-18:** `docs/superpowers/specs/2026-08-18-m14a-class-programming-model-design.md`.
+Note one correction made there: **`country` moved out of M14a to M22.** This document originally
+carried it here, inherited from v2's "M14 carries every schema change" rule — the rule this document
+overturns. Country is box location, M22 owns box location, and splitting one concern across two
+milestones is what the replacement rule forbids.
 
 **M21 — identity & tenancy for multi-box.** The most dangerous milestone in this program.
 
@@ -140,7 +145,8 @@ This milestone is a strong candidate for orchestrator-implemented work rather th
 under `CLAUDE.md`'s "genuinely difficult or delicate" clause — tenancy is named in it explicitly.
 
 **M22 — new-domain schema.** Box public profile (location and therefore geo, photos, description,
-opening hours, whatever a consultable page needs); coach profile and availability; the drop-in;
+opening hours, whatever a consultable page needs — **including `country`, moved here from M14a**,
+which is also what M18's geographic analytics needs); coach profile and availability; the drop-in;
 social posts, likes and workout ratings; Connect connected-account records.
 
 Two constraints inherited from the deleted Project 3 section, carried so they are not rediscovered:
