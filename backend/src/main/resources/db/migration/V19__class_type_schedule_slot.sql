@@ -46,6 +46,17 @@ where ss.id = tp.template_id;
 alter table template_piece alter column class_type_id set not null;
 alter table template_piece drop constraint template_piece_box_id_template_id_sort_order_key;
 alter table template_piece drop column template_id;
+
+-- Merging same-named templates merges their skeletons too, and the pre-M14a seeder keyed its
+-- "already seeded" check off the per-row template id — so a class that ran seven days a week
+-- accumulated seven identical skeletons that now collide on the constraint below. They are copies
+-- of one skeleton, so keep the first of each (box, type, sort_order) and drop the rest.
+delete from template_piece tp
+where tp.ctid <> (select min(keep.ctid) from template_piece keep
+                  where keep.box_id = tp.box_id
+                    and keep.class_type_id = tp.class_type_id
+                    and keep.sort_order = tp.sort_order);
+
 alter table template_piece add unique (box_id, class_type_id, sort_order);
 
 -- class_sessions points at the slot it was generated from; it remains a SNAPSHOT of the rest
