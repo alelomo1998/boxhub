@@ -115,6 +115,10 @@ describe('PasswordPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[data-testid="password-google-only"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="password-form"]')).toBeNull();
+    // Angular collapses a whitespace-only text node between adjacent elements — catches a
+    // regression back to "...use</span><a>Forgot password</a>" running the words together.
+    expect(el.querySelector('[data-testid="password-google-only"]')?.textContent?.trim())
+      .toBe('You sign in with Google. To add a password, use Forgot password.');
   });
 
   it('PASSWORD_TOO_SHORT (400) lands on the new-password field via the shared mapping', () => {

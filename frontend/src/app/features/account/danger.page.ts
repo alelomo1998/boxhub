@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -96,6 +96,8 @@ import { BRAND_NAME } from '../../core/brand';
 export class DangerPage {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private el: ElementRef<HTMLElement> = inject(ElementRef);
+  private injector = inject(Injector);
 
   // Export
   exportPending = signal(false);
@@ -164,16 +166,39 @@ export class DangerPage {
             ? $localize`:@@account.danger.delete.password.wrong:That password is wrong.`
             : $localize`:@@account.danger.delete.password.reveal:Enter your password to confirm.`);
           this.deleteNeedsPassword.set(true);
+          this.focusField('delete-error');
           return;
         }
         if (e.status === 409 && e.error?.detail === 'LAST_ADMIN') {
           const box = this.auth.activeBox()?.boxName
             ?? $localize`:@@account.danger.delete.lastAdmin.boxFallback:your box`;
           this.deleteError.set($localize`:@@account.danger.delete.lastAdmin:You're the only admin of ${box}:box:. Make someone else an admin before deleting your account.`);
+          this.focusField('delete-error');
           return;
         }
         this.deleteError.set($localize`:@@account.danger.delete.error.generic:Something went wrong — try again.`);
+        this.focusField('delete-error');
       },
     });
+  }
+
+  /**
+   * Moves focus onto the element the error just replaced/disabled. The submit button natively
+   * disables while `deletePending()` (bh-button's own `[loading]` → native `disabled`), which
+   * drops it out of the a11y tree and sends focus to `<body>` — and the alert itself is a fresh
+   * `@if`-mounted node, not yet in the DOM when this runs. `afterNextRender`, not
+   * `queueMicrotask`: this app's zone.js change detection runs with `eventCoalescing`, so a
+   * microtask fires before the `@if` has flushed into the DOM and `querySelector` finds nothing —
+   * see forgot.page.ts's `focusField` for the same fix and its rationale.
+   */
+  private focusField(testId: string) {
+    afterNextRender(() => {
+      const target = this.el.nativeElement.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+      if (!target) return;
+      // bh-alert's host tag isn't natively focusable; an <input> must never get this, or it drops
+      // out of the tab order (see forgot.page.ts).
+      if (!target.matches('input, button, a[href], select, textarea')) target.setAttribute('tabindex', '-1');
+      target.focus();
+    }, { injector: this.injector });
   }
 }

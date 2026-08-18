@@ -127,6 +127,10 @@ describe('ChangeEmailPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[data-testid="email-google-only"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="email-form"]')).toBeNull();
+    // Angular collapses a whitespace-only text node between adjacent elements — catches a
+    // regression back to "...use</span><a>Forgot password</a>" running the words together.
+    expect(el.querySelector('[data-testid="email-google-only"]')?.textContent?.trim())
+      .toBe('You sign in with Google. To add a password, use Forgot password.');
   });
 
   it('an unrecognised code lands on the form-level alert, not a field', () => {

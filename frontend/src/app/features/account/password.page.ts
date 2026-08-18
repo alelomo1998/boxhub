@@ -23,7 +23,7 @@ const MIN_PASSWORD_LENGTH = 10;
 
     @if (googleOnly()) {
       <p class="muted" data-testid="password-google-only">
-        <span i18n="@@account.password.googleOnly">You sign in with Google. To add a password, use</span>
+        <span i18n="@@account.password.googleOnly">You sign in with Google. To add a password, use </span>
         <a routerLink="/auth/forgot" data-testid="password-forgot-link" i18n="@@account.password.googleOnly.link">Forgot password</a>.
       </p>
     } @else {

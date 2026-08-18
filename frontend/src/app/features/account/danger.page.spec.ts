@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -197,4 +197,28 @@ describe('DangerPage', () => {
     expect(cmp.exportError()).toBe("Couldn't export your data — try again.");
     expect(fixture.nativeElement.querySelector('[data-testid="export-error"]')).not.toBeNull();
   });
+
+  // What Karma CAN see: the alert is the thing focus lands on, not that the timing is race-free —
+  // fixture.detectChanges()'s synchronous flush can't prove that (see danger.page.ts's focusField
+  // doc comment). The submit button natively disables under `deletePending()` (bh-button's
+  // `[loading]` -> native `disabled`), which is what drops focus in the first place; this asserts
+  // the recovery, not the drop. Mutation this catches: deleting the `focusField` calls in
+  // submitDelete()'s error branch, or reverting `focusField` to `queueMicrotask`.
+  it('moves focus onto the error alert after a delete fails, not <body>', fakeAsync(() => {
+    const fixture = setup();
+    const cmp = fixture.componentInstance;
+    cmp.openDelete();
+    fixture.detectChanges();
+    cmp.deleteConfirmText.set('DELETE');
+    cmp.submitDelete();
+    http.expectOne('/api/me').flush({ detail: 'LAST_ADMIN' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const alert = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="delete-error"]');
+    expect(document.activeElement)
+      .withContext('focus must move to the alert, not fall back to <body>')
+      .toBe(alert);
+  }));
 });

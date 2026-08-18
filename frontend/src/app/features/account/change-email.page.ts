@@ -22,7 +22,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     @if (googleOnly()) {
       <p class="muted" data-testid="email-google-only">
-        <span i18n="@@account.email.googleOnly">You sign in with Google. To add a password, use</span>
+        <span i18n="@@account.email.googleOnly">You sign in with Google. To add a password, use </span>
         <a routerLink="/auth/forgot" data-testid="email-forgot-link" i18n="@@account.email.googleOnly.link">Forgot password</a>.
       </p>
     } @else {

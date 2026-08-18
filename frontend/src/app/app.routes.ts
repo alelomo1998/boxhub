@@ -3,6 +3,7 @@ import { roleGuard } from './core/auth/role.guard';
 import { superadminGuard } from './core/auth/superadmin.guard';
 import { sessionGuard } from './core/auth/session.guard';
 import { unsavedGuard } from './core/unsaved.guard';
+import { accountIndexGuard } from './features/account/account-index.page';
 
 export const routes: Routes = [
   // Unguarded on purpose — fabricated data, no API call, needs to be reachable on a real device
@@ -30,7 +31,8 @@ export const routes: Routes = [
   { path: 'account', title: $localize`:@@route.account.area:Account`, canActivate: [sessionGuard],
     loadComponent: () => import('./features/account/account-layout.page').then(m => m.AccountLayoutPage),
     children: [
-      { path: '', pathMatch: 'full', loadComponent: () => import('./features/account/account-index.page').then(m => m.AccountIndexPage) },
+      { path: '', pathMatch: 'full', canActivate: [accountIndexGuard],
+        loadComponent: () => import('./features/account/account-index.page').then(m => m.AccountIndexPage) },
       { path: 'password', title: $localize`:@@route.account.password:Password`,
         loadComponent: () => import('./features/account/password.page').then(m => m.PasswordPage) },
       { path: 'change-email', title: $localize`:@@route.account.changeEmail:Email`,
