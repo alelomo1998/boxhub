@@ -1,84 +1,104 @@
-# Next session — M13e is complete
+# Next session — M13e is merged
 
-Paste the block below into a fresh session. Everything it references is committed.
+Paste the block below into a fresh session. Everything it references is committed and on `main`.
 
 ---
 
 Continue rxed at `~/dev/boxhub`. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker
 Compose behind nginx, GitHub `alelomo1998/boxhub` private.
 
-**M13d (auth screens) and M13e (the account area) are both complete.** Do not reopen either.
+**M13d (auth screens) and M13e (the account area) are both merged to `main`.** Do not reopen either.
+There is no milestone in flight — the first thing to do is decide what the next one is.
 
-## Read first
+## Read first, in this order
 
-1. `.superpowers/sdd/progress.md` — the M13e section at the bottom is the record. Read the M13d
-   section above it too; between them they carry every trap this program has paid for.
-2. `docs/BACKLOG.md` — organised by destination. The account-area block now says SHIPPED; the
-   genuinely open items are individual lines above it.
-3. `CLAUDE.md` — loaded automatically. Its rules were bought expensively; none are stylistic.
-4. `docs/PREFLIGHT.md` — a checklist keyed to four decision moments.
+1. `docs/HANDOFF.md` — the state of the product and the milestone order.
+2. `.superpowers/sdd/progress.md` — the M13d and M13e sections at the bottom. Between them they
+   carry every trap this program has paid for, in the words of the sessions that paid.
+3. `docs/BACKLOG.md` — organised by destination. The open follow-ups from M13e are individual lines.
+4. `CLAUDE.md` (loaded automatically) and `docs/PREFLIGHT.md` — the checklist keyed to four
+   decision moments.
 
-## What M13e shipped
+## Where things stand
 
-`/account` is a routed area behind a **session-only guard** (any signed-in user, no active box
-required — previously a membership-less or suspended-box user could not reach their own account at
-all). Four sections: password, change-email, sessions, danger. Lateral nav at desktop, list → detail
-on phone. Plus a **notification mail after a password change**, and a **readable device label** on
-the sessions list.
+**Gates on `main`:** Karma **408** · backend **439** · e2e **64 passed + 1 skipped** · axe **29
+cases, zero WCAG 2.2 AA violations** · visual **31 specs / 88 baselines** · production build clean.
+The 1 e2e skip is the quarantined TV/SSE defect — Project 2 owns it, do not investigate.
 
-**Gates:** Karma **405** · backend **439** · e2e **64 passed + 1 skipped** · axe **29 cases, zero
-violations** · visual **31 specs / 88 baselines** · production build clean. The 1 e2e skip is the
-quarantined TV/SSE defect — Project 2 owns it, do not investigate.
+**`dependency-scan` has been red on `main` since 2026-08-17**, from a newly-published advisory
+against an unchanged backend dependency. It first failed on a *scheduled* run, before M13d merged.
+Not caused by either milestone. `osv-scanner.toml` is the documented place for findings that are
+real but deliberately non-blocking — read the advisory first and decide, do not reach for the
+ignore file by reflex.
 
-## The lesson worth carrying, and it cost a rebuild
+## Candidate next milestones
 
-**The four sections were shaped; the AREA's structure never was.** Its layout, chrome and navigation
-came from a brainstorm and went straight to a plan. Every one of the three defects the user rejected
-on review traced to that gap — including a spec rule ("one markup tree, layout switched by CSS")
-that structurally could not express the list → detail the same spec had promised.
+- **M19 landing**, then **M14 coach** — the order `docs/HANDOFF.md` records. The coach tour spec
+  (`docs/superpowers/specs/2026-08-09-m14-coach-tour.md`) is done and no longer blocking M14.
+- **A small consolidation pass** on what M13e left: `bh-button` gained three inputs in one milestone
+  (`ariaDisabled`, `dangerBorder`, `solid`) and the API is no longer coherent — `dangerBorder` is a
+  boolean on a component whose look already lives in a 5-value enum, and **8 of its 10 variant×flag
+  combinations emit a class with no matching rule and fail silently**. Folding it into `variant`
+  costs one call site, one gallery cell and one spec. The account area's cross-section consistency
+  pass was also skipped, and the delete sheet has no axe coverage.
 
-**Shape the container, not only the contents.** If a milestone introduces navigation, a shell, or a
-way of moving between things, that is a design object in its own right and needs shaping — with
-sketches the user can *see*, not a description they have to imagine. The zero-volt decision was
-approved in words and rejected on sight.
+Ask the user which, rather than assuming.
 
-## The next obvious pieces of work
+## The two lessons M13e cost, and they are the same lesson
 
-- **`bh-button` consolidation.** It gained three inputs in one milestone (`ariaDisabled`,
-  `dangerBorder`, `solid`), each fine alone. Together the API is incoherent: `dangerBorder` is a
-  boolean on a component whose look already lives in a 5-value enum, and 8 of the 10 variant × flag
-  combinations emit a class with no matching rule and **fail silently**. Fold it into `variant`.
-- **The account area's cross-section pass**, which M13e never ran (Task 14 was skipped). Button
-  sizes differ across the four sections, heading→content spacing differs, and `t-h3` resolves to
-  `--fs-body` so no heading tier is in use at all.
-- **The delete sheet has no axe coverage** — the highest-consequence surface in the area.
-- `docs/HANDOFF.md` order was **M13d → M19 landing → M14 coach**.
+**1. Shape the container, not only the contents.** The four sections were shaped by an agent; the
+area's layout, chrome and navigation went from a brainstorm straight to a plan. Every one of the
+three things the user rejected on sight came from that gap — including a spec rule ("one markup
+tree, layout switched by CSS") that structurally could not express the list→detail the same spec
+had promised. If a milestone introduces navigation, a shell, or a way of moving between things,
+that is a design object in its own right.
 
-## Environment traps
+**And show it.** The zero-volt decision was approved in words and rejected on sight, because
+"zero volt" was described and never drawn. Bring sketches at 375 and 1440.
+
+**2. A code review does not discharge the design gate.** M13e passed fourteen code reviews and a
+clean whole-branch review, and the orchestrator declared it ready to merge without ever running
+`/impeccable critique`. The user asked "have you thrown impeccable critique?" and the answer was no.
+It then found **three P1s**, all invisible from source and none caught by 408 unit specs, 64 e2e
+cases or 29 axe cases:
+
+- a **cold load** of `/app/account` never redirected on desktop — because the redirect ran from a
+  component lifecycle and started a second navigation that raced the initial one and lost.
+  **In-app navigation always worked**, which is exactly why every test passed over it.
+- Angular **collapsed the whitespace** between a message and its link on two screens. The source
+  read correctly; only rendered `textContent` showed it.
+- **focus fell to `<body>`** after an error in the delete sheet.
+
+§16 is shape → build → **critique ≥28/40, no open P0/P1**. Run all three.
+
+## Environment traps, all hit for real
 
 - **Bash cwd PERSISTS between tool calls.** Absolute paths. It has produced false-clean gates, a
   Playwright run from the repo root reporting "No tests found", and bogus file-not-found errors.
 - **`ng build` does NOT compile spec files**; `tsc` does not type-check Angular templates. Only
   Karma catches a broken spec; only the production build catches a broken template.
-- **Never `npm test` bare** — it hangs. Always `-- --watch=false --browsers=ChromeHeadless`.
+- **Never `npm test` bare** — it hangs in watch mode. Always
+  `-- --watch=false --browsers=ChromeHeadless`.
 - **Never a backtick inside an HTML comment in an Angular template** (`TS1005`, pointing several
-  lines away).
+  lines from the cause).
 - **Visual regression runs ONLY via `e2e/visual.sh`** (Linux container). macOS baselines enforced on
   Linux is no check at all. The gallery's sections are **coupled through scroll position** — adding
-  to one section dirties every baseline after it.
+  to one dirties every baseline after it (54 files in one M13e commit).
 - **After `up -d --build`, wait ~100s** before running e2e; `DevDataSeeder` is still seeding and a
   short wait produces a failure that looks exactly like a real defect.
 - **`runner`/`tracking`/`tv` are non-idempotent** — re-run on `down -v` before blaming a diff.
 - Backend: `JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Never alongside Karma.
+- The app is on **port 80**, not 8080.
 
 ## The two patterns that keep paying
 
 **Roughly half of executor briefs contain a factual error — every one the orchestrator's, every one
-caught because executors are told to stop rather than improvise.** The recurring shape: listing the
-files a change IS, not the files that DEPEND on it. M13e's own plan had Task 3 registering routes
-for components that did not exist yet; the pre-flight scan caught it before dispatch.
+caught because executors are told to stop rather than improvise.** The shape recurs: listing the
+files a change IS, not the files that DEPEND on it. M13e's own plan had a task registering routes
+for components that did not exist yet; the pre-flight scan caught it before dispatch. **Grep for
+dependents before writing the brief.**
 
 **Eight tests that could not fail have now been found.** Two were in M13e, both deferred by the
-orchestrator as minors and both promoted by the final whole-branch review after it *proved* them by
-mutation — including one guarding the branch's central claim, where swapping the guard back left the
-whole suite green. When you defer a weak assertion, you are betting nothing important rests on it.
+orchestrator as minors and both promoted by the final review after it *proved* them by mutation —
+including one guarding the branch's central claim, where swapping the guard back left the whole
+suite green. **When you defer a weak assertion you are betting nothing important rests on it.**

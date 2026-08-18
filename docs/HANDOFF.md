@@ -387,12 +387,40 @@ set that M13c correctly did not build; its central claim depends on The Room, wh
 and unbuilt, so the hero copy would be written twice; and its CTAs land on the very auth screens
 M13d rebuilds. Order is now **M13d → M19 landing → M14 coach**.
 
-**M13e (the account area) shipped 2026-08-17**, out of order: it was deferred out of M13d on review
-(`account/security` is not an auth screen and its restructure was out of that milestone's scope).
-`/account` is now a routed area behind a session-only guard — password, change-email, sessions,
-danger — with a notification mail after a password change and readable device labels on the sessions
-list. Gates at merge: Karma 405, backend 439, e2e 64 passed + 1 skipped, axe 29 cases clean, visual
-31 specs over 88 baselines, production build clean.
+**M13e (the account area) shipped and merged 2026-08-18**, out of order: it was deferred out of M13d
+on review, because `account/security` is not an auth screen and its restructure was out of that
+milestone's scope. `/account` is now a routed area behind a **session-only guard** — password,
+change-email, sessions, danger — with a lateral nav at desktop and list→detail on phone. Previously
+a user with **no membership, or whose only box was suspended, could not reach their own account at
+all**: the users most likely to want to delete an account were exactly the ones locked out. Ships
+with a **notification mail after a password change** (a notification, not a confirmation gate — the
+user has already proved the current password, and a gate locks out anyone without inbox access) and
+a **readable device label** on the sessions list in place of a 150-character User-Agent.
+
+Gates at merge: Karma **408**, backend **439**, e2e **64 passed + 1 skipped**, axe **29 cases zero
+violations**, visual **31 specs over 88 baselines**, production build clean. Critique **35/40**,
+zero open P0/P1.
+
+**Two process failures in M13e, both the same shape — running the ceremony on the parts and not the
+whole. Both are worth carrying into every later milestone:**
+
+1. **The four sections were shaped; the AREA's structure never was.** Its layout, chrome and
+   navigation went from a brainstorm straight to a plan. All three defects the user rejected on
+   review came from that gap, including a spec rule ("one markup tree, layout switched by CSS")
+   that structurally could not express the list→detail the same spec had promised. **Shape the
+   container, not only the contents** — and show sketches, since the zero-volt decision was approved
+   in words and rejected on sight.
+2. **The design critique was never run until the user asked for it**, after fourteen green code
+   reviews had been mistaken for the design gate. They check different things. It found three P1s
+   that no test caught, because all three were invisible from source: a cold load of `/account`
+   never redirected on desktop **while in-app navigation always worked**; Angular collapsed the
+   whitespace between a message and its link on two screens; and focus fell to `<body>` after an
+   error in the delete sheet. **A code review does not discharge §16.**
+
+Open follow-ups from it, all filed in `docs/BACKLOG.md`: `bh-button` gained three inputs in one
+milestone (`ariaDisabled`, `dangerBorder`, `solid`) and the API is no longer coherent — 8 of its 10
+variant×flag combinations render a class with no matching rule and fail silently; the area's
+cross-section consistency pass was skipped; and the delete sheet has no axe coverage.
 
 **THE COACH TOUR IS DONE** — `docs/superpowers/specs/2026-08-09-m14-coach-tour.md`. It was the
 stated blocker on M14's spec and it is no longer blocking. Ten decisions taken, six questions left
