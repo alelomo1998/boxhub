@@ -1,4 +1,4 @@
-# Next session — M13e is merged
+# Next session — rework the roadmap
 
 Paste the block below into a fresh session. Everything it references is committed and on `main`.
 
@@ -7,100 +7,89 @@ Paste the block below into a fresh session. Everything it references is committe
 Continue rxed at `~/dev/boxhub`. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker
 Compose behind nginx, GitHub `alelomo1998/boxhub` private.
 
-**M13d (auth screens) and M13e (the account area) are both merged to `main`.** Do not reopen either.
-There is no milestone in flight — the first thing to do is decide what the next one is.
+**This session is not a build session. I want to rework the milestone plan** — change some
+milestones, add new ones, and restructure the programme. Do not start implementing anything.
 
-## Read first, in this order
+**Start with `superpowers:brainstorming`.** This is architectural: it changes how the remaining work
+is decomposed and what depends on what. Ask me questions one at a time, propose options, and do not
+write a plan until I have approved the shape. When we get to writing, the output is a **revised
+roadmap document**, and only then individual milestone specs.
 
-1. `docs/HANDOFF.md` — the state of the product and the milestone order.
-2. `.superpowers/sdd/progress.md` — the M13d and M13e sections at the bottom. Between them they
-   carry every trap this program has paid for, in the words of the sessions that paid.
-3. `docs/BACKLOG.md` — organised by destination. The open follow-ups from M13e are individual lines.
-4. `CLAUDE.md` (loaded automatically) and `docs/PREFLIGHT.md` — the checklist keyed to four
-   decision moments.
+## Read before you ask me anything
 
-## Where things stand
+1. **`docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`** — the current programme, and
+   the thing being reworked. Read all of it, including **"Boundaries that were decided, and are
+   binding"** and **"Out of scope for the whole program"**. Some of those boundaries are the reason
+   the current shape exists; I may want to overturn some, and you should be able to tell me what
+   each one was protecting before I do.
+2. **`docs/HANDOFF.md`** — what is actually built and merged, and the current milestone order.
+3. **`.superpowers/sdd/progress.md`** — the per-milestone record. The M13d and M13e sections at the
+   bottom are the most recent and the most useful.
+4. **`docs/BACKLOG.md`** — organised by destination. A roadmap rework is largely a question of what
+   comes out of here and into a milestone.
+5. `CLAUDE.md` — the operating rules. They are binding on any plan you propose.
+
+## Where the product actually is
+
+**Shipped and merged:** M0–M12 (auth, scheduling and booking, programming, tracking, UX overhaul,
+TV, class runner, accounts, onboarding, memberships and payments, security hardening, test/CI
+reliability, correctness, production readiness), then the rework programme's M13a (baseline: Angular
+22, `/app`, local HTTPS, i18n infrastructure), M13b (design language), M13c (component library),
+M13d (ten auth screens), M13e (the account area).
 
 **Gates on `main`:** Karma **408** · backend **439** · e2e **64 passed + 1 skipped** · axe **29
 cases, zero WCAG 2.2 AA violations** · visual **31 specs / 88 baselines** · production build clean.
-The 1 e2e skip is the quarantined TV/SSE defect — Project 2 owns it, do not investigate.
+CI and dependency-scan both green. The 1 e2e skip is the quarantined TV/SSE defect — Project 2 owns
+it, do not investigate.
 
-**CI and `dependency-scan` are both green on `main`.** The scan had been red since 2026-08-17 from
-a newly-published advisory (GHSA-qv9r-c865-cp47) against `log4j-api` 2.24.3, a transitive neither
-milestone touched. It was **not reachable** — this app logs through Logback, `log4j-api` arrives
-only under `log4j-to-slf4j`, and `log4j-core` is not on the classpath — but it was pinned to 2.25.5
-rather than ignored, because a same-line patch on an API jar is cheap and a green gate people trust
-beats an ignore entry people stop reading. `backend/pom.xml` carries the reasoning and the standing
-rule: **drop the override once Boot's managed version catches up**.
+**Not yet built, per the current programme:** M14 (class model, schedule and programming schema),
+M15 (admin: people), M16 (admin: commerce), M17 (athlete), M18 (superadmin), M19 (landing site),
+M20 (2FA/TOTP), Project 2 (The Room), and Launch → Production.
 
-## Candidate next milestones
+**Current stated order:** M13d → M19 landing → M14 coach. M13e was inserted out of order because it
+was deferred out of M13d on review.
 
-- **M19 landing**, then **M14 coach** — the order `docs/HANDOFF.md` records. The coach tour spec
-  (`docs/superpowers/specs/2026-08-09-m14-coach-tour.md`) is done and no longer blocking M14.
-- **A small consolidation pass** on what M13e left: `bh-button` gained three inputs in one milestone
-  (`ariaDisabled`, `dangerBorder`, `solid`) and the API is no longer coherent — `dangerBorder` is a
-  boolean on a component whose look already lives in a 5-value enum, and **8 of its 10 variant×flag
-  combinations emit a class with no matching rule and fail silently**. Folding it into `variant`
-  costs one call site, one gallery cell and one spec. The account area's cross-section consistency
-  pass was also skipped, and the delete sheet has no axe coverage.
+## Things worth knowing before proposing a new shape
 
-Ask the user which, rather than assuming.
+- **The coach tour spec is done** — `docs/superpowers/specs/2026-08-09-m14-coach-tour.md`. It was
+  the stated blocker on M14 and no longer blocks it. Ten decisions taken, six questions deliberately
+  left open to be asked at the screen.
+- **The design system is real and enforced.** Tokens, a component library with a dev gallery that is
+  its contract, 88 visual baselines, axe over 29 cases. Any new milestone that ships screens
+  inherits those gates and the per-screen cycle (shape → build → critique ≥28/40, no open P0/P1).
+- **Three open items from M13e** are filed in `docs/BACKLOG.md` and are candidates for a small
+  consolidation milestone: `bh-button` gained three inputs in one milestone (`ariaDisabled`,
+  `dangerBorder`, `solid`) and **8 of its 10 variant×flag combinations now emit a class with no
+  matching rule and fail silently**; the account area's cross-section consistency pass was skipped;
+  and the delete sheet has no axe coverage.
+- **Rough sizing from the two most recent milestones**, for estimating: M13d rebuilt ten screens
+  over 21 tasks; M13e built one area of four sections plus two backend changes over 15 tasks, with
+  two rounds of rework after review.
 
-## The two lessons M13e cost, and they are the same lesson
+## Two lessons that should shape how you plan, not just what
 
-**1. Shape the container, not only the contents.** The four sections were shaped by an agent; the
-area's layout, chrome and navigation went from a brainstorm straight to a plan. Every one of the
-three things the user rejected on sight came from that gap — including a spec rule ("one markup
-tree, layout switched by CSS") that structurally could not express the list→detail the same spec
-had promised. If a milestone introduces navigation, a shell, or a way of moving between things,
-that is a design object in its own right.
-
-**And show it.** The zero-volt decision was approved in words and rejected on sight, because
-"zero volt" was described and never drawn. Bring sketches at 375 and 1440.
+**1. Shape the container, not only the contents.** M13e shaped its four sections but never its own
+navigation and chrome — and every defect the user rejected on sight came from that gap, including a
+spec rule that structurally contradicted the design the same spec promised. If a milestone
+introduces navigation, a shell, or a way of moving between things, that is a design object in its
+own right and needs its own shaping, with sketches the user can *see*.
 
 **2. A code review does not discharge the design gate.** M13e passed fourteen code reviews and a
-clean whole-branch review, and the orchestrator declared it ready to merge without ever running
-`/impeccable critique`. The user asked "have you thrown impeccable critique?" and the answer was no.
-It then found **three P1s**, all invisible from source and none caught by 408 unit specs, 64 e2e
-cases or 29 axe cases:
+clean whole-branch review and was declared ready to merge without `/impeccable critique` ever being
+run. The critique then found three P1s no test caught, because all three were invisible from source.
+Any milestone you propose that ships screens must budget for the critique explicitly, not assume
+reviews cover it.
 
-- a **cold load** of `/app/account` never redirected on desktop — because the redirect ran from a
-  component lifecycle and started a second navigation that raced the initial one and lost.
-  **In-app navigation always worked**, which is exactly why every test passed over it.
-- Angular **collapsed the whitespace** between a message and its link on two screens. The source
-  read correctly; only rendered `textContent` showed it.
-- **focus fell to `<body>`** after an error in the delete sheet.
+## How I want this session to run
 
-§16 is shape → build → **critique ≥28/40, no open P0/P1**. Run all three.
-
-## Environment traps, all hit for real
-
-- **Bash cwd PERSISTS between tool calls.** Absolute paths. It has produced false-clean gates, a
-  Playwright run from the repo root reporting "No tests found", and bogus file-not-found errors.
-- **`ng build` does NOT compile spec files**; `tsc` does not type-check Angular templates. Only
-  Karma catches a broken spec; only the production build catches a broken template.
-- **Never `npm test` bare** — it hangs in watch mode. Always
-  `-- --watch=false --browsers=ChromeHeadless`.
-- **Never a backtick inside an HTML comment in an Angular template** (`TS1005`, pointing several
-  lines from the cause).
-- **Visual regression runs ONLY via `e2e/visual.sh`** (Linux container). macOS baselines enforced on
-  Linux is no check at all. The gallery's sections are **coupled through scroll position** — adding
-  to one dirties every baseline after it (54 files in one M13e commit).
-- **After `up -d --build`, wait ~100s** before running e2e; `DevDataSeeder` is still seeding and a
-  short wait produces a failure that looks exactly like a real defect.
-- **`runner`/`tracking`/`tv` are non-idempotent** — re-run on `down -v` before blaming a diff.
-- Backend: `JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Never alongside Karma.
-- The app is on **port 80**, not 8080.
-
-## The two patterns that keep paying
-
-**Roughly half of executor briefs contain a factual error — every one the orchestrator's, every one
-caught because executors are told to stop rather than improvise.** The shape recurs: listing the
-files a change IS, not the files that DEPEND on it. M13e's own plan had a task registering routes
-for components that did not exist yet; the pre-flight scan caught it before dispatch. **Grep for
-dependents before writing the brief.**
-
-**Eight tests that could not fail have now been found.** Two were in M13e, both deferred by the
-orchestrator as minors and both promoted by the final review after it *proved* them by mutation —
-including one guarding the branch's central claim, where swapping the guard back left the whole
-suite green. **When you defer a weak assertion you are betting nothing important rests on it.**
+- **Questions one at a time.** Multiple choice where it fits.
+- **Tell me what each existing boundary was protecting** before I overturn it. Some are load-bearing
+  (`every route has exactly one milestone` exists because a first draft left seven unassigned,
+  including two hero screens).
+- **Say plainly when a proposed milestone is too big**, and where it splits. The current programme
+  already learned this once: M13 became M13a–M13e.
+- Out-of-scope ideas go to `docs/BACKLOG.md`, one line, not into the plan.
+- When the shape is agreed, write the revised roadmap to
+  `docs/superpowers/specs/YYYY-MM-DD-v3-roadmap-<topic>.md`, and **retire the v2 document
+  explicitly** rather than leaving two live roadmaps — the v2 doc has its own "Why the old numbering
+  is retired" section, and the next one needs the same.
