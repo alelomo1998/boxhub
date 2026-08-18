@@ -45,6 +45,8 @@ cannot be recovered.
 | 8 | **Two-level nesting is expressed by adding an optional `blocks[]` to the existing `Block`, capped at depth 2 by validation.** | Every `blocks_json` value already in the database stays valid untouched — **the migration changes no content**. A macro can hold lines directly, so a simple warmup needs no synthetic wrapper. Cost accepted: the cap is a validator rather than a type, so §7 requires a test that proves depth 3 is rejected. |
 | 9 | **A cancellation is a status, not a delete.** `CANCELLED`, plus `cancelled_at` and a `was_late` boolean **stamped at cancel time**. | `was_late` cannot be derived later: it depends on `box.cancel_cutoff_min`, which is mutable and which M15 is putting a UI on. Derived at query time, a box loosening its cutoff would retroactively forgive every late cancel in its history. |
 | 10 | **`country` moves out of this milestone, to M22.** | v3 inherited it from v2's "M14 carries every schema change" rule, which v3 itself overturned. Country is box location; M22 adds the full box public profile including location. Splitting one concern across two milestones is what the replacement rule forbids. |
+| 11 | **Regeneration refuses a range that holds bookings.** It does not cancel them, does not move them, and applies nothing partially. | The destructive options both send mail — cancelling someone's class or silently moving it — and an admin adjusting a schedule should not be able to mail forty people by accident. Refusing is reversible and costs the admin one explicit clearing step. Requires §4.7's precise definition of "holds a booking", because decision 9 made `CANCELLED` rows survive. |
+| 12 | **A `class_type` may exist with zero slots.** | It is a class the box has defined but not yet scheduled — the natural way to build a class type and its skeleton before deciding when it runs, which is exactly the flow the coach described. No schema consequence: `schedule_slot.class_type_id` stays `NOT NULL`, since a slot always belongs to a type. M14b needs an unscheduled state in its list, and M14c must not assume a type has a slot to read a duration from. |
 
 ## 3. What this milestone deliberately does NOT model
 
@@ -142,8 +144,21 @@ it, book → cancel → re-book leaves two rows, which is the true history.
 ### 4.7 Regenerate support
 
 A domain service that regenerates sessions for a slot **from a given date forward**, leaving earlier
-sessions untouched. Decision 1 makes this necessary; M14b builds the screen for it. Existing bookings
-on a regenerated session are the open case — see §8.
+sessions untouched. Decision 1 makes this necessary; M14b builds the screen for it.
+
+**It refuses rather than destroys** (decision 11). If any session in the target range holds a booking,
+the whole regeneration is rejected — no partial application, no silent cancellation, and therefore no
+mail. It fails with a dedicated error code carrying **which dates block it**, so M14b can tell the
+admin what to clear rather than making them hunt.
+
+**"Holds a booking" has to be defined precisely, because decision 9 changed what a booking row means.**
+A `CANCELLED` row is history, not a claim on a place, and must **not** block — otherwise a single
+cancelled booking freezes a slot forever, and the freeze gets worse every time someone cancels.
+`BOOKED`, `WAITLIST`, `CHECKED_IN` and `NO_SHOW` all block: the first three are live claims, and
+`NO_SHOW` is attendance history that regeneration would destroy.
+
+This is the first place decisions 9 and 11 meet, and getting it backwards is invisible until a box
+has been running for a month. §7 requires a test for it.
 
 ## 5. JSON contracts
 
@@ -200,15 +215,17 @@ shape — that is M14b's and M14c's work.
   simultaneous active bookings. This is the constraint change most likely to be silently wrong.
 - **A test that proves `was_late` is stamped from the cutoff in force at cancel time** — change
   `cancel_cutoff_min` afterwards and the stored value must not move.
+- **A test that proves a `CANCELLED` booking does NOT block regeneration, and that `BOOKED`,
+  `WAITLIST`, `CHECKED_IN` and `NO_SHOW` all do.** Where decisions 9 and 11 meet (§4.7). Getting it
+  backwards is invisible until a box has been running a month, at which point accumulated cancels
+  have frozen the slot permanently. Also assert the refusal is total — no session in the range is
+  regenerated — and that the error names the blocking dates.
 - A migration test over seeded dev data proving every old `wod_type` lands on the mapping in §4.4,
   and that no `blocks_json` value was rewritten.
 - e2e green. Booking, the classes page and the runner all read this model; per the standing rule, run
   on a rebuilt `down -v` stack.
 
-## 8. Open — to be answered before the plan is written
+## 8. Nothing open
 
-- **What happens to existing bookings when a slot is regenerated forward.** Cancel and notify, move
-  to the new session, or refuse to regenerate a date range that has bookings. This is a product
-  decision with a mail consequence, and it should be answered rather than defaulted.
-- **Whether a `class_type` may have zero slots** and still be listed in the builder — likely yes, as
-  a template a coach schedules later, but it decides whether M14b needs an "unscheduled" state.
+Both questions this spec opened were answered on 2026-08-18 and are now decisions 11 and 12 in §2.
+This spec is ready for `writing-plans`.
