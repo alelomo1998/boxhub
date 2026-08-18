@@ -2016,3 +2016,28 @@ styled with a class on the `<bh-button>` host, which view encapsulation stops fr
 `<button>` — so the danger-bordered ghost design law requires rendered as an ordinary ghost. Caught
 by a reviewer mounting the page and reading getComputedStyle (`--hairline`, not `--danger`). The
 legacy page carried the identical bug. This is CLAUDE.md's host-vs-inner-element trap in CSS form.
+
+** THE CRITIQUE WAS NEVER RUN UNTIL THE USER ASKED FOR IT — AND IT FOUND THREE P1s. 30 -> 35/40. **
+I ran `/impeccable shape` twice (the four sections, then the area's structure after the user
+rejected it) and fourteen code reviews, and mistook the latter for the design gate. They are not the
+same thing: the code reviews checked spec compliance, mutation coverage and security properties, and
+not one of them scored a screen against design law. §16 requires critique >= 28/40 with no open
+P0/P1, and the standing memory rule is shape -> build -> critique -> re-critique. I stopped at build,
+declared the milestone ready to merge, and would have merged it.
+All three P1s were invisible from source and only appeared by driving the live screens:
+ 1. A COLD LOAD of `/app/account` on desktop never redirected — the nav column beside an empty
+    content area, exactly the "reads as broken" state that redirect exists to prevent. The index
+    redirected from its own ngOnInit, which starts a SECOND navigation; on a cold bootstrap that
+    raced the still-in-flight initial one and lost. **SPA-internal navigation always worked**, which
+    is precisely why 408 Karma specs, 64 e2e cases and 29 axe cases all missed it. Now a
+    CanActivate guard returning a UrlTree, resolving inside the FIRST navigation.
+ 2. "useForgot password." — Angular collapses whitespace between adjacent tags, so the Google-only
+    message ran into its link on two screens. **The source looked correct**, which is why it
+    survived every review; only rendered `textContent` showed it.
+ 3. Focus dropped to `<body>` after any error in the delete sheet — the highest-stakes control in
+    the area, breaking the containment the sheet's own doc comment promises.
+Re-critique confirmed all three by measurement, and checked the phone path did not regress.
+THE LESSON, and it is the milestone's second one about the same blind spot: **a code review and a
+design critique are different gates, and passing fourteen of the first does not discharge the
+second.** The first lesson was shaping the sections but not the structure. Both are the same shape:
+running the ceremony on the parts and not on the whole.
