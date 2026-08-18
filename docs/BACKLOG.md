@@ -194,54 +194,41 @@ Two consequences worth holding separately:
   than assumed distinct, and the fixed-name TV devices the `runner`/`tv` specs leave behind are the
   first thing to look at.
 
-## PROJECT 3 (proposed) · Box discovery — the app as a way to FIND a gym
+## PROJECT 3 · Box discovery — DELETED as a separate project, absorbed 2026-08-18
 
-**Raised by the user 2026-08-11. This is a new product surface, not a backlog item, and it needs its
-own brainstorm -> spec -> plan cycle before any of it is built.** Recorded here in full so the
-thinking is not lost, and filed OUTSIDE the rework program because it does not belong to any
-existing milestone.
+Was proposed here 2026-08-11. On 2026-08-18 the user deleted it as a standalone project and folded
+it into the main program: *"i want to DELETE part 3 and migrate all in part 1 because i recognize
+them like a core function of rxed."*
 
-**The idea:** a user can create an account with no gym, enter the app, and browse the boxes
-registered on the platform. rxed becomes two products sharing one account: a way to FIND a box for
-the unaffiliated user, and the classic box experience for members. To support it, box registration
-asks for far more — location, staff, courses, and whatever else a consultable public box page needs.
+**Everything it raised is carried, in full, into
+`docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`** — the public cross-tenant read
+path and its fail-OPEN hazard into **M21**; the box-profile schema, the signed-media contradiction
+and the GDPR obligation over staff photos into **M22**; the boxless app shell into **M23**; and the
+directory, the box page, the drop-in, the moderation question and the reversal of M13d's
+invite-only signup copy into **M24**.
 
-**Why this is large, stated so nobody scopes it as "a screen":**
-
-1. **It needs a PUBLIC, CROSS-TENANT read path, and that is the most dangerous shape in this
-   codebase.** Every box-scoped entity is `@TenantId`, and `docs/TENANCY.md` is explicit that a
-   tenant-less read fails **OPEN to root** rather than closed. A directory reads across all boxes
-   with no box token at all. Whatever serves it needs a deliberately designed access path —
-   native SQL or an explicit unfiltered projection — plus its own conformance coverage, because
-   `AuthzConformanceTest` defaults to DENY and a new public route must declare its intent.
-2. **Box registration grows a schema.** Location (and therefore geo/search), staff, courses,
-   photos, opening hours. New columns, new admin editing surface, new media handling — note that
-   M11 made media reads signed and short-lived, which a PUBLIC page contradicts and must resolve.
-3. **Two new public screens** — a directory/search list and a box detail page — which overlap
-   **M19 (landing site)**. Ordering between them is a real decision: a public box page is marketing
-   register, not product register.
-4. **Moderation.** A publicly listed box page is marketing copy the platform hosts. M9 already has
-   a PENDING/ACTIVE/SUSPENDED box lifecycle and a superadmin approval queue; a public page probably
-   has to hang off that rather than invent a second one.
-5. **GDPR.** Staff names and photos are personal data belonging to people who are not the account
-   holder. The export and anonymize flows exist and would need to cover it.
-
-**It reverses a decision already shipped.** M13d removed "Create a box account" from login and added
-"you'll need an invite from your gym" to signup, because signing up without a gym dead-ends on an
-empty box picker. **Under discovery that is exactly backwards** — a gym-less account becomes the
-intended entry path and the box picker's empty state becomes a directory. Both changes are correct
-for the product as it stands today and must be revisited together the moment this is scheduled.
-
-**Open before anything is built:** is the directory public to the internet or only to signed-in
-users? Does a box opt in to being listed? Who edits the public page — the box or the platform? Is
-there search by location, and does that mean geocoding? What does the unaffiliated user's app shell
-even look like, given the current three shells all assume a box?
+**One of its open questions is now answered:** the directory is **signed-in only**, not public to the
+internet — so no SSR, and no merge with M19. The rest are still open and are listed under M24 in the
+v3 document.
 
 ## The rework program — items by destination milestone
 
-*The old "M12 · UX/UI rework" section is gone: it was one bucket for what is now eight milestones
-(see `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md`). Every item below kept its
-wording and gained a home.*
+*The old "M12 · UX/UI rework" section is gone: it was one bucket for what is now eight milestones.
+Every item below kept its wording and gained a home.*
+
+> **Destination labels below are still valid as of 2026-08-18.** The v3 roadmap
+> (`docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`) deliberately did **not**
+> renumber M14–M20, precisely so these `→ M15`, `→ M16`, `→ M17`, `→ M18` labels keep working.
+> Three things did move, and only these:
+>
+> - **M14 split into M14a / M14b / M14c** — model, schedule surfaces, builder. Items labelled
+>   `→ M14 Class model & schedule` land in M14b or M14c; the instance-builder save bug is M14c.
+> - **The shared-layer debt from M13c/M13d/M13e now has an owner: M13f**, which opens Phase 2.
+>   That covers the `bh-button` variant matrix, the gallery's scroll-coupled baselines, the account
+>   area's skipped consistency pass, the delete sheet's missing axe coverage, `passwordErrorMessage()`
+>   and `AccountService.startEmailChange`.
+> - **New milestones M21–M27 exist** for the four pillars added on 2026-08-18. Nothing already filed
+>   below was reassigned to them.
 
 ### → M13 Foundations
 

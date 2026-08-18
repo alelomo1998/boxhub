@@ -1,5 +1,24 @@
 # v2 roadmap — the rework program (2026-08-02)
 
+> # RETIRED — 2026-08-18
+>
+> **Superseded in full by `docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`.
+> Do not plan against this document.**
+>
+> It is kept only as the record of how the box product was decomposed, and because M13a–M13e were
+> executed against it. Its milestone *numbering* carries forward into v3 unchanged — M14 through
+> M20 keep their labels — so backlog entries filed by destination are still valid. What changed is
+> the **order**, the **phasing**, and the addition of four product pillars that did not exist when
+> this was written: multi-box and discovery, workout-scoped social, coach personal reservation, and
+> native iOS/Android via Capacitor.
+>
+> Four boundaries below are **overturned** in v3 and are no longer binding: *"M14 carries every
+> schema change the program needs"*, *"no Connect, rxed never touches funds"*, *"the first real VPS
+> deploy happens when Project 1 is complete"*, and v1's *"pilot = the launch, not a learning
+> exercise"*. Three more are **discharged** rather than overturned, because they were satisfied:
+> the pre-M13c redesign freeze, the `/app` migration, and settling the product name. v3 records
+> what each one was protecting.
+
 **Supersedes the M12–M17 half of `docs/superpowers/specs/2026-07-14-v1-roadmap-design.md`.**
 Project 2 (The Room) and the Launch phase in that document stand unchanged.
 

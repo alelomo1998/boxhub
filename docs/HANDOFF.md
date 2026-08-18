@@ -11,7 +11,7 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
 3. **Design law:** `docs/superpowers/specs/2026-07-08-design-system-design.md` — binding for ALL frontend.
 4. **Milestone specs+plans:** `docs/superpowers/specs/` and `docs/superpowers/plans/` (one spec + one plan per milestone).
 5. **Backlog:** `docs/BACKLOG.md`. **Progress ledger:** `.superpowers/sdd/progress.md` — **now committed** (it was git-ignored until 2026-08-02, i.e. the recovery map lived on one disk, unversioned). Commit SHAs per task.
-6. **Roadmap (current):** `docs/superpowers/specs/2026-08-02-v2-roadmap-rework-program.md` — M13a–M20 + Project 2. It **renumbers everything**; the old M12–M17 sketches are retired there with what absorbed each.
+6. **Roadmap (current):** `docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md` — five phases, M13f + M14a/b/c + M15–M20 + M21–M27, then the beta, then Project 2, then v1.0. **The v2 doc (`2026-08-02-v2-roadmap-rework-program.md`) is RETIRED** and carries a banner saying so; read it only for how the box product was decomposed. v3 keeps v2's milestone *numbering* on purpose — M14–M20 labels are unchanged, so backlog destination labels still work — and changes the **order and phasing**, adding four pillars: multi-box + discovery, workout-scoped social, coach personal reservation, and native iOS/Android via Capacitor. Four v2/v1 boundaries are overturned there, each with what it was protecting.
 
 ## Status — done and on `main`
 - **M0 foundations** — auth (JWT access+refresh rotation), per-box role memberships, box-scoped tenant tokens, `TenantContext`, RFC7807 errors, Flyway V1, Angular shells + auth, Docker Compose, CI, deploy script.
