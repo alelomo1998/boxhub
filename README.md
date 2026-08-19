@@ -39,7 +39,7 @@ flowchart LR
     A[Athlete] --> APP[Angular app]
     C[Coach] --> APP
     AD[Box admin] --> APP
-    TV[TV / Fire Stick] --> BOARD[/tv board]
+    TV[TV / Fire Stick] --> BOARD[TV board]
     APP --> API[Spring Boot API]
     BOARD --> API
     API --> DB[(PostgreSQL 16)]
