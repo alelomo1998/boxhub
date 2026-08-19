@@ -359,10 +359,29 @@ Project 1 is complete", and v1's "pilot = the launch, not a learning exercise".
 **The production deploy is unscheduled and user-triggered.** It is not a phase. The readiness list is
 in the v3 document; `deploy/deploy.sh` still has never successfully run.
 
-**Two things left deliberately untouched, both needing a decision:** dependabot PR **#22**
-(`actions/setup-java` 5 → 5.6.0) has been open since 2026-08-01, and **`oc/m19-landing` is checked out
-in a second worktree at `~/dev/boxhub-oc`** carrying landing-site work — including e2e specs — that the
-v3 roadmap places in Phase 5. If that work is live, M19's position needs revisiting.
+**But a VPS is now ORDERED** — `docs/VPS-DEPLOYMENT.md` (2026-08-19) records an OVHcloud VPS-2 in
+Strasbourg, with SMTP, TLS and backups listed as open pre-production blockers. Nothing is deployed yet,
+so "no production data exists" still held for V19-V21 and they transform dev data freely. **That licence
+expires the moment the first deploy succeeds.** From V22 on, check `docs/VPS-DEPLOYMENT.md` before
+writing a migration that drops a column or rewrites rows: a destructive migration that was correct in
+M14a becomes a data-loss incident once a box is live.
+
+**Dependabot PR #22 was CLOSED, not merged (2026-08-19), and the cause was fixed.** It proposed
+`actions/setup-java@v5` → `@v5.6.0`. This repo tracks actions by floating **major** tag —
+`checkout@v7`, `setup-java@v5`, `setup-node@v7` — which already receives every patch and minor
+automatically, so the bump delivered nothing we were not already getting while *pinning* the action
+and freezing that behaviour, guaranteeing a fresh PR for every future v5.x patch. `.github/dependabot.yml`
+now ignores minor/patch for those three and keeps majors, since `v5 → v6` is a real event that deserves
+a human. `google/osv-scanner-action` is deliberately excluded from that ignore list: it is pinned exact
+at `@v2.3.8`, so a patch bump is the only way it ever moves. Pinning as a *policy* is defensible, but
+then it should be done deliberately and consistently across every action (ideally to SHAs), not one
+action at a time via a bot.
+
+**`oc/m19-landing` still needs a decision.** Its worktree at `~/dev/boxhub-oc` is **gone** — the
+directory no longer exists and the stale registration was pruned on 2026-08-19 — but the branch and its
+**9 commits survive** (landing scaffold, nginx two-builds-in-one-image, sections, e2e spec). The v3
+roadmap places M19 in Phase 5. If that work is live, M19's position needs revisiting; if it is
+abandoned, the branch should be deleted deliberately rather than left to rot.
 
 **Next Flyway is V22.** M14a used V19 (class model split), V20 (programming axes) and V21 (soft cancel).
 

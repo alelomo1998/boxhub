@@ -61,6 +61,13 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  # Actions are tracked by floating MAJOR tag — checkout@v7, setup-java@v5, setup-node@v7 —
+  # which already receives every patch and minor automatically. A minor/patch PR against one of
+  # them does not deliver a fix we would not otherwise get; it PINS the action and freezes it,
+  # so every future patch then needs its own PR. PR #22 (setup-java v5 -> v5.6.0) was exactly
+  # that and was closed rather than merged. Majors still come through, because v5 -> v6 is a
+  # real event that deserves a human. osv-scanner-action is deliberately NOT listed here: it is
+  # pinned exact (@v2.3.8), so for that one a patch bump is the only way it ever moves.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -69,6 +76,13 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "actions/checkout"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "actions/setup-java"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "actions/setup-node"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
 
   # Base images only (postgres, nginx, node, maven, temurin). Majors excluded for the same
   # reason: a Node or Postgres major is a deliberate upgrade, not a bot merge.
