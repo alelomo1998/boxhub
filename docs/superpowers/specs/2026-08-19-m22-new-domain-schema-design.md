@@ -152,12 +152,32 @@ it, is a question every later surface would answer differently.
 
 **Rooms are optional.** A single-space box never sets a `room_id` and nothing about it changes.
 
-**D5 — A PT session does not occupy gym floor capacity.**
-PT lives on the coach's own availability; the box's class grid does not know about it. This matches
-M26's *"the availability calendar the coach manages"*, and it is the reason `coach_availability` is
-keyed on the user rather than joined to `schedule_slot`. Boxes resolve floor conflicts the way they do
-today. A box-controlled "PT-allowed window" is an additive table later if a pilot box asks for one —
-it is not built now, and §10 records that.
+**D5 — A PT session does not consume class capacity, but it IS located in a room.**
+Two different things, and the distinction is the whole point. PT does not take a seat in a class and
+does not enter the capacity count — `coach_availability` is keyed on the user rather than joined to
+`schedule_slot`, matching M26's *"the availability calendar the coach manages"*.
+
+But a PT session **is** something happening on the floor at a time, so it carries a `room_id` and the
+admin calendar can show it. Without that, the calendar answers "what is happening in the structure"
+with a hole in it. So `pt_booking` gets a nullable `room_id`, exactly like `class_sessions`.
+
+This means the data can express a class and a PT session in the same room at the same time.
+**Detecting that collision is deliberately not built here** — it is behaviour, and M14b owns the
+calendar. M22's job is to make the collision *representable and therefore detectable later*, which it
+would not be if PT had no room at all. A box-controlled "PT-allowed window" is likewise additive; §10
+records both.
+
+**D14 — Assume a coach works at ONE box for now, but cut the schema multi-box-ready.**
+The user's call, and it removes this milestone's sharpest risk. The schema already satisfies it
+without change: `coach_profile`, `coach_availability`, `coach_time_off` and `coach_stripe` are keyed
+on the **user**, so a coach who later holds three boxes has one profile, one calendar and one Stripe
+account. **Enabling multi-box coaching therefore needs no migration** — it needs the cross-box
+availability read described in §3.2, and nothing else.
+
+No constraint is added to *enforce* single-box coaching. Enforcing it would mean a partial unique
+index on `memberships` where `role = 'COACH'`, which could fail against existing rows and would have
+to be dropped again the moment multi-box is wanted — a one-way migration spent on a temporary
+assumption. The assumption is recorded here instead, with its trigger named in §13.
 
 **D12 — The waitlist already exists. Do not rebuild it.**
 `bookings.status` carries `WAITLIST` with a `position` column. `BookingService` (~L93–104) promotes
@@ -259,8 +279,11 @@ prefilter.
 | `room` (id, box_id, name, active, created_at) | `@TenantId` |
 | `schedule_slot.room_id` nullable FK | Optional |
 | `class_sessions.room_id` nullable FK | Optional |
+| `pt_booking.room_id` nullable FK | D5 — PT is located on the floor even though it consumes no class capacity |
 
-No capacity, no double-booking prevention, no collision detection. All behaviour, all M14b.
+No capacity, no double-booking prevention, no collision detection. All behaviour, all M14b. What M22
+guarantees is that a collision is **representable**: a class and a PT session in the same room at the
+same time are both recorded against that room, so the rule can be written later without a migration.
 
 ## 6. Schema — the coach
 
@@ -269,7 +292,7 @@ No capacity, no double-booking prevention, no collision detection. All behaviour
 | `coach_profile` (user_id PK, bio, strengths, weaknesses, photo_path, `published`, `price_cents`, `currency`, `payee`) | Not `@TenantId`. `payee` is `COACH`/`BOX`, default `COACH` — D2 in one column. One price per coach; per-box pricing is excluded, see §10 |
 | `coach_availability` (id, user_id, weekday, start_time, end_time) | Not `@TenantId`. The recurring pattern |
 | `coach_time_off` (id, user_id, starts_at, ends_at) | Not `@TenantId`. Exceptions, kept a separate table rather than nullable columns muddying the first |
-| `pt_booking` (id, box_id, coach_membership_id, athlete_user_id, starts_at, duration_min, status, price_cents, currency, created_at) | `@TenantId`. Coach is a **membership** — it proves they belong to that box and matches `payment.payee_membership_id`. Athlete is a **user**, because a non-member can book PT |
+| `pt_booking` (id, box_id, coach_membership_id, athlete_user_id, `room_id` nullable, starts_at, duration_min, status, price_cents, currency, created_at) | `@TenantId`. Coach is a **membership** — it proves they belong to that box and matches `payment.payee_membership_id`. Athlete is a **user**, because a non-member can book PT. `room_id` is D5: PT does not consume class capacity but is located on the floor |
 | `coach_stripe` (user_id PK, restricted_key_enc, webhook_secret_enc, enabled) | Not `@TenantId`. Mirrors `box_stripe` exactly |
 
 `pt_booking.status` in `REQUESTED, ACCEPTED, DECLINED, CANCELLED, COMPLETED, NO_SHOW`. M26 specifies
