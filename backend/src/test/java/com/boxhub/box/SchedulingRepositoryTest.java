@@ -91,6 +91,6 @@ class SchedulingRepositoryTest extends AbstractIntegrationTest {
         b.setStatus("BOOKED");
         bookings.save(b);
         assertThat(bookings.countBySessionIdAndStatus(s.getId(), "BOOKED")).isEqualTo(1);
-        assertThat(bookings.findBySessionIdAndMembershipId(s.getId(), b.getMembershipId())).isPresent();
+        assertThat(bookings.findBySessionIdAndMembershipIdAndStatusNot(s.getId(), b.getMembershipId(), "CANCELLED")).isPresent();
     }
 }

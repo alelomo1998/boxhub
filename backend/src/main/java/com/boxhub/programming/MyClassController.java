@@ -74,7 +74,7 @@ public class MyClassController {
                 .collect(Collectors.toMap(ScheduleSlot::getId, sl -> typeImages.get(sl.getClassTypeId())));
 
         ClassSession mine = today.stream()
-                .filter(s -> bookings.findBySessionIdAndMembershipId(s.getId(), mid)
+                .filter(s -> bookings.findBySessionIdAndMembershipIdAndStatusNot(s.getId(), mid, "CANCELLED")
                         .map(b -> !"NO_SHOW".equals(b.getStatus())).orElse(false))
                 .findFirst().orElse(null);
 

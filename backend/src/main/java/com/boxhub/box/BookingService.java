@@ -46,7 +46,8 @@ public class BookingService {
 
         if ("CANCELLED".equals(session.getStatus())) throw conflict("CANCELLED");
         if (session.getStartAt().isBefore(now)) throw conflict("PAST");
-        if (bookings.findBySessionIdAndMembershipId(sessionId, membershipId).isPresent()) throw conflict("ALREADY_BOOKED");
+        if (bookings.findBySessionIdAndMembershipIdAndStatusNot(sessionId, membershipId, "CANCELLED").isPresent())
+            throw conflict("ALREADY_BOOKED");
         // ponytail: cutoff gates cancellation only (spec §3) — booking within the cutoff window is
         // allowed (last-minute booking is fine; last-minute self-cancel is not). See cancel() below.
         if (entitlementBlocked(session, box, membershipId)) throw conflict("LIMIT_REACHED");
@@ -69,14 +70,25 @@ public class BookingService {
     @Transactional
     public void cancel(UUID sessionId, UUID membershipId) {
         ClassSession session = sessions.findWithLockById(sessionId).orElseThrow();
-        Booking booking = bookings.findBySessionIdAndMembershipId(sessionId, membershipId).orElseThrow();
+        Booking booking = bookings.findBySessionIdAndMembershipIdAndStatusNot(sessionId, membershipId, "CANCELLED")
+                .orElseThrow();
         Box box = boxes.findById(TenantContext.requireBoxId()).orElseThrow();
 
         boolean wasBooked = "BOOKED".equals(booking.getStatus());
         if (wasBooked && session.getStartAt().minus(Duration.ofMinutes(box.getCancelCutoffMin())).isBefore(Instant.now())) {
             throw conflict("PAST_CUTOFF");
         }
-        bookings.delete(booking);
+
+        // was_late is computed and stamped HERE, once, from the cutoff in force right now. cancel_cutoff_min
+        // is mutable (M15 puts a UI on it) — deriving lateness at read time instead would let a box
+        // loosen its cutoff and retroactively forgive every late cancel in its history.
+        Instant now = Instant.now();
+        boolean late = session.getStartAt().minus(Duration.ofMinutes(box.getCancelCutoffMin())).isBefore(now);
+        booking.setStatus("CANCELLED");
+        booking.setCancelledAt(now);
+        booking.setWasLate(late);
+        booking.setPosition(null);
+        bookings.save(booking);
 
         if (wasBooked) {
             List<Booking> waitlist = bookings.findBySessionIdAndStatusOrderByPosition(sessionId, "WAITLIST");

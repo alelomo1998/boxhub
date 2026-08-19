@@ -374,7 +374,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private void booking(UUID sessionId, UUID membershipId, String status, Integer position) {
-        if (bookings.findBySessionIdAndMembershipId(sessionId, membershipId).isPresent()) return;
+        if (bookings.findBySessionIdAndMembershipIdAndStatusNot(sessionId, membershipId, "CANCELLED").isPresent()) return;
         Booking b = new Booking();
         b.setSessionId(sessionId);
         b.setMembershipId(membershipId);
