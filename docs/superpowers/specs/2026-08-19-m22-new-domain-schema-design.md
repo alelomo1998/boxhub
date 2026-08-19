@@ -249,16 +249,19 @@ context"). Two different questions, two correct scopes.
 ### 3.2 The three cross-box reads, named in advance
 
 Each is a boxless or cross-box read of a `@TenantId` table, which since M21 returns **empty** rather
-than leaking. Each gets the third route sanctioned by `docs/TENANCY.md` §4 — a **registered native
-query**, added to `docs/TENANCY.md` §6's native-method table with its justification. They are named here so they are designed, not
-discovered:
+than leaking. Each needs the third route sanctioned by `docs/TENANCY.md` §4 — a **registered native
+query**, added to `docs/TENANCY.md` §6's native-method table with its justification.
 
-1. **"My drop-ins across every box"** — a boxless session reading its own `bookings` rows.
-2. **A coach's real free slots.** Computing availability at Box A requires reading their `pt_booking`
-   rows at Box B. This is the sharpest tenancy consequence in the milestone and its **main risk**: it
-   is the same class of bug that shipped three times before the M11 audit, and it is visible only
-   *because* M21 made tenant-less reads fail closed instead of silently returning every box.
-3. **The public social feed** — `post` rows across boxes where `visibility = 'PUBLIC'`.
+**M22 does not build them.** Phase 1 ships no endpoints, so none of these has a caller yet. They are
+named here because the *schema* has to make them possible, and because a cross-box read discovered
+later, by someone who does not know this rule, is exactly how the same bug shipped three times before
+the M11 audit. Each is built by the milestone that first needs it.
+
+| Cross-box read | Built by | Note |
+|---|---|---|
+| "My drop-ins across every box" — a boxless session reading its own `bookings` rows | M23/M24 | The boxless shell is where this first has a caller |
+| A coach's real free slots — availability at Box A must account for their `pt_booking` rows at Box B | **M26** | **Deferred by D14.** Not needed while a coach works at one box. This was the milestone's sharpest risk before that assumption |
+| The public social feed — `post` rows across boxes where `visibility = 'PUBLIC'` | M25 | |
 
 ## 4. Schema — the box public surface
 
@@ -374,7 +377,9 @@ Required by the Phase 1 rule. Each entry is a decision, not an omission.
 | `room.capacity`, room double-booking prevention, collision detection | D11 — behaviour, and M14b owns the surface |
 | Per-box coach pricing | One price per coach. A `coach_box_rate` table is additive later |
 | Per-coach-per-box "offers PT here" flag | Same reasoning; a boolean on `memberships` is additive later |
-| A box-controlled "PT-allowed window" | D5 — PT does not occupy floor capacity, so nothing intersects it yet. Additive if a pilot box asks |
+| A box-controlled "PT-allowed window" | D5 — PT consumes no class capacity, so nothing intersects it yet. Additive if a pilot box asks |
+| Room collision detection between a class and a PT session | D5 — M22 makes it representable; M14b writes the rule |
+| The cross-box coach availability read | D14 — a coach works at one box for now. M26 builds it, and no migration is needed |
 | Notification / outbox | M17 owns the notification strategy. Modelling it here models an open question |
 | The geocoding mechanism | M24. Phase 1 ships no endpoints |
 | Stripe Connect | BYO restricted keys mirror `box_stripe`. Connect is M26's, if a coach ever needs it |
@@ -405,7 +410,7 @@ a year over a job that flipped nothing.
 | Directory read across two boxes | Public box tables are not `@TenantId` | Re-adding `@TenantId` to `box_photo`/`box_hours` — the read would return empty |
 | Box-only post is invisible to another box | `post` keeps its discriminator | Dropping `@TenantId` from `post` |
 | Public feed spans two boxes | The registered native query | Reverting it to JPQL — it would see one box |
-| A coach's free slots account for a booking at another box | The cross-box `pt_booking` read | Reverting it to a derived query |
+| A coach's profile and availability survive a box switch, and read identically from either box | D14 — the coach tables are keyed on the user, not tenant-scoped | Adding `@TenantId` to `coach_profile`/`coach_availability`: the rows would vanish on switch, which is `docs/TENANCY.md` failure mode 1 |
 | "My drop-ins" from a boxless session | The registered native query | Reverting it to a derived query — it would return empty |
 | Visitor + member bookings count toward one capacity | §7.1's whole argument | Moving visitors to a separate table |
 | A visitor row cannot be `WAITLIST` | D13 in the database | Dropping the CHECK |
@@ -428,4 +433,5 @@ red, that is a finding to investigate, not a line to adjust.
 | Notification strategy, and specifically the silent waitlist promotion | M17 |
 | Room capacity and collision rules, and the admin calendar with when/where/what filters | M14b |
 | The coach request → accept flow, and Connect if a coach ever needs more than BYO keys | M26 |
+| **Multi-box coaching.** Trigger: the first coach holding a COACH membership at two boxes. Needs the cross-box availability read in §3.2 and **no migration**. Until it lands, a coach at two boxes would show as free at Box A while booked at Box B | M26 |
 | Comment threading | Still an open product question |
