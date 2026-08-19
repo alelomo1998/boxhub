@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-18. Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-19 (M21 in progress on `m21-identity-tenancy`). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -339,10 +339,31 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13a–M13e and M14a are all merged. The next milestone is M21 — identity & tenancy for multi-box**,
-which the v3 roadmap calls the most dangerous milestone in the programme and flags as
-orchestrator-implemented work under `CLAUDE.md`'s "genuinely difficult or delicate" clause. It needs
-its own brainstorm → spec → plan cycle.
+**M21 — identity & tenancy for multi-box is IN PROGRESS on branch `m21-identity-tenancy`.** Specced,
+planned and 5 of its 8 tasks are committed; nothing is pushed or merged. Backend work is complete and
+the suite is green. Resume from `.superpowers/sdd/NEXT-SESSION.md`; the task-by-task record with commit
+SHAs is `.superpowers/sdd/2026-08-19-m21-identity-tenancy-multi-box/progress.md` (git-ignored, on disk).
+
+**What M21 already changed, and it is a behaviour change to be aware of before reading any older
+tenancy note:** `TenantIdentifierResolver.isRoot(NO_TENANT)` no longer returns true, so **a read with
+no ambient tenant now sees NOTHING instead of every box**. Cross-box visibility is
+`TenantContext.runAsRoot(...)`, jobs only, and its sole caller is `BookingMaintenance`. Any statement
+elsewhere in this document that a null tenant is "fail-OPEN root" describes the pre-M21 world —
+`docs/TENANCY.md` is being rewritten as this milestone's last task and is the authority.
+
+Two findings worth carrying regardless of what happens to the branch:
+
+- **`SessionApiTest#sweepFlipsPastBookedToNoShow` could not fail, and it was measured, not argued.** It
+  ran under `actAsBox(boxA)` while the nightly no-show sweep runs tenant-less. With the sweep genuinely
+  broken by the flip, that test still reported `Tests run: 1, Failures: 0` while a new two-box
+  tenant-less test failed with both bookings still `BOOKED`. Green since M2 over a job that would have
+  stopped working in every box, in silence. Deleted and replaced by `BookingMaintenanceTest`.
+- **A `ResponseStatusException` thrown from `HandlerInterceptor.preHandle` DOES render through
+  `ApiExceptionHandler` as problem+json.** Verified by asserting `$.detail`, not assumed. That is why
+  the new `BoxScopeGuard` is an interceptor rather than a servlet filter.
+
+The v3 roadmap calls M21 the most dangerous milestone in the programme and flags it as
+orchestrator-implemented work under `CLAUDE.md`'s "genuinely difficult or delicate" clause.
 
 **MILESTONE NUMBERS ARE LABELS, NOT A SEQUENCE.** The v3 roadmap allocated new milestones "the next
 free labels rather than reshuffling", and kept M14–M20 unchanged on purpose so `docs/BACKLOG.md`'s
@@ -352,7 +373,7 @@ order from here, never from the number:
 
 | Phase | Order |
 |---|---|
-| 1 — backend foundations | **M14a ✅ → M21 → M22** |
+| 1 — backend foundations | **M14a ✅ → M21 (in progress) → M22** |
 | 2 — athlete & coach frontend | M13f → M23 → M14b → M14c → M17 → M24 → M25 → M26 |
 | 3 | analytics brief |
 | 4 — admin frontend | M15 → M16 → M18 |
