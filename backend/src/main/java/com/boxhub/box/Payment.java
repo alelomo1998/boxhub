@@ -13,7 +13,13 @@ public class Payment {
     @TenantId
     @Column(name = "box_id", nullable = false)
     private UUID boxId;
-    @Column(name = "subscription_id", nullable = false) private UUID subscriptionId;
+    // Nullable since M22: a drop-in and a PT session are not subscriptions. ck_payment_subject
+    // (V26) enforces that exactly one of the three product FKs below is set.
+    @Column(name = "subscription_id") private UUID subscriptionId;
+    @Column(name = "booking_id") private UUID bookingId;
+    @Column(name = "pt_booking_id") private UUID ptBookingId;
+    /** NULL means the BOX is paid; set means that coach is paid (spec D2). */
+    @Column(name = "payee_membership_id") private UUID payeeMembershipId;
     @Column(name = "amount_cents", nullable = false) private int amountCents;
     @Column(nullable = false) private String currency;
     @Column(nullable = false) private String method;
@@ -30,6 +36,12 @@ public class Payment {
     public UUID getBoxId() { return boxId; }
     public UUID getSubscriptionId() { return subscriptionId; }
     public void setSubscriptionId(UUID subscriptionId) { this.subscriptionId = subscriptionId; }
+    public UUID getBookingId() { return bookingId; }
+    public void setBookingId(UUID bookingId) { this.bookingId = bookingId; }
+    public UUID getPtBookingId() { return ptBookingId; }
+    public void setPtBookingId(UUID ptBookingId) { this.ptBookingId = ptBookingId; }
+    public UUID getPayeeMembershipId() { return payeeMembershipId; }
+    public void setPayeeMembershipId(UUID payeeMembershipId) { this.payeeMembershipId = payeeMembershipId; }
     public int getAmountCents() { return amountCents; }
     public void setAmountCents(int amountCents) { this.amountCents = amountCents; }
     public String getCurrency() { return currency; }
