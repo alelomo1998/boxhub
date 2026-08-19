@@ -15,6 +15,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -134,11 +136,25 @@ class SlotRegenerationTest extends AbstractIntegrationTest {
     @Test
     void regeneratesForwardAndLeavesEarlierSessionsAlone() {
         var ctx = seedSlotWithSessions();
-        long before = sessions.count();
+        var from = LocalDate.now().plusDays(3);
+        var fromInstant = from.atStartOfDay(ZoneId.of("Europe/Rome")).toInstant();
 
-        regeneration.regenerateFrom(ctx.slotId(), LocalDate.now().plusDays(3));
+        List<UUID> inRangeBefore = sessions.findByScheduleSlotIdAndStartAtGreaterThanEqual(ctx.slotId(), fromInstant)
+                .stream().map(ClassSession::getId).sorted().toList();
+        List<UUID> earlierBefore = sessions.findAll().stream()
+                .filter(s -> ctx.slotId().equals(s.getScheduleSlotId()) && s.getStartAt().isBefore(fromInstant))
+                .map(ClassSession::getId).sorted().toList();
 
-        assertThat(sessions.count()).isGreaterThanOrEqualTo(before - 1);
+        regeneration.regenerateFrom(ctx.slotId(), from);
+
+        List<UUID> inRangeAfter = sessions.findByScheduleSlotIdAndStartAtGreaterThanEqual(ctx.slotId(), fromInstant)
+                .stream().map(ClassSession::getId).sorted().toList();
+        List<UUID> earlierAfter = sessions.findAll().stream()
+                .filter(s -> ctx.slotId().equals(s.getScheduleSlotId()) && s.getStartAt().isBefore(fromInstant))
+                .map(ClassSession::getId).sorted().toList();
+
+        assertThat(inRangeAfter).isNotEqualTo(inRangeBefore); // the in-range session was actually replaced
+        assertThat(earlierAfter).isEqualTo(earlierBefore);    // nothing before `from` moved
         assertThat(sessions.findById(ctx.pastSessionId())).isPresent();
     }
 
