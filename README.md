@@ -77,8 +77,8 @@ working while the canonical routes live below `/app/`.
   cookies, CSRF protection for cookie-authenticated writes and bcrypt passwords.
 - Authorization is tested at route level. New box-scoped endpoints require happy-path,
   auth-denied and cross-tenant-denied coverage.
-- Missing signing, media-link, encryption or database secrets fail startup rather than falling back
-  to a working committed default.
+- Missing JWT, media-link or Stripe encryption secrets fail startup. Compose also requires a real
+  `POSTGRES_PASSWORD`; local-only datasource defaults are not production credentials.
 - Audit rows are written inside the transaction; mail is sent only after the transaction commits.
 
 ```mermaid
@@ -156,17 +156,17 @@ production environment.
 
 ### Run services separately
 
-The backend needs PostgreSQL. The compose database can be used without starting the full stack:
+The backend needs PostgreSQL, the required dev secrets and Mailpit for email flows. Compose reads
+`docker/.env`; Maven does not load that file automatically. Copy it first, then export the required
+variables into the shell before running Spring Boot:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d db
-cd backend && SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run
-```
-
-For flows that send mail, start Mailpit too:
-
-```bash
+cp docker/.env.example docker/.env       # once
 docker compose -f docker/docker-compose.yml up -d db mailpit
+set -a
+source docker/.env
+set +a
+(cd backend && SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run)
 ```
 
 The frontend dev server proxies `/api` to `http://localhost:8080`:
@@ -191,17 +191,16 @@ current route.
 ### Local HTTPS (optional)
 
 Plain HTTP above remains the default. To exercise the local TLS profile, generate a self-signed
-certificate once:
+certificate once from the repository root:
 
 ```bash
-cd docker/dev-tls
-openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+(cd docker/dev-tls && openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
   -keyout boxhub.local.key -out boxhub.local.crt \
   -subj "/CN=boxhub.local" \
-  -addext "subjectAltName=DNS:boxhub.local"
+  -addext "subjectAltName=DNS:boxhub.local")
 ```
 
-Add `127.0.0.1 boxhub.local` to `/etc/hosts`, then run:
+Add `127.0.0.1 boxhub.local` to `/etc/hosts`, then run from the repository root:
 
 ```bash
 docker compose -f docker/docker-compose.yml --profile tls up -d --build
@@ -216,12 +215,13 @@ or email deliverability, because Mailpit accepts everything. Both are Launch -> 
 
 ## Testing
 
-Run the relevant suite from the matching directory:
+Run each suite from the repository root; the subshells keep the commands independent when copied as
+one block:
 
 ```bash
-cd backend && mvn verify
-cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
-cd e2e && npx playwright test
+(cd backend && mvn verify)
+(cd frontend && npm test -- --watch=false --browsers=ChromeHeadless)
+(cd e2e && npm install && npx playwright test)
 ```
 
 `cd frontend && npm test` remains the simple project command, but it starts Karma's watch mode;
@@ -239,13 +239,17 @@ The repository includes:
 For visual baselines, use the Linux-container runner rather than Playwright locally:
 
 ```bash
-cd e2e && ./visual.sh
+(cd e2e && ./visual.sh)
 ```
 
-Before trusting an end-to-end result, rebuild the frontend image and use a fresh
-`docker compose down -v` stack. The TV, runner and tracking flows are not idempotent against dirty
-state. CI runs the `ci` and `dependency-scan` jobs on push; a local green run is not the complete
-gate.
+Before trusting an end-to-end result, rebuild the frontend image and use a fresh stack:
+
+```bash
+docker compose -f docker/docker-compose.yml down -v
+```
+
+The TV, runner and tracking flows are not idempotent against dirty state. CI runs the `ci` and
+`dependency-scan` jobs on push; a local green run is not the complete gate.
 
 ## Deployment
 
@@ -286,7 +290,7 @@ solutions. Never put credentials, `.env` contents, tokens or encryption keys in 
 | `BOXHUB_SMTP_*` | Transactional email provider |
 
 The deploy script refuses the committed development values. Do not add secret fallbacks to
-`application.yml` or Compose: a missing secret must stop startup.
+`application.yml` or Compose; required production secrets must stop startup.
 
 ## Roadmap
 
