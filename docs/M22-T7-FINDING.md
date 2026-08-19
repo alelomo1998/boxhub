@@ -53,3 +53,19 @@ boots and genuinely filters, and the
 `availability.findByUserIdOrderByWeekdayAscStartTimeAsc(coach)).hasSize(1)` assertion should go red
 (0 rows) — or fail at save with the assigned-tenant-differs violation. Run it before Task 8 signs the
 milestone off, and if it does NOT go red, the test needs rewriting, not counting.
+
+**Run 2026-08-20, and it does go red.** `@TenantId` on `CoachAvailability.userId`:
+
+```
+[ERROR] CoachProfileTenancyTest.aCoachProfileAndCalendarReadIdenticallyFromEitherBox:84
+  » DataIntegrityViolation assigned tenant id differs from current tenant id:
+    f7eb46be-...!=4fd54cca-...: com.boxhub.identity.CoachAvailability.userId
+```
+
+Reverted; `Tests run: 2, Failures: 0, Errors: 0`. So the mutation "someone tenant-scopes a coach
+table" IS caught, in all three shapes it can take: boot refusal on the `@Id`-keyed tables
+(`coach_profile`, `coach_stripe`), and assigned-tenant-differs on the surrogate-keyed ones
+(`coach_availability`, `coach_time_off`). What remains true is that the cross-box *read* assertion
+passes trivially — with no discriminator there is nothing to filter. That is the correct end state,
+not a gap; the test earns its name through the write path, and this note is here so nobody later
+reads the green read-assertion as evidence it was ever exercised.
