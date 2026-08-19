@@ -5,21 +5,26 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 @Service
 public class WodService {
 
     private final WodRepository wods;
     private final BenchmarkTemplateRepository benchmarks;
+    private final SessionItemRepository sessionItems;
     private final ObjectMapper om;
 
-    public WodService(WodRepository wods, BenchmarkTemplateRepository benchmarks, ObjectMapper om) {
+    public WodService(WodRepository wods, BenchmarkTemplateRepository benchmarks,
+                      SessionItemRepository sessionItems, ObjectMapper om) {
         this.wods = wods;
         this.benchmarks = benchmarks;
+        this.sessionItems = sessionItems;
         this.om = om;
     }
 
@@ -82,4 +87,43 @@ public class WodService {
     }
 
     Instant now() { return Instant.now(); }
+
+    /**
+     * Attaching a library WOD to a class COPIES it: the class owns its content, so editing the
+     * library entry later never rewrites what a class that already ran actually did (spec decision 3).
+     * The copy is library = false. This is also the root-cause fix for the unbounded-growth bug —
+     * subsequent edits update the copy in place instead of inserting new library rows.
+     */
+    @Transactional
+    public SessionItem attachToSession(UUID libraryWodId, UUID sessionId, int sortOrder) {
+        Wod source = wods.findById(libraryWodId).orElseThrow();
+        Wod copy = new Wod();
+        copy.setTitle(source.getTitle());
+        copy.setMacro(source.getMacro());
+        copy.setTimingPreset(source.getTimingPreset());
+        copy.setTimingJson(source.getTimingJson());
+        copy.setScoreType(source.getScoreType());
+        copy.setTimeCapSeconds(source.getTimeCapSeconds());
+        copy.setBodyText(source.getBodyText());
+        copy.setBlocksJson(source.getBlocksJson());
+        copy.setScalingNotes(source.getScalingNotes());
+        copy.setBenchmarkTemplateId(source.getBenchmarkTemplateId());
+        copy.setLibrary(false);
+        wods.save(copy);
+
+        SessionItem item = new SessionItem();
+        item.setSessionId(sessionId);
+        item.setWodId(copy.getId());
+        item.setSortOrder(sortOrder);
+        item.setScoreType(copy.getScoreType());
+        return sessionItems.save(item);
+    }
+
+    /** Promotes a copy back into the shared library (e.g. "save this as a reusable WOD"). */
+    @Transactional
+    public Wod promoteToLibrary(UUID wodId) {
+        Wod w = wods.findById(wodId).orElseThrow();
+        w.setLibrary(true);
+        return wods.save(w);
+    }
 }
