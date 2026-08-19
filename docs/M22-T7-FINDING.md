@@ -69,3 +69,31 @@ table" IS caught, in all three shapes it can take: boot refusal on the `@Id`-key
 passes trivially — with no discriminator there is nothing to filter. That is the correct end state,
 not a gap; the test earns its name through the write path, and this note is here so nobody later
 reads the green read-assertion as evidence it was ever exercised.
+
+---
+
+# The export finding, now evidenced (orchestrator, 2026-08-20)
+
+Neither existing test can detect the boxless-empty read. Both were read, not assumed:
+
+- `AccountDeletionTest#exportContainsTheUsersOwnData` (L246) calls
+  `assertThat(dump).containsKeys("user", "memberships", "bookings", "scores", "lifts")` — **keys
+  only, never contents** — and its fixture `athleteInABox()` (L88) creates a user, a box and a
+  membership and **no bookings whatsoever**. The `bookings` list is empty in the passing case, so
+  the test reports the same green whether the read works or returns nothing.
+- `AccountDeletionTest#anonymizationLeavesBookingsScoresAndLiftsIntact` (L258) does seed a booking,
+  but calls `actAsBox(b.getId())` first (L264). It therefore exercises the **tenant-present** path.
+  Production's `GET /api/me/export` is a boxless session. This is the
+  `SessionApiTest#sweepFlipsPastBookedToNoShow` shape exactly: green for a year over a path the
+  test never entered.
+
+**So the bug is not yet proven — but neither is the guarantee.** The deciding test, which Task 7
+should write before touching the export:
+
+  seed a membership + a booking, `SecurityContextHolder.clearContext()`, call
+  `accounts.export(userId)`, assert the `bookings` list is **non-empty**.
+
+If that goes red, the GDPR export has been silently dropping bookings since M21 and the fix is a
+registered native query on `BookingRepository` plus a row in `docs/TENANCY.md` §6. If it goes green,
+`findByMembershipId` is reached some other way and only this note needs correcting — but the two
+tests above still need strengthening, because as written neither one pins the behaviour.
