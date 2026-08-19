@@ -7,6 +7,7 @@ import { AuthService, SILENT_401 } from './auth.service';
 
 const UNAUTHORIZED = { status: 401, statusText: 'Unauthorized' };
 const NO_CONTENT = { status: 204, statusText: 'No Content' };
+const STALE = { status: 409, statusText: 'Conflict' };
 const membership = { boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' as const, boxStatus: 'ACTIVE' };
 
 describe('authInterceptor', () => {
@@ -152,5 +153,64 @@ describe('authInterceptor', () => {
     expect(error).toBeTruthy();
     expect(auth.session()).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('sends the active box as X-Box-Id on /api/box/** only', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [membership] });
+    auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
+
+    http.get('/api/box/something').subscribe();
+    const boxReq = httpMock.expectOne('/api/box/something');
+    expect(boxReq.request.headers.get('X-Box-Id')).toBe('1');
+    boxReq.flush({});
+
+    http.get('/api/me').subscribe();
+    const meReq = httpMock.expectOne('/api/me');
+    expect(meReq.request.headers.has('X-Box-Id')).toBeFalse();
+    meReq.flush({});
+  });
+
+  it('re-mints and retries once when the server says the box is stale', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [membership] });
+    auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
+
+    let result: unknown;
+    http.get('/api/box/something').subscribe(r => (result = r));
+
+    httpMock.expectOne('/api/box/something').flush({ detail: 'STALE_BOX' }, STALE);
+
+    const remint = httpMock.expectOne('/api/auth/box-token');
+    expect(remint.request.body).toEqual({ boxId: '1' });
+    remint.flush(null, NO_CONTENT);
+
+    httpMock.expectOne('/api/box/something').flush({ ok: true });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('gives up after one stale retry instead of looping', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [membership] });
+    auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
+
+    let error: unknown;
+    http.get('/api/box/something').subscribe({ error: e => (error = e) });
+
+    httpMock.expectOne('/api/box/something').flush({ detail: 'STALE_BOX' }, STALE);
+    httpMock.expectOne('/api/auth/box-token').flush(null, NO_CONTENT);
+    httpMock.expectOne('/api/box/something').flush({ detail: 'STALE_BOX' }, STALE);
+
+    expect(error).toBeTruthy();
+  });
+
+  it('leaves an unrelated 409 alone', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [membership] });
+    auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
+
+    let error: unknown;
+    http.post('/api/box/sessions/1/book', {}).subscribe({ error: e => (error = e) });
+
+    httpMock.expectOne('/api/box/sessions/1/book').flush({ detail: 'SESSION_FULL' }, STALE);
+    httpMock.expectNone('/api/auth/box-token');
+
+    expect(error).toBeTruthy();
   });
 });
