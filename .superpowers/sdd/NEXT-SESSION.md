@@ -56,9 +56,23 @@ zero dirty baselines**. Full ledger: the M21 section of `.superpowers/sdd/progre
    public*. A `CROSS_BOX` probe must assert the absence of **private** markers — member email, plan
    name, invite token — and must not assert absence of the box name. Splitting `markers` into private
    and public is the first task on that file.
-3. **The open product question, unresolved on purpose:** whether a drop-in charges through the gym's
-   own Stripe account is currently an *assumption*. `docs/ROADMAP-AT-A-GLANCE.md` says confirm it with
-   the user **before M22's schema is cut**. It changes the payout tables.
+3. **The payee question is DECIDED (2026-08-19, user's call) — do not re-open it.** For **PT and
+   drop-ins the coach owns the money**: their own Stripe account, or cash settled directly with them.
+   The gym is **not** in the payment flow and takes **no automatic cut**. Three things follow, and the
+   second is the one that will bite:
+   - A box wanting a floor fee records an obligation; the platform does not split the payment.
+   - **A coach's payout account must NOT be a `@TenantId` entity.** M21 made one person hold several
+     boxes and a coach has ONE Stripe account across all of them. Tenant-scoping it duplicates
+     credentials per box, or makes the account vanish when the coach switches box — `docs/TENANCY.md`
+     failure mode 1, exactly. Key it on the user; read it with an explicit predicate, the
+     `Movement`/`Box`/`Membership` pattern in TENANCY.md §4.
+   - The coach manages it from a boxless `/api/me/**` route, which TENANCY.md §4's write contract
+     already permits: it is their own account, not a box's.
+
+   **One sub-question is still open and is cheap to defer to M22's spec:** BYO secret keys (the
+   pattern boxes already use, encrypted at rest, reuses the entire shipped payment path) versus
+   Stripe Connect (avoids handing secret keys to many individual coaches, but pulls in onboarding,
+   KYC and cross-account refunds). Recommend BYO; decide it in the spec, with the user.
 4. **Every new `@TenantId` entity needs a two-box test.** A single-box test passes just as happily
    against a silently-broken version — that is how the same bug shipped three times.
 

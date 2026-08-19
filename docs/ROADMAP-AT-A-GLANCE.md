@@ -76,5 +76,21 @@ followed by M21, and why M13f comes after both. Trust this page's order, never t
 - **Comments on social posts** — in or out, threaded or flat. You deferred this.
 - **Team workout depth** — score entry only, or full roster splitting.
 - **What the Room's "in development" gate looks like** — decided before the beta.
-- **Whether a drop-in charges through the gym's Stripe** — currently an *assumption*, to be confirmed
-  at M22 before its schema is cut.
+- ~~**Whether a drop-in charges through the gym's Stripe**~~ — **DECIDED 2026-08-19, user's call: it
+  does not.** For **PT and drop-ins the coach owns the money** — their own Stripe account, or cash
+  settled directly with them. The gym is not in the payment flow. Consequences that M22's schema must
+  carry, and that are not obvious:
+  - **There is no automatic gym cut.** A box that wants a floor fee records an obligation; the
+    platform does not split the payment. Say so out loud in the spec — "the gym takes a percentage"
+    is the assumption everyone brings to this and it is now false.
+  - **A coach's payout account must NOT be a `@TenantId` entity.** M21 made one person hold several
+    boxes, and a coach has ONE Stripe account across all of them. Tenant-scoping it would either
+    duplicate the credentials per box or make the account vanish when the coach switches box — which
+    is `docs/TENANCY.md` failure mode 1 exactly. Key it on the user and read it with an explicit
+    predicate, the `Movement`/`Box`/`Membership` pattern in TENANCY.md §4.
+  - **The coach manages it from a boxless route** (`/api/me/**`), which is consistent with TENANCY.md
+    §4's write contract: it is their own account, not a box's.
+  - **Still open, and cheap to defer:** whether "coach's own Stripe" means BYO secret keys (the
+    pattern boxes already use, encrypted at rest) or Stripe Connect. BYO reuses everything that
+    ships; Connect avoids handing secret keys to many individual coaches. Decide at M22's spec, not
+    before.
