@@ -26,10 +26,6 @@ import com.boxhub.performance.WodScoreRepository;
 import com.boxhub.programming.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -137,7 +133,7 @@ public class DevDataSeeder implements CommandLineRunner {
 
     /** Generated placeholder images so photo-driven screens render on a fresh box. */
     private void seedImages(Box box, UUID... userIds) {
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             java.util.Map<String, java.awt.Color> classColors = java.util.Map.of(
                     "WOD Class", new java.awt.Color(0x8a2f1a),
                     "Burn It", new java.awt.Color(0x1a5a52),
@@ -193,7 +189,7 @@ public class DevDataSeeder implements CommandLineRunner {
 
     /** Class types with skeletons + a weekly schedule; today's instances get published programming. */
     private void seedClassesAndProgramming(Box box, UUID coachId, UUID coach2Id) {
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             // one class type per name, with one slot per weekday it runs — a class that ran twice
             // a week used to be two template rows; it is now one type with two slots.
             UUID wodClassType = classType("WOD Class");
@@ -226,13 +222,13 @@ public class DevDataSeeder implements CommandLineRunner {
         // clock-relative "today" instances: the fixed 18:00/19:00 slots may already be past by the
         // time the box seeds (or not yet generated for tonight) — these guarantee today always has
         // one class in progress (checkin demo) and one still bookable, regardless of seed time.
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             todaySession("WOD Class", Instant.now().minus(java.time.Duration.ofMinutes(20)), 60, 14, coachId);
             todaySession("Burn It", Instant.now().plus(java.time.Duration.ofMinutes(40)), 60, 12, coach2Id);
         });
 
         // publish modular programming on today's instances
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             UUID warmup = wod("Row + mobility", "WARMUP", "NONE", "5' easy row, hip openers, empty-bar work");
             UUID strength = wod("Back Squat 5x5", "STRENGTH", "LOAD", "Back Squat 5x5 @ 80% — log your top set");
             UUID fran = wods.findByTitleContainingIgnoreCaseOrderByUpdatedAtDesc("Fran").stream().findFirst()
@@ -258,7 +254,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private void seedScoresAndLifts(Box box, UUID athlete, UUID athlete2, UUID athlete3) {
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             UUID mA = membershipId(athlete, box.getId());
             UUID mB = membershipId(athlete2, box.getId());
             UUID mC = membershipId(athlete3, box.getId());
@@ -295,7 +291,7 @@ public class DevDataSeeder implements CommandLineRunner {
      * by index rather than hard-indexed athletes.get(7), so a trimmed roster can't throw at startup.
      */
     private void seedPlansAndSubscriptions(Box box, List<User> staff, List<User> athletes) {
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             Plan unlimited = plan("Unlimited Monthly", 30, null, 8900, "eur", "UNLIMITED");
             Plan weekly = plan("3x Weekly", 30, 3, 5900, "eur", "WEEKLY_LIMIT");
 
@@ -341,7 +337,7 @@ public class DevDataSeeder implements CommandLineRunner {
 
     /** Books athletes onto the coming week's sessions so schedule/roster/check-in screens have real rosters. */
     private void seedBookings(Box box, List<User> athletes) {
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             List<UUID> mids = athletes.stream().map(a -> membershipId(a.getId(), box.getId())).toList();
             var zone = java.time.ZoneId.of(box.getTimezone());
             // from start-of-today, not now: the synthetic in-progress "today" session starts in the
@@ -384,7 +380,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private void seedAnnouncement(Box box, UUID coachUserId) {
-        runAsBox(box.getId(), () -> {
+        TenantContext.runAsBox(box.getId(), () -> {
             Announcement a = new Announcement();
             a.setBody("Saturday: Team WOD at 10:00 — bring a friend! The box closes early at 20:00 this Friday.");
             a.setUpdatedBy(coachUserId);
@@ -475,15 +471,5 @@ public class DevDataSeeder implements CommandLineRunner {
         l.setPerformedOn(on);
         l.setPr(pr);
         liftEntries.save(l);
-    }
-
-    private void runAsBox(UUID boxId, Runnable r) {
-        Jwt jwt = Jwt.withTokenValue("seed").header("alg", "HS256")
-                .subject(UUID.randomUUID().toString())
-                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
-                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
-        SecurityContextHolder.getContext().setAuthentication(
-                new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-        try { r.run(); } finally { SecurityContextHolder.clearContext(); }
     }
 }

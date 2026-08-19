@@ -1,155 +1,98 @@
-Continue **rxed**. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx,
-GitHub `alelomo1998/boxhub` private.
+# Continue **rxed** — M21 is closed. Next is **M22, new-domain schema**.
 
-> **Start this session from `~/dev/boxhub`.** If it fails to open with *"working directory no longer
-> exists"* pointing at `~/dev/boxhub/.claude/worktrees/...`, that path is dead — a previous session
-> created a git worktree there against the project's convention and it has been removed. `cd
-> ~/dev/boxhub` and start a **fresh** session rather than resuming the old one. Nothing is lost:
-> everything is on `main`.
+Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, GitHub
+`alelomo1998/boxhub` private.
 
-**This is NOT a build session.** The next milestone is **M21 — identity & tenancy for multi-box**, and
-it is neither specced nor planned. It needs the full arc: brainstorm → spec → writing-plans → execute.
-Do not start writing code.
+> **Start from `~/dev/boxhub`.** Do NOT create a git worktree and do NOT run `EnterWorktree`, even if a
+> superpowers skill asks for an "isolated workspace". `git worktree list` must show exactly one entry.
+> Milestone work is a feature branch in this directory, merged to `main` at the end.
 
-**Check the order before you trust any milestone label.** Milestone numbers in this project are
-allocation labels, not a sequence — the v3 roadmap took "the next free labels rather than reshuffling"
-and deliberately kept M14–M20 fixed so `docs/BACKLOG.md`'s `### → M15 Admin: people` pointers keep
-working. So M14a really is followed by M21. **Phase 1 is `M14a ✅ → M21 → M22`**; M13f opens Phase 2
-and comes after both. The previous handoff got this wrong — it announced Phase 2 as next and skipped
-M21 and M22 — and the error survived two documents. The order lives in `docs/HANDOFF.md` and the v3
-roadmap's phase sections. Never infer it from the number.
+```bash
+cd ~/dev/boxhub && git checkout main && git pull
+```
 
-## Working agreement, which the last session got wrong
-
-**Work on a feature branch in `~/dev/boxhub` and merge to `main` at the end.** Do NOT create a git
-worktree and do NOT run `EnterWorktree`, even if a superpowers skill asks for an "isolated workspace".
-The last session made that mistake, the user caught it, and it is now a standing rule in memory.
-`git checkout -b m21-identity-tenancy` and work there. `git worktree list` should show exactly one
-entry, the repo itself — if it shows more, something re-created one.
-
-Everything else is unchanged and binding: **ALWAYS subagent** — the orchestrator dispatches, reviews
-every diff, runs the gates, commits and merges, and implements only genuinely delicate work or trivial
-glue. Executors are **Sonnet**; reviews and critiques are **Sonnet** too. Executors never guess: blocked
-or plan-conflicts-with-reality goes back to the orchestrator.
-
-## Read before anything
+## Read first
 
 1. **`CLAUDE.md`** — binding, overrides anything here.
-2. **`docs/HANDOFF.md`** — status, gates, the environment traps, and the phase-order table. Its
-   milestone-order section exists because this exact ordering was got wrong twice.
-3. **`docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`** — the programme. Read the
-   **M21 section** and Phase 1's binding rule. M13f, M14b and M14c are Phase 2 and are not yours yet.
-4. **`docs/PREFLIGHT.md`** — at its four stated moments, not once at the start.
-5. **`docs/TENANCY.md`** — the authority for `@TenantId`, and the document M21 is going to change.
-   The failure mode is a *wrong ambient tenant*, and a genuinely tenant-less read fails **OPEN to
-   root**. Read it before the brainstorm, not during it.
+2. **`docs/ROADMAP-AT-A-GLANCE.md`** — all 18 milestones in **execution order**. Order is
+   `M14a ✅ → M21 ✅ → M22`, then M13f opens Phase 2. **Milestone numbers are allocation labels, not a
+   sequence.** Never infer order from a number.
+3. **`docs/TENANCY.md`** — rewritten in M21 and now the authority. M22 cuts schema for a public
+   directory, box profiles and drop-ins, i.e. exactly the cross-box read paths §4 was written for.
+   Read §4 (the boxless session contract) and §2 (fail-closed) before designing a single table.
+4. **`docs/HANDOFF.md`** — architecture, and the CRITICAL gotchas list.
+5. **`docs/PREFLIGHT.md`** at its four moments.
+6. **`docs/BACKLOG.md`** and `docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md` —
+   M22's scope was filed there.
 
-## What M21 is for, and why it is the dangerous one
+## What M21 shipped (merged to `main`, 2026-08-19)
 
-The roadmap calls it **the most dangerous milestone in this program**, and explicitly flags it as
-**orchestrator-implemented work** under `CLAUDE.md`'s "genuinely difficult or delicate" clause —
-tenancy is named in that clause. Do not hand this one to executors wholesale the way M14a was.
+**A tenant-less read fails CLOSED.** `isRoot(NO_TENANT)` is false, so a read with no ambient tenant
+keeps the `@TenantId` filter on against a sentinel no `boxes` row carries and returns **empty**. Before
+M21 it saw **every box**. Accepted trade, in writing: silent-empty (a bug) beats silent-everything (a
+breach). It is deliberately not loud — the resolver runs for every Hibernate session, including the
+many touching no `@TenantId` entity, so it cannot know which sessions to throw for.
 
-**The good news, verified against the code on 2026-08-18 rather than assumed:** multi-box already
-works at the identity layer. `Membership` is deliberately **not** `@TenantId`;
-`MembershipRepository.findByUserIdWithBox` already returns every box a user belongs to; the box picker
-and the user-token → box-token exchange already ship; and `uq_subscription_active` (V14) is unique on
-`membership_id`, not on user — so two active subscriptions at two boxes is **already legal today and
-needs no migration**.
+- Cross-box visibility is one explicit, greppable opt-in: `TenantContext.runAsRoot(...)`. Platform jobs
+  only, never a thread serving a user request. Its only caller is `BookingMaintenance`.
+- `runAsBox` is now **one** implementation in `TenantContext` — it used to be copy-pasted into seven
+  classes.
+- `/api/box/**` carries an `X-Box-Id` assertion header. It can only **reject** a stale request
+  (`409 STALE_BOX`), never resolve a tenant, so "never trust box ids from request params" is intact.
+  The Angular interceptor sends it and re-mints once on a 409.
+- **No Flyway migration. V22 is still free.**
 
-**The hazard is the cross-box read path.** 42 files carry `@TenantId`, and `docs/TENANCY.md` is
-explicit that the failure mode is a *wrong ambient tenant*, and that a genuinely tenant-less read
-fails **OPEN to root** rather than closed. A directory reads across all boxes with no box token at
-all. So this milestone owns four things, and the roadmap names them:
+Gates at merge: backend **494/0/0**, Karma **412/412**, production build clean, both tenancy greps 0,
+e2e **64 passed + 1 skipped** on a `down -v` stack (29 axe cases inside it), `visual.sh` **31 specs,
+zero dirty baselines**. Full ledger: the M21 section of `.superpowers/sdd/progress.md`.
 
-- a deliberately designed access path for cross-box reads — native SQL or an explicit unfiltered
-  projection, decided once and written into `docs/TENANCY.md`, not improvised per feature;
-- its own conformance coverage: `AuthzConformanceTest` defaults to DENY, so every boxless route must
-  declare its intent in `MIN_ROLE` — and **the orchestrator, not an executor, audits every edit to
-  that file**, which applies with unusual force here;
-- the boxless session: what a token with no `box_id` claim may read, and what it may never write;
-- the box-switch model, and what happens to `TenantContext` when a user holds three boxes.
+## What M21 leaves for M22 specifically
 
-Read `docs/TENANCY.md` in full before the brainstorm. It is the authority, and this is the milestone
-that changes it.
+1. **A boxless cross-box route declares `CROSS_BOX` in `AuthzConformanceTest.NON_BOX_SCOPE`.** `SELF`
+   is wrong for a route that reads other people's boxes. The label and its probe land with the first
+   such route — a probe family with no members either asserts a floor of zero or reddens the build.
+2. **The leak-marker trap, recorded in advance.** The conformance sweep plants a marker in box A's
+   **name** and asserts it never reaches box B. Under a directory a box's name is *legitimately
+   public*. A `CROSS_BOX` probe must assert the absence of **private** markers — member email, plan
+   name, invite token — and must not assert absence of the box name. Splitting `markers` into private
+   and public is the first task on that file.
+3. **The open product question, unresolved on purpose:** whether a drop-in charges through the gym's
+   own Stripe account is currently an *assumption*. `docs/ROADMAP-AT-A-GLANCE.md` says confirm it with
+   the user **before M22's schema is cut**. It changes the payout tables.
+4. **Every new `@TenantId` entity needs a two-box test.** A single-box test passes just as happily
+   against a silently-broken version — that is how the same bug shipped three times.
 
-## What just shipped, and the two claims it deliberately does NOT make
+## The rule this program keeps relearning
 
-**M14a — class & programming model** merged to `main` on 2026-08-19 (`5c1de64`). Backend only.
-`class_templates` split into `class_type` × `schedule_slot`; `wod_type` replaced by three independent
-axes (`macro`, `timing_preset`, explicit `score_type`) plus `timing_json` segments and a `library` flag;
-cancellation became a recorded fact with `was_late` stamped at cancel time; `SlotRegenerationService`
-refuses a range holding live bookings rather than cancelling anyone. Flyway **V19, V20, V21**.
+**Run the negative control on every test: break the implementation, watch it go red, revert.** M21
+exists because `SessionApiTest#sweepFlipsPastBookedToNoShow` **could not fail** — it ran under
+`actAsBox(boxA)` while the nightly sweep runs tenant-less, and with the sweep genuinely broken it still
+reported `Tests run: 1, Failures: 0`. Green since M2, over a job that would have silently stopped
+working in every box. Review caught none of M14a's five unfailable tests; the negative control caught
+all five. **If you cannot name the mutation a test catches, say so instead of counting it as coverage.**
 
-Two things it does **not** claim, both recorded in `docs/BACKLOG.md` and owed to **M14c**:
+One honesty example from M21 worth copying: Task 6's fourth spec passed *before* its implementation
+existed, because the baseline already behaved that way. It was recorded as a guard against a future
+regression, not counted as evidence for the change.
 
-- **The unbounded-library-growth bug is still open.** `WodService.attachToSession` copies a library WOD
-  so a class owns its content, and it is tested — but it has **no production caller**. The live path is
-  still `SessionItemController.replace`. Wiring it naively reproduces the bug wearing `library = false`,
-  because the builder re-sends the id it last received and the second save copies the copy.
-- **`wodType` stays on the wire** as `timingPreset ?? macro`, because nine frontend files consume it and
-  M14a was forbidden to touch them. That map is lossy for `CIRCUIT`/`CUSTOM`/`SKILL`, so those wods
-  reopen with a blank type select. User-accepted on 2026-08-19.
+## Two process traps that cost real time in M21
 
-## The lesson M14a paid for, which applies to every milestone after it
+- **cwd does not persist.** A negative control reported `exit=1` that was Maven failing to find a POM
+  in the directory a previous command had left behind. It proved nothing until re-run. **Absolute paths
+  in every gate command.**
+- **Maven's `-Dtest=` separator is a comma, not a plus.** `-Dtest='A+B'` fails with "No tests matching
+  pattern", which reads exactly like a code failure and is not.
 
-**Five tests that could not fail were found, three of them written during that milestone, and every one
-was green.** A migration test asserted that migrated data landed correctly — against a container where
-Flyway ran on an *empty* database, so nothing migrated and every assertion was satisfied by a foreign
-key. `is not null` was asserted on a `NOT NULL` column. One test was primed to fail the moment the next
-task ran. And nothing pinned a concrete `was_late`, so flipping `.isBefore` to `.isAfter` passed the
-entire suite.
+## Working agreement (unchanged, binding)
 
-**Review did not catch these. The negative control did.** Break the implementation, watch the test go
-red, revert — and if you cannot name the mutation a test catches, say so instead of counting it as
-coverage. Put that instruction in every executor brief. Two executors self-reported tests they could
-not make fail, and that honesty was worth more than the passing suite.
+**ALWAYS subagent.** The orchestrator (this session) dispatches, reviews every diff, runs the gates,
+commits and merges. It implements only genuinely delicate work (tenancy, crypto, concurrency, money) or
+trivial glue. Executors and reviewers are **Sonnet**. Executors never guess: blocked, ambiguous, or
+plan-conflicts-with-reality goes back to the orchestrator — M21's Task 6 brief had to correct a spec
+the plan got wrong, and that correction belonged to the orchestrator, not the executor.
 
-## Gates — the numbers to beat, and what a moved number means
+**Never edit `AuthzConformanceTest` as an executor** — orchestrator only. If it goes red, that is a
+finding to investigate, not a line to adjust.
 
-Karma **408** · backend **486** · e2e **64 passed + 1 skipped** on a rebuilt `down -v` stack · axe
-**29 cases, zero violations** · visual **31 specs / 88 baselines** · production build clean.
-
-M21 is backend-and-security work, so **every frontend number must stay put** — Karma 408, axe 29,
-visual 31/88. The backend number rises. Any frontend movement means scope leaked, so find out what
-before accepting it.
-
-`e2e/visual.sh` runs in a Linux container. Run that, never Playwright locally, or you compare against
-baselines your renderer never wrote. **Check the CI run after every push; a local green is not the gate.**
-
-## State of the world
-
-- `main` is green: `ci` and `dependency-scan` both pass. The log4j advisory that had `dependency-scan`
-  red is pinned and resolved.
-- **Next Flyway is V22.**
-- **Dependabot PR #22 was closed, not merged**, and `.github/dependabot.yml` was fixed so it stops
-  proposing pins against floating major tags. Reasoning is in the PR comment and the config.
-- **A VPS is ORDERED** — `docs/VPS-DEPLOYMENT.md`, OVHcloud VPS-2 Strasbourg, with SMTP, TLS and backups
-  as open pre-production blockers. Nothing is deployed, so "no production data exists" still holds. **It
-  expires on the first successful deploy** — from V22 on, a destructive migration that was fine in M14a
-  becomes a data-loss incident once a box is live.
-- **`oc/m19-landing` needs a decision.** Its worktree is gone but the branch and its 9 commits survive
-  (landing scaffold, nginx two-builds-in-one-image, sections, e2e spec). The v3 roadmap puts M19 in
-  Phase 5. Ask the user whether that work is live before assuming either way; if it is abandoned, delete
-  the branch deliberately rather than leaving it to rot.
-- **The 1 e2e skip is the quarantined TV/SSE defect. Project 2 owns it — do not investigate it.**
-- **`docs/ROADMAP-AT-A-GLANCE.md` is new** — all 18 milestones in execution order, one line each. Read
-  it before planning anything, and keep its status column current as milestones close.
-- **`.superpowers/sdd/NEXT-SESSION.md` (this file) is the ONLY session prompt.** A stale
-  `docs/NEXT-SESSION-PROMPT.md` from M13d survived until 2026-08-19 and was deleted. Do not create a
-  second one anywhere; rewrite this one at milestone close.
-- `.superpowers/sdd/` was cleared of 200 finished-milestone scratch files on 2026-08-19. Only
-  `progress.md` (the cumulative ledger) and this prompt remain. Your own briefs and reports go there
-  and are gitignored.
-
-## Start here
-
-Invoke `superpowers:brainstorming` and take M21 to the user. Read `docs/TENANCY.md` and the roadmap's
-M21 section first, because the first question is not "what do we build" but **"what is a boxless
-session allowed to read, and how does a cross-box query prove it is not an accident?"** — a
-tenant-less read failing OPEN to root is the whole risk, and the answer to that question decides the
-milestone's shape.
-
-M13f (component-library consolidation) is real and still owed — `bh-button`'s 8-of-10 broken variant
-matrix and the gallery's scroll-coupled baselines — but it **opens Phase 2**, after M21 and M22. Do
-not start it now.
+**Rewrite this file at milestone close.** It is the ONLY session prompt; do not create a second one
+anywhere.

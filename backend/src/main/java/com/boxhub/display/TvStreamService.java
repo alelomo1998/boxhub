@@ -1,18 +1,13 @@
 package com.boxhub.display;
 
+import com.boxhub.shared.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,29 +80,16 @@ public class TvStreamService {
         Conn c = connections.get(deviceId);
         if (c == null) return;
         try {
-            // tenant BEFORE compose: @TenantId reads fail open to root without it (ADR-001)
-            TvStateService.TvState snapshot = runAsBox(c.boxId(), () -> state.compose(c.boxId()));
+            // tenant BEFORE compose: without it compose()'s @TenantId reads have no ambient
+            // tenant. Pre-M21 that leaked every box; since M21 it returns empty and the board goes
+            // blank instead. Wrong either way — the fix is the same one (ADR-001 + its M21 amendment).
+            TvStateService.TvState snapshot = TenantContext.runAsBox(c.boxId(), () -> state.compose(c.boxId()));
             c.emitter().send(SseEmitter.event().name("state").data(json.writeValueAsString(snapshot)));
         } catch (Exception e) {
             connections.remove(deviceId);
             // a concurrent disconnect() may have completed this emitter already; a registry-cleanup
             // failure must never escape into the request thread that published the event
             try { c.emitter().completeWithError(e); } catch (Exception ignored) { }
-        }
-    }
-
-    private <T> T runAsBox(UUID boxId, java.util.function.Supplier<T> s) {
-        Authentication prev = SecurityContextHolder.getContext().getAuthentication();
-        try {
-            Jwt jwt = Jwt.withTokenValue("tv-push").header("alg", "HS256")
-                    .subject(UUID.randomUUID().toString())
-                    .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
-                    .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
-            SecurityContextHolder.getContext().setAuthentication(
-                    new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-            return s.get();
-        } finally {
-            SecurityContextHolder.getContext().setAuthentication(prev);
         }
     }
 }

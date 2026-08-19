@@ -4,6 +4,7 @@ import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.*;
 import com.boxhub.identity.*;
 import com.boxhub.programming.*;
+import com.boxhub.shared.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
     @Autowired WodScoreRepository scores;
 
     String coachTok, athleteTok, otherBoxCoachTok;
-    UUID item, targetMembership, foreignMembership;
+    UUID item, targetMembership, foreignMembership, boxAId;
 
     @AfterEach void clear() { SecurityContextHolder.clearContext(); }
 
@@ -42,6 +43,7 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
     void setup() {
         long n = System.nanoTime();
         Box a = newBox("cse-a-" + n); Box b = newBox("cse-b-" + n);
+        boxAId = a.getId();
         coachTok = tok("csec-" + n + "@t.io", a, "COACH");
         athleteTok = tok("csea-" + n + "@t.io", a, "ATHLETE");
         otherBoxCoachTok = tok("cseo-" + n + "@t.io", b, "COACH");
@@ -61,7 +63,11 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
                 .content("{\"rx\":true,\"timeSeconds\":201,\"finished\":true,\"isPrivate\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timeSeconds").value(201));
-        WodScore s = scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow();
+        // mvc.perform resolves its own request-scoped tenant from the Authorization header; back on
+        // the test thread the SecurityContext is empty (cleared in setup()), so this read on a
+        // @TenantId entity now fails closed with no ambient tenant. Establish the real box.
+        WodScore s = TenantContext.runAsBox(boxAId,
+                () -> scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow());
         assertThat(s.getLoggedBy()).isNotNull();
         assertThat(s.getTimeSeconds()).isEqualTo(201);
     }
@@ -106,7 +112,8 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timeSeconds").value(201));
 
-        WodScore s = scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow();
+        WodScore s = TenantContext.runAsBox(boxAId,
+                () -> scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow());
         assertThat(s.isPrivate()).isTrue();
         assertThat(s.isRx()).isFalse();
         assertThat(s.getNotes()).isEqualTo("scaled band");
@@ -121,7 +128,8 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
                 .content("{\"rx\":true,\"timeSeconds\":201,\"finished\":true,\"isPrivate\":false}"))
                 .andExpect(status().isOk());
 
-        WodScore s = scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow();
+        WodScore s = TenantContext.runAsBox(boxAId,
+                () -> scores.findBySessionItemIdAndMembershipId(item, targetMembership).orElseThrow());
         assertThat(s.isRx()).isTrue();
         assertThat(s.isPrivate()).isFalse();
         assertThat(s.getLoggedBy()).isNotNull();

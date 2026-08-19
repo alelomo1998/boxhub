@@ -1,6 +1,7 @@
 package com.boxhub.box;
 
 import com.boxhub.AbstractIntegrationTest;
+import com.boxhub.shared.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,9 +10,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TenantIdIsolationTest extends AbstractIntegrationTest {
 
@@ -65,30 +68,92 @@ class TenantIdIsolationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void nullTenantSessionIsRootAndSeesAllBoxes_pinnedFailOpenBehavior() {
+    void noTenantSessionSeesNothing_pinnedFailClosedBehavior() {
+        long n = System.nanoTime();
+        UUID boxA = newBoxId("closed-a-" + n);
+        UUID boxB = newBoxId("closed-b-" + n);
+        savePlan(boxA, "Closed A " + n);
+        savePlan(boxB, "Closed B " + n);
+
+        // No authentication -> NO_TENANT -> isRoot() is FALSE -> the filter stays ON with a sentinel
+        // that matches no box. PINNED ON PURPOSE (M21): a tenant-less read sees NOTHING. Before M21
+        // it saw EVERY box, which is why a boxless route was one URL prefix away from a cross-box
+        // leak — CookieBearerTokenResolver hands the user token (no box_id claim) to everything
+        // outside /api/box/**. If this starts failing, tenancy semantics changed: read
+        // docs/TENANCY.md before "fixing" it.
+        SecurityContextHolder.clearContext();
+        assertThat(plans.findAll()).extracting(Plan::getName)
+                .doesNotContain("Closed A " + n, "Closed B " + n);
+    }
+
+    @Test
+    void runAsRootSeesEveryBox() {
         long n = System.nanoTime();
         UUID boxA = newBoxId("root-a-" + n);
         UUID boxB = newBoxId("root-b-" + n);
+        savePlan(boxA, "Root A " + n);
+        savePlan(boxB, "Root B " + n);
 
-        actAsBox(boxA);
-        Plan pa = new Plan();
-        pa.setName("Root Pin A " + n);
-        pa.setDurationDays(30);
-        plans.save(pa);
+        SecurityContextHolder.clearContext();
+        List<String> names = TenantContext.runAsRoot(
+                () -> plans.findAll().stream().map(Plan::getName).toList());
 
-        actAsBox(boxB);
-        Plan pb = new Plan();
-        pb.setName("Root Pin B " + n);
-        pb.setDurationDays(30);
-        plans.save(pb);
+        assertThat(names).contains("Root A " + n, "Root B " + n);
+    }
 
-        // No authentication -> resolver returns NO_TENANT sentinel -> isRoot -> filter OFF.
-        // PINNED ON PURPOSE: null-tenant sessions are fail-OPEN at the ORM layer (see ADR-001
-        // amendment). Isolation for real requests is enforced by SCOPE_box + TenantContext at
-        // the controller boundary. If this test starts failing, the tenancy semantics changed —
-        // re-read ADR-001 before "fixing" it.
-        org.springframework.security.core.context.SecurityContextHolder.clearContext();
-        assertThat(plans.findAll()).extracting(Plan::getName)
-                .contains("Root Pin A " + n, "Root Pin B " + n);
+    @Test
+    void runAsBoxInsideRunAsRootNarrowsToThatBoxAndRestoresRootOnExit() {
+        long n = System.nanoTime();
+        UUID boxA = newBoxId("nest-a-" + n);
+        UUID boxB = newBoxId("nest-b-" + n);
+        savePlan(boxA, "Nest A " + n);
+        savePlan(boxB, "Nest B " + n);
+
+        SecurityContextHolder.clearContext();
+        TenantContext.runAsRoot(() -> {
+            List<String> inner = TenantContext.runAsBox(boxA,
+                    () -> plans.findAll().stream().map(Plan::getName).toList());
+            assertThat(inner).contains("Nest A " + n).doesNotContain("Nest B " + n);
+
+            // ... and root is back after the nested block, not lost with it.
+            List<String> afterNesting = plans.findAll().stream().map(Plan::getName).toList();
+            assertThat(afterNesting).contains("Nest A " + n, "Nest B " + n);
+            return null;
+        });
+    }
+
+    @Test
+    void runAsRootGrantsDatabaseVisibilityButNoAuthority() {
+        SecurityContextHolder.clearContext();
+        TenantContext.runAsRoot(() -> {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            assertThat(auth).isNotNull();
+            assertThat(auth.getAuthorities()).isEmpty();
+            return null;
+        });
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    void writingATenantEntityUnderRootFails() {
+        SecurityContextHolder.clearContext();
+        Plan p = new Plan();
+        p.setName("Root Write " + System.nanoTime());
+        p.setDurationDays(30);
+
+        // ROOT disables the read filter; it is NOT a box, so an insert stamps a box_id with no
+        // boxes row behind it and dies on the foreign key. runAsRoot is a READ tool, and this is
+        // what stops someone using it as a write one.
+        assertThatThrownBy(() -> TenantContext.runAsRoot(() -> plans.save(p)))
+                .isInstanceOf(Exception.class);
+    }
+
+    private void savePlan(UUID boxId, String name) {
+        TenantContext.runAsBox(boxId, () -> {
+            Plan p = new Plan();
+            p.setName(name);
+            p.setDurationDays(30);
+            return plans.save(p);
+        });
     }
 }

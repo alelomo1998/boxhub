@@ -5,16 +5,11 @@ import com.boxhub.identity.PasswordPolicy;
 import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
 import com.boxhub.shared.PlatformSettings;
+import com.boxhub.shared.TenantContext;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -111,26 +106,10 @@ public class BoxSignupService {
         // Subscription are @TenantId, and createOwnerAndBox's transaction (above) already committed
         // under the tenant-less signup request.
         BoxSignupTx.Result r = result;
-        runAsBox(r.boxId(), () -> subscriptionService.comp(r.membershipId()));
+        TenantContext.runAsBox(r.boxId(), () -> subscriptionService.comp(r.membershipId()));
 
         authService.sendVerification(r.owner());
         return new SignupOutcome(false);
-    }
-
-    /** Mirrors InvitePublicController/SessionGenerator's runAsBox exactly — see docs/TENANCY.md. */
-    private void runAsBox(UUID boxId, Runnable action) {
-        Authentication prev = SecurityContextHolder.getContext().getAuthentication();
-        try {
-            Jwt jwt = Jwt.withTokenValue("system").header("alg", "HS256")
-                    .subject(UUID.randomUUID().toString())
-                    .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
-                    .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
-            SecurityContextHolder.getContext().setAuthentication(
-                    new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-            action.run();
-        } finally {
-            SecurityContextHolder.getContext().setAuthentication(prev);
-        }
     }
 
     /**

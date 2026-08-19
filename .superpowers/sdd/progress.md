@@ -2109,3 +2109,68 @@ built the mechanism, M14c wires it.
 nine frontend files consume it and M14a may not touch them. That map is lossy for three legacy values —
 `CIRCUIT`/`CUSTOM` → `WORKOUT`, `SKILL` → `GYMNASTIC` — none of which are options in `wod-builder`'s
 select, so those wods reopen with a blank type until M14c rebuilds it. Filed in `docs/BACKLOG.md`.
+
+---
+
+# M21 — identity & tenancy for multi-box (branch `m21-identity-tenancy`, 2026-08-19)
+
+**The default reversed.** `TenantIdentifierResolver.isRoot(NO_TENANT)` was true, so a read with no
+ambient tenant had the `@TenantId` filter **disabled** and saw every box. It is now false: the filter
+stays on against a sentinel no `boxes` row carries, and a tenant-less read returns **empty**. The trade
+is written down rather than implied — an accidental cross-box read is now silent-**empty** (a bug)
+instead of silent-**everything** (a breach). It is deliberately not loud: the resolver runs for every
+Hibernate session, including the many that touch no `@TenantId` entity at all, so it cannot know which
+sessions to throw for. Cross-box visibility became one explicit, greppable opt-in,
+`TenantContext.runAsRoot`, whose only main-source caller is `BookingMaintenance`.
+
+Tasks and commits (8 tasks, 9 commits):
+
+| Task | Commit | What |
+|---|---|---|
+| 1 | `4bd12cd` | one `runAsBox` in `TenantContext`; seven copy-pasted local versions delegate |
+| 5 | `92044b3` | `BoxScopeGuard` — `/api/box/**` rejects an `X-Box-Id` that disagrees with the token, `409 STALE_BOX` |
+| 2 | `79077f2` | the flip: tenant-less reads fail closed; `runAsRoot` is the opt-in |
+| 3 | `dc6b5bc` | the nightly no-show sweep declares its cross-box read |
+| 4 | `384b7c1`, `99ee184` | the flip's entire test fallout — two classes, tests only, no production code |
+| 6 | `b125452` | the client half: `X-Box-Id` per request, one re-mint-and-retry on `STALE_BOX` |
+| 7 | `9b4917e` | `docs/TENANCY.md` rewritten, plus every document and comment that quoted the old default |
+
+**No Flyway migration. V22 is still free.**
+
+**The finding this milestone exists to make impossible to repeat.**
+`SessionApiTest#sweepFlipsPastBookedToNoShow` **could not fail.** It ran under `actAsBox(boxA)` while
+the nightly sweep runs tenant-less, so it exercised a code path the job never takes. Measured, not
+argued: with the sweep genuinely broken it still reported `Tests run: 1, Failures: 0`, while the new
+two-box tenant-less test failed with both bookings still `BOOKED`. Green since M2, over a job that
+would have silently stopped working in every box. The old test is deleted; `BookingMaintenanceTest`
+replaces it.
+
+**Every claim in this milestone was measured.** Negative controls were run on Tasks 2, 3, 5 and 6 —
+break the implementation, watch the named test go red, revert, re-verify green. One honest gap is
+recorded rather than counted: Task 6's fourth spec ("leaves an unrelated 409 alone") passed **before**
+the implementation existed, because the baseline already passed 409s through. It guards against a
+future over-broad match; it is not evidence for this change.
+
+**Two process traps that cost real time, both already in `docs/PREFLIGHT.md`.** A negative control
+reported `exit=1` that was Maven failing to find a POM in the directory a previous command had left
+behind — it proved nothing until re-run with absolute paths. And Maven's `-Dtest=` separator is a
+comma, not a plus: `-Dtest='A+B'` fails with "No tests matching pattern", which reads exactly like a
+code failure.
+
+**Beyond the plan's list, four stale mechanism claims were found and fixed**, each of which would have
+taught the next milestone something false: `ADR-001`'s M1 amendment was still the live statement of
+fail-OPEN *and* cited the test Task 2 deleted (now marked superseded, with an M21 amendment);
+`TvStreamService.push`'s comment; `TenantContext.runAsRoot`'s own javadoc, which said M21 *introduced*
+fail-open; and `StripeWebhookController`'s javadoc, naming a method that had not existed since Task 1.
+
+**Gates, all measured on this branch:** backend 494/0/0 BUILD SUCCESS; Karma 412/412 (408 + Task 6's
+four, nothing else moved); production build exit 0; `private .*runAsBox` = 0 and `runAsRoot` in any
+`*Controller.java` = 0; e2e **64 passed + 1 skipped** on a `down -v` rebuilt stack, including the 29
+axe cases; `visual.sh` 31 specs in the Linux container with **zero dirty baselines** — nothing in this
+milestone renders, so a dirty baseline would have meant scope leaked.
+
+**For the next milestone.** A boxless cross-box route declares `CROSS_BOX` in
+`AuthzConformanceTest.NON_BOX_SCOPE` — `SELF` is wrong for a route that reads other people's boxes.
+And the sweep's leak markers live in box **names**, which a directory makes legitimately public, so a
+`CROSS_BOX` probe must assert the absence of *private* markers (member email, plan name) instead.
+Both are recorded in `docs/TENANCY.md`, which is the authority.

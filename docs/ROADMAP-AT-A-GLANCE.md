@@ -16,8 +16,8 @@ followed by M21, and why M13f comes after both. Trust this page's order, never t
 | | Milestone | What it actually does | Status |
 |---|---|---|---|
 | 1 | **M14a** class & programming model | Splits a "class" from "when it runs", so a class can be described and scheduled twice. Gives a workout three real axes (what part of class, how it's timed, how it's scored) instead of one muddled list. Makes cancelling a class a recorded fact instead of deleting the row. | ✅ **done** |
-| 2 | **M21** identity & tenancy for multi-box | Lets an account exist with **no gym**, and lets one person belong to several. The dangerous part isn't the login — it's that a query with no gym attached currently reads **everything**, so the cross-gym read path has to be designed deliberately. | ⏭ **next** |
-| 3 | **M22** new-domain schema | The tables everything in Phase 2 needs: a gym's public profile (location, photos, hours), coach profiles and availability, drop-ins, social posts and ratings, and payout accounts. | |
+| 2 | **M21** identity & tenancy for multi-box | Lets an account exist with **no gym**, and lets one person belong to several. The dangerous part wasn't the login — it was that a query with no gym attached read **everything**. It now reads **nothing** unless it asks: cross-gym visibility is one explicit, greppable opt-in. | ✅ **done** |
+| 3 | **M22** new-domain schema | The tables everything in Phase 2 needs: a gym's public profile (location, photos, hours), coach profiles and availability, drop-ins, social posts and ratings, and payout accounts. | ⏭ **next** |
 
 ## Phase 2 — Athlete & coach frontend
 *Eight screen milestones. Each one ships through the full design gate.*
