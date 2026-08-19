@@ -1,6 +1,7 @@
 package com.boxhub.box;
 
 import com.boxhub.shared.CryptoService;
+import com.boxhub.shared.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stripe.exception.SignatureVerificationException;
@@ -9,11 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,8 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -161,7 +155,7 @@ public class StripeWebhookController {
         String type = root.path("type").asText(null);
 
         if (ASYNC_PAYMENT_FAILED.equals(type)) {
-            FailureData failure = runAsBox(boxId, () -> tx.execute(status -> {
+            FailureData failure = TenantContext.runAsBox(boxId, () -> tx.execute(status -> {
                 Payment p = payments.findByStripeSessionId(sessionId).orElse(null);
                 // Only a still-PENDING row is actionable. Already FAILED (a Stripe retry) or already
                 // SUCCEEDED (this specific session settling first, however unlikely) is a no-op — no
@@ -194,7 +188,7 @@ public class StripeWebhookController {
             return ResponseEntity.ok().build();
         }
 
-        ReceiptData receipt = runAsBox(boxId, () -> tx.execute(status -> {
+        ReceiptData receipt = TenantContext.runAsBox(boxId, () -> tx.execute(status -> {
             Payment p = payments.findByStripeSessionId(sessionId).orElse(null);
             if (p == null || "SUCCEEDED".equals(p.getStatus())) {
                 return null; // replay of an already-handled event — idempotent no-op, no duplicate receipt
@@ -241,23 +235,6 @@ public class StripeWebhookController {
             return java.util.Optional.of(UUID.fromString(raw));
         } catch (IllegalArgumentException e) {
             return java.util.Optional.empty();
-        }
-    }
-
-    /** Mirrors TvStreamService.runAsBox — installs a synthetic box-scoped Authentication so
-     *  @TenantId reads/writes resolve to boxId instead of the NO_TENANT sentinel. */
-    private <T> T runAsBox(UUID boxId, java.util.function.Supplier<T> s) {
-        Authentication prev = SecurityContextHolder.getContext().getAuthentication();
-        try {
-            Jwt jwt = Jwt.withTokenValue("stripe-webhook").header("alg", "HS256")
-                    .subject(UUID.randomUUID().toString())
-                    .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
-                    .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
-            SecurityContextHolder.getContext().setAuthentication(
-                    new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-            return s.get();
-        } finally {
-            SecurityContextHolder.getContext().setAuthentication(prev);
         }
     }
 }

@@ -2,15 +2,8 @@ package com.boxhub.box;
 
 import com.boxhub.identity.AuthController;
 import com.boxhub.shared.TenantContext;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -47,7 +40,7 @@ public class InvitePublicController {
         // Same trap as StripeWebhookController/SessionGenerator (see CLAUDE.md); fix is the
         // same runAsBox pattern accept() already uses below.
         String planName = inv.getPlanId() == null ? null
-                : runAsBox(inv.getBoxId(), () -> plans.findById(inv.getPlanId()).map(Plan::getName).orElse(null));
+                : TenantContext.runAsBox(inv.getBoxId(), () -> plans.findById(inv.getPlanId()).map(Plan::getName).orElse(null));
         return new PreviewResponse(box.getName(), box.getSlug(), inv.getRole(), inv.getEmail(), planName);
     }
 
@@ -68,7 +61,7 @@ public class InvitePublicController {
         InviteAcceptTx.Result r = acceptTx.accept(token, userId);
 
         if (r.invite().getPlanId() != null) {
-            runAsBox(r.box().getId(), () -> {
+            TenantContext.runAsBox(r.box().getId(), () -> {
                 Plan plan = plans.findById(r.invite().getPlanId()).orElseThrow(NoSuchElementException::new);
                 // No Payment row — they haven't paid. ACTIVE with a concrete period end so the
                 // entitlement check lets them book immediately; the lapse job chases them later.
@@ -78,31 +71,10 @@ public class InvitePublicController {
             // A plan-less invite (planId null) means the box bills this member offline — but they
             // still need to be bookable, so comp them onto the per-box synthetic "Comped" plan
             // (M12b Task 2) instead of leaving them without any subscription at all.
-            runAsBox(r.box().getId(), () -> subscriptionService.comp(r.membership().getId()));
+            TenantContext.runAsBox(r.box().getId(), () -> subscriptionService.comp(r.membership().getId()));
         }
 
         Box box = r.box();
         return new AuthController.MembershipDto(box.getId(), box.getName(), box.getSlug(), r.membership().getRole(), box.getStatus());
-    }
-
-    /** Mirrors StripeWebhookController/SessionGenerator's runAsBox exactly. */
-    private void runAsBox(UUID boxId, Runnable action) {
-        runAsBox(boxId, () -> { action.run(); return null; });
-    }
-
-    /** Value-returning variant, for reads (e.g. the preview plan lookup) that need the box tenant. */
-    private <T> T runAsBox(UUID boxId, java.util.function.Supplier<T> action) {
-        Authentication prev = SecurityContextHolder.getContext().getAuthentication();
-        try {
-            Jwt jwt = Jwt.withTokenValue("invite-accept").header("alg", "HS256")
-                    .subject(UUID.randomUUID().toString())
-                    .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
-                    .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
-            SecurityContextHolder.getContext().setAuthentication(
-                    new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-            return action.get();
-        } finally {
-            SecurityContextHolder.getContext().setAuthentication(prev);
-        }
     }
 }

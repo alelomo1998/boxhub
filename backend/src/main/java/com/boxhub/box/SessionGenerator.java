@@ -1,16 +1,10 @@
 package com.boxhub.box;
 
+import com.boxhub.shared.TenantContext;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.List;
 
 import java.time.*;
 import java.util.UUID;
@@ -48,7 +42,7 @@ public class SessionGenerator {
         Box box = boxes.findById(boxId).orElseThrow();
         ZoneId tz = ZoneId.of(box.getTimezone());
         int horizonWeeks = box.getBookingHorizonWeeks();
-        runAsBox(boxId, () -> tx.executeWithoutResult(status -> {
+        TenantContext.runAsBox(boxId, () -> tx.executeWithoutResult(status -> {
             for (ScheduleSlot slot : slots.findByActiveTrue()) {
                 ClassType type = types.findById(slot.getClassTypeId()).orElseThrow();
                 generateForSlot(slot, type, tz, horizonWeeks);
@@ -82,21 +76,6 @@ public class SessionGenerator {
     public void generateAll() {
         for (Box b : boxes.findAll()) {
             generateForBox(b.getId());
-        }
-    }
-
-    private void runAsBox(UUID boxId, Runnable r) {
-        Authentication prev = SecurityContextHolder.getContext().getAuthentication();
-        try {
-            Jwt jwt = Jwt.withTokenValue("system").header("alg", "HS256")
-                    .subject(UUID.randomUUID().toString())
-                    .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
-                    .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
-            SecurityContextHolder.getContext().setAuthentication(
-                    new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-            r.run();
-        } finally {
-            SecurityContextHolder.getContext().setAuthentication(prev);
         }
     }
 }

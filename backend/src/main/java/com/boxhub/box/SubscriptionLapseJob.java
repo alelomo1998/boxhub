@@ -4,12 +4,8 @@ import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.shared.Brand;
 import com.boxhub.shared.Mailer;
+import com.boxhub.shared.TenantContext;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -20,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Supplier;
 
 /**
  * Nightly sweep: ACTIVE subscriptions whose current_period_end has passed flip to EXPIRED and get
@@ -79,7 +74,7 @@ public class SubscriptionLapseJob {
 
     /** One box: flip its due subscriptions inside a tx under that box's tenant, then mail after commit. */
     void sweepBox(UUID boxId) {
-        List<LapsedRow> lapsed = runAsBox(boxId, () -> tx.execute(status -> {
+        List<LapsedRow> lapsed = TenantContext.runAsBox(boxId, () -> tx.execute(status -> {
             List<LapsedRow> rows = new ArrayList<>();
             for (Subscription sub : subscriptions.findByStatusAndCurrentPeriodEndBefore("ACTIVE", Instant.now())) {
                 sub.setStatus("EXPIRED");
@@ -102,21 +97,5 @@ public class SubscriptionLapseJob {
         vars.put("planName", plan == null ? "" : plan.getName());
         vars.put("link", mailer.link("/membership"));
         mailer.send(member.getUser().getEmail(), "Your " + Brand.NAME + " membership has lapsed", "subscription-lapsed", vars);
-    }
-
-    /** Mirrors StripeWebhookController/SessionGenerator/TvStreamService's runAsBox exactly. */
-    private <T> T runAsBox(UUID boxId, Supplier<T> s) {
-        Authentication prev = SecurityContextHolder.getContext().getAuthentication();
-        try {
-            Jwt jwt = Jwt.withTokenValue("lapse-sweep").header("alg", "HS256")
-                    .subject(UUID.randomUUID().toString())
-                    .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
-                    .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
-            SecurityContextHolder.getContext().setAuthentication(
-                    new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("SCOPE_box"))));
-            return s.get();
-        } finally {
-            SecurityContextHolder.getContext().setAuthentication(prev);
-        }
     }
 }
