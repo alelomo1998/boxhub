@@ -443,7 +443,21 @@ full e2e run.
 ### → M14 Class model & schedule
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
-  change to this screen's save model.
+  change to this screen's save model. **Still open after M14a, deliberately.** M14a built the mechanism —
+  `wod.library` and `WodService.attachToSession`, which copies a library WOD so the class owns its content —
+  but nothing calls it: the live attach path is still `SessionItemController.replace`, which stores the
+  incoming `wodId` directly. Wiring it naively reproduces the bug wearing `library = false`, because the
+  builder re-sends the id it last received, so the second save would copy the copy. Closing it needs
+  copy-vs-update-in-place logic keyed on whether the incoming wod is a library row or this session's own
+  copy — **M14c**, with the builder rebuild, which is also the only milestone allowed to change what that
+  endpoint returns.
+- **A pre-M14a `CIRCUIT`, `CUSTOM` or `SKILL` wod reopens with a blank type select** — M14a replaced
+  `wod.wod_type` with `macro` + `timing_preset` and keeps `wodType` on the wire as
+  `timingPreset ?? macro`, which is lossy for exactly those three: `CIRCUIT`/`CUSTOM` read back as
+  `WORKOUT` and `SKILL` as `GYMNASTIC`, none of which are options in `wod-builder`'s legacy `<select>`.
+  Accepted at the time (user decision, 2026-08-19) because the alternative was either editing the
+  frontend, which M14a forbade itself, or keeping a dead column the migration test asserts is gone.
+  **M14c** rebuilds that select against the real axes and the loss disappears with it.
 - **Day pager** (Book + coach Classes): no swipe, chevrons outside the thumb zone, no week-strip with
   availability dots — paging to the next open class can take 13 taps. 14-day bound.
 - Builder score-type select is still a 5-option decision per scored piece.

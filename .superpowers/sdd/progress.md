@@ -2041,3 +2041,71 @@ THE LESSON, and it is the milestone's second one about the same blind spot: **a 
 design critique are different gates, and passing fourteen of the first does not discharge the
 second.** The first lesson was shaping the sections but not the structure. Both are the same shape:
 running the ceremony on the parts and not on the whole.
+
+## M14a — class & programming model (2026-08-19, branch `m14a-class-programming-model`)
+
+Backend only: schema, entities and domain services, no new endpoints, no new DTOs, no screens. Three
+Flyway migrations — **V19** splits `class_templates` into `class_type` × `schedule_slot`, **V20** gives a
+piece three independent axes, **V21** turns cancellation into a fact. Backend **439 → 486**; every
+frontend gate unchanged, which was the milestone's own test for scope leakage.
+
+**Where the twelve decisions landed.** 1 (session stays a snapshot) → `SessionGenerator.generateForSlot`,
+name from the type, numbers from the slot. 2 (slot owns duration/capacity/coach outright) → V19 + the
+entities. 3 (one `wod` table, `library` flag, copy on attach) → V20 + `WodService.attachToSession` — see
+the caveat below. 4 (score explicit) → V20's backfill and `defaultScoreType` deleted. 5 (four fixed
+macros) + 6 (timing as a jsonb segment sequence) + 7 (blocks and segments independent) + 8 (two-level
+nesting via an optional `blocks[]`, capped by a validator) → V20, `Macros`, `TimingPresets`,
+`WodJsonValidator`. 9 (cancellation is a status) + 11 (regeneration refuses) → V21,
+`BookingService.cancel`, `SlotRegenerationService`. 12 (a type may have zero slots) → the first entity
+test. 10 (`country` moves to M22) → nothing here, by design.
+
+**What the plan got wrong, and what caught it.** The pre-flight scan found six defects before any code
+was written, and the reviews found five more. The two that would have cost most:
+
+- **V19 could not run as written.** `class_sessions.template_id` carries a FK to `class_templates`
+  (V3:21) that survives a column rename, so `drop table class_templates` aborts. One missing statement.
+- **The partial index was necessary and not sufficient.** `BookingService.book:49` rejects a re-book
+  whenever the booking lookup returns anything, and once cancellation stopped deleting rows it always
+  did. The plan's own `aCancelledBookingDoesNotBlockReBooking` would have failed on the service guard,
+  not the constraint. Fixed once at the repository — the old lookup was deleted rather than given a
+  sibling, so all five call sites had to move instead of one silently keeping the wrong one.
+
+Also: `AbstractIntegrationTest` has none of the four seed helpers every plan test called; `deleteAll` in
+regeneration hits FKs from `bookings` and `class_timers`, neither of which cascades; and `MigrationTest`
+was a seventh dependent nobody listed.
+
+**`AuthzConformanceTest` had to be edited, and every document said it must not be.** It builds a
+`ClassTemplate` as a path-id fixture, so deleting the entity broke its compile. The no-edit rule
+protects the authorization *surface*, not the fixture — the milestone adds no route, so `MIN_ROLE`, the
+allowlist, every route string and every assertion stayed byte-identical, and the local variable kept the
+name `template` so all three `pathIds` usages needed no edit at all. Orchestrator-only, audited by diff.
+
+**THE LESSON, and it is about tests, not schema. Five tests that could not fail were found here, three
+of them written during this milestone.** `ClassModelSplitMigrationTest` asserted that migrated data
+landed correctly — against a container where Flyway ran V19 on an empty database, so nothing migrated
+and every assertion was guaranteed by a foreign key. It would not have caught `gen_random_uuid()` in the
+slot insert, the one mutation the plan itself calls Critical. Its `isPositive()` check passed only on
+rows *other test classes* had left behind. The replacement owns its container: Flyway to V18, seed,
+Flyway to V19, and each assertion tied to a named mutation. `blocksJsonContentWasNotRewritten` asserted
+`is not null` on a NOT NULL column. `existingRowsAreMarkedAsLibrary` asserted no row anywhere had
+`library = false` — a trap primed to fail the moment Task 8 created exactly those. And nothing pinned a
+concrete `was_late` value, so flipping `.isBefore` to `.isAfter` passed the entire suite.
+
+Every one of those was green. **The gate that catches this is not review, it is the negative control:
+break the implementation, watch the test go red, revert.** Three mutations were run by hand at the end
+and each is now caught by exactly one test — including dropping `uq_active_booking` entirely, which spec
+§7 named in advance as "the constraint change most likely to be silently wrong" and which had no guard
+until the final fix round. An executor found two of these itself and reported them rather than claiming
+coverage; that honesty was worth more than the passing suite.
+
+**One headline claim this milestone does NOT get to make.** The filed unbounded-library-growth bug is
+still open. `attachToSession` has no production caller — the live path is still
+`SessionItemController.replace`, storing the incoming `wodId` directly. Wiring it naively reproduces the
+bug wearing `library = false`, because the builder re-sends the id it last received and the second save
+would copy the copy. The plan instructed Task 11 to close that backlog entry; it was not closed. M14a
+built the mechanism, M14c wires it.
+
+**Accepted, user-confirmed regression.** `wodType` stays on the wire as `timingPreset ?? macro` because
+nine frontend files consume it and M14a may not touch them. That map is lossy for three legacy values —
+`CIRCUIT`/`CUSTOM` → `WORKOUT`, `SKILL` → `GYMNASTIC` — none of which are options in `wod-builder`'s
+select, so those wods reopen with a blank type until M14c rebuilds it. Filed in `docs/BACKLOG.md`.
