@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-19 (M21 in progress on `m21-identity-tenancy`). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-19 (M21 merged to `main`; M22 specced and planned, not started). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -339,12 +339,21 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M21 — identity & tenancy for multi-box is IN PROGRESS on branch `m21-identity-tenancy`.** Specced,
-planned and 5 of its 8 tasks are committed; nothing is pushed or merged. Backend work is complete and
-the suite is green. Resume from `.superpowers/sdd/NEXT-SESSION.md`; the task-by-task record with commit
-SHAs is `.superpowers/sdd/2026-08-19-m21-identity-tenancy-multi-box/progress.md` (git-ignored, on disk).
+**M21 is MERGED to `main` and CI is green** (merge commit `8b4fa73`). All eight tasks landed. Gates at
+merge: backend **494/0/0**, Karma **412/412**, production build clean, both tenancy greps `0`, e2e
+**64 passed + 1 skipped**, `visual.sh` **31 specs with zero dirty baselines**. **No Flyway migration —
+V22 was still free.** The full ledger is the M21 section of `.superpowers/sdd/progress.md`.
 
-**What M21 already changed, and it is a behaviour change to be aware of before reading any older
+**M22 — new-domain schema is SPECCED AND PLANNED, and not started.** No branch is cut and no code is
+written.
+
+- Spec: `docs/superpowers/specs/2026-08-19-m22-new-domain-schema-design.md` — 14 decisions with their
+  reasoning, the tenancy classification, the deliberate exclusions, nine test obligations.
+- Plan: `docs/superpowers/plans/2026-08-19-m22-new-domain-schema.md` — eight tasks, six migrations
+  (V22–V27), real SQL and real test code at every step.
+- Start at Task 1 on a new branch `m22-new-domain-schema`. Details in `.superpowers/sdd/NEXT-SESSION.md`.
+
+**What M21 changed, and it is a behaviour change to be aware of before reading any older
 tenancy note:** `TenantIdentifierResolver.isRoot(NO_TENANT)` no longer returns true, so **a read with
 no ambient tenant now sees NOTHING instead of every box**. Cross-box visibility is
 `TenantContext.runAsRoot(...)`, jobs only, and its sole caller is `BookingMaintenance`. Any statement
@@ -353,7 +362,7 @@ explaining why `TvStateService.compose` wraps in `runAsBox` — describes the pr
 as the historical record it is; the wrapping is still right, the reason has changed.
 `docs/TENANCY.md` was rewritten as this milestone's last task and is the authority.
 
-Two findings worth carrying regardless of what happens to the branch:
+Two findings worth carrying:
 
 - **`SessionApiTest#sweepFlipsPastBookedToNoShow` could not fail, and it was measured, not argued.** It
   ran under `actAsBox(boxA)` while the nightly no-show sweep runs tenant-less. With the sweep genuinely
@@ -375,7 +384,7 @@ order from here, never from the number:
 
 | Phase | Order |
 |---|---|
-| 1 — backend foundations | **M14a ✅ → M21 (in progress) → M22** |
+| 1 — backend foundations | **M14a ✅ → M21 ✅ → M22 (specced + planned, not started)** |
 | 2 — athlete & coach frontend | M13f → M23 → M14b → M14c → M17 → M24 → M25 → M26 |
 | 3 | analytics brief |
 | 4 — admin frontend | M15 → M16 → M18 |
@@ -384,8 +393,8 @@ order from here, never from the number:
 A previous handoff skipped M21 and M22 and announced Phase 2 as next; that error survived two
 documents before anyone noticed the numbering looked wrong.
 
-**`worktree-v3-roadmap` was merged to `main` on 2026-08-19** (fast-forward, docs-only), followed by
-M14a itself. There is no open branch.
+**There is no open branch.** `worktree-v3-roadmap` merged to `main` on 2026-08-19 (fast-forward,
+docs-only), then M14a, then M21. `main` is green.
 
 **The roadmap changed shape on 2026-08-18.** `docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`
 supersedes v2 in full; the v2 document carries a retirement banner. Four product pillars were added and
