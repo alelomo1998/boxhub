@@ -9,4 +9,5 @@ public interface BoxRepository extends JpaRepository<Box, UUID> {
     long countByStatus(String status);
     java.util.List<Box> findByStatusOrderByCreatedAtAsc(String status);
     java.util.List<Box> findAllByOrderByCreatedAtDesc();
+    java.util.List<Box> findByPublishedTrue();
 }

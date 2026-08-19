@@ -16,6 +16,15 @@ public class Box {
     @Column(nullable = false) private String status = "ACTIVE";
     @Column(name = "created_at", insertable = false, updatable = false) private java.time.Instant createdAt;
     @Column(nullable = false) private String locale = "en";
+    @Column(nullable = false) private boolean published = false;
+    @Column private String description;
+    @Column private String street;
+    @Column private String city;
+    @Column private String region;
+    @Column private String postcode;
+    @Column private String country;
+    @Column private Double lat;
+    @Column private Double lng;
 
     public UUID getId() { return id; }
     public String getName() { return name; }
@@ -35,4 +44,22 @@ public class Box {
     public java.time.Instant getCreatedAt() { return createdAt; }
     public String getLocale() { return locale; }
     public void setLocale(String locale) { this.locale = locale; }
+    public boolean isPublished() { return published; }
+    public void setPublished(boolean published) { this.published = published; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public String getStreet() { return street; }
+    public void setStreet(String street) { this.street = street; }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    public String getRegion() { return region; }
+    public void setRegion(String region) { this.region = region; }
+    public String getPostcode() { return postcode; }
+    public void setPostcode(String postcode) { this.postcode = postcode; }
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+    public Double getLat() { return lat; }
+    public void setLat(Double lat) { this.lat = lat; }
+    public Double getLng() { return lng; }
+    public void setLng(Double lng) { this.lng = lng; }
 }
