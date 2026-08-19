@@ -8,6 +8,7 @@ import com.boxhub.identity.RefreshTokenService;
 import com.boxhub.identity.TokenService;
 import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
+import com.boxhub.shared.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -136,7 +137,12 @@ class InviteRegistrationTest extends AbstractIntegrationTest {
         String token = createInviteLink(invitedEmail);
         Invite inv = invites.findByTokenHash(RefreshTokenService.sha256(token)).orElseThrow();
         inv.setExpiresAt(Instant.now().minusSeconds(60));
-        invites.save(inv);
+        // findByTokenHash is native (tenant-agnostic by design, see docs/TENANCY.md) so it still
+        // finds the row with no ambient tenant, but this save() is a plain merge/update: under
+        // M21's fail-closed default it would filter the UPDATE to the NO_TENANT sentinel and
+        // update zero rows (ObjectOptimisticLockingFailureException) instead of relying on the old
+        // fail-open behavior. Establish the invite's real box as tenant for the write.
+        TenantContext.runAsBox(inv.getBoxId(), () -> invites.save(inv));
 
         register(invitedEmail, token);
 
