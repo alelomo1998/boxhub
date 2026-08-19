@@ -6,6 +6,8 @@
     <a href="https://angular.dev/"><img src="https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white" alt="Angular 22"></a>
     <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot 3.5"></a>
     <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white" alt="PostgreSQL 16"></a>
+    <a href="https://github.com/alelomo1998/boxhub/actions/workflows/ci.yml"><img src="https://github.com/alelomo1998/boxhub/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+    <a href="https://github.com/alelomo1998/boxhub/actions/workflows/dependency-scan.yml"><img src="https://github.com/alelomo1998/boxhub/actions/workflows/dependency-scan.yml/badge.svg?branch=main" alt="Dependency scan"></a>
   </p>
 </div>
 
@@ -15,6 +17,27 @@
 
 > **Status:** active development. M0-M14a are on `main`; M21 (identity and tenancy for multi-box)
 > is the next milestone. The roadmap is deliberately not ordered by milestone number.
+
+<p align="center">
+  <img src="e2e/tests/visual.spec.ts-snapshots/login-desktop.png" alt="rxed login screen" width="720">
+</p>
+
+<p align="center"><sub>Dark-only product language: <code>VOLT #dfff4e</code> for live, now, primary and winning. <code>GROUND #0d110e</code> for the chalkboard dark.</sub></p>
+
+<details>
+<summary><strong>Contents</strong></summary>
+
+- [Product surface](#product-surface)
+- [Architecture](#architecture)
+- [Repository layout](#repository-layout)
+- [Quick start](#quick-start)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Configuration](#configuration)
+- [Roadmap](#roadmap)
+- [Documentation map](#documentation-map)
+- [Engineering rules](#engineering-rules)
+</details>
 
 The public product name is `rxed` and the domain is `rxed.app`. Internal namespaces still use the
 original BoxHub name where changing them would be disruptive: `BOXHUB_*` environment variables,
