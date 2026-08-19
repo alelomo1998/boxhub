@@ -7,6 +7,7 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 - **Design law:** `docs/superpowers/specs/2026-07-08-design-system-design.md` — binding for ALL frontend work.
 - **Milestone plans:** `docs/superpowers/plans/` — the active plan governs current work.
 - **Backlog:** `docs/BACKLOG.md` — deferred items; out-of-scope ideas go here, one line.
+- **VPS/deployment context:** `docs/VPS-DEPLOYMENT.md` — agreed OVH target, storage/backup limits and pre-production blockers.
 
 ## Workflow rules
 - **Milestone lock:** work only the active milestone. Out-of-scope ideas → `docs/BACKLOG.md`, don't build them.
