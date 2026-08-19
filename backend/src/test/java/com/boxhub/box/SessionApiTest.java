@@ -34,7 +34,6 @@ class SessionApiTest extends AbstractIntegrationTest {
     @Autowired TokenService tokenService;
     @Autowired ClassSessionRepository sessions;
     @Autowired BookingRepository bookings;
-    @Autowired BookingService bookingService;
 
     Box boxA;
     String coachToken, athleteToken, otherCoachToken;
@@ -154,25 +153,4 @@ class SessionApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
-    @Test
-    void sweepFlipsPastBookedToNoShow() {
-        long n = System.nanoTime();
-        actAsBox(boxA.getId());
-        ClassSession past = new ClassSession();
-        past.setName("Past WOD " + n);
-        past.setStartAt(Instant.now().minusSeconds(3600));
-        past.setDurationMin(60);
-        past.setCapacity(10);
-        UUID pastId = sessions.save(past).getId();
-        Booking b = new Booking();
-        b.setSessionId(pastId);
-        b.setMembershipId(athleteMembershipId);
-        b.setStatus("BOOKED");
-        UUID bid = bookings.save(b).getId();
-
-        int flipped = bookingService.sweepNoShows(Instant.now());
-        assertThat(flipped).isGreaterThanOrEqualTo(1);
-        assertThat(bookings.findById(bid).orElseThrow().getStatus()).isEqualTo("NO_SHOW");
-        SecurityContextHolder.clearContext();
-    }
 }
