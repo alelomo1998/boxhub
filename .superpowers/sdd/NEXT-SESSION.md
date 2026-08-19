@@ -1,5 +1,11 @@
-Continue **rxed** at `~/dev/boxhub`. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker
-Compose behind nginx, GitHub `alelomo1998/boxhub` private.
+Continue **rxed**. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx,
+GitHub `alelomo1998/boxhub` private.
+
+> **Start this session from `~/dev/boxhub`.** If it fails to open with *"working directory no longer
+> exists"* pointing at `~/dev/boxhub/.claude/worktrees/...`, that path is dead — a previous session
+> created a git worktree there against the project's convention and it has been removed. `cd
+> ~/dev/boxhub` and start a **fresh** session rather than resuming the old one. Nothing is lost:
+> everything is on `main`.
 
 **This is NOT a build session.** The next milestone is **M21 — identity & tenancy for multi-box**, and
 it is neither specced nor planned. It needs the full arc: brainstorm → spec → writing-plans → execute.
@@ -18,7 +24,8 @@ roadmap's phase sections. Never infer it from the number.
 **Work on a feature branch in `~/dev/boxhub` and merge to `main` at the end.** Do NOT create a git
 worktree and do NOT run `EnterWorktree`, even if a superpowers skill asks for an "isolated workspace".
 The last session made that mistake, the user caught it, and it is now a standing rule in memory.
-`git checkout -b m13f-consolidation` and work there.
+`git checkout -b m21-identity-tenancy` and work there. `git worktree list` should show exactly one
+entry, the repo itself — if it shows more, something re-created one.
 
 Everything else is unchanged and binding: **ALWAYS subagent** — the orchestrator dispatches, reviews
 every diff, runs the gates, commits and merges, and implements only genuinely delicate work or trivial
@@ -126,6 +133,14 @@ baselines your renderer never wrote. **Check the CI run after every push; a loca
   Phase 5. Ask the user whether that work is live before assuming either way; if it is abandoned, delete
   the branch deliberately rather than leaving it to rot.
 - **The 1 e2e skip is the quarantined TV/SSE defect. Project 2 owns it — do not investigate it.**
+- **`docs/ROADMAP-AT-A-GLANCE.md` is new** — all 18 milestones in execution order, one line each. Read
+  it before planning anything, and keep its status column current as milestones close.
+- **`.superpowers/sdd/NEXT-SESSION.md` (this file) is the ONLY session prompt.** A stale
+  `docs/NEXT-SESSION-PROMPT.md` from M13d survived until 2026-08-19 and was deleted. Do not create a
+  second one anywhere; rewrite this one at milestone close.
+- `.superpowers/sdd/` was cleared of 200 finished-milestone scratch files on 2026-08-19. Only
+  `progress.md` (the cumulative ledger) and this prompt remain. Your own briefs and reports go there
+  and are gitignored.
 
 ## Start here
 
