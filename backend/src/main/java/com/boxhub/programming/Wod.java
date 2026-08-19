@@ -16,7 +16,15 @@ public class Wod {
     @Column(name = "box_id", nullable = false)
     private UUID boxId;
     @Column(nullable = false) private String title;
-    @Column(name = "wod_type", nullable = false) private String wodType;
+    @Column(nullable = false) private String macro;
+    @Column(name = "timing_preset") private String timingPreset;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "timing_json", columnDefinition = "jsonb", nullable = false)
+    private String timingJson = "{\"rounds\":1,\"segments\":[]}";
+    // Every wod-creation path in M14a puts a row straight into the box's shared library — there is
+    // no other kind yet (a future "attached by copy, not in the library" flow is what the column
+    // exists for). So the entity default matches the migration's backfill of every pre-existing row.
+    @Column(nullable = false) private boolean library = true;
     @Column(name = "score_type", nullable = false) private String scoreType;
     @Column(name = "time_cap_seconds") private Integer timeCapSeconds;
     @Column(name = "body_text", nullable = false) private String bodyText = "";
@@ -33,8 +41,14 @@ public class Wod {
     public UUID getBoxId() { return boxId; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-    public String getWodType() { return wodType; }
-    public void setWodType(String wodType) { this.wodType = wodType; }
+    public String getMacro() { return macro; }
+    public void setMacro(String macro) { this.macro = macro; }
+    public String getTimingPreset() { return timingPreset; }
+    public void setTimingPreset(String timingPreset) { this.timingPreset = timingPreset; }
+    public String getTimingJson() { return timingJson; }
+    public void setTimingJson(String timingJson) { this.timingJson = timingJson; }
+    public boolean isLibrary() { return library; }
+    public void setLibrary(boolean library) { this.library = library; }
     public String getScoreType() { return scoreType; }
     public void setScoreType(String scoreType) { this.scoreType = scoreType; }
     public Integer getTimeCapSeconds() { return timeCapSeconds; }

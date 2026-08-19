@@ -266,7 +266,7 @@ public class DevDataSeeder implements CommandLineRunner {
             // scores on today's first TIME-scored item
             items.findAll().stream()
                     .filter(SessionItem::isScoreable)
-                    .filter(i -> wods.findById(i.getWodId()).map(w -> "FOR_TIME".equals(w.getWodType())).orElse(false))
+                    .filter(i -> wods.findById(i.getWodId()).map(w -> "FOR_TIME".equals(w.getTimingPreset())).orElse(false))
                     .findFirst().ifPresent(i -> {
                         score(i.getId(), mA, true, 183, false);
                         score(i.getId(), mB, true, 201, false);
@@ -424,14 +424,16 @@ public class DevDataSeeder implements CommandLineRunner {
         p.setClassTypeId(classTypeId);
         p.setSortOrder(sort);
         p.setLabel(label);
-        p.setWodType(type);
+        p.setMacro(WodTypeWire.toMacro(type));
+        p.setTimingPreset(WodTypeWire.toTimingPreset(type));
         skeletons.save(p);
     }
 
     private UUID wod(String title, String type, String scoreType, String body) {
         Wod w = new Wod();
         w.setTitle(title);
-        w.setWodType(type);
+        w.setMacro(WodTypeWire.toMacro(type));
+        w.setTimingPreset(WodTypeWire.toTimingPreset(type));
         w.setScoreType(scoreType);
         w.setBodyText(body);
         return wods.save(w).getId();

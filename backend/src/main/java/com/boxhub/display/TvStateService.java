@@ -100,7 +100,8 @@ public class TvStateService {
                 Wod w = wods.findById(it.getWodId()).orElse(null);
                 if (w == null) continue;
                 wodById.put(it.getId(), w);
-                itemInfos.add(new ItemInfo(w.getWodType(), w.getTitle(), w.getBodyText()));
+                itemInfos.add(new ItemInfo(WodTypeWire.toWodType(w.getMacro(), w.getTimingPreset()),
+                        w.getTitle(), w.getBodyText()));
             }
 
             // rail: ranked results from the LAST scoreable item's leaderboard, merged with the roster
@@ -108,8 +109,7 @@ public class TvStateService {
                     .filter(SessionItem::isScoreable)
                     .reduce((a, b) -> b).orElse(null); // the metcon is conventionally last
             if (scored != null) {
-                Wod w = wodById.get(scored.getId());
-                String scoreType = SessionItemController.effectiveScoreType(scored, w);
+                String scoreType = scored.getScoreType(); // explicit now (M14a) — no derivation left
                 List<WodScore> rankedScores = Leaderboard.rank(scores.findBySessionItemId(scored.getId()), scoreType);
                 int r = 1;
                 for (WodScore sc : rankedScores) {

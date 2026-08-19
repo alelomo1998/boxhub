@@ -46,7 +46,8 @@ public class SkeletonController {
         RoleGuard.requireStaff();
         UUID classTypeId = classTypeId(templateId);
         return pieces.findByClassTypeIdOrderBySortOrderAsc(classTypeId).stream()
-                .map(p -> new PieceDto(p.getId(), p.getSortOrder(), p.getLabel(), p.getWodType())).toList();
+                .map(p -> new PieceDto(p.getId(), p.getSortOrder(), p.getLabel(),
+                        WodTypeWire.toWodType(p.getMacro(), p.getTimingPreset()))).toList();
     }
 
     @PutMapping
@@ -71,7 +72,8 @@ public class SkeletonController {
             p.setClassTypeId(classTypeId);
             p.setSortOrder(sort++);
             p.setLabel(in.label().trim());
-            p.setWodType(in.wodType());
+            p.setMacro(WodTypeWire.toMacro(in.wodType()));
+            p.setTimingPreset(WodTypeWire.toTimingPreset(in.wodType()));
             pieces.save(p);
         }
         return get(templateId);

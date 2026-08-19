@@ -259,7 +259,8 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
 
         Wod wod = new Wod();
         wod.setTitle("Wod " + mark);
-        wod.setWodType("FOR_TIME");
+        wod.setMacro("WORKOUT");
+        wod.setTimingPreset("FOR_TIME");
         wod.setScoreType("TIME");
         wod.setBodyText(mark);
         wod = wods.save(wod);

@@ -285,7 +285,8 @@ class AccountDeletionTest extends AbstractIntegrationTest {
 
         Wod w = new Wod();
         w.setTitle("Fran");
-        w.setWodType("FOR_TIME");
+        w.setMacro("WORKOUT");
+        w.setTimingPreset("FOR_TIME");
         w.setScoreType("TIME");
         wods.save(w);
         SessionItem item = new SessionItem();

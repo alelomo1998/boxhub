@@ -148,7 +148,11 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
         ClassSession s = new ClassSession(); s.setName("WOD Class"); s.setStartAt(Instant.now().plusSeconds(3600));
         s.setDurationMin(60); s.setCapacity(12); s.setProgrammingStatus(prog); return sessions.save(s).getId();
     }
-    private Wod wod(String t, String type, String st) { Wod w = new Wod(); w.setTitle(t); w.setWodType(type); w.setScoreType(st); return wods.save(w); }
+    // fixture only ever passes a timing-preset type (FOR_TIME)
+    private Wod wod(String t, String type, String st) {
+        Wod w = new Wod(); w.setTitle(t); w.setMacro("WORKOUT"); w.setTimingPreset(type); w.setScoreType(st);
+        return wods.save(w);
+    }
     private UUID item(UUID sid, UUID wid, int sort, boolean sc) {
         SessionItem i = new SessionItem(); i.setSessionId(sid); i.setWodId(wid); i.setSortOrder(sort); i.setScoreable(sc); return items.save(i).getId();
     }

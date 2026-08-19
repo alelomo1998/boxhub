@@ -16,7 +16,8 @@ public class TemplatePiece {
     @Column(name = "class_type_id", nullable = false) private UUID classTypeId;
     @Column(name = "sort_order", nullable = false) private int sortOrder;
     @Column(nullable = false) private String label;
-    @Column(name = "wod_type", nullable = false) private String wodType;
+    @Column(nullable = false) private String macro;
+    @Column(name = "timing_preset") private String timingPreset;
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
@@ -26,6 +27,8 @@ public class TemplatePiece {
     public void setSortOrder(int sortOrder) { this.sortOrder = sortOrder; }
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
-    public String getWodType() { return wodType; }
-    public void setWodType(String wodType) { this.wodType = wodType; }
+    public String getMacro() { return macro; }
+    public void setMacro(String macro) { this.macro = macro; }
+    public String getTimingPreset() { return timingPreset; }
+    public void setTimingPreset(String timingPreset) { this.timingPreset = timingPreset; }
 }

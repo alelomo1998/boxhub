@@ -65,7 +65,9 @@ class SkeletonApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[0].label").value("Warm-up"))
-                .andExpect(jsonPath("$[2].wodType").value("SKILL"));
+                // SKILL composes back as GYMNASTIC (macro-only, no timing preset to recover SKILL
+                // from) — the M14a orchestrator's accepted lossy wodType round-trip, not a bug.
+                .andExpect(jsonPath("$[2].wodType").value("GYMNASTIC"));
 
         mvc.perform(get("/api/box/class-templates/" + templateId + "/skeleton")
                         .header("Authorization", "Bearer " + coach))

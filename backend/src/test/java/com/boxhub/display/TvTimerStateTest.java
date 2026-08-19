@@ -41,7 +41,7 @@ class TvTimerStateTest extends AbstractIntegrationTest {
         actAsBox(a.getId());
         ClassSession s = new ClassSession(); s.setName("WOD Class"); s.setStartAt(Instant.now().minusSeconds(300));
         s.setDurationMin(60); s.setCapacity(12); s.setProgrammingStatus("PUBLISHED"); s = sessions.save(s);
-        Wod fran = new Wod(); fran.setTitle("Fran"); fran.setWodType("FOR_TIME"); fran.setScoreType("TIME");
+        Wod fran = new Wod(); fran.setTitle("Fran"); fran.setMacro("WORKOUT"); fran.setTimingPreset("FOR_TIME"); fran.setScoreType("TIME");
         fran.setBodyText("21-15-9"); fran = wods.save(fran);
         SessionItem it = new SessionItem(); it.setSessionId(s.getId()); it.setSortOrder(0);
         it.setWodId(fran.getId()); it.setScoreable(true); it = items.save(it);

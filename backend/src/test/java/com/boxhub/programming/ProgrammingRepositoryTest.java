@@ -89,7 +89,8 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
 
         Wod w = new Wod();
         w.setTitle("Fran");
-        w.setWodType("FOR_TIME");
+        w.setMacro("WORKOUT");
+        w.setTimingPreset("FOR_TIME");
         w.setScoreType("TIME");
         wods.save(w);
 
@@ -118,10 +119,10 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
         UUID classTypeId = typesRepo.save(t).getId();
 
         TemplatePiece p1 = new TemplatePiece();
-        p1.setClassTypeId(classTypeId); p1.setSortOrder(1); p1.setLabel("Strength"); p1.setWodType("STRENGTH");
+        p1.setClassTypeId(classTypeId); p1.setSortOrder(1); p1.setLabel("Strength"); p1.setMacro("STRENGTH");
         pieces.save(p1);
         TemplatePiece p0 = new TemplatePiece();
-        p0.setClassTypeId(classTypeId); p0.setSortOrder(0); p0.setLabel("Warm-up"); p0.setWodType("WARMUP");
+        p0.setClassTypeId(classTypeId); p0.setSortOrder(0); p0.setLabel("Warm-up"); p0.setMacro("WARMUP");
         pieces.save(p0);
 
         assertThat(pieces.findByClassTypeIdOrderBySortOrderAsc(classTypeId))
