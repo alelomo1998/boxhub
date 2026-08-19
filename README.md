@@ -1,12 +1,17 @@
-# rxed
+<div align="center">
+  <img src="frontend/public/favicon.svg" alt="rxed logo" width="96" height="96">
+  <h1>rxed</h1>
+  <p><strong>Train. Show up. Get better.</strong></p>
+  <p>
+    <a href="https://angular.dev/"><img src="https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white" alt="Angular 22"></a>
+    <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot 3.5"></a>
+    <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white" alt="PostgreSQL 16"></a>
+  </p>
+</div>
 
-<p>
-  <strong>rxed</strong> (formerly BoxHub) is a multi-tenant CrossFit box platform for athletes,
-  coaches, box admins and the gym floor. It brings booking, programming, score tracking and the
-  whiteboard TV into one product instead of the 3-5 tools a box usually stitches together.
-</p>
-
-[![Angular 22](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)](https://angular.dev/) [![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+> **rxed** (formerly BoxHub) is a multi-tenant CrossFit box platform for athletes, coaches, box
+> admins and the gym floor. It brings booking, programming, score tracking and the whiteboard TV
+> into one product instead of the 3-5 tools a box usually stitches together.
 
 > **Status:** active development. M0-M14a are on `main`; M21 (identity and tenancy for multi-box)
 > is the next milestone. The roadmap is deliberately not ordered by milestone number.
