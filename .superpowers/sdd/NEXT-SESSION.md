@@ -1,10 +1,17 @@
 Continue **rxed** at `~/dev/boxhub`. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker
 Compose behind nginx, GitHub `alelomo1998/boxhub` private.
 
-**This is NOT a build session.** The next milestone is **M13f — component-library consolidation**, and
+**This is NOT a build session.** The next milestone is **M21 — identity & tenancy for multi-box**, and
 it is neither specced nor planned. It needs the full arc: brainstorm → spec → writing-plans → execute.
-Do not start writing code, and do not skip the brainstorm because the backlog already lists the
-symptoms — the backlog says *what hurts*, not *what the milestone is*.
+Do not start writing code.
+
+**Check the order before you trust any milestone label.** Milestone numbers in this project are
+allocation labels, not a sequence — the v3 roadmap took "the next free labels rather than reshuffling"
+and deliberately kept M14–M20 fixed so `docs/BACKLOG.md`'s `### → M15 Admin: people` pointers keep
+working. So M14a really is followed by M21. **Phase 1 is `M14a ✅ → M21 → M22`**; M13f opens Phase 2
+and comes after both. The previous handoff got this wrong — it announced Phase 2 as next and skipped
+M21 and M22 — and the error survived two documents. The order lives in `docs/HANDOFF.md` and the v3
+roadmap's phase sections. Never infer it from the number.
 
 ## Working agreement, which the last session got wrong
 
@@ -21,28 +28,43 @@ or plan-conflicts-with-reality goes back to the orchestrator.
 ## Read before anything
 
 1. **`CLAUDE.md`** — binding, overrides anything here.
-2. **`docs/HANDOFF.md`** — status, gates, the environment traps, and what M13f inherits.
-3. **`docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`** — the programme. M13f opens
-   Phase 2; M14b and M14c follow it.
+2. **`docs/HANDOFF.md`** — status, gates, the environment traps, and the phase-order table. Its
+   milestone-order section exists because this exact ordering was got wrong twice.
+3. **`docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`** — the programme. Read the
+   **M21 section** and Phase 1's binding rule. M13f, M14b and M14c are Phase 2 and are not yours yet.
 4. **`docs/PREFLIGHT.md`** — at its four stated moments, not once at the start.
-5. **`docs/BACKLOG.md`** — M13f's raw material is in the M13c/M13e sections.
+5. **`docs/TENANCY.md`** — the authority for `@TenantId`, and the document M21 is going to change.
+   The failure mode is a *wrong ambient tenant*, and a genuinely tenant-less read fails **OPEN to
+   root**. Read it before the brainstorm, not during it.
 
-## What M13f is for
+## What M21 is for, and why it is the dangerous one
 
-M13e left three things that every screen milestone after it pays for, and they are the seed of the
-brainstorm rather than its conclusion:
+The roadmap calls it **the most dangerous milestone in this program**, and explicitly flags it as
+**orchestrator-implemented work** under `CLAUDE.md`'s "genuinely difficult or delicate" clause —
+tenancy is named in that clause. Do not hand this one to executors wholesale the way M14a was.
 
-- **`bh-button` gained three inputs in one milestone and 8 of its 10 variant × flag combinations emit a
-  class with no matching rule and fail silently.** A component that ships a broken state matrix is worse
-  than one that lacks the state, because the gallery shows it as present.
-- **The dev gallery's sections are coupled through scroll position**, so one edit dirtied 54 unrelated
-  visual baselines. That is a gate that punishes the wrong person, and it will keep doing so.
-- **The cross-section consistency pass was never executed**, and the delete sheet has no axe coverage.
+**The good news, verified against the code on 2026-08-18 rather than assumed:** multi-box already
+works at the identity layer. `Membership` is deliberately **not** `@TenantId`;
+`MembershipRepository.findByUserIdWithBox` already returns every box a user belongs to; the box picker
+and the user-token → box-token exchange already ship; and `uq_subscription_active` (V14) is unique on
+`membership_id`, not on user — so two active subscriptions at two boxes is **already legal today and
+needs no migration**.
 
-The open question the brainstorm has to answer, and it is genuinely open: is M13f a *repair* milestone
-(fix the matrix, decouple the baselines, close the axe gap) or a *contract* milestone (make it
-impossible for a component to ship an unrendered state at all)? The second is more work and might be
-the cheaper answer over M14b–M18. Do not decide it in the prompt; decide it with the user.
+**The hazard is the cross-box read path.** 42 files carry `@TenantId`, and `docs/TENANCY.md` is
+explicit that the failure mode is a *wrong ambient tenant*, and that a genuinely tenant-less read
+fails **OPEN to root** rather than closed. A directory reads across all boxes with no box token at
+all. So this milestone owns four things, and the roadmap names them:
+
+- a deliberately designed access path for cross-box reads — native SQL or an explicit unfiltered
+  projection, decided once and written into `docs/TENANCY.md`, not improvised per feature;
+- its own conformance coverage: `AuthzConformanceTest` defaults to DENY, so every boxless route must
+  declare its intent in `MIN_ROLE` — and **the orchestrator, not an executor, audits every edit to
+  that file**, which applies with unusual force here;
+- the boxless session: what a token with no `box_id` claim may read, and what it may never write;
+- the box-switch model, and what happens to `TenantContext` when a user holds three boxes.
+
+Read `docs/TENANCY.md` in full before the brainstorm. It is the authority, and this is the milestone
+that changes it.
 
 ## What just shipped, and the two claims it deliberately does NOT make
 
@@ -81,10 +103,9 @@ not make fail, and that honesty was worth more than the passing suite.
 Karma **408** · backend **486** · e2e **64 passed + 1 skipped** on a rebuilt `down -v` stack · axe
 **29 cases, zero violations** · visual **31 specs / 88 baselines** · production build clean.
 
-M13f is frontend-only, so **the backend number must not move**. If it does, something leaked. The
-visual baselines are the interesting ones: M13f may legitimately change them, and if it does, each
-changed baseline needs a reason — that is exactly the coupling problem it exists to fix, so a wholesale
-"54 baselines updated" is the failure, not the fix.
+M21 is backend-and-security work, so **every frontend number must stay put** — Karma 408, axe 29,
+visual 31/88. The backend number rises. Any frontend movement means scope leaked, so find out what
+before accepting it.
 
 `e2e/visual.sh` runs in a Linux container. Run that, never Playwright locally, or you compare against
 baselines your renderer never wrote. **Check the CI run after every push; a local green is not the gate.**
@@ -108,6 +129,12 @@ baselines your renderer never wrote. **Check the CI run after every push; a loca
 
 ## Start here
 
-Invoke `superpowers:brainstorming` and take the M13f question to the user. The backlog gives you the
-symptoms; the milestone's shape — repair versus contract — is the first thing to settle, because it
-decides whether M13f is two days or a week, and M14b cannot start until it lands.
+Invoke `superpowers:brainstorming` and take M21 to the user. Read `docs/TENANCY.md` and the roadmap's
+M21 section first, because the first question is not "what do we build" but **"what is a boxless
+session allowed to read, and how does a cross-box query prove it is not an accident?"** — a
+tenant-less read failing OPEN to root is the whole risk, and the answer to that question decides the
+milestone's shape.
+
+M13f (component-library consolidation) is real and still owed — `bh-button`'s 8-of-10 broken variant
+matrix and the gallery's scroll-coupled baselines — but it **opens Phase 2**, after M21 and M22. Do
+not start it now.

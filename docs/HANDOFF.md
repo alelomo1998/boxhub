@@ -339,7 +339,27 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13a–M13e and M14a are all merged. The next milestone is M14b (schedule & classes surfaces), but M13f consolidation opens Phase 2 ahead of it — both still need their own brainstorm → spec → plan cycle.**
+**M13a–M13e and M14a are all merged. The next milestone is M21 — identity & tenancy for multi-box**,
+which the v3 roadmap calls the most dangerous milestone in the programme and flags as
+orchestrator-implemented work under `CLAUDE.md`'s "genuinely difficult or delicate" clause. It needs
+its own brainstorm → spec → plan cycle.
+
+**MILESTONE NUMBERS ARE LABELS, NOT A SEQUENCE.** The v3 roadmap allocated new milestones "the next
+free labels rather than reshuffling", and kept M14–M20 unchanged on purpose so `docs/BACKLOG.md`'s
+`### → M15 Admin: people` destination pointers keep working. The cost is that the label tells you
+nothing about order — M14a really is followed by M21, and M13f really does come after both. Read the
+order from here, never from the number:
+
+| Phase | Order |
+|---|---|
+| 1 — backend foundations | **M14a ✅ → M21 → M22** |
+| 2 — athlete & coach frontend | M13f → M23 → M14b → M14c → M17 → M24 → M25 → M26 |
+| 3 | analytics brief |
+| 4 — admin frontend | M15 → M16 → M18 |
+| 5 — the rest | M27 → M19 → M20 |
+
+A previous handoff skipped M21 and M22 and announced Phase 2 as next; that error survived two
+documents before anyone noticed the numbering looked wrong.
 
 **`worktree-v3-roadmap` was merged to `main` on 2026-08-19** (fast-forward, docs-only), followed by
 M14a itself. There is no open branch.
