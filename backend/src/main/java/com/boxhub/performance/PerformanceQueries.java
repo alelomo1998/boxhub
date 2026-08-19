@@ -66,7 +66,7 @@ public class PerformanceQueries {
             Wod w = i == null ? null : wodById.get(i.getWodId());
             if (i == null || w == null || w.getBenchmarkTemplateId() == null) continue;
             byBenchmark.computeIfAbsent(w.getBenchmarkTemplateId(), k -> new ArrayList<>()).add(s);
-            scoreTypeByBenchmark.put(w.getBenchmarkTemplateId(), SessionItemController.effectiveScoreType(i, w));
+            scoreTypeByBenchmark.put(w.getBenchmarkTemplateId(), i.getScoreType()); // explicit now (M14a)
         }
 
         List<BenchmarkBest> out = new ArrayList<>();

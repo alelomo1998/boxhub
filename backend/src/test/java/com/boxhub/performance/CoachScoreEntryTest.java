@@ -154,6 +154,8 @@ class CoachScoreEntryTest extends AbstractIntegrationTest {
         return wods.save(w);
     }
     private UUID item(UUID sid, UUID wid, int sort, boolean sc) {
-        SessionItem i = new SessionItem(); i.setSessionId(sid); i.setWodId(wid); i.setSortOrder(sort); i.setScoreable(sc); return items.save(i).getId();
+        SessionItem i = new SessionItem(); i.setSessionId(sid); i.setWodId(wid); i.setSortOrder(sort); i.setScoreable(sc);
+        i.setScoreType("TIME"); // the one fixture wod here is FOR_TIME/TIME
+        return items.save(i).getId();
     }
 }

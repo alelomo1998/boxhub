@@ -72,8 +72,7 @@ public class HistoryController {
         List<MyScoreDto> out = new ArrayList<>();
         for (WodScore s : mine) {
             Ctx c = ctx.get(s.getSessionItemId());
-            String scoreType = (c == null || c.wod() == null || c.item() == null) ? "NONE"
-                    : SessionItemController.effectiveScoreType(c.item(), c.wod());
+            String scoreType = (c == null || c.item() == null) ? "NONE" : c.item().getScoreType(); // explicit (M14a)
             out.add(new MyScoreDto(s.getSessionItemId(),
                     c == null || c.session() == null ? null : day(c.session().getStartAt()),
                     c == null || c.session() == null ? null : c.session().getName(),
@@ -99,7 +98,7 @@ public class HistoryController {
             if (c == null || c.wod() == null || c.wod().getBenchmarkTemplateId() == null || c.item() == null) continue;
             UUID bid = c.wod().getBenchmarkTemplateId();
             byBenchmark.computeIfAbsent(bid, k -> new ArrayList<>()).add(s);
-            scoreTypeByBenchmark.put(bid, SessionItemController.effectiveScoreType(c.item(), c.wod()));
+            scoreTypeByBenchmark.put(bid, c.item().getScoreType()); // explicit now (M14a)
         }
 
         List<BenchmarkHistoryDto> out = new ArrayList<>();

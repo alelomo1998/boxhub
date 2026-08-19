@@ -270,6 +270,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         item.setWodId(wod.getId());
         item.setSortOrder(0);
         item.setScoreable(true);
+        item.setScoreType("TIME");
         item = items.save(item);
 
         Movement movement = new Movement();

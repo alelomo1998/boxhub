@@ -294,6 +294,7 @@ class AccountDeletionTest extends AbstractIntegrationTest {
         item.setWodId(w.getId());
         item.setSortOrder(0);
         item.setScoreable(true);
+        item.setScoreType("TIME");
         items.save(item);
 
         WodScore score = new WodScore();

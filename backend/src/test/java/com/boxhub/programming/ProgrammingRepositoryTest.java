@@ -99,6 +99,7 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
         i1.setWodId(w.getId());
         i1.setSortOrder(0);
         i1.setScoreable(true);
+        i1.setScoreType("TIME");
         items.saveAndFlush(i1);
         assertThat(items.findBySessionIdOrderBySortOrderAsc(s.getId())).hasSize(1);
 
@@ -106,6 +107,7 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
         dup.setSessionId(s.getId());
         dup.setWodId(w.getId());
         dup.setSortOrder(0);
+        dup.setScoreType("TIME");
         assertThatThrownBy(() -> items.saveAndFlush(dup)).isInstanceOf(DataIntegrityViolationException.class);
     }
 

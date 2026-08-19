@@ -84,6 +84,7 @@ class ScoreControllerTest extends AbstractIntegrationTest {
     private UUID item(UUID sessionId, Wod wod, int sort, boolean scoreable) {
         SessionItem i = new SessionItem();
         i.setSessionId(sessionId); i.setWodId(wod.getId()); i.setSortOrder(sort); i.setScoreable(scoreable);
+        i.setScoreType(wod.getScoreType()); // mirrors SessionItemController.replace()'s "null -> wod's own score type"
         return items.save(i).getId();
     }
 

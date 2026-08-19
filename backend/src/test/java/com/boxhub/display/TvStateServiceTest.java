@@ -67,6 +67,7 @@ class TvStateServiceTest extends AbstractIntegrationTest {
         fran.setBodyText("21-15-9"); fran = wods.save(fran);
         SessionItem it = new SessionItem();
         it.setSessionId(s.getId()); it.setSortOrder(0); it.setWodId(fran.getId()); it.setScoreable(true);
+        it.setScoreType("TIME");
         it = items.save(it);
 
         Membership m1 = member(a, "tv1-" + n + "@t.io", "Fast Athlete");
@@ -168,6 +169,7 @@ class TvStateServiceTest extends AbstractIntegrationTest {
         fran.setBodyText("21-15-9"); fran = wods.save(fran);
         SessionItem it = new SessionItem();
         it.setSessionId(s.getId()); it.setSortOrder(0); it.setWodId(fran.getId()); it.setScoreable(true);
+        it.setScoreType("TIME");
         items.save(it);
 
         TvStateService.TvState st = state.compose(a.getId());

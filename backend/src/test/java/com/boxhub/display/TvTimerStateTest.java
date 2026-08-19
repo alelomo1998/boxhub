@@ -44,7 +44,7 @@ class TvTimerStateTest extends AbstractIntegrationTest {
         Wod fran = new Wod(); fran.setTitle("Fran"); fran.setMacro("WORKOUT"); fran.setTimingPreset("FOR_TIME"); fran.setScoreType("TIME");
         fran.setBodyText("21-15-9"); fran = wods.save(fran);
         SessionItem it = new SessionItem(); it.setSessionId(s.getId()); it.setSortOrder(0);
-        it.setWodId(fran.getId()); it.setScoreable(true); it = items.save(it);
+        it.setWodId(fran.getId()); it.setScoreable(true); it.setScoreType("TIME"); it = items.save(it);
 
         timerService.act(s.getId(), "ARM", it.getId(), "{\"type\":\"AMRAP\",\"totalSeconds\":600}");
         timerService.act(s.getId(), "START", null, null);

@@ -78,6 +78,7 @@ class HistoryControllerTest extends AbstractIntegrationTest {
     private UUID item(UUID sessionId, UUID wodId) {
         SessionItem i = new SessionItem();
         i.setSessionId(sessionId); i.setWodId(wodId); i.setSortOrder(0); i.setScoreable(true);
+        i.setScoreType("TIME"); // both fixture wods here are FOR_TIME/TIME
         return items.save(i).getId();
     }
 

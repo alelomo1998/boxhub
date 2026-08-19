@@ -60,3 +60,17 @@ alter table template_piece add constraint template_piece_timing_preset_check
     check (timing_preset is null or timing_preset in ('FOR_TIME','AMRAP','EMOM','TABATA','INTERVAL'));
 
 create index idx_wod_library on wod (box_id, library);
+
+-- score is now EXPLICIT, never derived (spec decision 4). Backfill by applying the OLD derivation
+-- rule once, to the value it would have produced, then make the column mandatory.
+update session_item si
+set score_type = coalesce(si.score_type, case w.timing_preset
+        when 'FOR_TIME' then 'TIME'
+        when 'AMRAP'    then 'ROUNDS_REPS'
+        when 'INTERVAL' then 'ROUNDS_REPS'
+        else case w.macro when 'STRENGTH' then 'LOAD' else 'NONE' end
+    end)
+from wod w
+where w.id = si.wod_id;
+
+alter table session_item alter column score_type set not null;

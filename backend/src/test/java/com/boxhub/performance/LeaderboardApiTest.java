@@ -60,6 +60,7 @@ class LeaderboardApiTest extends AbstractIntegrationTest {
         Wod w = new Wod(); w.setTitle("Grace " + n); w.setMacro("WORKOUT"); w.setTimingPreset("FOR_TIME"); w.setScoreType("TIME"); wods.save(w);
         SessionItem i = new SessionItem();
         i.setSessionId(s.getId()); i.setWodId(w.getId()); i.setSortOrder(0); i.setScoreable(true);
+        i.setScoreType("TIME");
         itemId = items.save(i).getId();
         SecurityContextHolder.clearContext();
     }

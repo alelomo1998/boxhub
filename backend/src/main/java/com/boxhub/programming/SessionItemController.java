@@ -49,10 +49,6 @@ public class SessionItemController {
     record ItemsRequest(@NotNull List<ItemInput> items) {}
     record ProgrammingRequest(@NotNull String status) {}
 
-    public static String effectiveScoreType(SessionItem item, Wod wod) {
-        return item.getScoreType() != null ? item.getScoreType() : PieceTypes.defaultScoreType(wod.getWodType());
-    }
-
     private boolean isStaff() {
         String role = TenantContext.role();
         return "COACH".equals(role) || "BOX_ADMIN".equals(role);
@@ -70,7 +66,7 @@ public class SessionItemController {
             Wod w = wodById.get(i.getWodId());
             boolean logged = mid != null && scores.findBySessionItemIdAndMembershipId(i.getId(), mid).isPresent();
             return new ItemDto(i.getId(), i.getWodId(), w == null ? null : wodService.toDto(w),
-                    i.getSortOrder(), i.isScoreable(), w == null ? "NONE" : effectiveScoreType(i, w), logged);
+                    i.getSortOrder(), i.isScoreable(), i.getScoreType(), logged);
         }).toList();
     }
 
@@ -87,8 +83,11 @@ public class SessionItemController {
     public List<ItemDto> replace(@PathVariable UUID sessionId, @Valid @RequestBody ItemsRequest req) {
         RoleGuard.requireStaff();
         sessions.findById(sessionId).orElseThrow(NoSuchElementException::new);
+        Map<UUID, Wod> wodByInputId = new java.util.HashMap<>();
         for (ItemInput in : req.items()) {
-            wods.findById(in.wodId()).orElseThrow(NoSuchElementException::new); // tenant-filtered -> foreign 404
+            // tenant-filtered -> foreign 404; kept for the write-time score-type derivation below
+            Wod w = wods.findById(in.wodId()).orElseThrow(NoSuchElementException::new);
+            wodByInputId.put(in.wodId(), w);
             if (in.scoreType() != null && !SCORE_TYPES.contains(in.scoreType()))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown score type");
         }
@@ -101,7 +100,9 @@ public class SessionItemController {
             i.setWodId(in.wodId());
             i.setSortOrder(sort++);
             i.setScoreable(in.scoreable());
-            i.setScoreType(in.scoreType());
+            // score_type is NOT NULL (M14a): null on the wire still means "auto", but the derivation
+            // now happens here, at write time, rather than on every read.
+            i.setScoreType(in.scoreType() != null ? in.scoreType() : wodByInputId.get(in.wodId()).getScoreType());
             items.save(i);
         }
         return toDtos(items.findBySessionIdOrderBySortOrderAsc(sessionId));

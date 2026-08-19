@@ -445,7 +445,9 @@ public class DevDataSeeder implements CommandLineRunner {
         i.setSortOrder(sort);
         i.setWodId(wodId);
         i.setScoreable(scoreable);
-        i.setScoreType(scoreType);
+        // score_type is NOT NULL (M14a): null here still means "auto", mirroring
+        // SessionItemController.replace()'s write-time derivation from the wod's own score type.
+        i.setScoreType(scoreType != null ? scoreType : wods.findById(wodId).orElseThrow().getScoreType());
         items.save(i);
     }
 
