@@ -24,8 +24,10 @@ public class WodService {
     }
 
     String serialize(WodJson.Blocks blocks) {
+        WodJson.Blocks b = blocks == null ? WodJson.Blocks.empty() : blocks;
+        WodJsonValidator.validateBlocks(b);
         try {
-            return om.writeValueAsString(blocks == null ? WodJson.Blocks.empty() : blocks);
+            return om.writeValueAsString(b);
         } catch (JsonProcessingException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid blocks");
         }
@@ -39,9 +41,27 @@ public class WodService {
         }
     }
 
+    String serializeTiming(WodJson.Timing timing) {
+        WodJson.Timing t = timing == null ? WodJson.Timing.empty() : timing;
+        WodJsonValidator.validateTiming(t);
+        try {
+            return om.writeValueAsString(t);
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid timing");
+        }
+    }
+
+    WodJson.Timing deserializeTiming(String json) {
+        try {
+            return om.readValue(json, WodJson.Timing.class);
+        } catch (JsonProcessingException e) {
+            return WodJson.Timing.empty();
+        }
+    }
+
     public WodController.WodDto toDto(Wod w) {
-        return new WodController.WodDto(w.getId(), w.getTitle(), w.getWodType(), w.getScoreType(),
-                w.getTimeCapSeconds(), w.getBodyText(), deserialize(w.getBlocksJson()),
+        return new WodController.WodDto(w.getId(), w.getTitle(), WodTypeWire.toWodType(w.getMacro(), w.getTimingPreset()),
+                w.getScoreType(), w.getTimeCapSeconds(), w.getBodyText(), deserialize(w.getBlocksJson()),
                 w.getScalingNotes(), w.getBenchmarkTemplateId());
     }
 
@@ -50,7 +70,8 @@ public class WodService {
         BenchmarkTemplate t = benchmarks.findById(templateId).orElseThrow(NoSuchElementException::new);
         Wod w = new Wod();
         w.setTitle(t.getName());
-        w.setWodType("CUSTOM");
+        w.setMacro(WodTypeWire.toMacro("CUSTOM"));
+        w.setTimingPreset(WodTypeWire.toTimingPreset("CUSTOM"));
         w.setScoreType(t.getScoreType());
         w.setTimeCapSeconds(t.getTimeCapSeconds());
         w.setBodyText(t.getBodyText());
