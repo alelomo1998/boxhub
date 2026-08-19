@@ -18,6 +18,8 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, UUID
 
     List<ClassSession> findByStatusAndStartAtBefore(String status, Instant before);
 
+    List<ClassSession> findByScheduleSlotIdAndStartAtGreaterThanEqual(UUID scheduleSlotId, Instant from);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from ClassSession s where s.id = :id")
     Optional<ClassSession> findWithLockById(@Param("id") UUID id);

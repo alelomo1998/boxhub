@@ -18,6 +18,11 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     Optional<Booking> findBySessionIdAndMembershipIdAndStatusNot(UUID sessionId, UUID membershipId, String status);
     long countBySessionIdAndStatus(UUID sessionId, String status);
     List<Booking> findBySessionIdAndStatusOrderByPosition(UUID sessionId, String status);
+    boolean existsBySessionIdAndStatusIn(UUID sessionId, List<String> statuses);
+    // Regeneration deletes in-range sessions; bookings.session_id has no ON DELETE CASCADE (V3), so
+    // dependent rows (necessarily CANCELLED only — anything else would have blocked the delete) are
+    // cleared first. See SlotRegenerationService.
+    void deleteBySessionIdIn(List<UUID> sessionIds);
 
     // Athlete's booked/checked-in count in a time window (plan weekly-limit).
     @Query(value = """
