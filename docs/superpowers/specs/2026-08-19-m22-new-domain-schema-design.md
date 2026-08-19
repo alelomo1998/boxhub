@@ -127,6 +127,13 @@ volume with unguessable UUID names, paths stored as plain columns (`boxes.logo_u
 `MediaSigner`, `MediaStorage`'s EXIF-strip round-trip, the 5 MB cap and the JPEG/PNG allowlist are all
 unchanged.
 
+**Amended 2026-08-19, during planning: the mechanism is decided here, but BUILT in M24.** Writing the
+plan surfaced that this decision has no schema in it — it is one nginx location and one storage
+subdirectory — and that nothing writes to `/media/pub/` and no test exercises it until M24 gives the
+upload endpoint a public option. Shipping an nginx block with no writer and no test is the
+speculative work Phase 1's own rule forbids, so M22 records the resolution and M24 implements it.
+The contradiction is *resolved* here, as the v3 roadmap required; it is not *coded* here.
+
 ### 2.4 Scheduling
 
 **D11 — Rooms/floors are modelled here; the calendar that uses them is M14b's.**
@@ -429,6 +436,7 @@ red, that is a finding to investigate, not a line to adjust.
 | Question | Owner |
 |---|---|
 | Geocode a typed address, or drop a pin on a map? | M24 |
+| Build the `/media/pub/` nginx location and storage subdirectory, and give the upload endpoint a public option — the mechanism is settled in D9, only the implementation is deferred | M24 |
 | Does the public box page show a timetable? If so it is one box, so `runAsBox(targetBoxId)` serves it | M24 |
 | Notification strategy, and specifically the silent waitlist promotion | M17 |
 | Room capacity and collision rules, and the admin calendar with when/where/what filters | M14b |
