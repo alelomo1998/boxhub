@@ -58,11 +58,13 @@ public class WodController {
         RoleGuard.requireStaff();
         Wod w = new Wod();
         w.setTitle(req.title().trim());
-        w.setWodType(req.wodType());
+        w.setMacro(WodTypeWire.toMacro(req.wodType()));
+        w.setTimingPreset(WodTypeWire.toTimingPreset(req.wodType()));
         w.setScoreType(req.scoreType());
         w.setTimeCapSeconds(req.timeCapSeconds());
         if (req.bodyText() != null) w.setBodyText(req.bodyText());
         w.setBlocksJson(service.serialize(req.blocks()));
+        w.setTimingJson(service.serializeTiming(WodJson.Timing.empty()));
         w.setScalingNotes(req.scalingNotes());
         w.setCreatedBy(TenantContext.userId());
         return toDto(wods.save(w));
@@ -73,7 +75,10 @@ public class WodController {
         RoleGuard.requireStaff();
         Wod w = wods.findById(id).orElseThrow(NoSuchElementException::new);
         if (req.title() != null) w.setTitle(req.title().trim());
-        if (req.wodType() != null) w.setWodType(req.wodType());
+        if (req.wodType() != null) {
+            w.setMacro(WodTypeWire.toMacro(req.wodType()));
+            w.setTimingPreset(WodTypeWire.toTimingPreset(req.wodType()));
+        }
         if (req.scoreType() != null) w.setScoreType(req.scoreType());
         if (req.timeCapSeconds() != null) w.setTimeCapSeconds(req.timeCapSeconds());
         if (req.bodyText() != null) w.setBodyText(req.bodyText());
@@ -100,7 +105,9 @@ public class WodController {
         Wod src = wods.findById(id).orElseThrow(NoSuchElementException::new);
         Wod copy = new Wod();
         copy.setTitle(src.getTitle() + " (copy)");
-        copy.setWodType(src.getWodType());
+        copy.setMacro(src.getMacro());
+        copy.setTimingPreset(src.getTimingPreset());
+        copy.setTimingJson(src.getTimingJson());
         copy.setScoreType(src.getScoreType());
         copy.setTimeCapSeconds(src.getTimeCapSeconds());
         copy.setBodyText(src.getBodyText());

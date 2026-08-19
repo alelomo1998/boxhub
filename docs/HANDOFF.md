@@ -160,6 +160,37 @@ Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches 
   cross-section consistency pass was never executed; the delete sheet has no axe coverage; and the dev
   gallery's sections are coupled through scroll position, so one edit dirtied 54 unrelated baselines.
 
+- **M14a class & programming model (2026-08-19, branch `m14a-class-programming-model`)** — backend only:
+  schema, entities and domain services, **no new endpoints, no new DTOs, no screens**, and every frontend
+  gate unchanged, which was the milestone's own test for scope leakage. Three migrations. **V19** splits
+  `class_templates` — which held a class's identity and its weekly slot in one row — into `class_type` ×
+  `schedule_slot`; `schedule_slot.id` deliberately reuses the old `class_templates.id` so existing
+  `class_sessions` rows need no remapping. **V20** replaces the flat `wod_type` list with three
+  independent axes (`macro`, `timing_preset`, explicit `score_type`) plus `timing_json` segments and a
+  `library` flag; `TABATA` finally exists. **V21** makes cancellation a fact — `CANCELLED` status,
+  `cancelled_at`, and `was_late` **stamped at cancel time** from the cutoff then in force, with
+  `uq_active_booking` recreated partial so book → cancel → re-book leaves two rows. Backend **439 → 486**.
+
+  **`wodType` stays on the wire** as `timingPreset ?? macro` even though the column is gone — nine
+  frontend files consume it, including `runner.page.ts:297` and a Karma spec, and this milestone was
+  forbidden to touch them. The map is lossy for `CIRCUIT`/`CUSTOM`/`SKILL`; accepted by the user and
+  filed for M14c.
+
+  **The filed unbounded-library-growth bug is NOT fixed**, and the backlog entry was deliberately left
+  open against the plan's instruction to close it. `WodService.attachToSession` exists and is tested but
+  has **no production caller** — the live path is still `SessionItemController.replace`. Wiring it
+  naively reproduces the bug wearing `library = false`, because the builder re-sends the id it last
+  received. M14c wires it, with the builder rebuild.
+
+  **Its lesson is about tests. Five that could not fail were found, three of them written here.** A
+  migration test asserted that data landed correctly against a container where Flyway ran on an empty
+  database; `is not null` was asserted on a NOT NULL column; one test was primed to fail the moment the
+  *next* task ran; and nothing pinned a concrete `was_late`, so flipping `.isBefore` to `.isAfter` passed
+  the whole suite. All were green. **The gate that catches this is the negative control, not review** —
+  three mutations run by hand at the end are each now caught by exactly one test, including dropping
+  `uq_active_booking` entirely, which spec §7 had named in advance as the change most likely to be
+  silently wrong and which had no guard until the final fix round.
+
 - **Post-M7 fix on `main` (2026-07-14, `cbb0fbb`):** nginx serves `index.html` with `Cache-Control: no-cache` so a frontend rebuild (new content-hashed chunk names) never leaves a stale cached `index.html` pointing at gone chunks (was causing "module MIME text/html" load errors after `--build`). Also: recurring untracked macOS "` 2`" Finder-duplicate files (e.g. `TimerService 2.java`) regenerate in the working dir and break the LOCAL docker build (duplicate class); committed tree is clean, so a fresh clone/CI is fine — `find . -name "* 2.*" -not -path "*/node_modules/*" -not -path "*/dist/*" -delete` before a local `docker compose build` if it fails on dup classes.
 
 ## Roadmap — SUPERSEDED by the v1 roadmap (2026-07-14)
@@ -199,7 +230,7 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 - **Multi-tenancy:** single DB, `box_id` on every tenant table, Hibernate 6 `@TenantId` discriminator resolved from the JWT `box_id` claim via `shared/TenantIdentifierResolver` + `TenantContext`. Null tenant = fail-OPEN "root" (documented in ADR-001 amendment) — safe only because `/api/box/**` requires `SCOPE_box`. Every box endpoint has happy + auth-denied + cross-tenant-denied tests (mandatory).
 - **Auth:** stateless JWT (HS256), user token → box token (after ACTIVE-membership check) → box-scoped requests. Superadmin via config allowlist claim.
 - **Frontend:** Angular standalone + signals. `src/styles/_tokens.scss` = ONLY place raw color/type/spacing live. `src/app/ui/` = `bh-*` components (button, field, pill, tag, stat, board-row, panel, rail/nav, wordmark; `.bh-table` styles). Screens in `src/app/features/{auth,admin,athlete,coach,tv,join,booking,dev}`. `core/auth` (AuthService+interceptor+guards). **No `core/theme`** — `ThemeService` and the light theme were deleted in M13b; dark only.
-- **Booking engine** (`box/BookingService`): every state transition `@Transactional` under `ClassSessionRepository.findWithLockById` (SELECT … FOR UPDATE). Cancel = DELETE the booking row (not a CANCELLED status); CHECKED_IN/NO_SHOW persist. Reason codes returned as `ResponseStatusException(409, "CODE")` → problem+json `detail`.
+- **Booking engine** (`box/BookingService`): every state transition `@Transactional` under `ClassSessionRepository.findWithLockById` (SELECT … FOR UPDATE). Cancel = a CANCELLED **status** since M14a, never a delete — the row survives with `cancelled_at` and a `was_late` boolean stamped from the cutoff in force at cancel time, because `cancel_cutoff_min` is mutable and deriving lateness on read would let a box retroactively forgive its own history. `uq_active_booking` is partial (`where status <> 'CANCELLED'`) so book → cancel → re-book leaves two rows; the active-booking lookup excludes CANCELLED, or a cancelled row would read as live. CHECKED_IN/NO_SHOW persist. Reason codes returned as `ResponseStatusException(409, "CODE")` → problem+json `detail`.
 
 ## CRITICAL gotchas (these bit us repeatedly)
 1. **@TenantId silently filters JPQL/derived queries AND bulk updates.** Any query that must be tenant-agnostic (lookup by unguessable token, cross-box job) MUST be NATIVE SQL. Bit us on invite `findByTokenHash` + `burnIfUnaccepted`. **Audit before adding tenant-agnostic access to a @TenantId entity.**
@@ -292,7 +323,7 @@ browserless test passing means the browser, not the app.
 - Full stack: `docker compose -f docker/docker-compose.yml up -d --build` → http://localhost. Dev users: `admin@demo.io` / `coach@demo.io` / `athlete@demo.io` / `super@demo.io` (superadmin, no box), password `boxhub-demo-2026`. Fresh volume seeds Demo Box + a weekly schedule. **Mailpit** (dev/e2e mail) at http://localhost:8025.
 - Backend: `cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. Frontend: `cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npm run build`. E2E: stack up, then `cd e2e && npx playwright test`.
 - **`docker compose -f docker/docker-compose.yml down -v` is MANDATORY before an e2e run after a seeder or demo-password change** — the seeder self-skips when the demo box already exists, so a stale Postgres volume silently keeps the old data (cost real debugging time when the M8 demo password changed). Also: `runner`/`tv` specs are not idempotent (fixed-name TV devices accumulate) — they need a fresh stack.
-- Flyway only for schema (V1–V17 applied; **next is V18**). Never edit an applied migration.
+- Flyway only for schema (V1–V21 applied; **next is V22**). Never edit an applied migration.
 - **Dependency scanning (M11 T12, revised twice):** **OSV-Scanner** gates the **backend** on every push/PR/weekly (`.github/workflows/dependency-scan.yml`), no credentials, seconds. It scans a **CycloneDX SBOM** generated by Maven, not `pom.xml` — osv-scanner's Maven resolver fails on any dependency whose version comes from the Boot parent BOM and then skips the whole Maven side *while still exiting 0*. A guard step therefore asserts the scan really covered Maven; do not delete it, it has already caught two silent no-ops. **The backend currently scans clean.** The gate is backend-only on purpose: osv-scanner has no severity threshold, and npm knowingly carries Angular 19's advisories until M12, so including npm would make the job permanently red. npm's policy is `npm audit --audit-level=critical --omit=dev` gating every push in `ci.yml` plus an informational high-severity listing. Non-blocking findings belong in `osv-scanner.toml` with a written reason. Dependabot does version updates monthly, grouped, capped, **majors excluded**.
 - **Dependency posture (2026-07-27):** Spring Boot **3.5.16**; `postgresql` and `jackson-databind` pinned one patch ahead of what Boot manages, each with its advisory id in `backend/pom.xml` and a note to drop the pin once Boot catches up. Getting here mattered: the pinned 3.4.1 was carrying ~25 Tomcat CVEs (several 9.8, in the server handling every request), three 9.0s in Thymeleaf, an Actuator auth bypass (8.2 x2, and `/actuator/health` is exposed through nginx) and a 9.1 in `spring-security-web`. The 3.4->3.5 bump moves Spring Security 6.4->6.5, where M11's cookie/CSRF work is coupled — verified by 390 backend tests plus the full e2e suite on a stack rebuilt from scratch, not by the unit suite alone.
 - **Secrets dev note (M10, revised by M11 T6):** `BOXHUB_JWT_SECRET`, `BOXHUB_STRIPE_ENC_KEYS` and `BOXHUB_MEDIA_LINK_SECRET` are ALL required for the backend to boot — docker-compose supplies dev values; there is deliberately NO fallback in `application.yml` for any of them, so a deploy without one fails fast rather than running on a committed key. `SecretDefaultsTest` fails the build if a secret-shaped property ever regains a usable default. **`BOXHUB_STRIPE_ENC_KEYS` (renamed from `BOXHUB_STRIPE_ENC_KEY`) is now a comma-separated `version:base64key` list, newest first** — e.g. `2:<new>,1:<old>`; `encrypt` uses the highest version and prefixes ciphertext `v{n}:`, `decrypt` picks the key by prefix, and unprefixed (pre-M11) rows decrypt under v1, so migrating is just `BOXHUB_STRIPE_ENC_KEYS=1:$OLD_BOXHUB_STRIPE_ENC_KEY` with no re-encryption. A box needs a REAL Stripe restricted key + webhook secret to exercise the online rail; the demo stack runs entirely on admin-recorded payments.
@@ -308,11 +339,10 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**M13a–M13e are all merged. The next milestone is M14a, and it is specced and planned but NOT built.**
+**M13a–M13e and M14a are all merged. The next milestone is M14b (schedule & classes surfaces), but M13f consolidation opens Phase 2 ahead of it — both still need their own brainstorm → spec → plan cycle.**
 
-**There is an open branch: `worktree-v3-roadmap`.** It is docs-only — four commits, no code — and it
-holds the v3 roadmap, the M14a spec, and the M14a implementation plan. **Merge it before starting
-work**, or the plan you execute is not the plan on `main`.
+**`worktree-v3-roadmap` was merged to `main` on 2026-08-19** (fast-forward, docs-only), followed by
+M14a itself. There is no open branch.
 
 **The roadmap changed shape on 2026-08-18.** `docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`
 supersedes v2 in full; the v2 document carries a retirement banner. Four product pillars were added and
@@ -334,9 +364,9 @@ in the v3 document; `deploy/deploy.sh` still has never successfully run.
 in a second worktree at `~/dev/boxhub-oc`** carrying landing-site work — including e2e specs — that the
 v3 roadmap places in Phase 5. If that work is live, M19's position needs revisiting.
 
-**Next Flyway is V19.** The M14a plan claims V19, V20 and V21 in that order.
+**Next Flyway is V22.** M14a used V19 (class model split), V20 (programming axes) and V21 (soft cancel).
 
-**Gates on `main` as of M13e:** Karma **408** · backend **439** · e2e **64 passed + 1 skipped** · axe
+**Gates on `main` as of M14a:** Karma **408** · backend **486** · e2e **64 passed + 1 skipped** · axe
 **29 cases, zero WCAG 2.2 AA violations** · visual **31 specs / 88 baselines** · production build clean.
 **The 1 e2e skip is the quarantined TV/SSE defect. Project 2 owns it — do not investigate it.**
 
@@ -384,7 +414,7 @@ Everything after it is verified locally only. Check the Actions tab / billing be
 future "CI is green" claim, and re-run the gates locally until runs resume.
 
 Backend **428** / frontend **182** / e2e **28 passed + 1 skipped** at `retries: 0`.
-**Next Flyway is V19** — M13a used V18 and M13b added no migration.
+**Next Flyway is V22** — M14a used V19, V20 and V21.
 
 ### The skip is a quarantine, and `main` was red for four days before it
 

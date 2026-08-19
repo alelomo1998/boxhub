@@ -12,9 +12,17 @@ import java.util.UUID;
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Booking> findBySessionId(UUID sessionId);
     List<Booking> findByMembershipId(UUID membershipId);
-    Optional<Booking> findBySessionIdAndMembershipId(UUID sessionId, UUID membershipId);
+    // Cancellation is a status transition now, not a delete (M14a) — CANCELLED rows stay in the
+    // table forever, so every caller that wants "the booking that currently holds a place" must
+    // exclude them explicitly, or a cancelled row reads back as still active.
+    Optional<Booking> findBySessionIdAndMembershipIdAndStatusNot(UUID sessionId, UUID membershipId, String status);
     long countBySessionIdAndStatus(UUID sessionId, String status);
     List<Booking> findBySessionIdAndStatusOrderByPosition(UUID sessionId, String status);
+    boolean existsBySessionIdAndStatusIn(UUID sessionId, List<String> statuses);
+    // Regeneration deletes in-range sessions; bookings.session_id has no ON DELETE CASCADE (V3), so
+    // dependent rows (necessarily CANCELLED only — anything else would have blocked the delete) are
+    // cleared first. See SlotRegenerationService.
+    void deleteBySessionIdIn(List<UUID> sessionIds);
 
     // Athlete's booked/checked-in count in a time window (plan weekly-limit).
     @Query(value = """

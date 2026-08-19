@@ -89,7 +89,8 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
 
         Wod w = new Wod();
         w.setTitle("Fran");
-        w.setWodType("FOR_TIME");
+        w.setMacro("WORKOUT");
+        w.setTimingPreset("FOR_TIME");
         w.setScoreType("TIME");
         wods.save(w);
 
@@ -98,6 +99,7 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
         i1.setWodId(w.getId());
         i1.setSortOrder(0);
         i1.setScoreable(true);
+        i1.setScoreType("TIME");
         items.saveAndFlush(i1);
         assertThat(items.findBySessionIdOrderBySortOrderAsc(s.getId())).hasSize(1);
 
@@ -105,33 +107,29 @@ class ProgrammingRepositoryTest extends AbstractIntegrationTest {
         dup.setSessionId(s.getId());
         dup.setWodId(w.getId());
         dup.setSortOrder(0);
+        dup.setScoreType("TIME");
         assertThatThrownBy(() -> items.saveAndFlush(dup)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
-    void skeletonPiecesOrderPerTemplate() {
+    void skeletonPiecesOrderPerClassType() {
         long n = System.nanoTime();
         UUID boxId = newBox("sk-" + n);
         actAsBox(boxId);
-        UUID templateId = UUID.randomUUID(); // FK-free check not possible: template FK enforced — create one
-        com.boxhub.box.ClassTemplate t = new com.boxhub.box.ClassTemplate();
+        com.boxhub.box.ClassType t = new com.boxhub.box.ClassType();
         t.setName("Muscle Class");
-        t.setWeekday(0);
-        t.setStartTime(java.time.LocalTime.of(18, 0));
-        t.setDurationMin(60);
-        t.setCapacity(12);
-        templateId = templatesRepo.save(t).getId();
+        UUID classTypeId = typesRepo.save(t).getId();
 
         TemplatePiece p1 = new TemplatePiece();
-        p1.setTemplateId(templateId); p1.setSortOrder(1); p1.setLabel("Strength"); p1.setWodType("STRENGTH");
+        p1.setClassTypeId(classTypeId); p1.setSortOrder(1); p1.setLabel("Strength"); p1.setMacro("STRENGTH");
         pieces.save(p1);
         TemplatePiece p0 = new TemplatePiece();
-        p0.setTemplateId(templateId); p0.setSortOrder(0); p0.setLabel("Warm-up"); p0.setWodType("WARMUP");
+        p0.setClassTypeId(classTypeId); p0.setSortOrder(0); p0.setLabel("Warm-up"); p0.setMacro("WARMUP");
         pieces.save(p0);
 
-        assertThat(pieces.findByTemplateIdOrderBySortOrderAsc(templateId))
+        assertThat(pieces.findByClassTypeIdOrderBySortOrderAsc(classTypeId))
                 .extracting(TemplatePiece::getLabel).containsExactly("Warm-up", "Strength");
     }
 
-    @Autowired com.boxhub.box.ClassTemplateRepository templatesRepo;
+    @Autowired com.boxhub.box.ClassTypeRepository typesRepo;
 }

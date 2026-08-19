@@ -55,11 +55,11 @@ class HistoryControllerTest extends AbstractIntegrationTest {
                         + "values (?, ?, 'GIRL', 'TIME', 'x', '{\"blocks\":[]}'::jsonb)",
                 bmId, "Fran " + n);
         Wod bench = new Wod();
-        bench.setTitle("Fran " + n); bench.setWodType("FOR_TIME"); bench.setScoreType("TIME");
+        bench.setTitle("Fran " + n); bench.setMacro("WORKOUT"); bench.setTimingPreset("FOR_TIME"); bench.setScoreType("TIME");
         bench.setBenchmarkTemplateId(bmId);
         wods.save(bench);
         Wod plain = new Wod();
-        plain.setTitle("Random " + n); plain.setWodType("FOR_TIME"); plain.setScoreType("TIME");
+        plain.setTitle("Random " + n); plain.setMacro("WORKOUT"); plain.setTimingPreset("FOR_TIME"); plain.setScoreType("TIME");
         wods.save(plain);
 
         benchItem1 = item(session(Instant.now().minusSeconds(86400)), bench.getId());
@@ -78,6 +78,7 @@ class HistoryControllerTest extends AbstractIntegrationTest {
     private UUID item(UUID sessionId, UUID wodId) {
         SessionItem i = new SessionItem();
         i.setSessionId(sessionId); i.setWodId(wodId); i.setSortOrder(0); i.setScoreable(true);
+        i.setScoreType("TIME"); // both fixture wods here are FOR_TIME/TIME
         return items.save(i).getId();
     }
 

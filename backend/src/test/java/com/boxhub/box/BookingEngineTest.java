@@ -125,11 +125,11 @@ class BookingEngineTest extends AbstractIntegrationTest {
 
         bookingService.cancel(sessionId, m1);
 
-        Booking b2 = bookings.findBySessionIdAndMembershipId(sessionId, m2).orElseThrow();
+        Booking b2 = bookings.findBySessionIdAndMembershipIdAndStatusNot(sessionId, m2, "CANCELLED").orElseThrow();
         assertThat(b2.getStatus()).isEqualTo("BOOKED");
         assertThat(b2.getPosition()).isNull();
 
-        Booking b3 = bookings.findBySessionIdAndMembershipId(sessionId, m3).orElseThrow();
+        Booking b3 = bookings.findBySessionIdAndMembershipIdAndStatusNot(sessionId, m3, "CANCELLED").orElseThrow();
         assertThat(b3.getStatus()).isEqualTo("WAITLIST");
         assertThat(b3.getPosition()).isEqualTo(1);
     }
@@ -154,7 +154,7 @@ class BookingEngineTest extends AbstractIntegrationTest {
         UUID m2 = newMembership(boxId, null);
         bookingService.book(farSession, m2);
         bookingService.cancel(farSession, m2); // outside cutoff -> ok, no exception
-        assertThat(bookings.findBySessionIdAndMembershipId(farSession, m2)).isEmpty();
+        assertThat(bookings.findBySessionIdAndMembershipIdAndStatusNot(farSession, m2, "CANCELLED")).isEmpty();
     }
 
     @Test

@@ -37,11 +37,16 @@ class MigrationTest extends AbstractIntegrationTest {
 
     @Test
     void v3AddedSchedulingTables() {
+        // V19 (M14a) split class_templates into class_type x schedule_slot; the other two stand.
         Integer t = jdbc.queryForObject("""
                 select count(*) from information_schema.tables
-                where table_name in ('class_templates','class_sessions','bookings')
+                where table_name in ('class_type','schedule_slot','class_sessions','bookings')
                 """, Integer.class);
-        assertThat(t).isEqualTo(3);
+        assertThat(t).isEqualTo(4);
+        Integer split = jdbc.queryForObject("""
+                select count(*) from information_schema.tables where table_name = 'class_templates'
+                """, Integer.class);
+        assertThat(split).isZero();
     }
 
     @Test
@@ -77,7 +82,7 @@ class MigrationTest extends AbstractIntegrationTest {
         Integer c = jdbc.queryForObject("""
                 select count(*) from information_schema.columns
                 where (table_name='class_sessions' and column_name='programming_status')
-                   or (table_name='class_templates' and column_name='image_path')
+                   or (table_name='class_type' and column_name='image_path')   -- moved there by V19
                    or (table_name='memberships' and column_name='avatar_path')
                    or (table_name='memberships' and column_name='private')
                 """, Integer.class);

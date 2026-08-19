@@ -57,9 +57,9 @@ class ScoreControllerTest extends AbstractIntegrationTest {
         UUID draft = session("DRAFT");
         Wod fran = wod("Fran " + n, "FOR_TIME", "TIME");
         Wod warm = wod("Warmup " + n, "WARMUP", "NONE");
-        publishedItem = item(published, fran.getId(), 0, true);
-        unscoreableItem = item(published, warm.getId(), 1, false);
-        draftItem = item(draft, fran.getId(), 0, true);
+        publishedItem = item(published, fran, 0, true);
+        unscoreableItem = item(published, warm, 1, false);
+        draftItem = item(draft, fran, 0, true);
         SecurityContextHolder.clearContext();
     }
 
@@ -74,13 +74,17 @@ class ScoreControllerTest extends AbstractIntegrationTest {
     }
 
     private Wod wod(String title, String type, String scoreType) {
-        Wod w = new Wod(); w.setTitle(title); w.setWodType(type); w.setScoreType(scoreType);
+        Wod w = new Wod(); w.setTitle(title);
+        if ("WARMUP".equals(type)) w.setMacro("WARMUP");
+        else { w.setMacro("WORKOUT"); w.setTimingPreset(type); }
+        w.setScoreType(scoreType);
         return wods.save(w);
     }
 
-    private UUID item(UUID sessionId, UUID wodId, int sort, boolean scoreable) {
+    private UUID item(UUID sessionId, Wod wod, int sort, boolean scoreable) {
         SessionItem i = new SessionItem();
-        i.setSessionId(sessionId); i.setWodId(wodId); i.setSortOrder(sort); i.setScoreable(scoreable);
+        i.setSessionId(sessionId); i.setWodId(wod.getId()); i.setSortOrder(sort); i.setScoreable(scoreable);
+        i.setScoreType(wod.getScoreType()); // mirrors SessionItemController.replace()'s "null -> wod's own score type"
         return items.save(i).getId();
     }
 

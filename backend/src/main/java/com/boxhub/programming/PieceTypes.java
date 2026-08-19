@@ -2,19 +2,15 @@ package com.boxhub.programming;
 
 import java.util.Set;
 
-/** Piece-type vocabulary + default score type per type (coach can override per item). */
+/**
+ * The legacy piece-type WIRE vocabulary — every WOD/skeleton-piece request and response still
+ * sends/returns one of these under {@code wodType} (nine frontend files consume it; M14a may not
+ * touch them). Kept until M14c rebuilds the builder against the split macro/timingPreset/score axes.
+ * {@link WodTypeWire} bridges this vocabulary to the columns that actually store it now.
+ */
 public final class PieceTypes {
     private PieceTypes() {}
 
     public static final Set<String> ALL = Set.of(
             "FOR_TIME", "AMRAP", "EMOM", "INTERVAL", "STRENGTH", "CUSTOM", "WARMUP", "CIRCUIT", "SKILL");
-
-    public static String defaultScoreType(String wodType) {
-        return switch (wodType) {
-            case "FOR_TIME" -> "TIME";
-            case "AMRAP", "INTERVAL" -> "ROUNDS_REPS";
-            case "STRENGTH" -> "LOAD";
-            default -> "NONE"; // EMOM, WARMUP, CIRCUIT, SKILL, CUSTOM: completion unless overridden
-        };
-    }
 }

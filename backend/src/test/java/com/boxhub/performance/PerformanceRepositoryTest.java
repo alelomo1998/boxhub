@@ -72,9 +72,10 @@ class PerformanceRepositoryTest extends AbstractIntegrationTest {
         s.setProgrammingStatus("PUBLISHED");
         sessions.save(s);
 
-        Wod w = new Wod(); w.setTitle("Fran"); w.setWodType("FOR_TIME"); w.setScoreType("TIME"); wods.save(w);
+        Wod w = new Wod(); w.setTitle("Fran"); w.setMacro("WORKOUT"); w.setTimingPreset("FOR_TIME"); w.setScoreType("TIME"); wods.save(w);
         SessionItem item = new SessionItem();
         item.setSessionId(s.getId()); item.setWodId(w.getId()); item.setSortOrder(0); item.setScoreable(true);
+        item.setScoreType("TIME");
         items.save(item);
 
         User u = authService.register("perf-" + n + "@t.io", "correct-horse-battery", "Ath");

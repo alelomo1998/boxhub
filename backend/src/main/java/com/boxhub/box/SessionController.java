@@ -76,7 +76,7 @@ public class SessionController {
             long waitlist = bookings.countBySessionIdAndStatus(s.getId(), "WAITLIST");
             String myStatus = null; Integer myPos = null;
             if (caller.isPresent()) {
-                var mine = bookings.findBySessionIdAndMembershipId(s.getId(), caller.get().getId());
+                var mine = bookings.findBySessionIdAndMembershipIdAndStatusNot(s.getId(), caller.get().getId(), "CANCELLED");
                 if (mine.isPresent()) { myStatus = mine.get().getStatus(); myPos = mine.get().getPosition(); }
             }
             out.add(new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),

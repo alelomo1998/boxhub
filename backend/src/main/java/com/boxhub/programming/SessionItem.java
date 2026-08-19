@@ -18,7 +18,7 @@ public class SessionItem {
     @Column(name = "wod_id", nullable = false) private UUID wodId;
     @Column(name = "sort_order", nullable = false) private int sortOrder;
     @Column(nullable = false) private boolean scoreable = false;
-    @Column(name = "score_type") private String scoreType;   // null = derive from wod.wod_type
+    @Column(name = "score_type", nullable = false) private String scoreType;
     @Column(name = "created_at", nullable = false) private Instant createdAt = Instant.now();
 
     public UUID getId() { return id; }

@@ -3,9 +3,7 @@ package com.boxhub.performance;
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.programming.SessionItem;
-import com.boxhub.programming.SessionItemController;
 import com.boxhub.programming.SessionItemRepository;
-import com.boxhub.programming.WodRepository;
 import com.boxhub.shared.MediaSigner;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -23,15 +21,13 @@ public class LeaderboardController {
 
     private final WodScoreRepository scores;
     private final SessionItemRepository items;
-    private final WodRepository wods;
     private final MembershipRepository memberships;
     private final MediaSigner mediaSigner;
 
-    public LeaderboardController(WodScoreRepository scores, SessionItemRepository items, WodRepository wods,
+    public LeaderboardController(WodScoreRepository scores, SessionItemRepository items,
                                  MembershipRepository memberships, MediaSigner mediaSigner) {
         this.scores = scores;
         this.items = items;
-        this.wods = wods;
         this.memberships = memberships;
         this.mediaSigner = mediaSigner;
     }
@@ -46,8 +42,7 @@ public class LeaderboardController {
     @Transactional(readOnly = true)
     public LeaderboardDto leaderboard(@PathVariable UUID itemId) {
         SessionItem item = items.findById(itemId).orElseThrow(NoSuchElementException::new); // foreign/absent -> 404
-        String scoreType = wods.findById(item.getWodId())
-                .map(w -> SessionItemController.effectiveScoreType(item, w)).orElse("NONE");
+        String scoreType = item.getScoreType(); // explicit now (M14a) — no derivation left
         List<WodScore> ranked = Leaderboard.rank(scores.findBySessionItemId(itemId), scoreType);
 
         Map<UUID, Who> who = memberships.findAll().stream()

@@ -22,17 +22,20 @@ import java.util.stream.Collectors;
 public class SessionDetailController {
 
     private final ClassSessionRepository sessions;
-    private final ClassTemplateRepository templates;
+    private final ScheduleSlotRepository slots;
+    private final ClassTypeRepository types;
     private final BookingRepository bookings;
     private final MembershipRepository memberships;
     private final UserRepository users;
     private final MediaSigner mediaSigner;
 
-    public SessionDetailController(ClassSessionRepository sessions, ClassTemplateRepository templates,
-                                   BookingRepository bookings, MembershipRepository memberships,
+    public SessionDetailController(ClassSessionRepository sessions, ScheduleSlotRepository slots,
+                                   ClassTypeRepository types, BookingRepository bookings,
+                                   MembershipRepository memberships,
                                    UserRepository users, MediaSigner mediaSigner) {
         this.sessions = sessions;
-        this.templates = templates;
+        this.slots = slots;
+        this.types = types;
         this.bookings = bookings;
         this.memberships = memberships;
         this.users = users;
@@ -50,8 +53,9 @@ public class SessionDetailController {
     public SessionDetailDto detail(@PathVariable UUID id) {
         ClassSession s = sessions.findById(id).orElseThrow(NoSuchElementException::new);
 
-        String image = mediaSigner.sign(s.getTemplateId() == null ? null
-                : templates.findById(s.getTemplateId()).map(ClassTemplate::getImagePath).orElse(null));
+        String image = mediaSigner.sign(s.getScheduleSlotId() == null ? null
+                : slots.findById(s.getScheduleSlotId()).flatMap(sl -> types.findById(sl.getClassTypeId()))
+                        .map(ClassType::getImagePath).orElse(null));
 
         CoachDto coach = null;
         if (s.getCoachId() != null) {

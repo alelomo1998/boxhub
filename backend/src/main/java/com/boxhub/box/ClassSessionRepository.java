@@ -14,9 +14,11 @@ import java.util.UUID;
 public interface ClassSessionRepository extends JpaRepository<ClassSession, UUID> {
     List<ClassSession> findByStartAtBetweenOrderByStartAt(Instant from, Instant to);
 
-    boolean existsByTemplateIdAndStartAt(UUID templateId, Instant startAt);
+    boolean existsByScheduleSlotIdAndStartAt(UUID scheduleSlotId, Instant startAt);
 
     List<ClassSession> findByStatusAndStartAtBefore(String status, Instant before);
+
+    List<ClassSession> findByScheduleSlotIdAndStartAtGreaterThanEqual(UUID scheduleSlotId, Instant from);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from ClassSession s where s.id = :id")

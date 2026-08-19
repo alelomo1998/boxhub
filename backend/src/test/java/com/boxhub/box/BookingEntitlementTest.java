@@ -215,14 +215,16 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
         assertThat(subscriptions.findById(sub.getId()).orElseThrow().getStatus()).isEqualTo("EXPIRED");
 
         // both existing bookings are untouched by the lapse
-        assertThat(bookings.findBySessionIdAndMembershipId(checkinSession, m1)).isPresent();
-        assertThat(bookings.findBySessionIdAndMembershipId(cancelSession, m1)).isPresent();
+        assertThat(bookings.findBySessionIdAndMembershipIdAndStatusNot(checkinSession, m1, "CANCELLED")).isPresent();
+        assertThat(bookings.findBySessionIdAndMembershipIdAndStatusNot(cancelSession, m1, "CANCELLED")).isPresent();
 
         Booking checkedIn = bookingService.checkIn(checkinBooking.getId());
         assertThat(checkedIn.getStatus()).isEqualTo("CHECKED_IN");
 
         bookingService.cancel(cancelSession, m1); // no throw == still succeeds
-        assertThat(bookings.findBySessionIdAndMembershipId(cancelSession, m1)).isEmpty();
+        // cancellation is a fact now, not a deletion (M14a): the row survives with status CANCELLED.
+        Booking cancelledRow = bookings.findById(cancelBooking.getId()).orElseThrow();
+        assertThat(cancelledRow.getStatus()).isEqualTo("CANCELLED");
 
         assertThatThrownBy(() -> bookingService.book(freshSession, m1))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
@@ -258,7 +260,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
 
         bookingService.cancel(sessionId, m1); // frees the one slot
 
-        Booking promoted = bookings.findBySessionIdAndMembershipId(sessionId, m2).orElseThrow();
+        Booking promoted = bookings.findBySessionIdAndMembershipIdAndStatusNot(sessionId, m2, "CANCELLED").orElseThrow();
         assertThat(promoted.getStatus()).isEqualTo("BOOKED"); // promoted despite the lapse
     }
 }

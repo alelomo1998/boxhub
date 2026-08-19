@@ -2,9 +2,7 @@ package com.boxhub.performance;
 
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.programming.SessionItem;
-import com.boxhub.programming.SessionItemController;
 import com.boxhub.programming.SessionItemRepository;
-import com.boxhub.programming.WodRepository;
 import jakarta.validation.Valid;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
@@ -20,15 +18,13 @@ public class ScoreController {
 
     private final ScoreService service;
     private final SessionItemRepository items;
-    private final WodRepository wods;
     private final ApplicationEventPublisher events;
     private final MembershipRepository memberships;
 
-    public ScoreController(ScoreService service, SessionItemRepository items, WodRepository wods,
+    public ScoreController(ScoreService service, SessionItemRepository items,
                            ApplicationEventPublisher events, MembershipRepository memberships) {
         this.service = service;
         this.items = items;
-        this.wods = wods;
         this.events = events;
         this.memberships = memberships;
     }
@@ -40,9 +36,8 @@ public class ScoreController {
                         Boolean finished, String notes, boolean isPrivate) {}
 
     String scoreTypeOf(UUID itemId) {
-        SessionItem item = items.findById(itemId).orElseThrow(NoSuchElementException::new);
-        return wods.findById(item.getWodId())
-                .map(w -> SessionItemController.effectiveScoreType(item, w)).orElse("NONE");
+        // explicit now (M14a) — session_item.score_type is NOT NULL, no wod-derived fallback left
+        return items.findById(itemId).orElseThrow(NoSuchElementException::new).getScoreType();
     }
 
     private ScoreDto toDto(WodScore s) {

@@ -1,6 +1,8 @@
 package com.boxhub.programming;
 
-import com.boxhub.box.ClassTemplateRepository;
+import com.boxhub.box.ClassTypeRepository;
+import com.boxhub.box.ScheduleSlot;
+import com.boxhub.box.ScheduleSlotRepository;
 import com.boxhub.shared.RoleGuard;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -20,43 +22,58 @@ import java.util.UUID;
 public class SkeletonController {
 
     private final TemplatePieceRepository pieces;
-    private final ClassTemplateRepository templates;
+    private final ScheduleSlotRepository slots;
+    private final ClassTypeRepository types;
 
-    public SkeletonController(TemplatePieceRepository pieces, ClassTemplateRepository templates) {
+    public SkeletonController(TemplatePieceRepository pieces, ScheduleSlotRepository slots, ClassTypeRepository types) {
         this.pieces = pieces;
-        this.templates = templates;
+        this.slots = slots;
+        this.types = types;
     }
 
     public record PieceDto(UUID id, int sortOrder, String label, String wodType) {}
     record PieceInput(@NotBlank String label, @NotBlank String wodType) {}
     record SkeletonRequest(@NotNull List<PieceInput> pieces) {}
 
+    /** {templateId} is the class-templates resource id (a schedule_slot id); the skeleton lives on its class type. */
+    private UUID classTypeId(UUID templateId) {
+        ScheduleSlot slot = slots.findById(templateId).orElseThrow(NoSuchElementException::new);
+        return slot.getClassTypeId();
+    }
+
     @GetMapping
     public List<PieceDto> get(@PathVariable UUID templateId) {
         RoleGuard.requireStaff();
-        templates.findById(templateId).orElseThrow(NoSuchElementException::new);
-        return pieces.findByTemplateIdOrderBySortOrderAsc(templateId).stream()
-                .map(p -> new PieceDto(p.getId(), p.getSortOrder(), p.getLabel(), p.getWodType())).toList();
+        UUID classTypeId = classTypeId(templateId);
+        return pieces.findByClassTypeIdOrderBySortOrderAsc(classTypeId).stream()
+                .map(p -> new PieceDto(p.getId(), p.getSortOrder(), p.getLabel(),
+                        WodTypeWire.toWodType(p.getMacro(), p.getTimingPreset()))).toList();
     }
 
     @PutMapping
     @Transactional
     public List<PieceDto> put(@PathVariable UUID templateId, @Valid @RequestBody SkeletonRequest req) {
         RoleGuard.requireStaff();
-        templates.findById(templateId).orElseThrow(NoSuchElementException::new);
+        UUID classTypeId = classTypeId(templateId);
+        // The shipped frontend fans one PUT out per slot of a name group, all landing on this same
+        // class type — pessimistic lock serializes them so N concurrent saves become N identical
+        // successful writes instead of colliding on unique (box_id, class_type_id, sort_order).
+        // Mirrors ClassSessionRepository.findWithLockById / BookingService.book.
+        types.findWithLockById(classTypeId).orElseThrow(NoSuchElementException::new);
         for (PieceInput in : req.pieces()) {
             if (!PieceTypes.ALL.contains(in.wodType()))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown piece type");
         }
-        pieces.deleteByTemplateId(templateId);
+        pieces.deleteByClassTypeId(classTypeId);
         pieces.flush();
         int sort = 0;
         for (PieceInput in : req.pieces()) {
             TemplatePiece p = new TemplatePiece();
-            p.setTemplateId(templateId);
+            p.setClassTypeId(classTypeId);
             p.setSortOrder(sort++);
             p.setLabel(in.label().trim());
-            p.setWodType(in.wodType());
+            p.setMacro(WodTypeWire.toMacro(in.wodType()));
+            p.setTimingPreset(WodTypeWire.toTimingPreset(in.wodType()));
             pieces.save(p);
         }
         return get(templateId);

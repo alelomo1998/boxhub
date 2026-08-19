@@ -19,6 +19,8 @@ public class Booking {
     @Column private Integer position;
     @Column(name = "booked_at", nullable = false) private Instant bookedAt = Instant.now();
     @Column(name = "checked_in_at") private Instant checkedInAt;
+    @Column(name = "cancelled_at") private Instant cancelledAt;
+    @Column(name = "was_late") private Boolean wasLate;
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
@@ -34,4 +36,8 @@ public class Booking {
     public void setBookedAt(Instant bookedAt) { this.bookedAt = bookedAt; }
     public Instant getCheckedInAt() { return checkedInAt; }
     public void setCheckedInAt(Instant checkedInAt) { this.checkedInAt = checkedInAt; }
+    public Instant getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(Instant cancelledAt) { this.cancelledAt = cancelledAt; }
+    public Boolean getWasLate() { return wasLate; }
+    public void setWasLate(Boolean wasLate) { this.wasLate = wasLate; }
 }

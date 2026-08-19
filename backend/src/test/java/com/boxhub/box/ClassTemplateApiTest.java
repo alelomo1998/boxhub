@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -182,5 +183,65 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .content("{\"imagePath\":\"/media/" + b.getId() + "/theirs.jpg\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    /**
+     * fix round 1, finding 1: class_type carries unique (box_id, name), and a class scheduled on
+     * several weekdays is exactly one type with several slots — the whole point of the split. A
+     * second POST of a name the box already has must reuse that type (201, not 500) and share its
+     * imagePath; each POST still creates its own slot (distinct id, own weekday).
+     */
+    @Test
+    void secondPostOfAnExistingNameFindsTheTypeInsteadOf500() throws Exception {
+        String first = mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"WOD Class\",\"weekday\":0,\"startTime\":\"18:00\",\"durationMin\":60,\"capacity\":14}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String firstId = om.readTree(first).get("id").asText();
+
+        String second = mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"WOD Class\",\"weekday\":1,\"startTime\":\"18:00\",\"durationMin\":60,\"capacity\":14}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("WOD Class"))
+                .andExpect(jsonPath("$.weekday").value(1))
+                .andReturn().getResponse().getContentAsString();
+        String secondId = om.readTree(second).get("id").asText();
+
+        assertThat(secondId).isNotEqualTo(firstId); // its own slot
+        mvc.perform(get("/api/box/class-templates").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.name == 'WOD Class')]", org.hamcrest.Matchers.hasSize(2)));
+    }
+
+    /**
+     * fix round 1, finding 4: PATCHing a slot's name to a value ANOTHER class_type in the box already
+     * holds must re-parent the slot onto that existing type (200), not collide on unique (box_id, name)
+     * (was 500). Renaming to a name no type holds still renames the shared type in place, unchanged.
+     */
+    @Test
+    void patchingNameToAnExistingTypeReparentsInsteadOf500() throws Exception {
+        String wodBody = mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"WOD Class\",\"weekday\":0,\"startTime\":\"18:00\",\"durationMin\":60,\"capacity\":14}"))
+                .andReturn().getResponse().getContentAsString();
+
+        String burnItBody = mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Burn It\",\"weekday\":0,\"startTime\":\"19:00\",\"durationMin\":45,\"capacity\":12}"))
+                .andReturn().getResponse().getContentAsString();
+        String burnItId = om.readTree(burnItBody).get("id").asText();
+
+        mvc.perform(patch("/api/box/class-templates/" + burnItId).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"WOD Class\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("WOD Class"));
+
+        mvc.perform(get("/api/box/class-templates").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.name == 'WOD Class')]", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$[?(@.name == 'Burn It')]", org.hamcrest.Matchers.hasSize(0)));
     }
 }
