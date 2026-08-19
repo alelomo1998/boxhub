@@ -227,13 +227,13 @@ BoxHub never touches funds) + cash/transfer with a manual receipt; Google SSO in
 
 ## Architecture
 - **Backend:** modular monolith, package = module boundary under `com.boxhub`: `identity` (users/auth/memberships), `box` (boxes/plans/invites/templates/sessions/bookings), `shared` (tenancy/errors/RoleGuard/rate-limit/seeder). `programming`, `performance`, `display` packages will come with M3–M5.
-- **Multi-tenancy:** single DB, `box_id` on every tenant table, Hibernate 6 `@TenantId` discriminator resolved from the JWT `box_id` claim via `shared/TenantIdentifierResolver` + `TenantContext`. Null tenant = fail-OPEN "root" (documented in ADR-001 amendment) — safe only because `/api/box/**` requires `SCOPE_box`. Every box endpoint has happy + auth-denied + cross-tenant-denied tests (mandatory).
+- **Multi-tenancy:** single DB, `box_id` on every tenant table, Hibernate 6 `@TenantId` discriminator resolved from the JWT `box_id` claim via `shared/TenantIdentifierResolver` + `TenantContext`. **Null tenant = fail-CLOSED since M21** — `NO_TENANT` is no longer reported as root, so the filter stays on with a sentinel no `boxes` row carries and a tenant-less read returns **empty** (ADR-001 + its M21 amendment). Isolation no longer rests on `/api/box/**` requiring `SCOPE_box`; cross-box visibility is the explicit `TenantContext.runAsRoot(...)`, jobs only. `/api/box/**` additionally carries an `X-Box-Id` assertion header that can only reject a stale request (`409 STALE_BOX`), never resolve a tenant. Authority: `docs/TENANCY.md`. Every box endpoint has happy + auth-denied + cross-tenant-denied tests (mandatory).
 - **Auth:** stateless JWT (HS256), user token → box token (after ACTIVE-membership check) → box-scoped requests. Superadmin via config allowlist claim.
 - **Frontend:** Angular standalone + signals. `src/styles/_tokens.scss` = ONLY place raw color/type/spacing live. `src/app/ui/` = `bh-*` components (button, field, pill, tag, stat, board-row, panel, rail/nav, wordmark; `.bh-table` styles). Screens in `src/app/features/{auth,admin,athlete,coach,tv,join,booking,dev}`. `core/auth` (AuthService+interceptor+guards). **No `core/theme`** — `ThemeService` and the light theme were deleted in M13b; dark only.
 - **Booking engine** (`box/BookingService`): every state transition `@Transactional` under `ClassSessionRepository.findWithLockById` (SELECT … FOR UPDATE). Cancel = a CANCELLED **status** since M14a, never a delete — the row survives with `cancelled_at` and a `was_late` boolean stamped from the cutoff in force at cancel time, because `cancel_cutoff_min` is mutable and deriving lateness on read would let a box retroactively forgive its own history. `uq_active_booking` is partial (`where status <> 'CANCELLED'`) so book → cancel → re-book leaves two rows; the active-booking lookup excludes CANCELLED, or a cancelled row would read as live. CHECKED_IN/NO_SHOW persist. Reason codes returned as `ResponseStatusException(409, "CODE")` → problem+json `detail`.
 
 ## CRITICAL gotchas (these bit us repeatedly)
-1. **@TenantId silently filters JPQL/derived queries AND bulk updates.** Any query that must be tenant-agnostic (lookup by unguessable token, cross-box job) MUST be NATIVE SQL. Bit us on invite `findByTokenHash` + `burnIfUnaccepted`. **Audit before adding tenant-agnostic access to a @TenantId entity.**
+1. **@TenantId silently filters JPQL/derived queries AND bulk updates.** Any query that must be tenant-agnostic (lookup by unguessable token, cross-box job) MUST be NATIVE SQL. Bit us on invite `findByTokenHash` + `burnIfUnaccepted`. **Audit before adding tenant-agnostic access to a @TenantId entity.** **Since M21 the no-tenant case fails CLOSED too**: with no ambient tenant the filter stays on against a sentinel no row carries, so such a query returns **empty** instead of every box. Silent-empty is the symptom of this bug now, and the deliberate cross-box tool is `TenantContext.runAsRoot(...)`.
 2. **System-level writers of @TenantId entities have no tenant** (schedulers, seeder). Set a synthetic box tenant (JwtAuthenticationToken with `box_id` claim, `SCOPE_box`) **BEFORE the transaction opens** — open the tx via `TransactionTemplate` INSIDE the tenant scope, else `@TenantId` resolves to the all-zeros sentinel → FK violation. See `box/SessionGenerator.runAsBox` and `shared/DevDataSeeder`.
 3. **`@Transactional` on a test method** binds the Hibernate session before auth is set → sentinel tenant. Don't; wrap only the locking call in a `TransactionTemplate` after `actAsBox`.
 4. **Lazy `User` on `Membership`** (OSIV off): endpoints resolving athlete/coach names need `@Transactional(readOnly=true)` to keep the session open.
@@ -348,8 +348,10 @@ SHAs is `.superpowers/sdd/2026-08-19-m21-identity-tenancy-multi-box/progress.md`
 tenancy note:** `TenantIdentifierResolver.isRoot(NO_TENANT)` no longer returns true, so **a read with
 no ambient tenant now sees NOTHING instead of every box**. Cross-box visibility is
 `TenantContext.runAsRoot(...)`, jobs only, and its sole caller is `BookingMaintenance`. Any statement
-elsewhere in this document that a null tenant is "fail-OPEN root" describes the pre-M21 world —
-`docs/TENANCY.md` is being rewritten as this milestone's last task and is the authority.
+elsewhere in this document that a null tenant is "fail-OPEN root" — the M6 entry above says so while
+explaining why `TvStateService.compose` wraps in `runAsBox` — describes the pre-M21 world and is left
+as the historical record it is; the wrapping is still right, the reason has changed.
+`docs/TENANCY.md` was rewritten as this milestone's last task and is the authority.
 
 Two findings worth carrying regardless of what happens to the branch:
 

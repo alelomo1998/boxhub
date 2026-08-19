@@ -78,7 +78,7 @@ public final class TenantContext {
 
     /**
      * Run {@code action} with the @TenantId filter DISABLED, so it sees every box. The explicit,
-     * greppable opt-in that replaced M21's fail-open default.
+     * greppable opt-in that replaced the pre-M21 fail-open default.
      *
      * FOR PLATFORM JOBS ONLY — never on a thread serving a user request. A request has a caller
      * whose authorisation is knowable, so "see every box" is always the wrong tool there; the right

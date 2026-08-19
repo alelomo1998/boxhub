@@ -39,7 +39,7 @@ import java.util.UUID;
  * type" into the exact same safe 200-no-op path the brief requires, with zero JSON metadata
  * parsing needed. Once the box is known, everything that touches a {@code @TenantId} entity
  * (Subscription/Plan reads via SubscriptionService, the Payment status update) runs inside
- * {@code runAsBox(boxId, ...)}, mirroring {@code TvStreamService.runAsBox} exactly: a synthetic
+ * {@code TenantContext.runAsBox(boxId, ...)} — since M21 the single shared implementation: a synthetic
  * box-scoped Authentication is installed BEFORE the transaction opens — {@code SessionGenerator}'s
  * documented trap is that @TenantId resolves to the NO_TENANT sentinel (and inserts then throw an
  * FK violation on {@code box_id}) if the tenant is set only after the Hibernate session/tx has

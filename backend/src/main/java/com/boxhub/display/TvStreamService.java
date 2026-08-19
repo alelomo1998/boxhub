@@ -80,7 +80,9 @@ public class TvStreamService {
         Conn c = connections.get(deviceId);
         if (c == null) return;
         try {
-            // tenant BEFORE compose: @TenantId reads fail open to root without it (ADR-001)
+            // tenant BEFORE compose: without it compose()'s @TenantId reads have no ambient
+            // tenant. Pre-M21 that leaked every box; since M21 it returns empty and the board goes
+            // blank instead. Wrong either way — the fix is the same one (ADR-001 + its M21 amendment).
             TvStateService.TvState snapshot = TenantContext.runAsBox(c.boxId(), () -> state.compose(c.boxId()));
             c.emitter().send(SseEmitter.event().name("state").data(json.writeValueAsString(snapshot)));
         } catch (Exception e) {
