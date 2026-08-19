@@ -12,34 +12,12 @@ class ProgrammingAxesMigrationTest extends AbstractIntegrationTest {
     @Autowired JdbcTemplate jdbc;
 
     @Test
-    void everyWodLandsOnOneOfTheFourMacros() {
-        Integer offVocabulary = jdbc.queryForObject(
-                "select count(*) from wod where macro not in ('WARMUP','STRENGTH','GYMNASTIC','WORKOUT')",
-                Integer.class);
-        assertThat(offVocabulary).isZero();
-    }
-
-    @Test
     void wodTypeIsGoneFromBothTables() {
         Integer cols = jdbc.queryForObject("""
                 select count(*) from information_schema.columns
                 where column_name = 'wod_type' and table_name in ('wod','template_piece')
                 """, Integer.class);
         assertThat(cols).isZero();
-    }
-
-    @Test
-    void existingRowsAreMarkedAsLibrary() {
-        Integer nonLibrary = jdbc.queryForObject("select count(*) from wod where library = false", Integer.class);
-        assertThat(nonLibrary).isZero();
-    }
-
-    @Test
-    void blocksJsonContentWasNotRewritten() {
-        // spec decision 8: the migration changes no block content
-        Integer emptied = jdbc.queryForObject(
-                "select count(*) from wod where blocks_json is null", Integer.class);
-        assertThat(emptied).isZero();
     }
 
     @Test

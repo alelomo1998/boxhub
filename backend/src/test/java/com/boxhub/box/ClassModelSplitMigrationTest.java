@@ -279,6 +279,19 @@ class ClassModelSplitMigrationTest {
     }
 
     @Test
+    void everyWodThatExistedBeforeV20IsMarkedLibrary() {
+        // catches "update wod set library = true" being dropped or scoped wrong. Unlike the deleted
+        // ProgrammingAxesMigrationTest.existingRowsAreMarkedAsLibrary (which ran against a container
+        // where wod was EMPTY when V20 migrated, so the backfill touched zero rows and the assertion
+        // only ever passed on JPA leftovers from unrelated tests), these WOD_BY_TYPE rows are seeded
+        // BEFORE V20 runs — this is the one place the backfill claim can actually be tested.
+        for (UUID wodId : WOD_BY_TYPE.values()) {
+            Boolean library = jdbc.queryForObject("select library from wod where id = ?", Boolean.class, wodId);
+            assertThat(library).as("wod " + wodId).isTrue();
+        }
+    }
+
+    @Test
     void blocksJsonContentSurvivesByteForByte() {
         // catches V20 touching blocks_json at all (spec decision 8): compares what was actually
         // stored (captured before V20 ran) against what is stored after, not a null check.
