@@ -5,15 +5,14 @@ import { ButtonComponent } from './button.component';
 @Component({
   standalone: true,
   imports: [ButtonComponent],
-  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()" [ariaDisabled]="ad()" [dangerBorder]="db()">Save</bh-button>`,
+  template: `<bh-button [variant]="v()" [disabled]="d()" [loading]="l()" [label]="lbl()" [ariaDisabled]="ad()">Save</bh-button>`,
 })
 class Host {
-  v = signal<'primary' | 'ghost' | 'danger' | 'icon' | 'solid'>('primary');
+  v = signal<'primary' | 'ghost' | 'ghost-danger' | 'danger' | 'icon' | 'solid'>('primary');
   d = signal(false);
   l = signal(false);
   lbl = signal('');
   ad = signal(false);
-  db = signal(false);
 }
 
 describe('ButtonComponent', () => {
@@ -132,19 +131,21 @@ describe('ButtonComponent', () => {
     expect(btn().getAttribute('aria-disabled')).toBeNull();
   });
 
-  it('dangerBorder colours a ghost button --danger, and defaults off for every existing call site', () => {
+  it('ghost-danger colours the button --danger; plain ghost does not', () => {
     // Regression for the P1 the reviewer measured on danger.page.ts: an external page-level class
     // (`.opener { color: var(--danger) }`) never reached this component's own encapsulated
     // <button>, because that button lives inside bh-button's template, a different Angular
     // encapsulation boundary than the page that authored the class. Reading getComputedStyle is
     // the only check that actually proves the colour renders, rather than restating the input.
+    // dangerBorder was deleted (folded into the variant union) — this replaces the prior spec of
+    // the same name, which set a `db` flag that no longer exists on this Host.
     f.componentInstance.v.set('ghost');
     f.detectChanges();
     expect(getComputedStyle(btn()).borderColor).not.toBe('rgb(229, 72, 77)');
 
-    f.componentInstance.db.set(true);
+    f.componentInstance.v.set('ghost-danger');
     f.detectChanges();
-    expect(btn().className).toContain('danger-border');
+    expect(btn().className).toContain('ghost-danger');
     expect(getComputedStyle(btn()).borderColor).toBe('rgb(229, 72, 77)'); // --danger
   });
 
@@ -257,5 +258,72 @@ describe('ButtonComponent as a link', () => {
     const plain = TestBed.createComponent(PlainHost);
     plain.detectChanges();
     expect(plain.nativeElement.querySelector('button').getAttribute('data-testid')).toBeNull();
+  });
+});
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button href="/oauth2/authorization/google" [loading]="l()" [disabled]="d()">Google</bh-button>`,
+})
+class LinkStateHost {
+  l = signal(false);
+  d = signal(false);
+}
+
+describe('ButtonComponent ghost-danger variant', () => {
+  let f: any;
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
+    f = TestBed.createComponent(Host);
+    f.detectChanges();
+  });
+
+  // The danger-bordered ghost is now a variant, not a ghost+flag pair, so a border can no
+  // longer be requested on a variant that has no rule for it.
+  it('emits both ghost and the danger border in one class', () => {
+    f.componentInstance.v.set('ghost-danger');
+    f.detectChanges();
+    const cls = f.nativeElement.querySelector('button').className;
+    expect(cls).toContain('ghost-danger');
+    expect(cls).not.toContain('primary');
+  });
+});
+
+describe('ButtonComponent as a link, disabled and loading', () => {
+  let f: any;
+  const a = (): HTMLAnchorElement => f.nativeElement.querySelector('a');
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [LinkStateHost] }).compileComponents();
+    f = TestBed.createComponent(LinkStateHost);
+    f.detectChanges();
+  });
+
+  it('carries an href and is not busy by default', () => {
+    expect(a().getAttribute('href')).toBe('/oauth2/authorization/google');
+    expect(a().getAttribute('aria-busy')).toBe('false');
+    expect(a().getAttribute('aria-disabled')).toBeNull();
+  });
+
+  // THE DEFECT THIS TEST EXISTS FOR. An anchor cannot be natively disabled, so a loading link
+  // stayed fully clickable with no spinner and no busy state — the one combination of this
+  // component's inputs that silently did nothing.
+  it('drops href, announces busy and shows the spinner while loading', () => {
+    f.componentInstance.l.set(true);
+    f.detectChanges();
+    expect(a().getAttribute('href')).toBeNull();
+    expect(a().getAttribute('aria-busy')).toBe('true');
+    expect(a().getAttribute('aria-disabled')).toBe('true');
+    expect(a().querySelector('.spin')).toBeTruthy();
+  });
+
+  it('drops href and announces disabled, without a spinner, when disabled', () => {
+    f.componentInstance.d.set(true);
+    f.detectChanges();
+    expect(a().getAttribute('href')).toBeNull();
+    expect(a().getAttribute('aria-disabled')).toBe('true');
+    expect(a().getAttribute('aria-busy')).toBe('false');
+    expect(a().querySelector('.spin')).toBeFalsy();
   });
 });

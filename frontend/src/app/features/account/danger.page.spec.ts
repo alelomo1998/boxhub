@@ -85,7 +85,7 @@ describe('DangerPage', () => {
   // <button> bh-button renders inside its own template. It computed to plain --hairline/--bone,
   // not --danger, and no prior spec caught it because none read actual computed style. This one
   // would fail against that old markup; it only passes because the opener now sets
-  // `[dangerBorder]="true"`, a signal input bh-button's own template consumes.
+  // `variant="ghost-danger"`, a signal input bh-button's own template consumes.
   it('the delete opener actually renders danger-bordered, not just plain ghost', () => {
     const fixture = setup();
     const opener: HTMLElement = fixture.nativeElement.querySelector('[data-testid="delete-open"]');
@@ -152,6 +152,9 @@ describe('DangerPage', () => {
     http.expectOne('/api/me');
     cmp.submitDelete();
     http.expectNone('/api/me');
+    // expectNone IS the assertion — it throws if a second request fired. expect().nothing()
+    // only stops Jasmine reporting "has no expectations" as permanent noise.
+    expect().nothing();
   });
 
   it('opening the delete sheet resets stale state from a previous attempt', () => {

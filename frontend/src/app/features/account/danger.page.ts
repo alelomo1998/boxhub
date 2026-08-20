@@ -37,7 +37,7 @@ import { BRAND_NAME } from '../../core/brand';
 
     <section class="delete">
       <h2 class="t-h3" i18n="@@account.danger.delete.heading">Delete my account</h2>
-      <bh-button variant="ghost" size="sm" [dangerBorder]="true" (click)="openDelete()" testId="delete-open">
+      <bh-button variant="ghost-danger" size="sm" (click)="openDelete()" testId="delete-open">
         <span i18n="@@account.danger.delete.open">Delete my account</span>
       </bh-button>
     </section>
