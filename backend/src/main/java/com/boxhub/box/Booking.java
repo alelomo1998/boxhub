@@ -14,7 +14,10 @@ public class Booking {
     @Column(name = "box_id", nullable = false)
     private UUID boxId;
     @Column(name = "session_id", nullable = false) private UUID sessionId;
-    @Column(name = "membership_id", nullable = false) private UUID membershipId;
+    // Nullable since M22: a drop-in visitor has no membership. ck_booking_subject (V26)
+    // enforces that exactly one of membership_id / visitor_user_id is set.
+    @Column(name = "membership_id") private UUID membershipId;
+    @Column(name = "visitor_user_id") private UUID visitorUserId;
     @Column(nullable = false) private String status;
     @Column private Integer position;
     @Column(name = "booked_at", nullable = false) private Instant bookedAt = Instant.now();
@@ -28,6 +31,8 @@ public class Booking {
     public void setSessionId(UUID sessionId) { this.sessionId = sessionId; }
     public UUID getMembershipId() { return membershipId; }
     public void setMembershipId(UUID membershipId) { this.membershipId = membershipId; }
+    public UUID getVisitorUserId() { return visitorUserId; }
+    public void setVisitorUserId(UUID visitorUserId) { this.visitorUserId = visitorUserId; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Integer getPosition() { return position; }

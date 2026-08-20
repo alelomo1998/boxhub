@@ -233,6 +233,15 @@ the box its own tab intended.
 | `InviteRepository#burnIfUnaccepted` | `Invite` | Bulk `UPDATE` on the same tenant-agnostic accept path; a JPQL bulk update on a `@TenantId` entity is filtered the same as a `SELECT` and would silently update 0 rows for a cross-box accept. |
 | `InviteRepository#purgeAcceptedOrExpired` | `Invite` | `PurgeJob`'s nightly bulk delete. Directly invocable from a context that *does* carry a box, where a JPQL version would purge only that box. Guarded by `PurgeJobTest#invitePurgeSweepsBothBoxesEvenUnderOneBoxsAmbientTenant`. |
 | `PaymentRepository#findByStripeSessionId` | `Payment` | The Stripe webhook (`permitAll`, no JWT at all) resolves the target box **from this row's own `box_id`** before establishing `runAsBox` — it is both the tenant-less lookup and the box-resolution step. |
+| `BookingRepository#findByMembershipIdForExport` | `Booking` | `GET /api/me/export` is served to a **boxless** session, so the derived `findByMembershipId` resolves `NO_TENANT` and returns empty. Safe natively because `membership_id` is itself a per-box key — a membership belongs to exactly one box — so the row set cannot cross a box boundary. Export only; box-scoped callers keep the filtered derived method. |
+| `WodScoreRepository#findByMembershipIdForExport` | `WodScore` | Same, for the export's `scores` array. |
+| `LiftEntryRepository#findByMembershipIdForExport` | `LiftEntry` | Same, for the export's `lifts` array. |
+| `PtBookingRepository#findByCoachMembershipIdForExport` | `PtBooking` | Same boxless-export reasoning, for the export's `ptBookingsAsCoach` array. Safe natively: `coach_membership_id` is a per-box key, same argument as `Booking`. |
+| `PtBookingRepository#findByAthleteUserIdForExport` | `PtBooking` | Same, for `ptBookingsAsAthlete`. Safe natively: `athlete_user_id` is exactly the id the export belongs to, so a cross-box return is the point, not a leak. |
+| `BookingRepository#findByVisitorUserIdForExport` | `Booking` | Same, for `visitorBookings` (M22 drop-in visitors have no membership at all). Safe natively for the same reason as the athlete-user-id case above. |
+| `PostRepository#findByAuthorMembershipIdForExport` | `Post` | Same, for the export's `posts` array. Safe natively: `author_membership_id` is a per-box key. |
+| `PostLikeRepository#findByUserIdForExport` | `PostLike` | Same, for `likes`. Safe natively: `user_id` is exactly the id the export belongs to. |
+| `WodRatingRepository#findByUserIdForExport` | `WodRating` | Same, for `ratings`. Safe natively: `user_id` is exactly the id the export belongs to. |
 
 That is the complete list of methods that bypass the `@TenantId` filter by design. Everything else on
 a `@TenantId` entity is a plain derived/JPQL query and is correct as such **because** every caller
@@ -267,6 +276,8 @@ that bug shipped three times.
 | `InviteAcceptApiTest` — cross-box preview, cross-box accept, single-use burn | the tenant-agnostic invite path works from a foreign ambient tenant | reverting any of §6's native methods to JPQL |
 | `StripeWebhookTest` | repoint/cross-plan cases over `findByStripeSessionId` | the same, for `Payment` |
 | `PurgeJobTest#invitePurgeSweepsBothBoxesEvenUnderOneBoxsAmbientTenant` | the purge is not box-filtered | a JPQL version of `purgeAcceptedOrExpired` |
+| `AccountExportTenancyTest#exportReturnsTheUsersBookingsFromABoxlessSession` | the GDPR export still returns bookings and lifts once the `SecurityContext` is **cleared** | reverting any `...ForExport` method to its derived sibling — measured: `Expecting actual not to be empty` |
+| `AccountDeletionTest#anExportOfAnM22DomainRowIsStillNonEmptyFromABoxlessSession` | the M22 `...ForExport` additions (PtBooking/Booking-visitor/Post/PostLike/WodRating) hold under the same boxless-session trap | reverting any of the six new `...ForExport` methods to a derived sibling |
 
 When adding a new `@TenantId` entity, a new cross-box job, or a new boxless route, add the analogous
 two-box test **before** trusting the classification. And run the negative control on it: break the
@@ -275,3 +286,84 @@ them written during that milestone; review caught none of them and the negative 
 five. The most recent instance is in this document's own subject matter —
 `SessionApiTest#sweepFlipsPastBookedToNoShow` ran under `actAsBox` and stayed green while the nightly
 sweep, measured, flipped nothing in any box.
+
+## 8. Classifying a new table (M22, binding)
+
+M21 made this question answerable; M22 was the first milestone to cut a whole domain against it and
+is where the rule got written down. It has two halves, and **the second half is what stops a leak**.
+
+> **The directory query decides.** A public directory lists **many** boxes at once. A `@TenantId`
+> table cannot serve that: `runAsBox` scopes to exactly one box, and `runAsRoot` is for platform
+> jobs and is forbidden on a thread serving a user request (§3). So anything read **across** boxes
+> must not be `@TenantId` — it carries a plain `box_id` column and every query states its own
+> predicate, the `Movement`/`Box`/`Membership` pattern §4 already sanctions.
+
+> **But drop `@TenantId` only when the WHOLE table is public.** A mixed-visibility table keeps the
+> discriminator and gets one narrow, registered native read instead (§6).
+
+`box_photo` and `box_hours` qualify: there is nothing private in them to leak through a missed
+predicate. `post` does **not** — it holds both `PUBLIC` and `BOX` rows, so one forgotten
+`visibility = 'PUBLIC'` would publish a box's private feed. It keeps the discriminator, and M25's
+public feed will be a single registered native query.
+
+### 8.1 How M22's tables landed
+
+| Class | Tables | Why |
+|---|---|---|
+| **Not `@TenantId`** | box public-profile columns on `boxes`, `box_photo`, `box_hours` | The directory reads these across boxes, for boxes the reader does not belong to. Wholly public — nothing private to leak |
+| **Not `@TenantId`, keyed on the USER** | `coach_profile`, `coach_availability`, `coach_time_off`, `coach_stripe` | A coach is one person across several boxes — §8.2 |
+| **`@TenantId`** | `room`, `pt_booking`, `post`, `post_like`, `wod_rating` (and `bookings`, `payment`, already) | Box-operational or mixed-visibility. The dominant read is a box looking at its own data |
+
+### 8.2 Why the coach tables are keyed on the user
+
+M21 made it real for one person to hold several boxes. A coach has **one** Stripe account and **one**
+calendar across every box they work at. Tenant-scoping either would duplicate credentials per box, or
+make them vanish when the coach switches box — which is **failure mode 1** exactly.
+
+Note the deliberate asymmetry: `coach_stripe` is keyed on the **user** ("who is this person's Stripe
+account"), while `payment.payee_membership_id` points at a **membership** ("who is owed, in this
+box's context"). Two different questions, two correct scopes.
+
+**A caveat about what the test proves.** `CoachProfileTenancyTest` pins this, but its cross-box read
+assertion passes *trivially* — with no discriminator anywhere there is nothing to filter. What is
+genuinely caught is the mutation "someone tenant-scopes a coach table", in all three shapes it takes:
+Hibernate refuses to boot when `@TenantId` lands on an `@Id` field (`coach_profile`, `coach_stripe`),
+and raises assigned-tenant-differs on the surrogate-keyed ones (`coach_availability`,
+`coach_time_off`). Both were measured. Do not read the green read-assertion as evidence it was
+exercised.
+
+### 8.3 The three cross-box reads, named in advance and NOT built
+
+Each is a boxless or cross-box read of a `@TenantId` table, which since M21 returns **empty** rather
+than leaking. Each needs the third route §4 sanctions — a **registered native query**, added to §6
+with its justification. **`runAsRoot` is never the answer on a request thread.**
+
+M22 built none of them: Phase 1 ships no endpoints, so none has a caller yet. They are named here
+because the *schema* has to make them possible, and because a cross-box read discovered later, by
+someone who does not know this rule, is exactly how the same bug shipped three times before the M11
+audit.
+
+| Cross-box read | Built by | Note |
+|---|---|---|
+| "My drop-ins across every box" — a boxless session reading its own `bookings` rows | M23/M24 | The boxless shell is where this first has a caller |
+| A coach's real free slots — availability at Box A must account for their `pt_booking` rows at Box B | **M26** | **Deferred by D14**, below. This was the milestone's sharpest risk before that assumption |
+| The public social feed — `post` rows across boxes where `visibility = 'PUBLIC'` | M25 | |
+
+**M22 did, however, discover a fourth that already had a caller** — the GDPR export — and fixed it.
+See §6's nine `...ForExport` rows. The lesson generalises: **when adding a read to any boxless route,
+check the entity for `@TenantId` before assuming the query works.** It will not error. It will return
+empty, and a test written under `actAsBox` will stay green over it.
+
+### 8.4 D14: a coach works at ONE box for now
+
+Recorded as an assumption with a trigger, not enforced by a constraint. Enforcing it would mean a
+partial unique index on `memberships where role = 'COACH'`, which could fail against existing rows
+and would have to be dropped the moment multi-box is wanted — a one-way migration spent on a
+temporary assumption.
+
+**The schema is already multi-box-ready**, because the coach tables are keyed on the user. So
+enabling multi-box coaching needs **no migration** — only the cross-box availability read in §8.3,
+which is M26's.
+
+**Trigger:** the first coach holding a `COACH` membership at two boxes. Until that read lands, such a
+coach would show as free at Box A while booked at Box B.

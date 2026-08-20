@@ -4,6 +4,8 @@ import com.boxhub.box.Booking;
 import com.boxhub.box.BookingRepository;
 import com.boxhub.box.ClassSession;
 import com.boxhub.box.ClassSessionRepository;
+import com.boxhub.box.PtBooking;
+import com.boxhub.box.PtBookingRepository;
 import com.boxhub.programming.*;
 import org.springframework.stereotype.Service;
 
@@ -29,11 +31,17 @@ public class PerformanceQueries {
     private final LiftEntryRepository lifts;
     private final MovementRepository movements;
     private final BookingRepository bookings;
+    private final PtBookingRepository ptBookings;
+    private final PostRepository posts;
+    private final PostLikeRepository postLikes;
+    private final WodRatingRepository wodRatings;
 
     public PerformanceQueries(WodScoreRepository scores, SessionItemRepository items,
                               ClassSessionRepository sessions, WodRepository wods,
                               BenchmarkTemplateRepository benchmarks, LiftEntryRepository lifts,
-                              MovementRepository movements, BookingRepository bookings) {
+                              MovementRepository movements, BookingRepository bookings,
+                              PtBookingRepository ptBookings, PostRepository posts,
+                              PostLikeRepository postLikes, WodRatingRepository wodRatings) {
         this.scores = scores;
         this.items = items;
         this.sessions = sessions;
@@ -42,6 +50,10 @@ public class PerformanceQueries {
         this.lifts = lifts;
         this.movements = movements;
         this.bookings = bookings;
+        this.ptBookings = ptBookings;
+        this.posts = posts;
+        this.postLikes = postLikes;
+        this.wodRatings = wodRatings;
     }
 
     public record BenchmarkBest(String benchmarkName, String scoreType, Integer timeSeconds, Integer rounds,
@@ -117,26 +129,108 @@ public class PerformanceQueries {
     }
 
     // --- GDPR export: raw dumps across every membership the user ever held, no scoring math ---
+    // These three use the NATIVE ...ForExport finders, not the derived ones the rest of this class
+    // uses: GET /api/me/export runs on a boxless session, where a derived read of a @TenantId
+    // entity resolves NO_TENANT and returns empty. docs/TENANCY.md §6.
 
     public List<Map<String, Object>> bookingsOf(List<UUID> membershipIds) {
         return membershipIds.stream()
-                .flatMap(id -> bookings.findByMembershipId(id).stream())
+                .flatMap(id -> bookings.findByMembershipIdForExport(id).stream())
                 .map(PerformanceQueries::bookingDump)
                 .toList();
     }
 
     public List<Map<String, Object>> scoresOf(List<UUID> membershipIds) {
         return membershipIds.stream()
-                .flatMap(id -> scores.findByMembershipIdOrderByCreatedAtDesc(id).stream())
+                .flatMap(id -> scores.findByMembershipIdForExport(id).stream())
                 .map(PerformanceQueries::scoreDump)
                 .toList();
     }
 
     public List<Map<String, Object>> liftsOf(List<UUID> membershipIds) {
         return membershipIds.stream()
-                .flatMap(id -> lifts.findByMembershipIdOrderByPerformedOnDesc(id).stream())
+                .flatMap(id -> lifts.findByMembershipIdForExport(id).stream())
                 .map(PerformanceQueries::liftDump)
                 .toList();
+    }
+
+    // --- GDPR export additions (M22): coach-side PT bookings, visitor bookings, social rows ---
+    // Same boxless-export reasoning as bookings/scores/lifts above: PtBooking, Booking (visitor
+    // path) and the three social entities are all @TenantId, so GET /api/me/export's boxless
+    // session needs the native ...ForExport finder, never the derived sibling. docs/TENANCY.md §6.
+
+    public List<Map<String, Object>> ptBookingsAsCoachOf(List<UUID> coachMembershipIds) {
+        return coachMembershipIds.stream()
+                .flatMap(id -> ptBookings.findByCoachMembershipIdForExport(id).stream())
+                .map(PerformanceQueries::ptBookingDump)
+                .toList();
+    }
+
+    public List<Map<String, Object>> ptBookingsAsAthleteOf(UUID athleteUserId) {
+        return ptBookings.findByAthleteUserIdForExport(athleteUserId).stream()
+                .map(PerformanceQueries::ptBookingDump)
+                .toList();
+    }
+
+    public List<Map<String, Object>> visitorBookingsOf(UUID visitorUserId) {
+        return bookings.findByVisitorUserIdForExport(visitorUserId).stream()
+                .map(PerformanceQueries::bookingDump)
+                .toList();
+    }
+
+    public List<Map<String, Object>> postsOf(List<UUID> membershipIds) {
+        return membershipIds.stream()
+                .flatMap(id -> posts.findByAuthorMembershipIdForExport(id).stream())
+                .map(PerformanceQueries::postDump)
+                .toList();
+    }
+
+    public List<Map<String, Object>> likesOf(UUID userId) {
+        return postLikes.findByUserIdForExport(userId).stream()
+                .map(PerformanceQueries::postLikeDump)
+                .toList();
+    }
+
+    public List<Map<String, Object>> ratingsOf(UUID userId) {
+        return wodRatings.findByUserIdForExport(userId).stream()
+                .map(PerformanceQueries::wodRatingDump)
+                .toList();
+    }
+
+    private static Map<String, Object> ptBookingDump(PtBooking b) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("coachMembershipId", b.getCoachMembershipId());
+        m.put("athleteUserId", b.getAthleteUserId());
+        m.put("startsAt", b.getStartsAt());
+        m.put("durationMin", b.getDurationMin());
+        m.put("status", b.getStatus());
+        m.put("priceCents", b.getPriceCents());
+        m.put("currency", b.getCurrency());
+        return m;
+    }
+
+    private static Map<String, Object> postDump(Post p) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("wodId", p.getWodId());
+        m.put("caption", p.getCaption());
+        m.put("visibility", p.getVisibility());
+        m.put("createdAt", p.getCreatedAt());
+        return m;
+    }
+
+    private static Map<String, Object> postLikeDump(PostLike l) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("postId", l.getPostId());
+        m.put("createdAt", l.getCreatedAt());
+        return m;
+    }
+
+    private static Map<String, Object> wodRatingDump(WodRating r) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("wodId", r.getWodId());
+        m.put("rating", r.getRating());
+        m.put("createdAt", r.getCreatedAt());
+        return m;
     }
 
     private static Map<String, Object> bookingDump(Booking b) {

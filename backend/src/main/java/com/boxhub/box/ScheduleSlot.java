@@ -24,6 +24,7 @@ public class ScheduleSlot {
     @Column(name = "duration_min", nullable = false) private int durationMin;
     @Column(nullable = false) private int capacity;
     @Column(name = "coach_id") private UUID coachId;
+    @Column(name = "room_id") private UUID roomId;
     @Column(nullable = false) private boolean active = true;
 
     public UUID getId() { return id; }
@@ -40,6 +41,8 @@ public class ScheduleSlot {
     public void setCapacity(int capacity) { this.capacity = capacity; }
     public UUID getCoachId() { return coachId; }
     public void setCoachId(UUID coachId) { this.coachId = coachId; }
+    public UUID getRoomId() { return roomId; }
+    public void setRoomId(UUID roomId) { this.roomId = roomId; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 }

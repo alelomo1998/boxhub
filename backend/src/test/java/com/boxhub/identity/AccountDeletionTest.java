@@ -11,6 +11,8 @@ import com.boxhub.performance.LiftEntry;
 import com.boxhub.performance.LiftEntryRepository;
 import com.boxhub.performance.WodScore;
 import com.boxhub.performance.WodScoreRepository;
+import com.boxhub.performance.Post;
+import com.boxhub.performance.PostRepository;
 import com.boxhub.programming.Movement;
 import com.boxhub.programming.MovementRepository;
 import com.boxhub.programming.SessionItem;
@@ -54,6 +56,9 @@ class AccountDeletionTest extends AbstractIntegrationTest {
     @Autowired SessionItemRepository items;
     @Autowired WodRepository wods;
     @Autowired MovementRepository movements;
+    @Autowired CoachProfileRepository coachProfiles;
+    @Autowired CoachStripeRepository coachStripes;
+    @Autowired PostRepository posts;
     @MockitoBean com.boxhub.shared.Mailer mailer;
 
     // authService.register() sends a verification email; @MockitoBean fully mocks Mailer, so an
@@ -320,5 +325,77 @@ class AccountDeletionTest extends AbstractIntegrationTest {
         assertThat(bookings.findById(bookingId)).isPresent();
         assertThat(scores.findById(scoreId)).isPresent();
         assertThat(lifts.findById(liftId)).isPresent();
+    }
+
+    @Test
+    void deletingAnAccountRemovesItsCoachProfileSoNoPublicPageKeepsTheName() {
+        // Spec D7's payoff: the coach OWNS this row, so removal is a single delete with no
+        // cross-entity cascade and no orphaned name left on a box's public page.
+        User u = athleteInABox();
+
+        CoachProfile p = new CoachProfile();
+        p.setUserId(u.getId());
+        p.setBio("Should not survive deletion");
+        p.setPublished(true);
+        coachProfiles.saveAndFlush(p);
+
+        accounts.anonymize(u.getId(), PASSWORD);
+
+        assertThat(coachProfiles.findById(u.getId())).isEmpty();
+    }
+
+    @Test
+    void anExportNeverContainsTheCoachStripeSecret() {
+        User u = athleteInABox();
+
+        CoachStripe s = new CoachStripe();
+        s.setUserId(u.getId());
+        s.setRestrictedKeyEnc("enc:super-secret-value");
+        s.setWebhookSecretEnc("enc:webhook-secret-value");
+        coachStripes.saveAndFlush(s);
+
+        String json = accounts.export(u.getId()).toString();
+
+        assertThat(json).doesNotContain("super-secret-value");
+        assertThat(json).doesNotContain("webhook-secret-value");
+    }
+
+    /**
+     * GET /api/me/export is served to a BOXLESS session. Post is @TenantId, so a derived read
+     * of it from a boxless context resolves NO_TENANT and returns empty (docs/TENANCY.md §2) —
+     * exactly the bug fixed for bookings/scores/lifts in commit 450ffce, now checked for the
+     * M22 additions (PtBooking, Booking-visitor, Post, PostLike, WodRating) via their native
+     * ...ForExport finders. This test seeds a post under a real box context, then clears the
+     * SecurityContext entirely — what production does — before calling export.
+     */
+    @Test
+    void anExportOfAnM22DomainRowIsStillNonEmptyFromABoxlessSession() {
+        User u = authService.register("gdpr-m22-" + System.nanoTime() + "@t.io", PASSWORD, "Real Name");
+        u.setEmailVerified(true);
+        u = users.save(u);
+
+        Box b = newBox();
+        actAsBox(b.getId());
+
+        Membership m = new Membership();
+        m.setUser(u);
+        m.setBox(b);
+        m.setRole("ATHLETE");
+        UUID membershipId = memberships.save(m).getId();
+
+        Post p = new Post();
+        p.setAuthorMembershipId(membershipId);
+        p.setCaption("Crushed it today");
+        p.setVisibility("BOX");
+        posts.save(p);
+
+        // THE POINT: production serves this route to a user token, which carries no box_id.
+        SecurityContextHolder.clearContext();
+
+        var dump = accounts.export(u.getId());
+
+        assertThat((java.util.List<?>) dump.get("posts"))
+                .as("a boxless GDPR export must still return the user's own posts")
+                .isNotEmpty();
     }
 }
