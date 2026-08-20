@@ -34,11 +34,17 @@ public class AccountService {
     private final EmailTokenRepository emailTokenRepo;
     private final MediaStorage media;
     private final PerformanceQueries performance;
+    private final CoachProfileRepository coachProfiles;
+    private final CoachAvailabilityRepository coachAvailability;
+    private final CoachTimeOffRepository coachTimeOff;
+    private final CoachStripeRepository coachStripe;
 
     public AccountService(UserRepository users, PasswordEncoder encoder, PasswordPolicy policy,
                           EmailTokenService emailTokens, RefreshTokenService refreshTokens, Mailer mailer,
                           MembershipRepository memberships, AuthIdentityRepository identities,
-                          EmailTokenRepository emailTokenRepo, MediaStorage media, PerformanceQueries performance) {
+                          EmailTokenRepository emailTokenRepo, MediaStorage media, PerformanceQueries performance,
+                          CoachProfileRepository coachProfiles, CoachAvailabilityRepository coachAvailability,
+                          CoachTimeOffRepository coachTimeOff, CoachStripeRepository coachStripe) {
         this.users = users;
         this.encoder = encoder;
         this.policy = policy;
@@ -50,6 +56,10 @@ public class AccountService {
         this.emailTokenRepo = emailTokenRepo;
         this.media = media;
         this.performance = performance;
+        this.coachProfiles = coachProfiles;
+        this.coachAvailability = coachAvailability;
+        this.coachTimeOff = coachTimeOff;
+        this.coachStripe = coachStripe;
     }
 
     // id is the FAMILY id, not the individual RefreshToken row id: rotation replaces the row on
@@ -168,6 +178,17 @@ public class AccountService {
         emailTokenRepo.deleteByUserId(userId);
         refreshTokens.revokeAllFor(userId);
 
+        // Coach rows are keyed on the user, not @TenantId (M22 spec D14), and the coach OWNS
+        // them outright — unlike bookings/scores/lifts, there is no box history riding on them,
+        // so straight deletion is correct here and is spec D7's payoff: no orphaned name left on
+        // a public coach page. Posts/likes/ratings get the OPPOSITE treatment deliberately: they
+        // point at the user row this method just scrubbed in place, exactly like bookings/scores/
+        // lifts, so deleting them would put holes in a box's feed. Nothing to do for those here.
+        coachProfiles.deleteByUserId(userId);
+        coachStripe.deleteByUserId(userId);
+        coachAvailability.deleteByUserId(userId);
+        coachTimeOff.deleteByUserId(userId);
+
         mems.forEach(m -> {
             if (m.getAvatarPath() != null) {
                 media.delete(m.getAvatarPath());   // the photo is personal data too
@@ -196,6 +217,33 @@ public class AccountService {
         out.put("bookings", performance.bookingsOf(membershipIds));
         out.put("scores", performance.scoresOf(membershipIds));
         out.put("lifts", performance.liftsOf(membershipIds));
+        out.put("visitorBookings", performance.visitorBookingsOf(userId));
+        out.put("ptBookingsAsCoach", performance.ptBookingsAsCoachOf(membershipIds));
+        out.put("ptBookingsAsAthlete", performance.ptBookingsAsAthleteOf(userId));
+        out.put("posts", performance.postsOf(membershipIds));
+        out.put("likes", performance.likesOf(userId));
+        out.put("ratings", performance.ratingsOf(userId));
+
+        coachProfiles.findById(userId).ifPresent(p -> {
+            Map<String, Object> cp = new HashMap<>();
+            cp.put("bio", p.getBio());
+            cp.put("strengths", p.getStrengths());
+            cp.put("weaknesses", p.getWeaknesses());
+            cp.put("published", p.isPublished());
+            cp.put("priceCents", p.getPriceCents());
+            cp.put("currency", p.getCurrency());
+            cp.put("payee", p.getPayee());
+            out.put("coachProfile", cp);
+        });
+        out.put("coachAvailability", coachAvailability.findByUserIdOrderByWeekdayAscStartTimeAsc(userId).stream()
+                .map(a -> Map.of("weekday", (Object) a.getWeekday(), "startTime", a.getStartTime(), "endTime", a.getEndTime()))
+                .toList());
+        out.put("coachTimeOff", coachTimeOff.findByUserIdOrderByStartsAt(userId).stream()
+                .map(t -> Map.of("startsAt", (Object) t.getStartsAt(), "endsAt", t.getEndsAt()))
+                .toList());
+        // Existence only — NEVER the encrypted key or webhook secret (M22 spec §9).
+        out.put("coachStripeEnabled", coachStripe.findById(userId).isPresent());
+
         return out;
     }
 

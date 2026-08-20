@@ -236,6 +236,12 @@ the box its own tab intended.
 | `BookingRepository#findByMembershipIdForExport` | `Booking` | `GET /api/me/export` is served to a **boxless** session, so the derived `findByMembershipId` resolves `NO_TENANT` and returns empty. Safe natively because `membership_id` is itself a per-box key — a membership belongs to exactly one box — so the row set cannot cross a box boundary. Export only; box-scoped callers keep the filtered derived method. |
 | `WodScoreRepository#findByMembershipIdForExport` | `WodScore` | Same, for the export's `scores` array. |
 | `LiftEntryRepository#findByMembershipIdForExport` | `LiftEntry` | Same, for the export's `lifts` array. |
+| `PtBookingRepository#findByCoachMembershipIdForExport` | `PtBooking` | Same boxless-export reasoning, for the export's `ptBookingsAsCoach` array. Safe natively: `coach_membership_id` is a per-box key, same argument as `Booking`. |
+| `PtBookingRepository#findByAthleteUserIdForExport` | `PtBooking` | Same, for `ptBookingsAsAthlete`. Safe natively: `athlete_user_id` is exactly the id the export belongs to, so a cross-box return is the point, not a leak. |
+| `BookingRepository#findByVisitorUserIdForExport` | `Booking` | Same, for `visitorBookings` (M22 drop-in visitors have no membership at all). Safe natively for the same reason as the athlete-user-id case above. |
+| `PostRepository#findByAuthorMembershipIdForExport` | `Post` | Same, for the export's `posts` array. Safe natively: `author_membership_id` is a per-box key. |
+| `PostLikeRepository#findByUserIdForExport` | `PostLike` | Same, for `likes`. Safe natively: `user_id` is exactly the id the export belongs to. |
+| `WodRatingRepository#findByUserIdForExport` | `WodRating` | Same, for `ratings`. Safe natively: `user_id` is exactly the id the export belongs to. |
 
 That is the complete list of methods that bypass the `@TenantId` filter by design. Everything else on
 a `@TenantId` entity is a plain derived/JPQL query and is correct as such **because** every caller
@@ -271,6 +277,7 @@ that bug shipped three times.
 | `StripeWebhookTest` | repoint/cross-plan cases over `findByStripeSessionId` | the same, for `Payment` |
 | `PurgeJobTest#invitePurgeSweepsBothBoxesEvenUnderOneBoxsAmbientTenant` | the purge is not box-filtered | a JPQL version of `purgeAcceptedOrExpired` |
 | `AccountExportTenancyTest#exportReturnsTheUsersBookingsFromABoxlessSession` | the GDPR export still returns bookings and lifts once the `SecurityContext` is **cleared** | reverting any `...ForExport` method to its derived sibling — measured: `Expecting actual not to be empty` |
+| `AccountDeletionTest#anExportOfAnM22DomainRowIsStillNonEmptyFromABoxlessSession` | the M22 `...ForExport` additions (PtBooking/Booking-visitor/Post/PostLike/WodRating) hold under the same boxless-session trap | reverting any of the six new `...ForExport` methods to a derived sibling |
 
 When adding a new `@TenantId` entity, a new cross-box job, or a new boxless route, add the analogous
 two-box test **before** trusting the classification. And run the negative control on it: break the

@@ -25,6 +25,15 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      */
     @Query(value = "select * from bookings where membership_id = :mid", nativeQuery = true)
     List<Booking> findByMembershipIdForExport(@Param("mid") UUID membershipId);
+
+    /**
+     * Same boxless-export reasoning as findByMembershipIdForExport, for a drop-in visitor's own
+     * bookings (M22: visitor_user_id, no membership at all). Safe natively: visitor_user_id is
+     * exactly the id this export belongs to, so a cross-box return is the point, not a leak.
+     * docs/TENANCY.md §6.
+     */
+    @Query(value = "select * from bookings where visitor_user_id = :uid", nativeQuery = true)
+    List<Booking> findByVisitorUserIdForExport(@Param("uid") UUID visitorUserId);
     // Cancellation is a status transition now, not a delete (M14a) — CANCELLED rows stay in the
     // table forever, so every caller that wants "the booking that currently holds a place" must
     // exclude them explicitly, or a cancelled row reads back as still active.
