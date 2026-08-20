@@ -2257,3 +2257,61 @@ classification, the coach-table caveat, the three unbuilt cross-box reads, D14's
 the §6/§7 native rows; `docs/HANDOFF.md` and `docs/ROADMAP-AT-A-GLANCE.md` record M22 as built;
 `.superpowers/sdd/NEXT-SESSION.md` rewritten for **M13f**, which opens Phase 2 and has no spec or
 plan yet — that session starts with brainstorming.
+
+---
+
+## M13f — consolidation (branch `m13f-consolidation`, 2026-08-20)
+
+Opens Phase 2. Nine tasks, eight commits. **Spec:**
+`docs/superpowers/specs/2026-08-20-m13f-consolidation-design.md`. **Plan:**
+`docs/superpowers/plans/2026-08-20-m13f-consolidation.md`.
+
+| Task | Commit | What landed |
+|---|---|---|
+| 1 | `e8313c6` | All eight §8.1 gates green on clean code — two were RED on three false positives |
+| — | `b4107fe` | Six false "has no expectations" Karma warnings silenced; NG0956 to the watch-list |
+| 2 | `a3441b7` | `dangerBorder` deleted into the variant union as `ghost-danger`; `href` branch honours disabled/loading |
+| 3 | `91edf9c` | State-ledger contract + completeness gate, committed **RED** at 140 gaps |
+| 4 | `f2c3af8` | Seven undeclared sections → 91 gaps |
+| 5 | `4e139c7` | Remaining thirteen → **0 gaps**; visual guard for the new avatar error cell |
+| 6 | `85db30f` | Gallery covers `size="sm"` (52 call sites), the anchor form, `href` × `loading` |
+| 7 | `d4a1ac0` | Open delete sheet axe-scanned; a11y suite emulates `prefers-reduced-motion` |
+| 8 | `f41b148` | TV timer un-quarantined — M21 had fixed it thirteen days earlier |
+| 9 | `b405418` | 60 gallery baselines regenerated; two errors found by eyeballing them |
+
+### Gates, all re-run independently by the orchestrator on the final tree (2026-08-20)
+
+| Gate | Result |
+|---|---|
+| Backend suite | **510 / 0 / 0** — unmoved, as required of a frontend milestone |
+| Migration head | **V27**, no new migration |
+| Karma | **419** (baseline 412) |
+| e2e | **67 passed, 0 failed, 0 skipped** — the long-standing `+1 skipped` is gone |
+| `e2e/visual.sh` | **31 specs, zero dirty baselines** across 60 regenerated files |
+| §8.1 greps | **All eight zero.** Two were non-zero on clean `main` before Task 1 |
+| `AuthzConformanceTest` | Never edited — M13f adds no routes |
+
+### The durable output is a rule, not a fix
+
+**A deferred defect list is a hypothesis about the current state of the code, not a standing
+inventory.** Two of the four inherited defects no longer existed: the 54-baseline coupling was fixed
+milestones earlier, and the quarantined TV timer test had been **passing since M21** — fixed by
+accident by the tenancy work (`9b4917e`), thirteen days after being disabled, because
+`ClassTimer.box_id` is `@TenantId` and `runAsBox` supplied the ambient tenant its read needed. The
+one real `bh-button` defect was not on the list at all: the `href` branch honoured none of
+`disabled`/`loading`/`aria-busy`/`aria-disabled`.
+
+**Seven plan-vs-reality conflicts were caught by executors**, in a plan written hours earlier —
+including one where the plan said *Create* a spec file that already held three passing specs.
+
+### Three findings worth carrying
+
+1. **A spec asserting only an emitted CSS class does not prove a rule exists behind it.** Renaming
+   `.btn.ghost-danger` left the class-name spec green; only `getComputedStyle` caught it.
+2. **Karma does not reject a variant string outside its union, despite `strictTemplates`.** Only
+   `ng build --configuration production` does.
+3. **Reviewing baselines by eye caught two errors no gate could** — a stale cross-milestone task
+   reference in user-facing copy, and a note describing a sizing mechanism (`36%`) that the component
+   deliberately rejects in favour of container-query units.
+
+**Still unowned:** `docs/BACKLOG.md`'s `Launch → Production` block. Raised at close, as agreed.

@@ -24,7 +24,7 @@ followed by M21, and why M13f comes after both. Trust this page's order, never t
 
 | | Milestone | What it actually does | Status |
 |---|---|---|---|
-| 4 | **M13f** consolidation | Repairs the shared component layer before eight milestones build on it — a button whose variants silently render nothing, and a screenshot suite where one edit dirties 54 unrelated baselines. Pure velocity work. | |
+| 4 | **M13f** consolidation | Made the frontend signal trustworthy before eight milestones build on it: two standing gates that were red on clean code, a button that could express states it silently dropped, and a dev gallery whose seven-states contract is now **enforced by Karma** rather than written in prose. Half the deferred scope had already decayed — the 54-baseline coupling was fixed milestones ago, and the quarantined TV timer test had been passing since M21. | ✅ **done** |
 | 5 | **M23** app entry & shells | The container: what a person sees with no gym, with one, with three, and how they move between them. Ships **sketches you can look at** before anything is built. | |
 | 6 | **M14b** schedule & classes surfaces | The classes page and week calendar. Fixes the day pager that currently takes 13 taps to reach the next open class. | |
 | 7 | **M14c** the builder | One page to check, create and build a workout. **Fixes the growing-library bug** M14a only built the mechanism for. Team workouts get designed here, at the screen. | |
