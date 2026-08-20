@@ -57,6 +57,16 @@ for (const vp of VIEWPORTS) {
     // dock renders inside its own section at every width instead of the viewport, so there's
     // nothing left to strip and the section's own baseline shows the real pill.
 
+    // The avatar section's Error cell renders a real <img> at a 404 path and only falls back to
+    // initials once its (error) handler fires. It is loading="lazy", so the request does not even
+    // start until the section is on screen — hence the scroll before the wait. Without this the
+    // capture races the 404, and a broken-image glyph against initials is far more than
+    // maxDiffPixels:100 at threshold:0. Five avatars, five initials: four fall back because their
+    // path is null, the fifth only after the 404 lands.
+    const avatarSection = page.locator('[data-gallery="avatar"]');
+    await avatarSection.scrollIntoViewIfNeeded();
+    await expect(avatarSection.locator('.init')).toHaveCount(5);
+
     const sections = page.locator('[data-gallery]');
     const n = await sections.count();
     expect(n).toBeGreaterThan(0);

@@ -231,9 +231,6 @@ export interface StateEntry {
           translates it 1px; tab to it for the focus ring, a solid 2px outline that inverts to
           --focus-inv on the volt primary so the ring stays visible.
         </p>
-        <p class="note" i18n="@@dev.gallery.button.note.noError">
-          No error state — a button doesn't own an error; the field or alert beside it renders it.
-        </p>
         <p class="note" i18n="@@dev.gallery.button.note.ariaDisabled">
           Aria-disabled looks like Disabled but isn't it — it sets aria-disabled instead of the
           native disabled attribute, so the control the user just pressed stays in the accessibility
@@ -247,6 +244,7 @@ export interface StateEntry {
           "Delete my account"), escalating against the filled variant="danger" control that
           EXECUTES it.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'button' }" />
       </section>
 
       <section class="gsec" data-gallery="field">
@@ -279,9 +277,9 @@ export interface StateEntry {
         </div>
         <p class="note" i18n="@@dev.gallery.field.note.hoverFocus">
           Hover and focus aren't shown statically — hover on an enabled field lightens the border to
-          --faint; tab to it for the same 2px outline, border turns --volt while focused. No active
-          or loading state of its own.
+          --faint; tab to it for the same 2px outline, border turns --volt while focused.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'field' }" />
       </section>
 
       <section class="gsec" data-gallery="select">
@@ -324,8 +322,8 @@ export interface StateEntry {
         </div>
         <p class="note" i18n="@@dev.gallery.select.note.hoverFocus">
           Hover and focus aren't shown statically — same border/outline behaviour as the field above.
-          No active or loading state of its own.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'select' }" />
       </section>
 
       <section class="gsec" data-gallery="panel">
@@ -345,10 +343,10 @@ export interface StateEntry {
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.panel.note.noStates">
-          bh-panel has no state contract — it's a static card (background + hairline border, no shadow
-          per law §5). No hover, focus, active, disabled, loading or error state; only the
+          bh-panel is a static card — background + hairline border, no shadow per law §5. Only the
           padded/unpadded layout variant shown above.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'panel' }" />
       </section>
 
       <section class="gsec" data-gallery="alert">
@@ -372,11 +370,11 @@ export interface StateEntry {
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.alert.note.noStates">
-          bh-alert is a standing message, not an interactive control — no hover, focus, active,
-          disabled or loading state. Tone is the axis that varies, not the 7-state contract; role
-          switches between alert and status by tone so a failed save interrupts and a quiet info
-          line doesn't.
+          bh-alert is a standing message, not an interactive control. Tone is the axis that varies;
+          role switches between alert and status by tone so a failed save interrupts and a quiet
+          info line doesn't.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'alert' }" />
       </section>
 
       <section class="gsec" data-gallery="empty">
@@ -396,10 +394,10 @@ export interface StateEntry {
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.empty.note.noStates">
-          bh-empty has no state contract of its own — no hover, focus, active, disabled, loading or
-          error. The projected action button (right) carries the button's own state contract, shown
-          in full above.
+          The projected action button (right) carries the button's own state contract, shown in
+          full above.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'empty' }" />
       </section>
 
       <section class="gsec" data-gallery="data-table">
@@ -476,6 +474,7 @@ export interface StateEntry {
             This sheet has the confirm-close guard — try to dismiss it with Esc or a backdrop click.
           </p>
         </bh-sheet>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'sheet' }" />
       </section>
 
       <section class="gsec" data-gallery="shell-header">
@@ -529,6 +528,7 @@ export interface StateEntry {
           volt-filled selected segment. The group is one tab stop; arrow keys move the selection
           within it, and selection follows focus.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'segmented' }" />
       </section>
 
       <section class="gsec" data-gallery="switch">
@@ -551,10 +551,10 @@ export interface StateEntry {
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.switch.note.hoverFocus">
-          Hover isn't shown statically — the button has no hover treatment of its own; tab to it for
-          a solid 2px --focus ring against the sheet surface (it stays --focus rather than inverting,
-          since the ring sits on the button, not the volt track).
+          Tab to it for a solid 2px --focus ring against the sheet surface — it stays --focus rather
+          than inverting, since the ring sits on the button, not the volt track.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'switch' }" />
       </section>
 
       <section class="gsec" data-gallery="search-bar">
@@ -575,9 +575,10 @@ export interface StateEntry {
         <p class="note" i18n="@@dev.gallery.searchBar.note">
           Debounces its search output at 250ms — the bound value updates on every keystroke so the
           field never lags, only the emitted search term is delayed and deduped, and an unchanged
-          term is never re-emitted. No hover, active, disabled or loading state of its own; the
-          focus ring lives on the pill, not the inner input, so the control reads as one thing.
+          term is never re-emitted. The focus ring lives on the pill, not the inner input, so the
+          control reads as one thing.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'search-bar' }" />
       </section>
 
       <section class="gsec" data-gallery="avatar">
@@ -600,12 +601,20 @@ export interface StateEntry {
             <span class="stlabel" i18n="@@dev.gallery.avatar.size.xl">Xl</span>
             <bh-avatar [path]="null" name="Margaret Hamilton" size="xl" />
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.error">Error</span>
+            <!-- Sample name and path: fabricated data, not prose — not i18n-marked. A 404 on this
+                 path is what actually exercises the (error) handler, not just [path]="null". -->
+            <bh-avatar path="/dev-gallery-broken-avatar.jpg" name="Broken Path" size="md" />
+          </div>
         </div>
         <p class="note" i18n="@@dev.gallery.avatar.note">
-          Initials fallback shown here — no path is ever loadable in this fabricated data. A broken
-          image path falls back to the same initials via the (error) handler. The initials glyph is
-          sized as a ratio of the circle (36%), not a type-scale token — see Task 9.
+          Initials fallback shown by default — no path is loadable in the size cells above. The
+          Error cell demonstrates the same fallback triggered live by a broken image path via the
+          (error) handler. The initials glyph is sized as a ratio of the circle (36%), not a
+          type-scale token — see Task 9.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'avatar' }" />
       </section>
 
       <section class="gsec" data-gallery="pill">
@@ -637,6 +646,7 @@ export interface StateEntry {
           else. Danger fills the chip per law §3.1; the pulsing dot on live rests under reduced
           motion instead of animating.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'pill' }" />
       </section>
 
       <section class="gsec" data-gallery="day-pager">
@@ -666,9 +676,9 @@ export interface StateEntry {
         <p class="note" i18n="@@dev.gallery.wordmark.note">
           Chrome is monochrome bone — app shells never compete with the screen's own volt element.
           Hero fills volt behind "ed" and is reserved for login, mail, the landing site and the TV
-          idle screen, where the logo itself is the subject. Not interactive — no hover, focus,
-          active, disabled, loading or error state of its own.
+          idle screen, where the logo itself is the subject.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'wordmark' }" />
       </section>
 
       <section class="gsec" data-gallery="auth-layout">
@@ -861,6 +871,123 @@ export class DevGalleryPage {
       { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.disabled:presentational — it renders the rows it is given` },
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.loading:the screen owns the fetch` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.error:the screen renders bh-alert beside it` },
+    ],
+    button: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'hand' },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'rendered' },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.button.error:a button does not own an error; the field or alert beside it renders it` },
+    ],
+    field: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.field.active:no :active rule of its own; a text field is typed into, not pressed` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.field.loading:fetches nothing; the screen owns any pending state around it` },
+      { state: 'error', how: 'rendered' },
+    ],
+    select: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.select.active:no :active rule of its own; a choice is picked, not pressed` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.select.loading:fetches nothing; the screen owns any pending state around it` },
+      { state: 'error', how: 'rendered' },
+    ],
+    panel: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.hover:a static card with no interactive surface of its own` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.focus:never focusable; whatever is projected inside it owns focus` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.disabled:a card is not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.loading:renders synchronously from whatever is projected into it` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.error:a card has no error of its own; content projected inside it renders its own` },
+    ],
+    alert: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.hover:a message, not a control — nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.focus:not focusable; it is announced by role, not reached by tab` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.active:nothing is pressable` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.disabled:a message is shown or it is not rendered` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.loading:renders synchronously from the text it is given` },
+      { state: 'error', how: 'rendered' },
+    ],
+    empty: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.hover:a static placeholder — nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.focus:not focusable itself; a projected action button carries its own focus ring, shown in its own section` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.active:nothing is pressable itself` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.disabled:not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.loading:renders synchronously from the title and message it is given; the screen shows this in place of a spinner once loading is over` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.error:a no-results state, not a failure; the screen renders bh-alert for an actual fetch error` },
+    ],
+    sheet: [
+      { state: 'default', how: 'hand' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.hover:no hover treatment of its own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.active:no active-press styling of its own` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.disabled:a sheet is open or it is not rendered; it has no disabled state` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.loading:renders whatever content it is given; the projected screen owns any fetch` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.error:has no error of its own; content projected inside it renders its own error, shown in its own section` },
+    ],
+    segmented: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.active:no active-press styling of its own; the selected fill is the only feedback` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.disabled:no disabled input on this component; it is always interactive when rendered` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.loading:a static list of choices; it fetches nothing` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.error:a choice cannot be invalid; the surrounding form renders its own error` },
+    ],
+    switch: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.hover:the button has no hover treatment of its own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.active:no active-press styling of its own; the checked-state colour and knob position are the only feedback` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.loading:toggles synchronously; it does not fetch` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.error:a boolean choice cannot be invalid; the surrounding form renders its own error` },
+    ],
+    'search-bar': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.hover:no hover treatment of its own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.active:no active-press styling of its own` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.disabled:no disabled input on this component` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.loading:debounces its own output only; the screen owns any fetch and its own loading state` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.error:has no error of its own; the screen renders bh-empty for no results` },
+    ],
+    avatar: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.hover:a static image or badge; nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.focus:never focusable; it is not an interactive element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.disabled:not a control; it cannot be disabled` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.loading:loading="lazy" is a native image hint, not a visual pending state; nothing changes until the image resolves or errors` },
+      { state: 'error', how: 'rendered' },
+    ],
+    pill: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.hover:a static badge; nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.focus:never focusable; it is not an interactive element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.disabled:not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.loading:renders synchronously from the tone and label it is given` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.error:tone is a status label, not an interaction error — danger marks a cancelled membership, not a failed action` },
+    ],
+    wordmark: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.hover:static type — nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.focus:never focusable` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.disabled:not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.loading:renders synchronously from the variant and size it is given` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.error:brand type has no error state` },
     ],
   };
   protected readonly iconNames = ICON_NAMES;
