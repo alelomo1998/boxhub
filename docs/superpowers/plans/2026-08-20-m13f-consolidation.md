@@ -1043,7 +1043,7 @@ Also update the existing `account-danger` entry's comment, which currently says 
 
 ```bash
 cd /Users/alessandrolomonaco/dev/boxhub
-docker compose down -v && docker compose up -d --build
+docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d --build
 cd e2e && npx playwright test tests/a11y.spec.ts
 ```
 
@@ -1111,7 +1111,7 @@ So the first move is not a diagnostic. It is to find out whether the bug still e
 
 ```bash
 cd /Users/alessandrolomonaco/dev/boxhub
-docker compose down -v && docker compose up -d --build
+docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d --build
 # Temporarily change `test.fixme(` to `test(` at e2e/tests/runner.spec.ts:52
 cd e2e
 npx playwright test tests/runner.spec.ts          # fresh stack
@@ -1138,7 +1138,7 @@ Use the project's existing logger and log level conventions in that file. This l
 
 ```bash
 cd /Users/alessandrolomonaco/dev/boxhub
-docker compose down -v && docker compose up -d --build
+docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d --build
 cd e2e
 # Remove the fixme temporarily so the test runs, then:
 npx playwright test tests/runner.spec.ts    # first run against a fresh stack — expected to pass
@@ -1214,7 +1214,7 @@ bug: the 2026-08-05 'open flake' record and the 2026-08-06 quarantine."
 
 ```bash
 cd /Users/alessandrolomonaco/dev/boxhub
-docker compose down -v && docker compose up -d --build
+docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d --build
 e2e/visual.sh --update-snapshots
 ```
 
@@ -1245,7 +1245,7 @@ ls backend/src/main/resources/db/migration/ | tail -3
 cd frontend && npm test -- --watch=false --browsers=ChromeHeadless && npx ng build --configuration production; cd ..
 
 # e2e on a clean stack
-docker compose down -v && docker compose up -d --build
+docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d --build
 cd e2e && npx playwright test; cd ..
 e2e/visual.sh
 
