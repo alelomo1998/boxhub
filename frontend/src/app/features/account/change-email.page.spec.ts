@@ -79,6 +79,9 @@ describe('ChangeEmailPage', () => {
     http.expectOne('/api/me/email');
     cmp.submit();
     http.expectNone('/api/me/email');
+    // expectNone IS the assertion — it throws if a second request fired. expect().nothing()
+    // only stops Jasmine reporting "has no expectations" as permanent noise.
+    expect().nothing();
   });
 
   it('states the mechanism above the form before the fields', () => {

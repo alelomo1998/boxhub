@@ -101,6 +101,9 @@ describe('ResetPage', () => {
     submitViaDom(fixture, 'a-new-password');
     // expectOne throws if more than one request matched — that's the assertion.
     flushResetSuccess([]);
+    // expect().nothing() only stops Jasmine reporting "has no expectations", which would
+    // otherwise be permanent noise in every run.
+    expect().nothing();
   }));
 
   it('PASSWORD_TOO_SHORT lands on the field — the shared mapping, same sentence as signup', () => {

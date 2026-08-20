@@ -598,6 +598,16 @@ now would be speculative work with no load data behind it.*
 - Coach `upsertFor` could use `findByIdAndBoxId` single-query instead of `findById` + lazy box filter.
 - **Redis-backed distributed rate limiting** and **Redis pub/sub for the SSE emitter registry** — both are
   per-node in-memory, which matches the one-VPS target. **Trigger:** a second node actually exists.
+- **`NG0956` track-by-identity warning during Karma** (found 2026-08-20 in M13f Task 1). Angular reports
+  *"tracking expression (track by identity) caused re-creation of the entire collection of size 1"* twice per
+  Karma run. Not investigated to a specific `@for`, and deliberately so — M13f's scope is the *test signal*,
+  and this is a render-perf smell, not a false gate. Candidates, all tracking a value rather than a stable id:
+  `field.component.ts:31` and `select.component.ts:21` (`@for (msg of errors(); track msg)`),
+  `benchmark-board.component.ts:54` (`track line`). Re-creating one node costs nothing, which is why this is
+  a watch-list item and not a fix. **Trigger:** the same pattern appears on a collection that is actually
+  large — a member list, a leaderboard, a booking roster — where re-creating every node on each change
+  detection is real work. **First diagnostic step:** the warning fires during Karma, so bisect by running one
+  spec file at a time rather than reading the templates.
 
 ## Accepted — decisions, not debt
 
