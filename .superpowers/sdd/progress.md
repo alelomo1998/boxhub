@@ -2179,7 +2179,8 @@ Both are recorded in `docs/TENANCY.md`, which is the authority.
 
 ## M22 — new-domain schema (branch `m22-new-domain-schema`, IN PROGRESS)
 
-**All 8 tasks done, reviewed and committed. Every gate below was measured on this branch.**
+**All 8 tasks done. Merged to `main` as `47a60e4` on 2026-08-20; CI green there (`ci` 8m35s and
+`dependency-scan`, both success) — a local green is not the gate, and this one was read on `main`.**
 
 | # | Task | Migration | Commit | Suite after |
 |---|---|---|---|---|

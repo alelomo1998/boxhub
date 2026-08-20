@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-20 (M21 merged to `main`; **M22 built on branch `m22-new-domain-schema`, gates green, awaiting merge**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-20 (M21 merged to `main`; **M22 merged to `main` (`47a60e4`), CI green; Phase 1 CLOSED. M13f is next**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -344,7 +344,7 @@ merge: backend **494/0/0**, Karma **412/412**, production build clean, both tena
 **64 passed + 1 skipped**, `visual.sh` **31 specs with zero dirty baselines**. **No Flyway migration —
 V22 was still free.** The full ledger is the M21 section of `.superpowers/sdd/progress.md`.
 
-**M22 — new-domain schema is BUILT on branch `m22-new-domain-schema`, gates green, NOT yet merged.**
+**M22 — new-domain schema is MERGED to `main` (`47a60e4`, CI green). Phase 1 is closed.**
 Six migrations **V22–V27** cut the tables Phase 2 needs, before any screen existed to bias them: box
 public profile + location + directory indexes, rooms and the `room_id` axis, coach profile /
 availability / time off / payout account, PT booking, the drop-in on `bookings` plus the payment
@@ -380,7 +380,7 @@ passes *trivially* — with no discriminator there is nothing to filter. What it
 "someone tenant-scopes a coach table", measured in all three shapes. `docs/TENANCY.md` §8.2 says so
 at the point of use.
 
-- **Remaining before merge:** nothing but the merge itself. Task 8's gates are measured below.
+- **Merged and verified.** Gates: backend **510/0/0**, Karma **412**, e2e **64 + 1 skipped**, `visual.sh` **31 with zero dirty baselines**, both tenancy greps **0**, and the migration chain replays from empty (**27 applied, all successful**, backend healthy after `down -v`). CI green on `main`.
 
 **What M21 changed, and it is a behaviour change to be aware of before reading any older
 tenancy note:** `TenantIdentifierResolver.isRoot(NO_TENANT)` no longer returns true, so **a read with
@@ -413,7 +413,7 @@ order from here, never from the number:
 
 | Phase | Order |
 |---|---|
-| 1 — backend foundations | **M14a ✅ → M21 ✅ → M22 ✅ (built, gates green, awaiting merge)** |
+| 1 — backend foundations | **M14a ✅ → M21 ✅ → M22 ✅ — Phase 1 CLOSED** |
 | 2 — athlete & coach frontend | M13f → M23 → M14b → M14c → M17 → M24 → M25 → M26 |
 | 3 | analytics brief |
 | 4 — admin frontend | M15 → M16 → M18 |
