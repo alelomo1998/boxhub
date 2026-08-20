@@ -187,8 +187,15 @@ state" and "someone forgot the error state" look identical.
 - **hand-checked** — a note, for states not capturable statically (hover, focus, active)
 - **not applicable** — an explicit written declaration of why the component cannot have it
 
-The `button` section is already the reference implementation of this shape (see its `note.noError`,
-`note.hoverActiveFocus`, `note.ariaDisabled`, `note.dangerBorder`) and sets the pattern the other 19
+**The declaration is a data structure, not prose, and a Karma spec asserts it.** Prose cannot
+enforce this contract, because nothing fails when a note goes missing — which is the law's own
+complaint restated. Each section renders a uniform ledger driven by a `Record<string, StateEntry[]>`
+keyed by its `data-gallery` value, and `dev-gallery.page.spec.ts` fails when any section omits any
+state, or declares one not-applicable without a written reason. A component added to the gallery
+later cannot skip the contract.
+
+The `button` section is already the reference implementation of the *content* (see its
+`note.noError`, `note.hoverActiveFocus`, `note.ariaDisabled`) and sets the standard the other 19
 follow.
 
 **New coverage the gallery is missing entirely.** `size="sm"` has **52 call sites** and zero gallery
@@ -265,12 +272,18 @@ lost later in the mapping?
 **If it is fixed:** delete the `fixme` at `runner.spec.ts:52`. **Do not soften the assertions** — they
 are correct and the product is not.
 
-**Tenancy note for step 4.** Since M21 a tenant-less read fails **closed**, returning empty rather
-than erroring. If the timer lookup runs without an ambient tenant, an empty result is exactly what it
-would produce, and no test would error on it. This is the third shape of the same trap
-(`SessionApiTest#sweepFlipsPastBookedToNoShow`, then `GET /api/me/export` in M22) and it is a live
-candidate here, not a hypothetical — check the `Timer` entity for `@TenantId` before concluding
-anything from an empty result.
+**The tenancy angle was already checked during planning, and it changes the first step.**
+`ClassTimer.java:13` carries `@TenantId`, so the timer lookup is a tenant-filtered read — and
+`TvStreamService.java:86` already composes inside `TenantContext.runAsBox(...)`, with a comment
+saying exactly why. **That wrap landed in `9b4917e` on 2026-08-19 (M21), thirteen days after the
+quarantine in `0fd89a1` on 2026-08-06.** The quarantine's evidence was "frames arrive and carry no
+timer", which is precisely what a tenant-filtered read with no ambient tenant produces.
+
+So the code path under test changed after the test was disabled, and nobody has re-run it since.
+**Step 1 is therefore to run the quarantined test as-is, before writing any diagnostic** — the bug
+may already be fixed as a side effect of M21. If it is, record which line holds the fix up, because
+a bug fixed by accident stays fixed only if someone writes that down. If it is not, the leading
+hypothesis is eliminated, which is worth as much as a fix.
 
 ---
 
