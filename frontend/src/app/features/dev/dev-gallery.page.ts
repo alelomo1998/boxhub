@@ -97,8 +97,8 @@ export interface StateEntry {
       <section class="gsec" data-gallery="icon">
         <h2 class="t-h2" i18n="@@dev.gallery.icon.heading">Icon</h2>
         <p class="note" i18n="@@dev.gallery.icon.note">
-          Always aria-hidden and paired with a text label elsewhere — bh-icon carries no state
-          contract of its own; every name in the set is rendered below to eyeball stroke consistency.
+          Always aria-hidden and paired with a text label elsewhere; every name in the set is
+          rendered below to eyeball stroke consistency.
         </p>
         <div class="icongrid">
           <!-- Icon identifiers, not prose — not i18n-marked. -->
@@ -109,6 +109,7 @@ export interface StateEntry {
             </div>
           }
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'icon' }" />
       </section>
 
       <section class="gsec" data-gallery="button">
@@ -430,11 +431,10 @@ export interface StateEntry {
             </tr>
           </tbody>
         </bh-data-table>
-        <p class="note" i18n="@@dev.gallery.dataTable.note.hover">
-          Hover a row to check: background climbs to --surface. No focus, active, disabled or loading
-          state of its own — data-label card mode ships deliberately unused, no screen has adopted it
-          yet.
+        <p class="note" i18n="@@dev.gallery.dataTable.note.cardMode">
+          Data-label card mode ships deliberately unused — no screen has adopted it yet.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'data-table' }" />
       </section>
 
       <section class="gsec" data-gallery="sheet">
@@ -482,8 +482,7 @@ export interface StateEntry {
         <h2 class="t-h2" i18n="@@dev.gallery.shellHeader.heading">Shell header</h2>
         <p class="note" i18n="@@dev.gallery.shellHeader.note">
           The top bar shared by all three shells — brand mark, box name, an optional mono area
-          eyebrow, and a nav slot plus an actions slot. No state contract of its own; the projected
-          nav links and action buttons carry their own.
+          eyebrow, and a nav slot plus an actions slot.
         </p>
         <div class="shellwrap">
           <bh-shell-header boxName="Demo Box" area="Coach">
@@ -494,6 +493,7 @@ export interface StateEntry {
             </bh-button>
           </bh-shell-header>
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'shell-header' }" />
       </section>
 
       <section class="gsec" data-gallery="dock">
@@ -502,13 +502,13 @@ export interface StateEntry {
           Floating pill mobile nav, absorbed from the global .bh-dock rules. Hidden by design above
           719px (law: the dock is mobile-only chrome) — this section can't show it live at desktop
           width, so shrink the viewport below 719px to see the pill; every item pairs an icon with a
-          text label, never a glyph alone. No hover treatment of its own; tab to an item for the
-          focus ring. The highlighted "active" item marks the current route, not a momentary press —
-          the dock has no separate pressed state.
+          text label, never a glyph alone. The highlighted "active" item marks the current route, not
+          a momentary press — the dock has no separate pressed state.
         </p>
         <div class="dockwrap">
           <bh-dock [tabs]="dockSample" label="Athlete" />
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'dock' }" />
       </section>
 
       <section class="gsec" data-gallery="segmented">
@@ -648,6 +648,7 @@ export interface StateEntry {
           translation and are also asserted verbatim by e2e, which passes because the suite runs
           against the English source — a locale switch would need those selectors revisited.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'day-pager' }" />
       </section>
 
       <section class="gsec" data-gallery="wordmark">
@@ -673,9 +674,9 @@ export interface StateEntry {
       <section class="gsec" data-gallery="auth-layout">
         <h2 class="t-h2" i18n="@@dev.gallery.authLayout.heading">Auth layout</h2>
         <p class="note" i18n="@@dev.gallery.authLayout.note.noStates">
-          A frame, not a control — bh-auth-layout has no hover, focus, active, disabled, loading or
-          error state of its own; those belong to the projected form's fields and buttons, shown in
-          their own sections above. Variant is assigned per screen and never per state.
+          A frame, not a control — bh-auth-layout defers all interactive state to the projected
+          form's fields and buttons, shown in their own sections above. Variant is assigned per
+          screen and never per state.
         </p>
 
         <p class="gsub" i18n="@@dev.gallery.authLayout.variant.split">Split</p>
@@ -707,19 +708,20 @@ export interface StateEntry {
           see it collapse to the same stacked, centred column narrow uses at every width, with the
           panel content moving above the form.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'auth-layout' }" />
       </section>
 
       <section class="gsec" data-gallery="benchmark-board">
         <h2 class="t-h2" i18n="@@dev.gallery.benchmarkBoard.heading">Benchmark board</h2>
         <p class="note" i18n="@@dev.gallery.benchmarkBoard.note.noStates">
-          Pure information, not a control — no hover, focus, active, disabled, loading or error
-          state of its own. Two distinct seeded prescriptions are drawn at random on every mount;
-          reload this page to see a different pair. Hides below 720px in the real auth screens
-          (checked in the browser, not shown here).
+          Pure information, not a control. Two distinct seeded prescriptions are drawn at random on
+          every mount; reload this page to see a different pair. Hides below 720px in the real auth
+          screens (checked in the browser, not shown here).
         </p>
         <div class="benchwrap">
           <bh-benchmark-board testId="gallery-benchmark" />
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'benchmark-board' }" />
       </section>
     </div>
   `,
@@ -796,7 +798,71 @@ export interface StateEntry {
   `],
 })
 export class DevGalleryPage {
-  protected readonly ledgers: Record<string, StateEntry[]> = {};
+  protected readonly ledgers: Record<string, StateEntry[]> = {
+    icon: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.hover:decorative and always aria-hidden — the control around it owns every interaction` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.focus:never focusable; it is never the interactive element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.active:never pressed directly` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.disabled:inherits currentColor, so the disabled host dims it` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.loading:renders a static path; it fetches nothing` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.error:an unknown name is a build-time type error, not a runtime state` },
+    ],
+    'data-table': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.focus:rows are not focusable; any focusable control inside a cell owns its own ring` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.active:rows are not pressable` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.disabled:presentational — it renders whatever rows it is given` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.loading:the screen owns the fetch and renders bh-empty or a spinner in its place` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.error:the screen renders bh-alert beside it; a table does not own an error` },
+    ],
+    'shell-header': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.hover:renders no interactive element of its own — the projected nav links and action buttons carry their own, shown in their own sections` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.focus:never focusable itself; the projected nav links and action buttons carry their own focus ring` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.active:never pressed itself; the projected nav links and action buttons carry their own` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.disabled:chrome is never disabled; it is present or it is not rendered` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.loading:renders synchronously from the already-resolved session` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.error:chrome has nothing to fail at; the routed screen renders its own error` },
+    ],
+    dock: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.hover:no hover treatment of its own — the current-route highlight and the focus ring are the tab's only feedback` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'rendered' },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.disabled:a tab a role cannot reach is omitted, never shown disabled` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.loading:a static tab list; it fetches nothing` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.error:navigation chrome has nothing to fail at` },
+    ],
+    'day-pager': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.hover:the pager buttons carry no hover styling of their own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.active:the pager buttons carry no active-press styling of their own` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.loading:it emits a date; the screen beside it owns the fetch and its spinner` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.error:a date cannot fail to be a date; the screen renders any fetch error` },
+    ],
+    'auth-layout': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.hover:a layout frame with no interactive surface of its own` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.focus:never focusable; the projected form owns focus` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.disabled:a frame is not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.loading:the projected screen renders its own pending state inside the panel` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.error:the projected screen renders bh-alert inside the panel` },
+    ],
+    'benchmark-board': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.hover:a read-only board; nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.focus:contains no focusable element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.active:nothing is pressable` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.disabled:presentational — it renders the rows it is given` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.loading:the screen owns the fetch` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.error:the screen renders bh-alert beside it` },
+    ],
+  };
   protected readonly iconNames = ICON_NAMES;
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
