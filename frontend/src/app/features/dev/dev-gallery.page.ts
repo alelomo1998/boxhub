@@ -225,6 +225,48 @@ export interface StateEntry {
           </div>
         </div>
 
+        <p class="gsub" i18n="@@dev.gallery.button.size.heading">Size</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.md">md</span>
+            <bh-button variant="primary" size="md" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.sm">sm</span>
+            <bh-button variant="primary" size="sm" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.smGhost">sm ghost</span>
+            <bh-button variant="ghost" size="sm" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.size">
+          Both sizes keep the same min-height (--tap): sm narrows the horizontal padding only, so a
+          small button is never a small tap target. 52 call sites use sm.
+        </p>
+
+        <p class="gsub" i18n="@@dev.gallery.button.link.heading">As a link</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-button variant="ghost" href="/app/dev/components" i18n="@@dev.gallery.button.link.sample">Continue</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
+            <bh-button variant="ghost" href="/app/dev/components" [loading]="true" i18n="@@dev.gallery.button.link.sample">Continue</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-button variant="ghost" href="/app/dev/components" [disabled]="true" i18n="@@dev.gallery.button.link.sample">Continue</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.link">
+          With href set, bh-button renders a real anchor — routerLink or href on the host emits no
+          href at all, losing ctrl/cmd-click and open-in-new-tab. An anchor cannot be natively
+          disabled, so the loading and disabled cells withhold href entirely, which also drops them
+          out of the tab order. Tab through this row to confirm only the first cell is reachable.
+        </p>
+
         <p class="note" i18n="@@dev.gallery.button.note.hoverActiveFocus">
           Hover, active and focus aren't shown statically — hover on ghost/icon climbs --surface to
           --surface-2 (primary/danger brighten via filter instead); click-and-hold on any variant
