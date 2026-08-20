@@ -117,24 +117,27 @@ public class PerformanceQueries {
     }
 
     // --- GDPR export: raw dumps across every membership the user ever held, no scoring math ---
+    // These three use the NATIVE ...ForExport finders, not the derived ones the rest of this class
+    // uses: GET /api/me/export runs on a boxless session, where a derived read of a @TenantId
+    // entity resolves NO_TENANT and returns empty. docs/TENANCY.md §6.
 
     public List<Map<String, Object>> bookingsOf(List<UUID> membershipIds) {
         return membershipIds.stream()
-                .flatMap(id -> bookings.findByMembershipId(id).stream())
+                .flatMap(id -> bookings.findByMembershipIdForExport(id).stream())
                 .map(PerformanceQueries::bookingDump)
                 .toList();
     }
 
     public List<Map<String, Object>> scoresOf(List<UUID> membershipIds) {
         return membershipIds.stream()
-                .flatMap(id -> scores.findByMembershipIdOrderByCreatedAtDesc(id).stream())
+                .flatMap(id -> scores.findByMembershipIdForExport(id).stream())
                 .map(PerformanceQueries::scoreDump)
                 .toList();
     }
 
     public List<Map<String, Object>> liftsOf(List<UUID> membershipIds) {
         return membershipIds.stream()
-                .flatMap(id -> lifts.findByMembershipIdOrderByPerformedOnDesc(id).stream())
+                .flatMap(id -> lifts.findByMembershipIdForExport(id).stream())
                 .map(PerformanceQueries::liftDump)
                 .toList();
     }

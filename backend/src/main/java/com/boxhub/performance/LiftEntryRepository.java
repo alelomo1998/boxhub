@@ -12,6 +12,11 @@ public interface LiftEntryRepository extends JpaRepository<LiftEntry, UUID> {
     List<LiftEntry> findByMembershipIdAndMovementIdOrderByPerformedOnAsc(UUID membershipId, UUID movementId);
     List<LiftEntry> findByMembershipIdOrderByPerformedOnDesc(UUID membershipId);
 
+    /** Boxless GDPR export — see BookingRepository#findByMembershipIdForExport. docs/TENANCY.md §6. */
+    @Query(value = "select * from lift_entry where membership_id = :mid order by performed_on desc",
+           nativeQuery = true)
+    List<LiftEntry> findByMembershipIdForExport(@Param("mid") UUID membershipId);
+
     @Query("select coalesce(max(l.load), 0) from LiftEntry l where l.membershipId = :m and l.movementId = :mv")
     BigDecimal maxLoad(@Param("m") UUID membershipId, @Param("mv") UUID movementId);
 }

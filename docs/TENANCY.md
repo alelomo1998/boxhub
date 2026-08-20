@@ -233,6 +233,9 @@ the box its own tab intended.
 | `InviteRepository#burnIfUnaccepted` | `Invite` | Bulk `UPDATE` on the same tenant-agnostic accept path; a JPQL bulk update on a `@TenantId` entity is filtered the same as a `SELECT` and would silently update 0 rows for a cross-box accept. |
 | `InviteRepository#purgeAcceptedOrExpired` | `Invite` | `PurgeJob`'s nightly bulk delete. Directly invocable from a context that *does* carry a box, where a JPQL version would purge only that box. Guarded by `PurgeJobTest#invitePurgeSweepsBothBoxesEvenUnderOneBoxsAmbientTenant`. |
 | `PaymentRepository#findByStripeSessionId` | `Payment` | The Stripe webhook (`permitAll`, no JWT at all) resolves the target box **from this row's own `box_id`** before establishing `runAsBox` — it is both the tenant-less lookup and the box-resolution step. |
+| `BookingRepository#findByMembershipIdForExport` | `Booking` | `GET /api/me/export` is served to a **boxless** session, so the derived `findByMembershipId` resolves `NO_TENANT` and returns empty. Safe natively because `membership_id` is itself a per-box key — a membership belongs to exactly one box — so the row set cannot cross a box boundary. Export only; box-scoped callers keep the filtered derived method. |
+| `WodScoreRepository#findByMembershipIdForExport` | `WodScore` | Same, for the export's `scores` array. |
+| `LiftEntryRepository#findByMembershipIdForExport` | `LiftEntry` | Same, for the export's `lifts` array. |
 
 That is the complete list of methods that bypass the `@TenantId` filter by design. Everything else on
 a `@TenantId` entity is a plain derived/JPQL query and is correct as such **because** every caller
@@ -267,6 +270,7 @@ that bug shipped three times.
 | `InviteAcceptApiTest` — cross-box preview, cross-box accept, single-use burn | the tenant-agnostic invite path works from a foreign ambient tenant | reverting any of §6's native methods to JPQL |
 | `StripeWebhookTest` | repoint/cross-plan cases over `findByStripeSessionId` | the same, for `Payment` |
 | `PurgeJobTest#invitePurgeSweepsBothBoxesEvenUnderOneBoxsAmbientTenant` | the purge is not box-filtered | a JPQL version of `purgeAcceptedOrExpired` |
+| `AccountExportTenancyTest#exportReturnsTheUsersBookingsFromABoxlessSession` | the GDPR export still returns bookings and lifts once the `SecurityContext` is **cleared** | reverting any `...ForExport` method to its derived sibling — measured: `Expecting actual not to be empty` |
 
 When adding a new `@TenantId` entity, a new cross-box job, or a new boxless route, add the analogous
 two-box test **before** trusting the classification. And run the negative control on it: break the
