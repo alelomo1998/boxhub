@@ -653,8 +653,10 @@ export interface StateEntry {
         <p class="note" i18n="@@dev.gallery.avatar.note">
           Initials fallback shown by default — no path is loadable in the size cells above. The
           Error cell demonstrates the same fallback triggered live by a broken image path via the
-          (error) handler. The initials glyph is sized as a ratio of the circle (36%), not a
-          type-scale token — see Task 9.
+          (error) handler. The initials glyph is sized in container-query units off the circle's
+          own width (42/38/34cqi across sm/md/lg-xl), not from the type scale: a plain percentage
+          would resolve against the inherited font-size rather than the box, and a small monogram
+          needs a proportionally larger glyph to stay legible.
         </p>
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'avatar' }" />
       </section>
@@ -779,7 +781,7 @@ export interface StateEntry {
   `,
   styles: [`
     /* Wide enough for the admin members proof's sidebar + table; the WOD board keeps its own
-       narrower rhythm via .board-wrap so widening this container doesn't stretch Task 9's hero. */
+       narrower rhythm via .board-wrap so widening this container doesn't stretch that hero. */
     .gallery { max-width: 1100px; margin: 0 auto; padding: var(--sp-6) var(--sp-4);
       display: flex; flex-direction: column; gap: var(--sp-6); }
     .gallery-head { display: flex; align-items: center; gap: var(--sp-4); }
