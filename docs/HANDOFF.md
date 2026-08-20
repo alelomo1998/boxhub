@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-19 (M21 merged to `main`; M22 specced and planned, not started). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-20 (M21 merged to `main`; **M22 built on branch `m22-new-domain-schema`, gates green, awaiting merge**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -344,14 +344,43 @@ merge: backend **494/0/0**, Karma **412/412**, production build clean, both tena
 **64 passed + 1 skipped**, `visual.sh` **31 specs with zero dirty baselines**. **No Flyway migration —
 V22 was still free.** The full ledger is the M21 section of `.superpowers/sdd/progress.md`.
 
-**M22 — new-domain schema is SPECCED AND PLANNED, and not started.** No branch is cut and no code is
-written.
+**M22 — new-domain schema is BUILT on branch `m22-new-domain-schema`, gates green, NOT yet merged.**
+Six migrations **V22–V27** cut the tables Phase 2 needs, before any screen existed to bias them: box
+public profile + location + directory indexes, rooms and the `room_id` axis, coach profile /
+availability / time off / payout account, PT booking, the drop-in on `bookings` plus the payment
+spine, and social posts / likes / the workout rating. Phase 1's rule held throughout — **no
+endpoints, no DTOs, no screens.**
 
 - Spec: `docs/superpowers/specs/2026-08-19-m22-new-domain-schema-design.md` — 14 decisions with their
   reasoning, the tenancy classification, the deliberate exclusions, nine test obligations.
-- Plan: `docs/superpowers/plans/2026-08-19-m22-new-domain-schema.md` — eight tasks, six migrations
-  (V22–V27), real SQL and real test code at every step.
-- Start at Task 1 on a new branch `m22-new-domain-schema`. Details in `.superpowers/sdd/NEXT-SESSION.md`.
+- Plan: `docs/superpowers/plans/2026-08-19-m22-new-domain-schema.md` — eight tasks. It deviates from
+  spec §11 on purpose (six migrations, not one) and records why at the top.
+- Ledger with a commit SHA per task: the M22 section of `.superpowers/sdd/progress.md`.
+
+**The classification rule M22 produced is now `docs/TENANCY.md` §8, and it is the durable output.**
+Two halves: the directory query decides (anything read *across* boxes cannot be `@TenantId`), and —
+the half that stops a leak — drop the discriminator **only when the whole table is public**.
+`box_photo` qualifies; `post` does not, because it holds both `PUBLIC` and `BOX` rows. §8.3 names the
+three cross-box reads M22 deliberately did **not** build, each with its owning milestone.
+
+**The bug M22 found, which was not in its plan.** `GET /api/me/export` is served to a **boxless**
+session, and `PerformanceQueries` read bookings, scores and lifts through **derived** queries on
+`@TenantId` entities. Since M21 those fail closed, so **the GDPR export had been silently shipping
+`user` and `memberships` and nothing else.** Neither shipped test could catch it —
+`exportContainsTheUsersOwnData` asserts keys only on a fixture with no bookings, and
+`anonymizationLeavesBookingsScoresAndLiftsIntact` runs under `actAsBox`. That is the
+`SessionApiTest#sweepFlipsPastBookedToNoShow` shape a third time. Fixed with nine native
+`...ForExport` finders (registered in `docs/TENANCY.md` §6) rather than by unfiltering the shared
+derived methods, so box-scoped callers keep the discriminator as defence-in-depth. **Generalise it:
+before adding any read to a boxless route, check the entity for `@TenantId` — it will not error, it
+will return empty, and a test written under `actAsBox` will stay green over it.**
+
+**Recorded rather than counted as coverage:** `CoachProfileTenancyTest`'s cross-box read assertion
+passes *trivially* — with no discriminator there is nothing to filter. What it genuinely catches is
+"someone tenant-scopes a coach table", measured in all three shapes. `docs/TENANCY.md` §8.2 says so
+at the point of use.
+
+- **Remaining before merge:** nothing but the merge itself. Task 8's gates are measured below.
 
 **What M21 changed, and it is a behaviour change to be aware of before reading any older
 tenancy note:** `TenantIdentifierResolver.isRoot(NO_TENANT)` no longer returns true, so **a read with
@@ -384,7 +413,7 @@ order from here, never from the number:
 
 | Phase | Order |
 |---|---|
-| 1 — backend foundations | **M14a ✅ → M21 ✅ → M22 (specced + planned, not started)** |
+| 1 — backend foundations | **M14a ✅ → M21 ✅ → M22 ✅ (built, gates green, awaiting merge)** |
 | 2 — athlete & coach frontend | M13f → M23 → M14b → M14c → M17 → M24 → M25 → M26 |
 | 3 | analytics brief |
 | 4 — admin frontend | M15 → M16 → M18 |

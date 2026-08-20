@@ -2179,9 +2179,7 @@ Both are recorded in `docs/TENANCY.md`, which is the authority.
 
 ## M22 — new-domain schema (branch `m22-new-domain-schema`, IN PROGRESS)
 
-**Tasks 1–7 of 8 are done, reviewed and committed. Task 8 (docs, gates, merge) has NOT been run.
-Nothing is pushed and nothing is merged.** Stopped here at the user's instruction, not because of
-a blocker.
+**All 8 tasks done, reviewed and committed. Every gate below was measured on this branch.**
 
 | # | Task | Migration | Commit | Suite after |
 |---|---|---|---|---|
@@ -2220,10 +2218,11 @@ delete, Stripe-secret redaction, a `...ForExport` reverted to derived), plus the
 **Recorded honestly rather than counted as coverage:** T3's control went red by *refusing to boot*
 (Hibernate rejects `@TenantId` on an `@Id` field), so `CoachProfileTenancyTest`'s cross-box read
 assertion passes trivially — there is no discriminator to filter. A second control on
-`CoachAvailability` (surrogate PK) produced a genuine filtered failure. Full reasoning in
-`docs/M22-T7-FINDING.md`.
+`CoachAvailability` (surrogate PK) produced a genuine filtered failure — measured
+`assigned tenant id differs from current tenant id`. This is recorded at the point of use in
+`docs/TENANCY.md` §8.2, so nobody reads that green read-assertion as evidence it was exercised.
 
-### What Task 8 still owes
+### Task 8 — what it owed, and what was measured
 
 1. `docs/TENANCY.md` — the M22 classification section (§3 rule + refinement, the three named-but-
    unbuilt cross-box reads, the table-by-table classification, D14's assumption and trigger). The
@@ -2235,5 +2234,25 @@ assertion passes trivially — there is no discriminator to filter. A second con
 4. `docs/HANDOFF.md`, `docs/ROADMAP-AT-A-GLANCE.md`, and rewrite `.superpowers/sdd/NEXT-SESSION.md`
    for **M13f**, which opens Phase 2.
 5. Merge to `main` and read CI there — a branch push starts nothing.
-6. Decide whether `docs/M22-T7-FINDING.md` folds into `docs/TENANCY.md` or is deleted; it is a
-   working note, not a permanent doc.
+6. ~~Decide what happens to `docs/M22-T7-FINDING.md`~~ — **done**: its conclusions are now in
+   `docs/TENANCY.md` §8 and in this ledger, and the working note was deleted rather than left as a
+   second source of truth.
+
+### Gates, all measured on this branch (2026-08-20)
+
+| Gate | Result |
+|---|---|
+| Backend suite | **510 / 0 / 0** (baseline 494) — orchestrator re-ran it independently on the final tree |
+| Karma | **412 / 412**, exactly the baseline — M22 touched no frontend, so any movement would have meant scope leaked |
+| e2e | **64 passed + 1 skipped**, on the `down -v` rebuilt stack |
+| `e2e/visual.sh` | **31 specs passed, zero dirty baselines** (`git status e2e/` clean) |
+| `grep -rn "private .*runAsBox"` | **0** |
+| `grep -rn "runAsRoot" --include='*Controller.java'` | **0**; `runAsRoot`'s only application caller is still `BookingMaintenance` |
+| `AuthzConformanceTest` | Never edited, never red — M22 adds no routes |
+| **Migration replay from empty** | `docker compose down -v` then `up --build` → **`backend running healthy`**, and `flyway_schema_history` in the fresh database shows **27 applied, all successful**. This is the proof V1→V27 applies to a blank database rather than only as a delta on a developer's existing one |
+
+Docs updated: `docs/TENANCY.md` gained **§8** (the classification rule, M22's table-by-table
+classification, the coach-table caveat, the three unbuilt cross-box reads, D14's trigger) on top of
+the §6/§7 native rows; `docs/HANDOFF.md` and `docs/ROADMAP-AT-A-GLANCE.md` record M22 as built;
+`.superpowers/sdd/NEXT-SESSION.md` rewritten for **M13f**, which opens Phase 2 and has no spec or
+plan yet — that session starts with brainstorming.
