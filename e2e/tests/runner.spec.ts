@@ -31,25 +31,16 @@ test('coach arms a timer from the runner and starts it', async ({ page }) => {
 });
 
 /**
- * QUARANTINED 2026-08-06 — not a flake, and not fixed. See `docs/BACKLOG.md`, "`main` IS RED".
+ * The TV half. A coach starts a timer; the TV should learn about it over SSE.
  *
- * The TV half. A coach starts a timer; the TV should learn about it over SSE. It does not: frames
- * arrive (the counter reaches 1 and sometimes 2) and every one carries `data-timer="none"`. That
- * has now failed on CI on two separate commits and reproduces locally by running the e2e suite
- * twice against one stack.
- *
- * It is quarantined rather than fixed because **the TV is Project 2 (The Room), and Project 1 does
- * not ship it** — so a Project 2 defect should not hold Project 1's build red. That is a scope
- * decision, deliberately taken, not a verdict that the bug is unimportant: it is a real defect in
- * shipped code and the board on the wall is the product's stated wedge.
- *
- * `fixme` rather than `skip` on purpose — it stays listed in every run's output as an unfinished
- * thing, instead of quietly vanishing the way a skip does.
- *
- * RE-ENABLE WHEN: Project 2 starts, or the `compose()` timer lookup is fixed — whichever is first.
- * Delete this block, do not soften the assertions; they are correct and the product is not.
+ * Quarantined `test.fixme` 2026-08-06 through 2026-08-19: frames arrived carrying no timer
+ * (`compose()`'s `@TenantId` read on `ClassTimer` had no ambient tenant). Fixed as a side effect of
+ * M21's `TvStreamService.push()` wrapping compose in `TenantContext.runAsBox(...)` (`9b4917e`,
+ * 2026-08-19). Re-verified and re-enabled 2026-08-20 (M13f task 8) — three runs, including two
+ * against one un-rebuilt stack, the condition that used to reproduce the failure. See
+ * `docs/BACKLOG.md` for the full history.
  */
-test.fixme('TV shows the clock when a coach starts a timer', async ({ browser }) => {
+test('TV shows the clock when a coach starts a timer', async ({ browser }) => {
   const tvCtx = await browser.newContext();
   const tv = await tvCtx.newPage();
   await tv.goto('/app/tv');
