@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 import { AvatarComponent } from '../../ui/avatar.component';
@@ -32,10 +33,31 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
  * actually load. Unlinked from the rest of the product. Deletion at launch is filed in
  * docs/BACKLOG.md. Task 10 adds a second proof; M13c grows this into the full gallery.
  */
+
+/** Design law §11.1's seven states, in the order every ledger lists them. */
+export const STATE_NAMES = ['default', 'hover', 'focus', 'active', 'disabled', 'loading', 'error'] as const;
+export type StateName = (typeof STATE_NAMES)[number];
+
+/**
+ * How a section discharges its obligation for one state.
+ * - `rendered` — a labelled cell on this page shows it
+ * - `hand`     — real but not capturable statically (hover, focus, active); check it by hand
+ * - `na`       — the component cannot have it, and `why` says why
+ */
+export type Disposition = 'rendered' | 'hand' | 'na';
+
+export interface StateEntry {
+  state: StateName;
+  how: Disposition;
+  /** Required when `how` is 'na'. Rendered after an em dash; the completeness spec asserts it. */
+  why?: string;
+}
+
 @Component({
   selector: 'bh-dev-gallery',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
@@ -46,6 +68,17 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="gallery">
+      <ng-template #ledger let-key>
+        <ul class="ledger" [attr.data-ledger]="key">
+          @for (e of ledgers[key]; track e.state) {
+            <li [attr.data-state]="e.state" [attr.data-how]="e.how" [class]="'lg lg-' + e.how">
+              <span class="lg-state">{{ e.state }}</span>
+              <span class="lg-how">{{ e.how }}</span>
+              @if (e.why) { <span class="lg-why">— {{ e.why }}</span> }
+            </li>
+          }
+        </ul>
+      </ng-template>
       <header class="gallery-head">
         <bh-wordmark variant="chrome" size="md" />
         <h1 class="t-h2" i18n="Dev gallery page heading">Design language proof</h1>
@@ -710,6 +743,19 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     .cell { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
     .stlabel { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.06em;
       text-transform: uppercase; color: var(--faint); }
+    /* The state ledger: a uniform, machine-checkable declaration of all seven states per
+       component, replacing per-section freeform prose. dev-gallery.page.spec.ts asserts that
+       every section accounts for every state, so an omission fails the build instead of looking
+       identical to a deliberate "this component cannot have it". */
+    .ledger { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
+      gap: var(--sp-1); }
+    .lg { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: baseline;
+      font-size: var(--fs-sm); color: var(--bone-dim); }
+    .lg-state { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--faint); min-width: 9ch; }
+    .lg-how { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); }
+    .lg-na .lg-how { color: var(--faint); }
+    .lg-why { max-width: 52ch; }
     .note { margin: 0; font-size: var(--fs-sm); color: var(--bone-dim); max-width: 60ch; }
     .icongrid { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
     .iconcell { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
@@ -750,6 +796,7 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
   `],
 })
 export class DevGalleryPage {
+  protected readonly ledgers: Record<string, StateEntry[]> = {};
   protected readonly iconNames = ICON_NAMES;
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears

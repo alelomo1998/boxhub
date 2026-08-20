@@ -39,7 +39,7 @@
 | `frontend/src/app/features/account/danger.page.ts` | Sole `dangerBorder` call site → `variant="ghost-danger"` | 2 |
 | `frontend/src/app/features/account/danger.page.spec.ts` | Comment references the removed input | 2 |
 | `frontend/src/app/features/dev/dev-gallery.page.ts` | State-ledger data + template; per-section ledgers; new button coverage | 3, 4, 5, 6 |
-| `frontend/src/app/features/dev/dev-gallery.page.spec.ts` | **Create** — the ledger completeness gate | 3 |
+| `frontend/src/app/features/dev/dev-gallery.page.spec.ts` | **Modify** — APPEND the ledger completeness gate. This file ALREADY EXISTS with three specs (WOD-board proof, members proof, and 'one gallery section per shipped component'). Never overwrite it. | 3 |
 | `e2e/tests/a11y.spec.ts` | Second `SCREENS` entry scanning the open delete sheet | 7 |
 | `backend/src/main/java/com/boxhub/display/TvStateService.java` | Temporary diagnostic logging in `compose()` | 8 |
 | `docs/BACKLOG.md`, `docs/HANDOFF.md`, `docs/ROADMAP-AT-A-GLANCE.md`, `.superpowers/sdd/NEXT-SESSION.md` | Milestone close | 9 |
@@ -495,7 +495,7 @@ This task replaces prose with a uniform **state ledger** — a data structure pe
 
 **Files:**
 - Modify: `frontend/src/app/features/dev/dev-gallery.page.ts`
-- Create: `frontend/src/app/features/dev/dev-gallery.page.spec.ts`
+- Modify (APPEND to, never overwrite): `frontend/src/app/features/dev/dev-gallery.page.spec.ts` — it already exists with three passing specs.
 
 **Interfaces:**
 - Consumes: Task 2's `variant="ghost-danger"`.
@@ -509,7 +509,9 @@ This task replaces prose with a uniform **state ledger** — a data structure pe
 
 - [ ] **Step 1: Write the failing gate spec**
 
-Create `frontend/src/app/features/dev/dev-gallery.page.spec.ts`:
+**The file already exists** with three specs — WOD-board proof, members proof, and 'has exactly one gallery section per shipped component'. **APPEND** this `describe` block after them; do not overwrite. Those three and this gate are complementary: theirs catches a component with no section, this one catches a section with no complete ledger.
+
+Append to `frontend/src/app/features/dev/dev-gallery.page.spec.ts`:
 
 ```ts
 import { TestBed } from '@angular/core/testing';
