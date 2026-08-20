@@ -42,6 +42,29 @@ Four things, all found by M13c's own critique and deliberately not fixed then:
 Brainstorm the scope before assuming that list is complete or still accurate — **verify each claim
 against the current code first.** It was written in M13c and three milestones have landed since.
 
+### A fifth thing, added to M13f's scope on 2026-08-20 by decision
+
+**The quarantined `runner.spec` TV-timer test, and the open `runner.spec` data-timer flake.** Both
+are in `docs/BACKLOG.md` (the QUARANTINED section dated 2026-08-06 and the "Open flake" section dated
+2026-08-05), and **neither has an owning milestone** — they have been sitting unowned since.
+
+They belong here for one reason: **M13f's actual job is making the frontend test signal
+trustworthy.** Fixing 54-dirty-baseline coupling while a quarantined test silently runs nothing, and
+a flake fires at random, only half-solves that. A quarantined test is not a deferred task — it is
+coverage that has already stopped existing, and it reads as green.
+
+The backlog already carries the next diagnostic step, so do not re-derive it:
+
+> Add logging inside `compose()` for the timer lookup specifically, then reproduce with the
+> two-runs-one-stack recipe. The question is narrow: at the moment a frame is composed, does
+> `timers.findBySessionId(...)` return an empty result, a `PENDING` row, or a `RUNNING` row that is
+> lost later in the mapping?
+
+Read the whole QUARANTINED section first — it records evidence, what is established, and one
+hypothesis that was **checked and does NOT hold**, specifically so the next person does not spend the
+time again. If the fix turns out to be big, that is a finding: report it and let the orchestrator
+decide whether it stays in M13f or becomes its own milestone. Do not silently expand.
+
 ## State
 
 **M22 is merged and Phase 1 is closed.** Backend suite **510/0/0**. Karma **412**, e2e **64 passed +
@@ -114,6 +137,30 @@ the orchestrator. In M22 the plan's Task 7 test code simply did not compile agai
 
 **One screen at a time,** with an impeccable shape pass before and a critique after, scoped to that
 screen. Expect 3–5 look-and-adjust rounds per screen; each has historically found a real defect.
+
+## One thing the roadmap does NOT cover, flagged 2026-08-20 — do not let it stay invisible
+
+`docs/BACKLOG.md` is 775 lines and 169 items, but it is **organised by destination**, so almost all of
+it is consumed by the milestones as they run. M13f will eat its own section. That is working.
+
+**The exception is the `Launch → Production` block, and nothing in the roadmap will ever pick it
+up.** It is not assigned to any milestone, and several of its items are hard launch blockers rather
+than polish:
+
+- **Email deliverability** — dev is Mailpit. Without real SMTP plus SPF/DKIM/DMARC, verification,
+  reset, invite and receipt mail lands in spam, and **the entire auth flow depends on mail arriving.**
+- **Postgres backups and a restore drill**, TLS/HSTS, `BOXHUB_COOKIE_SECURE=true`, SSH/firewall
+  hardening, secrets delivery on the host.
+- **Terms of service, privacy policy, and a DPA with boxes** — rxed is the processor and the gym is
+  the controller. Documented internally, stated to nobody. EU PII and real money.
+- **Error monitoring and uptime** — there is none. Today the discovery path for a 6am 500 is a box
+  owner sending an email.
+- **Rate limits never measured against a class-opening rush** — a whole gym shares one NAT IP, so a
+  false 429 at midnight when classes open is a product failure, not a save.
+
+**This does not belong in M13f.** It is recorded here so it is not rediscovered a week before a
+pilot. It needs to become a real scoped milestone before any box touches the product; raise it with
+the user at M13f's close.
 
 ## After M13f
 

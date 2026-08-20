@@ -339,6 +339,35 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
+**Open M13f, consolidation. It opens Phase 2.** M13f has **no spec and no plan yet**, so that session
+starts with `superpowers:brainstorming`, then `writing-plans`, then execution — not with code. The
+full prompt is `.superpowers/sdd/NEXT-SESSION.md`, which is the ONLY session prompt; do not create a
+second one.
+
+M13f repairs the shared component layer *before* eight screen milestones build on it. Its scope is
+four defects M13c's own critique found and deferred (`bh-button` renders nothing for **8 of its 10**
+variant × flag combinations; the dev gallery's sections are coupled through scroll position so **one
+edit dirties 54 unrelated baselines**; the delete sheet has no axe coverage; the cross-section
+consistency pass was never run) — **plus a fifth added 2026-08-20 by decision: the quarantined
+`runner.spec` TV-timer test and the open `runner.spec` flake.** Both had sat in `docs/BACKLOG.md`
+since 2026-08-05/06 with **no owning milestone**, and they belong with M13f because its actual job is
+making the frontend test signal trustworthy — a quarantined test is not deferred work, it is coverage
+that has already stopped existing and still reads green.
+
+### The one block of work the roadmap will never pick up (flagged 2026-08-20)
+
+`docs/BACKLOG.md` is 775 lines / 169 items but is organised **by destination**, so nearly all of it is
+consumed by milestones as they run. **The exception is `Launch → Production`, which is assigned to no
+milestone at all**, and several of its items are hard launch blockers, not polish: email
+deliverability (dev is Mailpit, and **the entire auth flow depends on mail arriving**), Postgres
+backups **and a restore drill**, TLS/HSTS + `BOXHUB_COOKIE_SECURE=true`, ToS/privacy/DPA (rxed is the
+processor, the gym is the controller — documented internally, stated to nobody), error monitoring and
+uptime (there is none), and rate limits never measured against a class-opening rush (a gym shares one
+NAT IP, so a false 429 at midnight is a product failure). **It needs to become a real scoped milestone
+before any box touches the product.** Raise it at M13f's close.
+
+---
+
 **M21 is MERGED to `main` and CI is green** (merge commit `8b4fa73`). All eight tasks landed. Gates at
 merge: backend **494/0/0**, Karma **412/412**, production build clean, both tenancy greps `0`, e2e
 **64 passed + 1 skipped**, `visual.sh` **31 specs with zero dirty baselines**. **No Flyway migration —
