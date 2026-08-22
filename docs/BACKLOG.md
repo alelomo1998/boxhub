@@ -680,3 +680,27 @@ missing axe coverage, and the gallery's scroll-coupled baselines.
 - Account area: the in-page section heading duplicates the active nav item on desktop ("Password" appears as both). Could drop the heading at desktop only, keeping it on phone where the nav is hidden. Raised at M13e review; user chose not to fix then.
 - Account area: the phone MENU state (the list half of list→detail) has no visual-regression baseline, so nothing guards the layout the user originally objected to. Raised at M13e review; user chose not to add it then.
 - The dev gallery's `data-gallery` sections are coupled through scroll position, so any edit that changes one section's height cascades dirty visual baselines for every section after it — M13e's `solid` addition dirtied 54 unrelated files this way. Decouple by resetting scroll/viewport per section screenshot so gallery growth stops churning the whole baseline set.
+
+
+## M16a leftovers (2026-08-22)
+
+- **No-show fee** (M16). A fee is money — Stripe, receipts, proration — which the M16a spec §1.1
+  assigns to M16, not to the entitlement model. M16a already gets the *entitlement* half right with
+  no flag needed: a `NO_SHOW` booking was never cancelled, so its `ENTRY` ledger row stays unrefunded
+  and the class stays consumed. Raised by the user at M16a's design; scoped out deliberately, not
+  forgotten.
+- **Per-limit 409 reason on booking** (M14b/M17). `BookingService.book` reports the bare
+  `LIMIT_REACHED` because `frontend/src/app/features/athlete/book.page.ts:166` switches on that exact
+  string and M16a freezes every frontend number. `entryLimitViolated()` already names which of the
+  eight rules bound; it reaches the wire when the athlete booking screen is rebuilt and can render it.
+  The screen's copy is also stale — it says "weekly class limit" for what is now one of eight.
+- **`CANCEL_LIMIT_REACHED` has no copy** (M14b/M17). `book.page.ts`'s `reason()` has no case for it,
+  so a cancellation blocked by a plan's cancellation limit currently renders the generic
+  "Something went wrong — try again."
+- **Delete the `entitlement` / `weeklyClassLimit` wire shim** (M14b/M17). Both columns are gone; the
+  fields are derived in `PlanController.PlanDto` and `SubscriptionController.PlanSummaryDto` purely
+  so `plans.page.ts` and `membership.service.ts` keep working. `PlanController.requireWeeklyLimit`
+  goes with them. Whichever milestone rebuilds the plan admin screen owns this.
+- **No box settings UI for the cancellation policy** (M15). `boxes.allow_late_cancel`,
+  `late_cancel_refunds_entry` and `count_waitlist_cancellations` are served and PATCHable on
+  `/api/box/settings`, but nothing renders them — M15 is where the box-settings screen gets its UI.
