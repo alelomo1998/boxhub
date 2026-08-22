@@ -2314,4 +2314,35 @@ including one where the plan said *Create* a spec file that already held three p
    reference in user-facing copy, and a note describing a sizing mechanism (`36%`) that the component
    deliberately rejects in favour of container-query units.
 
+### Impeccable critique — 34/40, AI-slop verdict clean, no P0 (`d802aeb`)
+
+Two isolated Sonnet assessments, neither seeing the other. **Assessment B measured what nobody had:**
+every new ledger colour against `--ground`. All pass AA; the `--faint` rows (`.lg-state`,
+`.lg-na .lg-how`, `.stlabel`) are the tightest at **5.07:1** against a 4.5:1 floor — the least margin
+in the palette. axe on the gallery: **0 violations**. No page-level horizontal overflow at 375px.
+
+Three findings fixed:
+- **P1 no navigation across 20 sections.** A jump-to index now renders **from the `ledgers` map**, and
+  every section takes an `id` matching its `data-gallery` key — so a section added without a ledger
+  gets no nav entry either. The Karma gate and the index fail together, never separately. Verified
+  live: 20 links, 20 sections, 0 broken anchors.
+- **P1 `.dockwrap`'s comment justified 80px while the rule shipped 96px.** The number was right, the
+  comment incomplete: 16px is headroom for `env(safe-area-inset-bottom)`.
+- **P2 the phone ledger.** Each `na` reason wrapped to its own full-bleed line *between* state rows,
+  so it read as unattached prose. Two columns below the dock breakpoint fix it.
+
+**A limit of the visual suite, learned here:** adding the index moved **21 baselines** (20 phone
+sections + `button-desktop`) through **subpixel offset, not content change**. Per-section capture
+isolates a section from its *siblings*, not from content added *above* it. Structural equality was
+confirmed by eye before regenerating.
+
+**And the P2 was only findable by eye** — axe passed it, contrast passed it, the detector passed it,
+and Assessment A could only flag it as unverified. Opening the regenerated phone baselines is what
+turned it from a suspicion into a fix.
+
 **Still unowned:** `docs/BACKLOG.md`'s `Launch → Production` block. Raised at close, as agreed.
+**Also newly recorded (2026-08-22, user-stated):** the full plan entitlement model — daily/weekly/
+monthly/total-entries/total-cancellations, each nullable-as-infinite, plus a per-athlete entry ledger
+without which "total entries" is displayable but not enforceable. Belongs to **M16** by topic and
+subsumes its class-packs line, **but changes `Plan`'s shape**, which six Phase 2 screen milestones
+render against — decide before M23's spec is written, not after.
