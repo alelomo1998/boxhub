@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-20 (**M13f merged to `main`; Phase 2 open. M23 is next**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-22 (**M13f merged (`e0ce258`), CI green after a scheduling fix. M16a is next — it has a spec, no plan.**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -339,7 +339,34 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**Open M23, app entry & shells.** It is the first of Phase 2's screen milestones, and it ships
+**Open M16a, the plan entitlement model.** It has a **spec but no plan**:
+`docs/superpowers/specs/2026-08-22-m16a-entitlement-model-design.md`. That session starts with
+`superpowers:writing-plans`, not with brainstorming — the design is settled — and not with code.
+
+**M16a is inserted BEFORE M23**, on the same argument M13f was justified by. A plan carries one
+limit today (`plan.weekly_class_limit`); the real model is eight optional limits plus a usage ledger.
+M23 → M26 build the screens that display and edit plans, so landing the model after them means
+rewriting those screens. Backend only, one migration (V28), no screens — M14a's scope-leak test.
+
+### M13f closed 2026-08-22, and CI caught something it did not cause
+
+M13f merged green locally and **CI went red on `main`** — `SlotRegenerationTest`, 510 run, 1 failure.
+M13f touched **zero backend files** (verified). The failure was a pre-existing latent bug that the
+calendar exposed that day, fixed in `89bb8c2`; `main` is green.
+
+**The bug:** `regenerateFrom(slot, from)` deleted sessions from `from` forward and then called
+`generateForSlot`, whose loop restarts at **today** regardless — so occurrences between today and
+`from` were created *before* `from`. "Regenerate from Tuesday" also recreated Monday.
+`generateForSlot` now takes a `notBefore` floor; the nightly job's 4-arg call is unaffected.
+
+**The lesson, and it is the sharper half:** the existing test only failed when `from` landed later in
+the week than the slot's weekday. It passed 2026-08-20 and failed 2026-08-22 with no code change.
+**A calendar-dependent test that is green most days is not coverage, it is a coin flip.** The new
+regression test pins the slot to *tomorrow* and `from` to today+3, so the gap exists on every date.
+
+### After M16a: M23, app entry & shells
+
+**M23** It is the first of Phase 2's screen milestones, and it ships
 **sketches you can look at** before anything is built. It has no spec and no plan yet, so that
 session starts with `superpowers:brainstorming`, then `writing-plans`, then execution. The full
 prompt is `.superpowers/sdd/NEXT-SESSION.md` — the ONLY session prompt; do not create a second.
