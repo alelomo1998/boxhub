@@ -60,140 +60,6 @@ entries whose history is still load-bearing.
   `InviteAdminController.InviteDto`. Redacting them blind is untested work; widening the test's
   driven surfaces is the real fix, and it belongs with log retention.
 
-## QUARANTINED — the TV never learns a timer started (`runner.spec`, 2026-08-06)
-
-**Status: the bug is real and unfixed; the test is `test.fixme()`d so it stops holding the build
-red.** `e2e/tests/runner.spec.ts`, "TV shows the clock when a coach starts a timer".
-
-**Why quarantine rather than fix:** the TV is **Project 2 (The Room)** and Project 1 does not ship
-it, so a Project 2 defect should not gate Project 1's build. That is a scope decision taken
-deliberately with the user on 2026-08-06 — **not** a judgement that the bug is minor. It is a real
-defect in shipped code, and the board on the wall is this product's stated wedge.
-
-**What was preserved rather than thrown away:** the original test did three things and only the third
-was broken. It is now split, so `coach arms a timer from the runner and starts it` **still runs and
-still gates** — the coach writes server-authoritative timer state and reads it back, with no SSE
-involved. Only the TV's observation of that state is quarantined. Suite is 28 passed + 1 skipped.
-
-`fixme` rather than `skip` on purpose: it stays visible in every run's output as unfinished work,
-instead of quietly disappearing the way a skip does.
-
-**RE-ENABLE WHEN** Project 2 starts, or `compose()`'s timer lookup is fixed — whichever comes first.
-Delete the `fixme`; **do not soften the assertions.** They are correct and the product is not.
-
-Verified after quarantining: 28 passed on a `down -v` stack **and** on an immediate second run
-against that same stack — which is the exact condition that reproduced the failure.
-
----
-
-### The evidence, kept because the next person should not have to re-derive it
-
-`main` was red from 2026-08-05 until this quarantine.
-
-```
-2026-08-06  21aab79  failure   <- M13b merge
-2026-08-05  2ea5e41  failure
-2026-08-05  f894004  success   <- a RE-RUN of a commit that had already failed
-2026-08-02  3d0824d  failure
-```
-
-Every failure is the same single assertion, `runner.spec.ts:45`, with 27 of 28 passing. **M13b did
-not cause it** — it was already failing on `2ea5e41`, before the milestone branched — but M13b
-merged onto a red `main` and `main` is still red.
-
-**The "non-deterministic flake" label was wrong**, and it came from one re-run passing. Two of the
-last three runs failed, on different commits, with the same signature.
-
-### What is now established
-
-The `data-frames` counter M12a added is doing its job. Across three failures:
-
-| Where | frames observed | data-timer |
-|---|---|---|
-| CI `2ea5e41` | 0 → 1 | `none` throughout |
-| CI `21aab79` | 0 → 1 → **2** | `none` throughout |
-| Local, dirty stack | 0 → 1 | `none` throughout |
-
-**Frames arrive and carry no timer.** That eliminates SSE transport, the 15s budget and the `/app`
-move — all previously suspected. The bug is that the composed `TvState` has no running timer at a
-point where the coach has already started one.
-
-**It reproduces locally on demand**: run the e2e suite twice against one stack. It failed twice in a
-row that way, including a solo re-run, and passed 28/28 on a `down -v` rebuilt stack. Nobody needs to
-wait for CI any more.
-
-### A hypothesis that was checked and does NOT hold
-
-`TimerService.act()` is `@Transactional` and publishes `TvStateChanged` **inside** the transaction
-(`TimerService.java:65`), which looks exactly like the inverse of this project's "mail strictly after
-commit" rule. It was checked and it does not explain the failure: `TvStreamService.onChange`
-(`TvStreamService.java:63`) is a plain `@EventListener`, so it runs **synchronously on the calling
-thread**, and `TvStateService.compose()` is `@Transactional(readOnly = true)` with default
-propagation — it joins the caller's transaction and therefore *should* see the uncommitted write.
-
-Recorded so the next person does not spend the same hour confirming it. It is still worth re-checking
-against `runAsBox`, which swaps the security context before composing, since a *new* transaction
-opened there would see a different picture — that was not verified either way.
-
-### Next step
-
-Add logging inside `compose()` for the timer lookup specifically, then reproduce with the
-two-runs-one-stack recipe. The question to answer is narrow: at the moment a frame is composed, does
-`timers.findBySessionId(...)` return an empty result, a `PENDING` row, or a `RUNNING` row that is
-lost later in the mapping?
-
----
-
-## Open flake — `runner.spec` data-timer half, first seen 2026-08-05
-
-**M12a predicted this exact case and said to revisit if it happened. It happened.**
-
-On the M13a merge commit, CI's e2e job failed at `runner.spec.ts:45`:
-`expect(tv-stream).toHaveAttribute('data-timer','RUNNING')` → **received `"none"`**, 27 passed / 1
-failed. **Re-running the same commit passed.** Non-deterministic, and therefore not an M13a
-regression — but a flake at `retries: 0` erodes exactly what M12a bought when it removed retries.
-
-What is already known, so the next investigation does not redo it:
-- M12a *measured* local SSE delivery at **2.34s ±18ms against a 15s budget** — latency was never the
-  local constraint, and it ruled out a cause without explaining CI.
-- The assertion is deliberately split in two so a failure names which half broke. This is the **first
-  half**: the SSE frame carrying a running timer, not the clock render. So the frame never showed
-  `RUNNING` within 15s.
-- CI is ~2.6× slower than local overall (53.3s vs 20.4s for the suite), which does not obviously
-  exhaust a 15s budget.
-- The `/app` move is **not** implicated: `TvService.stream()` uses `new EventSource('/api/tv/stream')`
-  — an absolute path, unaffected by `<base href>`. Checked.
-
-Next step is to capture `data-frames` alongside `data-timer` on failure, which distinguishes "no frame
-arrived at all" from "frames arrived carrying no timer" — those have completely different causes
-(transport vs. the backend never publishing `TvStateChanged`).
-
-### 2026-08-06, during M13b — that diagnostic fired, and there is now a reliable reproduction
-
-Playwright's call log on the failure reads:
-
-```
- 8 × data-frames="0" data-timer="none"
-26 × data-frames="1" data-timer="none"
-```
-
-**A frame arrived and carried no timer.** That answers M12a's open question and eliminates transport:
-it is not SSE delivery, and it is not the 15s budget. The remaining candidates are the backend never
-publishing `TvStateChanged` for that transition, or `TvStateService.compose()` snapshotting before the
-timer write is visible.
-
-**More useful still: this is reproducible on demand.** It failed *deterministically* — twice, including
-a solo re-run — on a stack that had **already run the e2e suite once**, and then passed 28/28 on a
-`down -v` rebuilt stack. So the trigger correlates with accumulated state, not with chance.
-
-Two consequences worth holding separately:
-- Whoever investigates no longer has to wait for CI to flake. Run the suite twice against one stack.
-- **It may not be a flake at all.** "Non-deterministic" was inferred from one CI failure that passed on
-  re-run; state accumulation across a re-run would produce exactly that pattern. CI does start fresh,
-  so the CI failure is not *obviously* the same phenomenon — but the two should be reconciled rather
-  than assumed distinct, and the fixed-name TV devices the `runner`/`tv` specs leave behind are the
-  first thing to look at.
-
 ## PROJECT 3 · Box discovery — DELETED as a separate project, absorbed 2026-08-18
 
 Was proposed here 2026-08-11. On 2026-08-18 the user deleted it as a standalone project and folded
@@ -560,6 +426,20 @@ full e2e run.
 
 - Stripe recurring / auto-renew (v1 is Checkout, one payment per period, manual renewal driven by the lapse email).
 - Class-packs / credit punch-cards (N-session decrementing buckets) — v1 entitlements are UNLIMITED or WEEKLY_LIMIT.
+- **Full entitlement model on a plan (user-stated 2026-08-22).** Today `Plan` carries ONE field,
+  `weekly_class_limit` (`Plan.java:17`). The asked-for shape is six independent limits, each
+  nullable = infinite: **daily**, **weekly**, **monthly**, **total entries**, **total
+  cancellations** — plus **a per-athlete entry ledger** so every booking an athlete has ever used
+  is tracked and countable, which is what makes "total possible entries" enforceable at all rather
+  than merely displayed. Note this subsumes the class-packs line above: an N-session decrementing
+  bucket IS "total entries" with a counter behind it, so build them together or the second one
+  rewrites the first.
+  **Sequencing risk, flagged rather than decided:** this changes `Plan`'s shape and the booking
+  engine's entitlement check, and **six Phase 2 screen milestones (M23 → M26) render and edit plans
+  against the current one-integer shape.** Landing it after them means rewriting those screens —
+  the exact "building on a wrong shape" cost M13f existed to avoid. The schema half may deserve to
+  come forward as its own small milestone before M23, on the same argument. Decide before M23's
+  spec is written, not after.
 - Reusable named per-user discount catalog (a "20% student" rule that auto-reapplies on renewal) — v1 stores
   the agreed price per subscription.
 - Online per-user discounts / Stripe coupons — self-serve Checkout charges list price only.
@@ -598,6 +478,16 @@ now would be speculative work with no load data behind it.*
 - Coach `upsertFor` could use `findByIdAndBoxId` single-query instead of `findById` + lazy box filter.
 - **Redis-backed distributed rate limiting** and **Redis pub/sub for the SSE emitter registry** — both are
   per-node in-memory, which matches the one-VPS target. **Trigger:** a second node actually exists.
+- **`NG0956` track-by-identity warning during Karma** (found 2026-08-20 in M13f Task 1). Angular reports
+  *"tracking expression (track by identity) caused re-creation of the entire collection of size 1"* twice per
+  Karma run. Not investigated to a specific `@for`, and deliberately so — M13f's scope is the *test signal*,
+  and this is a render-perf smell, not a false gate. Candidates, all tracking a value rather than a stable id:
+  `field.component.ts:31` and `select.component.ts:21` (`@for (msg of errors(); track msg)`),
+  `benchmark-board.component.ts:54` (`track line`). Re-creating one node costs nothing, which is why this is
+  a watch-list item and not a fix. **Trigger:** the same pattern appears on a collection that is actually
+  large — a member list, a leaderboard, a booking roster — where re-creating every node on each change
+  detection is real work. **First diagnostic step:** the warning fires during Karma, so bisect by running one
+  spec file at a time rather than reading the templates.
 
 ## Accepted — decisions, not debt
 
@@ -637,6 +527,23 @@ now would be speculative work with no load data behind it.*
 ---
 
 ## Archive — closed, kept only where the reasoning still matters
+
+**Closed by M13f (2026-08-20)** — the TV timer quarantine (`runner.spec.ts`, "TV shows the clock
+when a coach starts a timer"), open since 2026-08-05 as a flake and quarantined 2026-08-06:
+- ~~The TV never learns a timer started~~ — frames arrived carrying no timer because
+  `TvStateService.compose()`'s `@TenantId` read on `ClassTimer` had no ambient tenant. Fixed as a
+  side effect of M21, thirteen days after the quarantine and unnoticed until now:
+  `TvStreamService.push()` (`TvStreamService.java:86`) wraps compose in
+  `TenantContext.runAsBox(c.boxId(), ...)`, landed in `9b4917e` (2026-08-19). Re-verified 2026-08-20
+  by re-enabling the `test.fixme` and running it three times — once on a freshly rebuilt (`down -v`)
+  stack, twice more against that same stack without a rebuild, which is the exact condition that
+  used to reproduce the failure. All three passed. `test.fixme` deleted at `runner.spec.ts:52`; the
+  assertions were not softened, they needed no change. The 2026-08-05 "open flake" entry and the
+  2026-08-06 quarantine were one bug, filed twice — both close here together.
+  **The generalisable point:** the fix was accidental — nobody set out to fix the TV timer in M21,
+  it fell out of the tenant-fail-closed work. A deferred defect list is a hypothesis about the
+  current state of the code, not a standing inventory; it has to be re-checked against what actually
+  shipped since, not assumed still true.
 
 **Closed by M12a (2026-07-27)** — the whole section is gone, all seven items resolved:
 - ~~Per-test e2e DB isolation~~ — the three separately-filed symptoms had one cause. `e2e/tests/_support.ts`

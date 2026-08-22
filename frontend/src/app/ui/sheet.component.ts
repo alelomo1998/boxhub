@@ -9,8 +9,8 @@ import { Component, ElementRef, ViewChild, effect, input, output, signal } from 
  * it and cannot clear it. `onNativeClose()` emits `(closed)` but never touches `open()`. So every
  * caller MUST reset its own `open` signal to `false` in response to `(closed)`, or the signal
  * stays stuck `true` while the dialog is actually closed, and setting it `true` again later won't
- * re-run the effect — the sheet will not reopen. This isn't new: the old `@Input() set open` had
- * the same requirement. Current callers that reset correctly: `admin-shell.page.ts`,
+ * re-run the effect — the sheet will not reopen. This isn't new: the pre-M13c decorator-based
+ * setter had the same requirement. Current callers that reset correctly: `admin-shell.page.ts`,
  * `danger.page.ts`, `athlete-shell.page.ts`, `wod.page.ts`.
  */
 @Component({

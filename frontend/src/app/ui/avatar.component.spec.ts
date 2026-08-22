@@ -23,9 +23,9 @@ describe('AvatarComponent', () => {
   });
 
   it('RECOMPUTES initials when the name changes', () => {
-    // THE DEFECT THIS TEST EXISTS FOR. Before M13c, `name` was a plain @Input() field read inside
-    // computed(), so the computed had ZERO signal dependencies: it evaluated once and cached
-    // forever. An @for member list reusing a DOM node showed the previous athlete's initials.
+    // THE DEFECT THIS TEST EXISTS FOR. Before M13c, `name` was a plain decorator-based input field
+    // read inside computed(), so the computed had ZERO signal dependencies: it evaluated once
+    // and cached forever. An @for member list reusing a DOM node showed the previous athlete's initials.
     // It type-checked, it rendered, and a spec that built the component once passed.
     f.componentInstance.n.set('Grace Hopper');
     f.detectChanges();

@@ -76,6 +76,9 @@ describe('ForgotPage', () => {
     submitViaDom(fixture, 'known@box.io');
     // expectOne throws if more than one request matched — that's the assertion.
     http.expectOne('/api/auth/password/forgot').flush(null, { status: 202, statusText: 'Accepted' });
+    // expectOne IS the assertion (see comment above); expect().nothing() only stops Jasmine
+    // reporting "has no expectations", which would otherwise be permanent noise in every run.
+    expect().nothing();
   });
 
   it('"use a different address" returns to the form with the field present', () => {

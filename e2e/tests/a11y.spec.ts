@@ -166,10 +166,25 @@ const SCREENS: Array<{
   },
   {
     // Both sections (export, delete) render unconditionally — the delete-confirm sheet is closed
-    // by default, so its contents (delete-explain, delete-confirm-text, etc.) are excluded here on
-    // purpose: they don't exist in the DOM until openDelete() runs, and are not this task's scope.
+    // by default here, so its contents (delete-explain, delete-confirm-text, etc.) don't exist in
+    // the DOM until openDelete() runs. This entry scans the closed state; the entry below opens
+    // the sheet and scans that. Neither substitutes for the other.
     name: 'account-danger', path: '/app/account/danger', widths: [MOBILE, SCREEN_DESKTOP],
     ready: page => expect(page.locator('[data-testid="delete-open"]')).toBeVisible(),
+    needsLogin: true,
+  },
+  {
+    // The closed-state entry above stays: both states are real and neither substitutes for the
+    // other. This one opens the sheet, which is where the product's only destructive flow lives —
+    // an explanation, an export button with its own pending state, a conditional password field,
+    // the type-DELETE confirm field, two conditional alerts and a filled danger submit. All of it
+    // was unscanned because it does not exist in the DOM until openDelete() runs.
+    name: 'account-danger-delete-sheet', path: '/app/account/danger',
+    widths: [MOBILE, SCREEN_DESKTOP],
+    ready: async page => {
+      await page.locator('[data-testid="delete-open"]').click();
+      await expect(page.locator('[data-testid="delete-confirm-text"]')).toBeVisible();
+    },
     needsLogin: true,
   },
 ];
@@ -179,6 +194,12 @@ for (const screen of SCREENS) {
     const widthName = vp.width === MOBILE.width ? 'mobile' : 'desktop';
     test(`${screen.name} (${widthName}) has zero WCAG 2.2 AA violations`, async ({ page }) => {
       await page.setViewportSize(vp);
+      // bh-sheet's rise animation (200ms opacity 0->1, tokens.scss --dur) genuinely lowers
+      // rendered contrast mid-transition, and axe can sample while it's still running — the
+      // delete sheet's opened-state scan flaked red on a color-contrast violation that a
+      // fixed-delay retry made disappear. bh-sheet already honors prefers-reduced-motion
+      // (animation: none), so emulating it here removes the transition instead of racing it.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
       if (screen.needsLogin) await login(page, 'admin@demo.io');
       await page.goto(screen.path);
       await screen.ready(page);

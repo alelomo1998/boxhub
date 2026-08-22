@@ -87,6 +87,9 @@ describe('PasswordPage', () => {
     http.expectOne('/api/me/password');
     cmp.submit();
     http.expectNone('/api/me/password');
+    // expectNone IS the assertion — it throws if a second request fired. expect().nothing()
+    // only stops Jasmine reporting "has no expectations" as permanent noise.
+    expect().nothing();
   });
 
   it('WRONG_PASSWORD lands on the current-password field, values preserved', () => {

@@ -57,6 +57,10 @@ describe('InvitesPage', () => {
     cmp.email = 'member@email.com';
     cmp.create(); // planId is still the undefined placeholder — nothing was explicitly chosen
     http.expectNone('/api/box/invites');
+    // expectNone IS the assertion — it throws if a request matched. Jasmine does not count
+    // HttpTestingController calls in its expect() tally, so without this the spec prints
+    // "has no expectations" on every run and trains the reader to ignore Karma warnings.
+    expect().nothing();
   });
 
   it('explicitly choosing "No plan (bill manually)" lets create() fire without a planId', () => {

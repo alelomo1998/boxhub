@@ -41,7 +41,7 @@ class ActionHost {}
   // conditions that caught the original absolute-positioning overlap.
   template: `<div style="width: 320px">
     <bh-field label="CONTRASEÑA">
-      <a labelAction data-testid="action" style="font-size: 12px">¿Olvidaste tu contraseña?</a>
+      <a labelAction data-testid="action" style="font-size: 0.75rem">¿Olvidaste tu contraseña?</a>
     </bh-field>
   </div>`,
 })

@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-20 (M21 merged to `main`; **M22 merged to `main` (`47a60e4`), CI green; Phase 1 CLOSED. M13f is next**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-20 (**M13f merged to `main`; Phase 2 open. M23 is next**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -339,32 +339,63 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**Open M13f, consolidation. It opens Phase 2.** M13f has **no spec and no plan yet**, so that session
-starts with `superpowers:brainstorming`, then `writing-plans`, then execution — not with code. The
-full prompt is `.superpowers/sdd/NEXT-SESSION.md`, which is the ONLY session prompt; do not create a
-second one.
+**Open M23, app entry & shells.** It is the first of Phase 2's screen milestones, and it ships
+**sketches you can look at** before anything is built. It has no spec and no plan yet, so that
+session starts with `superpowers:brainstorming`, then `writing-plans`, then execution. The full
+prompt is `.superpowers/sdd/NEXT-SESSION.md` — the ONLY session prompt; do not create a second.
 
-M13f repairs the shared component layer *before* eight screen milestones build on it. Its scope is
-four defects M13c's own critique found and deferred (`bh-button` renders nothing for **8 of its 10**
-variant × flag combinations; the dev gallery's sections are coupled through scroll position so **one
-edit dirties 54 unrelated baselines**; the delete sheet has no axe coverage; the cross-section
-consistency pass was never run) — **plus a fifth added 2026-08-20 by decision: the quarantined
-`runner.spec` TV-timer test and the open `runner.spec` flake.** Both had sat in `docs/BACKLOG.md`
-since 2026-08-05/06 with **no owning milestone**, and they belong with M13f because its actual job is
-making the frontend test signal trustworthy — a quarantined test is not deferred work, it is coverage
-that has already stopped existing and still reads green.
+### M13f closed 2026-08-20 — and half its inherited scope had already decayed
 
-### The one block of work the roadmap will never pick up (flagged 2026-08-20)
+M13f's job was making the frontend signal trustworthy before eight milestones build on the shared
+component layer. **The most useful thing it produced is not a fix — it is the discovery that two of
+the four defects it inherited no longer existed**, and one of them had been fixed by accident:
 
-`docs/BACKLOG.md` is 775 lines / 169 items but is organised **by destination**, so nearly all of it is
-consumed by milestones as they run. **The exception is `Launch → Production`, which is assigned to no
-milestone at all**, and several of its items are hard launch blockers, not polish: email
-deliverability (dev is Mailpit, and **the entire auth flow depends on mail arriving**), Postgres
-backups **and a restore drill**, TLS/HSTS + `BOXHUB_COOKIE_SECURE=true`, ToS/privacy/DPA (rxed is the
-processor, the gym is the controller — documented internally, stated to nobody), error monitoring and
-uptime (there is none), and rate limits never measured against a class-opening rush (a gym shares one
-NAT IP, so a false 429 at midnight is a product failure). **It needs to become a real scoped milestone
-before any box touches the product.** Raise it at M13f's close.
+- **"`bh-button` renders nothing for 8 of its 10 variant × flag combinations"** — wrong as written.
+  Four combinations emitted an inert class, and **no call site used any of them**. The real defect
+  was never recorded: the `href` branch honoured none of `disabled`, `loading`, `aria-busy` or
+  `aria-disabled`, so `<bh-button href loading>` rendered a clickable link with no spinner.
+- **"one edit dirties 54 unrelated baselines"** — already fixed. `visual.spec.ts` captures
+  per-`[data-gallery]` section.
+- **The quarantined TV timer test had been passing since M21.** `ClassTimer.box_id` is `@TenantId`,
+  so `compose()`'s timer lookup is a tenant-filtered read with no ambient tenant. M21's fail-closed
+  work wrapped that call in `runAsBox(...)` (`9b4917e`, 2026-08-19) — thirteen days after the
+  2026-08-06 quarantine. Nobody set out to fix it; nobody re-ran the disabled test.
+
+**The rule this produces, and it is the durable output of the milestone: a deferred defect list is a
+hypothesis about the current state of the code, not a standing inventory.** Re-measure before
+planning against it. Seven plan-vs-reality conflicts were caught by executors during M13f itself, all
+in a plan written three hours earlier.
+
+**What actually shipped.** Two of the eight standing §8.1 gates were **red on clean `main`** on three
+false positives (two comments naming the token their own gate hunts, one spec fixture) — a gate you
+have to explain away stops being a gate. `dangerBorder` was **deleted**, not guarded: folded into the
+variant union as `variant="ghost-danger"`, so the invalid combinations are now unrepresentable and
+`ng build` rejects at compile time what used to fail silently at runtime. And the dev gallery's
+seven-states contract is **enforced by Karma**: every section declares all seven states as rendered,
+hand-checked, or explicitly not-applicable-with-a-reason, and a section added without a ledger fails
+the build. Prose could never enforce that, because nothing failed when a note went missing.
+
+**Two things worth carrying forward.**
+1. **A spec asserting only an emitted CSS class does not prove a rule exists behind it.** Renaming
+   `.btn.ghost-danger` left the class-name spec green; only the `getComputedStyle` spec caught it.
+2. **Karma did not reject a variant string outside its union, despite `strictTemplates`.** Only
+   `ng build --configuration production` did. Fresh evidence for the standing rule.
+
+Gates at merge: backend **510/0/0** (unmoved, as required), migration head **V27** with no new
+migration, Karma **419**, e2e **67 passed / 0 failed / 0 skipped** (the long-standing `+1 skipped` is
+gone), `visual.sh` **31 specs, zero dirty baselines** over 60 regenerated gallery baselines.
+
+### The one block of work the roadmap will never pick up (flagged 2026-08-20, STILL OPEN)
+
+`docs/BACKLOG.md` is organised **by destination**, so nearly all of it is consumed by milestones as
+they run. **The exception is `Launch → Production`, which is assigned to no milestone at all**, and
+several of its items are hard launch blockers, not polish: email deliverability (dev is Mailpit, and
+**the entire auth flow depends on mail arriving**), Postgres backups **and a restore drill**,
+TLS/HSTS + `BOXHUB_COOKIE_SECURE=true`, ToS/privacy/DPA (rxed is the processor, the gym is the
+controller — documented internally, stated to nobody), error monitoring and uptime (there is none),
+and rate limits never measured against a class-opening rush (a gym shares one NAT IP, so a false 429
+at midnight is a product failure). **It needs to become a real scoped milestone before any box
+touches the product.** Raised at M13f's close; still unowned.
 
 ---
 

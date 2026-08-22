@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 import { AvatarComponent } from '../../ui/avatar.component';
@@ -32,10 +33,31 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
  * actually load. Unlinked from the rest of the product. Deletion at launch is filed in
  * docs/BACKLOG.md. Task 10 adds a second proof; M13c grows this into the full gallery.
  */
+
+/** Design law §11.1's seven states, in the order every ledger lists them. */
+export const STATE_NAMES = ['default', 'hover', 'focus', 'active', 'disabled', 'loading', 'error'] as const;
+export type StateName = (typeof STATE_NAMES)[number];
+
+/**
+ * How a section discharges its obligation for one state.
+ * - `rendered` — a labelled cell on this page shows it
+ * - `hand`     — real but not capturable statically (hover, focus, active); check it by hand
+ * - `na`       — the component cannot have it, and `why` says why
+ */
+export type Disposition = 'rendered' | 'hand' | 'na';
+
+export interface StateEntry {
+  state: StateName;
+  how: Disposition;
+  /** Required when `how` is 'na'. Rendered after an em dash; the completeness spec asserts it. */
+  why?: string;
+}
+
 @Component({
   selector: 'bh-dev-gallery',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
@@ -46,10 +68,34 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="gallery">
+      <ng-template #ledger let-key>
+        <ul class="ledger" [attr.data-ledger]="key">
+          @for (e of ledgers[key]; track e.state) {
+            <li [attr.data-state]="e.state" [attr.data-how]="e.how" [class]="'lg lg-' + e.how">
+              <span class="lg-state">{{ e.state }}</span>
+              <span class="lg-how">{{ e.how }}</span>
+              @if (e.why) { <span class="lg-why">— {{ e.why }}</span> }
+            </li>
+          }
+        </ul>
+      </ng-template>
       <header class="gallery-head">
         <bh-wordmark variant="chrome" size="md" />
         <h1 class="t-h2" i18n="Dev gallery page heading">Design language proof</h1>
       </header>
+
+      <!-- Twenty sections on one scroll. Without this the only way to reach a known component is
+           browser-find, which needs you to already know its name — a workbench with no index is a
+           filing cabinet with no labels on the drawers (impeccable critique, M13f). Rendered from
+           the ledgers map, so a section added without a ledger cannot get a nav entry either: the
+           Karma gate and this index fail together, never separately.
+           Component names are identifiers, not prose — not i18n-marked, per this file's precedent. -->
+      <nav class="gnav" aria-labelledby="gnav-label">
+        <span class="gnav-label t-eyebrow" id="gnav-label" i18n="@@dev.gallery.nav.label">Jump to</span>
+        @for (key of sectionKeys; track key) {
+          <a class="gnav-link" [href]="'#' + key">{{ key }}</a>
+        }
+      </nav>
       <section>
         <h2 class="t-eyebrow" i18n="Section label above the WOD board proof">WOD board</h2>
         <div class="board-wrap">
@@ -61,11 +107,11 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <bh-proof-admin-members />
       </section>
 
-      <section class="gsec" data-gallery="icon">
+      <section class="gsec" id="icon" data-gallery="icon">
         <h2 class="t-h2" i18n="@@dev.gallery.icon.heading">Icon</h2>
         <p class="note" i18n="@@dev.gallery.icon.note">
-          Always aria-hidden and paired with a text label elsewhere — bh-icon carries no state
-          contract of its own; every name in the set is rendered below to eyeball stroke consistency.
+          Always aria-hidden and paired with a text label elsewhere; every name in the set is
+          rendered below to eyeball stroke consistency.
         </p>
         <div class="icongrid">
           <!-- Icon identifiers, not prose — not i18n-marked. -->
@@ -76,9 +122,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             </div>
           }
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'icon' }" />
       </section>
 
-      <section class="gsec" data-gallery="button">
+      <section class="gsec" id="button" data-gallery="button">
         <h2 class="t-h2" i18n="@@dev.gallery.button.heading">Button</h2>
 
         <p class="gsub" i18n="@@dev.gallery.button.variant.primary">Primary</p>
@@ -115,9 +162,21 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             <span class="stlabel" i18n="@@dev.gallery.state.ariaDisabled">Aria-disabled</span>
             <bh-button variant="ghost" [ariaDisabled]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
           </div>
+        </div>
+
+        <p class="gsub" i18n="@@dev.gallery.button.variant.ghostDanger">Ghost-danger</p>
+        <div class="row">
           <div class="cell">
-            <span class="stlabel" i18n="@@dev.gallery.state.dangerBorder">Danger-bordered</span>
-            <bh-button variant="ghost" [dangerBorder]="true" i18n="@@dev.gallery.button.sampleDangerLabel">Delete</bh-button>
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-button variant="ghost-danger" i18n="@@dev.gallery.button.sampleDangerLabel">Delete</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-button variant="ghost-danger" [disabled]="true" i18n="@@dev.gallery.button.sampleDangerLabel">Delete</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
+            <bh-button variant="ghost-danger" [loading]="true" i18n="@@dev.gallery.button.sampleDangerLabel">Delete</bh-button>
           </div>
         </div>
 
@@ -179,14 +238,53 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           </div>
         </div>
 
+        <p class="gsub" i18n="@@dev.gallery.button.size.heading">Size</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.md">md</span>
+            <bh-button variant="primary" size="md" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.sm">sm</span>
+            <bh-button variant="primary" size="sm" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.smGhost">sm ghost</span>
+            <bh-button variant="ghost" size="sm" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.size">
+          Both sizes keep the same min-height (--tap): sm narrows the horizontal padding only, so a
+          small button is never a small tap target. 52 call sites use sm.
+        </p>
+
+        <p class="gsub" i18n="@@dev.gallery.button.link.heading">As a link</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-button variant="ghost" href="/app/dev/components" i18n="@@dev.gallery.button.link.sample">Continue</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
+            <bh-button variant="ghost" href="/app/dev/components" [loading]="true" i18n="@@dev.gallery.button.link.sample">Continue</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-button variant="ghost" href="/app/dev/components" [disabled]="true" i18n="@@dev.gallery.button.link.sample">Continue</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.link">
+          With href set, bh-button renders a real anchor — routerLink or href on the host emits no
+          href at all, losing ctrl/cmd-click and open-in-new-tab. An anchor cannot be natively
+          disabled, so the loading and disabled cells withhold href entirely, which also drops them
+          out of the tab order. Tab through this row to confirm only the first cell is reachable.
+        </p>
+
         <p class="note" i18n="@@dev.gallery.button.note.hoverActiveFocus">
           Hover, active and focus aren't shown statically — hover on ghost/icon climbs --surface to
           --surface-2 (primary/danger brighten via filter instead); click-and-hold on any variant
           translates it 1px; tab to it for the focus ring, a solid 2px outline that inverts to
           --focus-inv on the volt primary so the ring stays visible.
-        </p>
-        <p class="note" i18n="@@dev.gallery.button.note.noError">
-          No error state — a button doesn't own an error; the field or alert beside it renders it.
         </p>
         <p class="note" i18n="@@dev.gallery.button.note.ariaDisabled">
           Aria-disabled looks like Disabled but isn't it — it sets aria-disabled instead of the
@@ -194,16 +292,17 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           tree and keeps focus, rather than dropping it to &lt;body&gt;. For a row action whose own
           click has to guard against a double-fire while pending (account sessions' per-row sign-out).
         </p>
-        <p class="note" i18n="@@dev.gallery.button.note.dangerBorder">
-          Danger-bordered is a signal input (dangerBorder), not a page-level CSS class — a class
-          from the page's own encapsulated styles can only ever match the &lt;bh-button&gt; host
-          tag, never the &lt;button&gt; this component renders inside its own template. For the
-          control that OPENS a destructive flow (account danger zone's "Delete my account"),
-          escalating against the filled variant="danger" control that EXECUTES it.
+        <p class="note" i18n="@@dev.gallery.button.note.ghostDanger">
+          Ghost-danger is its own variant, not a ghost plus a flag — the flag was only ever valid
+          on one variant, so most variant/flag pairs emitted a class with no rule behind it and
+          rendered nothing. For the control that OPENS a destructive flow (account danger zone's
+          "Delete my account"), escalating against the filled variant="danger" control that
+          EXECUTES it.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'button' }" />
       </section>
 
-      <section class="gsec" data-gallery="field">
+      <section class="gsec" id="field" data-gallery="field">
         <h2 class="t-h2" i18n="@@dev.gallery.field.heading">Field</h2>
         <div class="row">
           <div class="cell">
@@ -233,12 +332,12 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         </div>
         <p class="note" i18n="@@dev.gallery.field.note.hoverFocus">
           Hover and focus aren't shown statically — hover on an enabled field lightens the border to
-          --faint; tab to it for the same 2px outline, border turns --volt while focused. No active
-          or loading state of its own.
+          --faint; tab to it for the same 2px outline, border turns --volt while focused.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'field' }" />
       </section>
 
-      <section class="gsec" data-gallery="select">
+      <section class="gsec" id="select" data-gallery="select">
         <h2 class="t-h2" i18n="@@dev.gallery.select.heading">Select</h2>
         <div class="row">
           <div class="cell">
@@ -278,11 +377,11 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         </div>
         <p class="note" i18n="@@dev.gallery.select.note.hoverFocus">
           Hover and focus aren't shown statically — same border/outline behaviour as the field above.
-          No active or loading state of its own.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'select' }" />
       </section>
 
-      <section class="gsec" data-gallery="panel">
+      <section class="gsec" id="panel" data-gallery="panel">
         <h2 class="t-h2" i18n="@@dev.gallery.panel.heading">Panel</h2>
         <div class="row">
           <div class="cell">
@@ -299,13 +398,13 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.panel.note.noStates">
-          bh-panel has no state contract — it's a static card (background + hairline border, no shadow
-          per law §5). No hover, focus, active, disabled, loading or error state; only the
+          bh-panel is a static card — background + hairline border, no shadow per law §5. Only the
           padded/unpadded layout variant shown above.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'panel' }" />
       </section>
 
-      <section class="gsec" data-gallery="alert">
+      <section class="gsec" id="alert" data-gallery="alert">
         <h2 class="t-h2" i18n="@@dev.gallery.alert.heading">Alert</h2>
         <div class="row">
           <div class="cell">
@@ -326,14 +425,14 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.alert.note.noStates">
-          bh-alert is a standing message, not an interactive control — no hover, focus, active,
-          disabled or loading state. Tone is the axis that varies, not the 7-state contract; role
-          switches between alert and status by tone so a failed save interrupts and a quiet info
-          line doesn't.
+          bh-alert is a standing message, not an interactive control. Tone is the axis that varies;
+          role switches between alert and status by tone so a failed save interrupts and a quiet
+          info line doesn't.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'alert' }" />
       </section>
 
-      <section class="gsec" data-gallery="empty">
+      <section class="gsec" id="empty" data-gallery="empty">
         <h2 class="t-h2" i18n="@@dev.gallery.empty.heading">Empty</h2>
         <div class="row">
           <div class="cell">
@@ -350,13 +449,13 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.empty.note.noStates">
-          bh-empty has no state contract of its own — no hover, focus, active, disabled, loading or
-          error. The projected action button (right) carries the button's own state contract, shown
-          in full above.
+          The projected action button (right) carries the button's own state contract, shown in
+          full above.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'empty' }" />
       </section>
 
-      <section class="gsec" data-gallery="data-table">
+      <section class="gsec" id="data-table" data-gallery="data-table">
         <h2 class="t-h2" i18n="@@dev.gallery.dataTable.heading">Data table</h2>
         <bh-data-table caption="Members" i18n-caption="@@dev.gallery.dataTable.caption">
           <thead>
@@ -385,14 +484,13 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             </tr>
           </tbody>
         </bh-data-table>
-        <p class="note" i18n="@@dev.gallery.dataTable.note.hover">
-          Hover a row to check: background climbs to --surface. No focus, active, disabled or loading
-          state of its own — data-label card mode ships deliberately unused, no screen has adopted it
-          yet.
+        <p class="note" i18n="@@dev.gallery.dataTable.note.cardMode">
+          Data-label card mode ships deliberately unused — no screen has adopted it yet.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'data-table' }" />
       </section>
 
-      <section class="gsec" data-gallery="sheet">
+      <section class="gsec" id="sheet" data-gallery="sheet">
         <h2 class="t-h2" i18n="@@dev.gallery.sheet.heading">Sheet</h2>
         <p class="note" i18n="@@dev.gallery.sheet.note.interactiveOnly">
           Interactive-only — bh-sheet mounts a native &lt;dialog&gt;, so it cannot render statically;
@@ -431,14 +529,14 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             This sheet has the confirm-close guard — try to dismiss it with Esc or a backdrop click.
           </p>
         </bh-sheet>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'sheet' }" />
       </section>
 
-      <section class="gsec" data-gallery="shell-header">
+      <section class="gsec" id="shell-header" data-gallery="shell-header">
         <h2 class="t-h2" i18n="@@dev.gallery.shellHeader.heading">Shell header</h2>
         <p class="note" i18n="@@dev.gallery.shellHeader.note">
           The top bar shared by all three shells — brand mark, box name, an optional mono area
-          eyebrow, and a nav slot plus an actions slot. No state contract of its own; the projected
-          nav links and action buttons carry their own.
+          eyebrow, and a nav slot plus an actions slot.
         </p>
         <div class="shellwrap">
           <bh-shell-header boxName="Demo Box" area="Coach">
@@ -449,24 +547,25 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             </bh-button>
           </bh-shell-header>
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'shell-header' }" />
       </section>
 
-      <section class="gsec" data-gallery="dock">
+      <section class="gsec" id="dock" data-gallery="dock">
         <h2 class="t-h2" i18n="@@dev.gallery.dock.heading">Dock</h2>
         <p class="note" i18n="@@dev.gallery.dock.note">
           Floating pill mobile nav, absorbed from the global .bh-dock rules. Hidden by design above
           719px (law: the dock is mobile-only chrome) — this section can't show it live at desktop
           width, so shrink the viewport below 719px to see the pill; every item pairs an icon with a
-          text label, never a glyph alone. No hover treatment of its own; tab to an item for the
-          focus ring. The highlighted "active" item marks the current route, not a momentary press —
-          the dock has no separate pressed state.
+          text label, never a glyph alone. The highlighted "active" item marks the current route, not
+          a momentary press — the dock has no separate pressed state.
         </p>
         <div class="dockwrap">
           <bh-dock [tabs]="dockSample" label="Athlete" />
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'dock' }" />
       </section>
 
-      <section class="gsec" data-gallery="segmented">
+      <section class="gsec" id="segmented" data-gallery="segmented">
         <h2 class="t-h2" i18n="@@dev.gallery.segmented.heading">Segmented</h2>
         <div class="row">
           <div class="cell">
@@ -484,9 +583,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           volt-filled selected segment. The group is one tab stop; arrow keys move the selection
           within it, and selection follows focus.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'segmented' }" />
       </section>
 
-      <section class="gsec" data-gallery="switch">
+      <section class="gsec" id="switch" data-gallery="switch">
         <h2 class="t-h2" i18n="@@dev.gallery.switch.heading">Switch</h2>
         <div class="row">
           <div class="cell">
@@ -506,13 +606,13 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.switch.note.hoverFocus">
-          Hover isn't shown statically — the button has no hover treatment of its own; tab to it for
-          a solid 2px --focus ring against the sheet surface (it stays --focus rather than inverting,
-          since the ring sits on the button, not the volt track).
+          Tab to it for a solid 2px --focus ring against the sheet surface — it stays --focus rather
+          than inverting, since the ring sits on the button, not the volt track.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'switch' }" />
       </section>
 
-      <section class="gsec" data-gallery="search-bar">
+      <section class="gsec" id="search-bar" data-gallery="search-bar">
         <h2 class="t-h2" i18n="@@dev.gallery.searchBar.heading">Search bar</h2>
         <div class="row">
           <div class="cell">
@@ -530,12 +630,13 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <p class="note" i18n="@@dev.gallery.searchBar.note">
           Debounces its search output at 250ms — the bound value updates on every keystroke so the
           field never lags, only the emitted search term is delayed and deduped, and an unchanged
-          term is never re-emitted. No hover, active, disabled or loading state of its own; the
-          focus ring lives on the pill, not the inner input, so the control reads as one thing.
+          term is never re-emitted. The focus ring lives on the pill, not the inner input, so the
+          control reads as one thing.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'search-bar' }" />
       </section>
 
-      <section class="gsec" data-gallery="avatar">
+      <section class="gsec" id="avatar" data-gallery="avatar">
         <h2 class="t-h2" i18n="@@dev.gallery.avatar.heading">Avatar</h2>
         <div class="row">
           <div class="cell">
@@ -555,15 +656,25 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
             <span class="stlabel" i18n="@@dev.gallery.avatar.size.xl">Xl</span>
             <bh-avatar [path]="null" name="Margaret Hamilton" size="xl" />
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.error">Error</span>
+            <!-- Sample name and path: fabricated data, not prose — not i18n-marked. A 404 on this
+                 path is what actually exercises the (error) handler, not just [path]="null". -->
+            <bh-avatar path="/dev-gallery-broken-avatar.jpg" name="Broken Path" size="md" />
+          </div>
         </div>
         <p class="note" i18n="@@dev.gallery.avatar.note">
-          Initials fallback shown here — no path is ever loadable in this fabricated data. A broken
-          image path falls back to the same initials via the (error) handler. The initials glyph is
-          sized as a ratio of the circle (36%), not a type-scale token — see Task 9.
+          Initials fallback shown by default — no path is loadable in the size cells above. The
+          Error cell demonstrates the same fallback triggered live by a broken image path via the
+          (error) handler. The initials glyph is sized in container-query units off the circle's
+          own width (42/38/34cqi across sm/md/lg-xl), not from the type scale: a plain percentage
+          would resolve against the inherited font-size rather than the box, and a small monogram
+          needs a proportionally larger glyph to stay legible.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'avatar' }" />
       </section>
 
-      <section class="gsec" data-gallery="pill">
+      <section class="gsec" id="pill" data-gallery="pill">
         <h2 class="t-h2" i18n="@@dev.gallery.pill.heading">Pill</h2>
         <div class="row">
           <div class="cell">
@@ -592,9 +703,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           else. Danger fills the chip per law §3.1; the pulsing dot on live rests under reduced
           motion instead of animating.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'pill' }" />
       </section>
 
-      <section class="gsec" data-gallery="day-pager">
+      <section class="gsec" id="day-pager" data-gallery="day-pager">
         <h2 class="t-h2" i18n="@@dev.gallery.dayPager.heading">Day pager</h2>
         <bh-day-pager />
         <p class="note" i18n="@@dev.gallery.dayPager.note">
@@ -603,9 +715,10 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           translation and are also asserted verbatim by e2e, which passes because the suite runs
           against the English source — a locale switch would need those selectors revisited.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'day-pager' }" />
       </section>
 
-      <section class="gsec" data-gallery="wordmark">
+      <section class="gsec" id="wordmark" data-gallery="wordmark">
         <h2 class="t-h2" i18n="@@dev.gallery.wordmark.heading">Wordmark</h2>
         <div class="row">
           <div class="cell">
@@ -620,17 +733,17 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
         <p class="note" i18n="@@dev.gallery.wordmark.note">
           Chrome is monochrome bone — app shells never compete with the screen's own volt element.
           Hero fills volt behind "ed" and is reserved for login, mail, the landing site and the TV
-          idle screen, where the logo itself is the subject. Not interactive — no hover, focus,
-          active, disabled, loading or error state of its own.
+          idle screen, where the logo itself is the subject.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'wordmark' }" />
       </section>
 
-      <section class="gsec" data-gallery="auth-layout">
+      <section class="gsec" id="auth-layout" data-gallery="auth-layout">
         <h2 class="t-h2" i18n="@@dev.gallery.authLayout.heading">Auth layout</h2>
         <p class="note" i18n="@@dev.gallery.authLayout.note.noStates">
-          A frame, not a control — bh-auth-layout has no hover, focus, active, disabled, loading or
-          error state of its own; those belong to the projected form's fields and buttons, shown in
-          their own sections above. Variant is assigned per screen and never per state.
+          A frame, not a control — bh-auth-layout defers all interactive state to the projected
+          form's fields and buttons, shown in their own sections above. Variant is assigned per
+          screen and never per state.
         </p>
 
         <p class="gsub" i18n="@@dev.gallery.authLayout.variant.split">Split</p>
@@ -662,25 +775,26 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
           see it collapse to the same stacked, centred column narrow uses at every width, with the
           panel content moving above the form.
         </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'auth-layout' }" />
       </section>
 
-      <section class="gsec" data-gallery="benchmark-board">
+      <section class="gsec" id="benchmark-board" data-gallery="benchmark-board">
         <h2 class="t-h2" i18n="@@dev.gallery.benchmarkBoard.heading">Benchmark board</h2>
         <p class="note" i18n="@@dev.gallery.benchmarkBoard.note.noStates">
-          Pure information, not a control — no hover, focus, active, disabled, loading or error
-          state of its own. Two distinct seeded prescriptions are drawn at random on every mount;
-          reload this page to see a different pair. Hides below 720px in the real auth screens
-          (checked in the browser, not shown here).
+          Pure information, not a control. Two distinct seeded prescriptions are drawn at random on
+          every mount; reload this page to see a different pair. Hides below 720px in the real auth
+          screens (checked in the browser, not shown here).
         </p>
         <div class="benchwrap">
           <bh-benchmark-board testId="gallery-benchmark" />
         </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'benchmark-board' }" />
       </section>
     </div>
   `,
   styles: [`
     /* Wide enough for the admin members proof's sidebar + table; the WOD board keeps its own
-       narrower rhythm via .board-wrap so widening this container doesn't stretch Task 9's hero. */
+       narrower rhythm via .board-wrap so widening this container doesn't stretch that hero. */
     .gallery { max-width: 1100px; margin: 0 auto; padding: var(--sp-6) var(--sp-4);
       display: flex; flex-direction: column; gap: var(--sp-6); }
     .gallery-head { display: flex; align-items: center; gap: var(--sp-4); }
@@ -689,6 +803,17 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
 
     /* Component sections (Task 11) — a scannable workbench, not a hero screen: a heading, a row of
        states per variant, a note where a state can't be shown by setting an input. */
+    /* The index. Wraps rather than scrolls: at phone width a horizontally-scrolling nav hides
+       most of its own targets, which defeats the point of having one. */
+    .gnav { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-3);
+      padding-bottom: var(--sp-4); border-bottom: 1px solid var(--hairline); }
+    .gnav-label { color: var(--faint); margin-right: var(--sp-1); }
+    .gnav-link { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
+      text-decoration: none; border-bottom: 1px solid transparent; }
+    .gnav-link:hover { color: var(--bone); border-bottom-color: var(--hairline); }
+    .gnav-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* Anchored sections must clear the top edge, or the heading lands flush against it. */
+    .gsec { scroll-margin-top: var(--sp-4); }
     .gsec { display: flex; flex-direction: column; gap: var(--sp-3);
       padding-top: var(--sp-6); border-top: 1px solid var(--hairline); }
     .gsec h2 { margin: 0; color: var(--bone); }
@@ -698,6 +823,30 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
     .cell { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
     .stlabel { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.06em;
       text-transform: uppercase; color: var(--faint); }
+    /* The state ledger: a uniform, machine-checkable declaration of all seven states per
+       component, replacing per-section freeform prose. dev-gallery.page.spec.ts asserts that
+       every section accounts for every state, so an omission fails the build instead of looking
+       identical to a deliberate "this component cannot have it". */
+    .ledger { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
+      gap: var(--sp-1); }
+    .lg { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: baseline;
+      font-size: var(--fs-sm); color: var(--bone-dim); }
+    .lg-state { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--faint); min-width: 9ch; }
+    .lg-how { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); }
+    .lg-na .lg-how { color: var(--faint); }
+    .lg-why { max-width: 52ch; }
+    /* At phone width the reason wraps onto its own full-bleed line BETWEEN two state rows, so it
+       reads as unattached prose and you cannot tell which state it belongs to — the ledger stops
+       being a table and becomes a list of orphaned sentences. Found by eyeballing the regenerated
+       phone baselines; desktop never shows it, because the reason fits inline there. Two columns
+       below the dock breakpoint put the reason under its own disposition, indented past the state
+       name, so a row stays visually one row however many lines it takes. */
+    @media (max-width: 719px) {
+      .lg { display: grid; grid-template-columns: 9ch 1fr; column-gap: var(--sp-2); row-gap: 0; }
+      .lg-state { grid-column: 1; }
+      .lg-how, .lg-why { grid-column: 2; }
+    }
     .note { margin: 0; font-size: var(--fs-sm); color: var(--bone-dim); max-width: 60ch; }
     .icongrid { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
     .iconcell { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
@@ -723,8 +872,12 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
        descendant and clips anything that would escape it — the fix belongs here, not in bh-dock,
        whose fixed positioning is correct product behaviour. Below the same 719px breakpoint
        bh-dock itself uses, the box needs real height or the now-contained pill gets clipped by that
-       same contain: paint: 68px pill (56px item + 6px+6px padding) + 12px bottom gap. Left empty
-       above 719px, where .dock is display:none and there's nothing to contain. */
+       same contain: paint. The pill is 68px (56px .item min-height + 6px+6px .dock padding) and it
+       sits at bottom: calc(var(--sp-3) + env(safe-area-inset-bottom)), i.e. 12px plus whatever the
+       device reserves. 68 + 12 = 80; the shipped 96px carries 16px of headroom for that
+       safe-area inset, which is 0 in a desktop browser and non-zero on a real phone — without it
+       the pill would clip on exactly the devices this section exists to model. Left empty above
+       719px, where .dock is display:none and there's nothing to contain. */
     .dockwrap { position: relative; min-height: var(--tap); contain: paint; }
     @media (max-width: 719px) {
       .dockwrap { min-height: 96px; }
@@ -738,7 +891,191 @@ import { ProofWodBoardComponent } from './proof-wod-board.component';
   `],
 })
 export class DevGalleryPage {
+  protected readonly ledgers: Record<string, StateEntry[]> = {
+    icon: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.hover:decorative and always aria-hidden — the control around it owns every interaction` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.focus:never focusable; it is never the interactive element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.active:never pressed directly` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.disabled:inherits currentColor, so the disabled host dims it` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.loading:renders a static path; it fetches nothing` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.icon.error:an unknown name is a build-time type error, not a runtime state` },
+    ],
+    'data-table': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.focus:rows are not focusable; any focusable control inside a cell owns its own ring` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.active:rows are not pressable` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.disabled:presentational — it renders whatever rows it is given` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.loading:the screen owns the fetch and renders bh-empty or a spinner in its place` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dataTable.error:the screen renders bh-alert beside it; a table does not own an error` },
+    ],
+    'shell-header': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.hover:renders no interactive element of its own — the projected nav links and action buttons carry their own, shown in their own sections` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.focus:never focusable itself; the projected nav links and action buttons carry their own focus ring` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.active:never pressed itself; the projected nav links and action buttons carry their own` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.disabled:chrome is never disabled; it is present or it is not rendered` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.loading:renders synchronously from the already-resolved session` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.error:chrome has nothing to fail at; the routed screen renders its own error` },
+    ],
+    dock: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.hover:no hover treatment of its own — the current-route highlight and the focus ring are the tab's only feedback` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'rendered' },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.disabled:a tab a role cannot reach is omitted, never shown disabled` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.loading:a static tab list; it fetches nothing` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.error:navigation chrome has nothing to fail at` },
+    ],
+    'day-pager': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.hover:the pager buttons carry no hover styling of their own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.active:the pager buttons carry no active-press styling of their own` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.loading:it emits a date; the screen beside it owns the fetch and its spinner` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.error:a date cannot fail to be a date; the screen renders any fetch error` },
+    ],
+    'auth-layout': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.hover:a layout frame with no interactive surface of its own` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.focus:never focusable; the projected form owns focus` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.disabled:a frame is not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.loading:the projected screen renders its own pending state inside the panel` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.authLayout.error:the projected screen renders bh-alert inside the panel` },
+    ],
+    'benchmark-board': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.hover:a read-only board; nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.focus:contains no focusable element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.active:nothing is pressable` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.disabled:presentational — it renders the rows it is given` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.loading:the screen owns the fetch` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.benchmarkBoard.error:the screen renders bh-alert beside it` },
+    ],
+    button: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'hand' },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'rendered' },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.button.error:a button does not own an error; the field or alert beside it renders it` },
+    ],
+    field: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.field.active:no :active rule of its own; a text field is typed into, not pressed` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.field.loading:fetches nothing; the screen owns any pending state around it` },
+      { state: 'error', how: 'rendered' },
+    ],
+    select: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.select.active:no :active rule of its own; a choice is picked, not pressed` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.select.loading:fetches nothing; the screen owns any pending state around it` },
+      { state: 'error', how: 'rendered' },
+    ],
+    panel: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.hover:a static card with no interactive surface of its own` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.focus:never focusable; whatever is projected inside it owns focus` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.disabled:a card is not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.loading:renders synchronously from whatever is projected into it` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.panel.error:a card has no error of its own; content projected inside it renders its own` },
+    ],
+    alert: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.hover:a message, not a control — nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.focus:not focusable; it is announced by role, not reached by tab` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.active:nothing is pressable` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.disabled:a message is shown or it is not rendered` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.loading:renders synchronously from the text it is given` },
+      { state: 'error', how: 'rendered' },
+    ],
+    empty: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.hover:a static placeholder — nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.focus:not focusable itself; a projected action button carries its own focus ring, shown in its own section` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.active:nothing is pressable itself` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.disabled:not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.loading:renders synchronously from the title and message it is given; the screen shows this in place of a spinner once loading is over` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.error:a no-results state, not a failure; the screen renders bh-alert for an actual fetch error` },
+    ],
+    sheet: [
+      { state: 'default', how: 'hand' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.hover:no hover treatment of its own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.active:no active-press styling of its own` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.disabled:a sheet is open or it is not rendered; it has no disabled state` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.loading:renders whatever content it is given; the projected screen owns any fetch` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.error:has no error of its own; content projected inside it renders its own error, shown in its own section` },
+    ],
+    segmented: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.active:no active-press styling of its own; the selected fill is the only feedback` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.disabled:no disabled input on this component; it is always interactive when rendered` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.loading:a static list of choices; it fetches nothing` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.segmented.error:a choice cannot be invalid; the surrounding form renders its own error` },
+    ],
+    switch: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.hover:the button has no hover treatment of its own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.active:no active-press styling of its own; the checked-state colour and knob position are the only feedback` },
+      { state: 'disabled', how: 'rendered' },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.loading:toggles synchronously; it does not fetch` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.error:a boolean choice cannot be invalid; the surrounding form renders its own error` },
+    ],
+    'search-bar': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.hover:no hover treatment of its own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.active:no active-press styling of its own` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.disabled:no disabled input on this component` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.loading:debounces its own output only; the screen owns any fetch and its own loading state` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.searchBar.error:has no error of its own; the screen renders bh-empty for no results` },
+    ],
+    avatar: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.hover:a static image or badge; nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.focus:never focusable; it is not an interactive element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.disabled:not a control; it cannot be disabled` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.avatar.loading:loading="lazy" is a native image hint, not a visual pending state; nothing changes until the image resolves or errors` },
+      { state: 'error', how: 'rendered' },
+    ],
+    pill: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.hover:a static badge; nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.focus:never focusable; it is not an interactive element` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.disabled:not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.loading:renders synchronously from the tone and label it is given` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.error:tone is a status label, not an interaction error — danger marks a cancelled membership, not a failed action` },
+    ],
+    wordmark: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.hover:static type — nothing in it responds to a pointer` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.focus:never focusable` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.active:never pressed` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.disabled:not a control` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.loading:renders synchronously from the variant and size it is given` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.error:brand type has no error state` },
+    ],
+  };
   protected readonly iconNames = ICON_NAMES;
+  /** Drives the jump-to index. Same keys as `ledgers`, so the index cannot drift from the sections. */
+  protected readonly sectionKeys = Object.keys(this.ledgers);
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
   // it, so this page must reset its own signal on (closed) or the sheet could never reopen.
