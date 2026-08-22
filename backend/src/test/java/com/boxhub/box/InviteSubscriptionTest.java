@@ -76,7 +76,6 @@ class InviteSubscriptionTest extends AbstractIntegrationTest {
         plan.setDurationDays(30);
         plan.setPriceCents(4500);
         plan.setCurrency("eur");
-        plan.setEntitlement("UNLIMITED");
         plan = plans.save(plan);
     }
 

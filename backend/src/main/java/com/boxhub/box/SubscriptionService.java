@@ -139,7 +139,6 @@ public class SubscriptionService {
             p.setArchived(true);
             p.setPriceCents(0);
             p.setCurrency("eur");
-            p.setEntitlement("UNLIMITED");
             return plans.save(p);
         });
 

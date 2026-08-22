@@ -151,15 +151,14 @@ public class BookingService {
     /**
      * M10 T4: booking rights follow the membership's active Subscription, not the dropped
      * Membership.planId. No active subscription -> can't book at all (NO_ACTIVE_SUBSCRIPTION).
-     * UNLIMITED entitlement -> never blocked. WEEKLY_LIMIT -> the existing Mon-Sun box-timezone
-     * count vs the plan's weekly_class_limit (logic unchanged from the pre-M10 version).
+     * No weekly limit set (NULL = unlimited) -> never blocked. Otherwise the existing Mon-Sun
+     * box-timezone count vs the plan's entriesPerWeek (logic unchanged from the pre-M16a version).
+     * TODO(M16a Task 4): replaced by PlanLimits/EntitlementLedger — the full eight-rule check.
      */
     private boolean entitlementBlocked(ClassSession session, Box box, UUID membershipId) {
         Subscription active = subscriptions.activeFor(membershipId).orElseThrow(() -> conflict("NO_ACTIVE_SUBSCRIPTION"));
         Plan plan = plans.findById(active.getPlanId()).orElseThrow();
-        if ("UNLIMITED".equals(plan.getEntitlement())) return false;
-
-        Integer limit = plan.getWeeklyClassLimit();
+        Integer limit = plan.getEntriesPerWeek();
         if (limit == null) return false;
 
         ZoneId tz = ZoneId.of(box.getTimezone());

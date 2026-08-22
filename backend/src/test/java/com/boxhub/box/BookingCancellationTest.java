@@ -58,7 +58,6 @@ class BookingCancellationTest extends AbstractIntegrationTest {
         Plan p = new Plan();
         p.setName("Plan " + n);
         p.setDurationDays(30);
-        p.setEntitlement("UNLIMITED");
         UUID planId = plans.save(p).getId();
         subscriptionService.recordPeriod(membershipId, planId, 0, "test");
         return membershipId;

@@ -292,8 +292,8 @@ public class DevDataSeeder implements CommandLineRunner {
      */
     private void seedPlansAndSubscriptions(Box box, List<User> staff, List<User> athletes) {
         TenantContext.runAsBox(box.getId(), () -> {
-            Plan unlimited = plan("Unlimited Monthly", 30, null, 8900, "eur", "UNLIMITED");
-            Plan weekly = plan("3x Weekly", 30, 3, 5900, "eur", "WEEKLY_LIMIT");
+            Plan unlimited = plan("Unlimited Monthly", 30, null, 8900, "eur");
+            Plan weekly = plan("3x Weekly", 30, 3, 5900, "eur");
 
             List<User> roster = new java.util.ArrayList<>(staff);
             roster.addAll(athletes);
@@ -324,14 +324,13 @@ public class DevDataSeeder implements CommandLineRunner {
         });
     }
 
-    private Plan plan(String name, int durationDays, Integer weeklyClassLimit, int priceCents, String currency, String entitlement) {
+    private Plan plan(String name, int durationDays, Integer entriesPerWeek, int priceCents, String currency) {
         Plan p = new Plan();
         p.setName(name);
         p.setDurationDays(durationDays);
-        p.setWeeklyClassLimit(weeklyClassLimit);
+        p.setEntriesPerWeek(entriesPerWeek);
         p.setPriceCents(priceCents);
         p.setCurrency(currency);
-        p.setEntitlement(entitlement);
         return plans.save(p);
     }
 

@@ -83,8 +83,7 @@ class BookingEngineTest extends AbstractIntegrationTest {
         Plan p = new Plan();
         p.setName("Plan " + System.nanoTime() + "-" + Math.random());
         p.setDurationDays(30);
-        p.setWeeklyClassLimit(weeklyLimit);
-        p.setEntitlement(weeklyLimit != null ? "WEEKLY_LIMIT" : "UNLIMITED");
+        p.setEntriesPerWeek(weeklyLimit);
         return plans.save(p).getId();
     }
 

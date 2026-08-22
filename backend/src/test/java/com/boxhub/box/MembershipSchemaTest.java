@@ -75,13 +75,12 @@ class MembershipSchemaTest extends AbstractIntegrationTest {
         p.setDurationDays(30);
         p.setPriceCents(4999);
         p.setCurrency("eur");
-        p.setEntitlement("UNLIMITED");
         Plan saved = plans.save(p);
 
         Plan reloaded = plans.findById(saved.getId()).orElseThrow();
         assertThat(reloaded.getPriceCents()).isEqualTo(4999);
         assertThat(reloaded.getCurrency()).isEqualTo("eur");
-        assertThat(reloaded.getEntitlement()).isEqualTo("UNLIMITED");
+        assertThat(reloaded.isUnlimited()).isTrue();
     }
 
     @Test
@@ -94,7 +93,6 @@ class MembershipSchemaTest extends AbstractIntegrationTest {
         p.setDurationDays(30);
         p.setPriceCents(2000);
         p.setCurrency("eur");
-        p.setEntitlement("WEEKLY_LIMIT");
         Plan plan = plans.save(p);
 
         UUID membershipId = newMembership(boxId);

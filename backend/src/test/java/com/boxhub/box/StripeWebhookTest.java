@@ -111,7 +111,6 @@ class StripeWebhookTest extends AbstractIntegrationTest {
         p.setDurationDays(30);
         p.setPriceCents(5000);
         p.setCurrency("eur");
-        p.setEntitlement("UNLIMITED");
         return plans.save(p).getId();
     }
 
@@ -317,8 +316,6 @@ class StripeWebhookTest extends AbstractIntegrationTest {
         planA.setDurationDays(30);
         planA.setPriceCents(3000);
         planA.setCurrency("eur");
-        planA.setEntitlement("WEEKLY_LIMIT");
-        planA.setWeeklyClassLimit(3);
         UUID planAId = plans.save(planA).getId();
 
         Plan planB = new Plan();
@@ -326,7 +323,6 @@ class StripeWebhookTest extends AbstractIntegrationTest {
         planB.setDurationDays(90);
         planB.setPriceCents(9000);
         planB.setCurrency("eur");
-        planB.setEntitlement("UNLIMITED");
         UUID planBId = plans.save(planB).getId();
 
         Subscription expired = new Subscription();

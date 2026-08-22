@@ -13,6 +13,12 @@ public class Box {
     @Column(name = "logo_url") private String logoUrl;
     @Column(name = "cancel_cutoff_min", nullable = false) private int cancelCutoffMin = 120;
     @Column(name = "booking_horizon_weeks", nullable = false) private int bookingHorizonWeeks = 2;
+    // M16a cancellation policy. cancel_cutoff_min (above) says HOW LATE is late; these three say what
+    // happens then. All default false = exactly the pre-M16a behaviour: a BOOKED booking simply
+    // cannot be cancelled past the cutoff.
+    @Column(name = "allow_late_cancel", nullable = false) private boolean allowLateCancel = false;
+    @Column(name = "late_cancel_refunds_entry", nullable = false) private boolean lateCancelRefundsEntry = false;
+    @Column(name = "count_waitlist_cancellations", nullable = false) private boolean countWaitlistCancellations = false;
     @Column(nullable = false) private String status = "ACTIVE";
     @Column(name = "created_at", insertable = false, updatable = false) private java.time.Instant createdAt;
     @Column(nullable = false) private String locale = "en";
@@ -39,6 +45,12 @@ public class Box {
     public void setCancelCutoffMin(int cancelCutoffMin) { this.cancelCutoffMin = cancelCutoffMin; }
     public int getBookingHorizonWeeks() { return bookingHorizonWeeks; }
     public void setBookingHorizonWeeks(int bookingHorizonWeeks) { this.bookingHorizonWeeks = bookingHorizonWeeks; }
+    public boolean isAllowLateCancel() { return allowLateCancel; }
+    public void setAllowLateCancel(boolean v) { this.allowLateCancel = v; }
+    public boolean isLateCancelRefundsEntry() { return lateCancelRefundsEntry; }
+    public void setLateCancelRefundsEntry(boolean v) { this.lateCancelRefundsEntry = v; }
+    public boolean isCountWaitlistCancellations() { return countWaitlistCancellations; }
+    public void setCountWaitlistCancellations(boolean v) { this.countWaitlistCancellations = v; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public java.time.Instant getCreatedAt() { return createdAt; }
