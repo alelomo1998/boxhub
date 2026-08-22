@@ -83,6 +83,19 @@ export interface StateEntry {
         <bh-wordmark variant="chrome" size="md" />
         <h1 class="t-h2" i18n="Dev gallery page heading">Design language proof</h1>
       </header>
+
+      <!-- Twenty sections on one scroll. Without this the only way to reach a known component is
+           browser-find, which needs you to already know its name — a workbench with no index is a
+           filing cabinet with no labels on the drawers (impeccable critique, M13f). Rendered from
+           the ledgers map, so a section added without a ledger cannot get a nav entry either: the
+           Karma gate and this index fail together, never separately.
+           Component names are identifiers, not prose — not i18n-marked, per this file's precedent. -->
+      <nav class="gnav" aria-labelledby="gnav-label">
+        <span class="gnav-label t-eyebrow" id="gnav-label" i18n="@@dev.gallery.nav.label">Jump to</span>
+        @for (key of sectionKeys; track key) {
+          <a class="gnav-link" [href]="'#' + key">{{ key }}</a>
+        }
+      </nav>
       <section>
         <h2 class="t-eyebrow" i18n="Section label above the WOD board proof">WOD board</h2>
         <div class="board-wrap">
@@ -94,7 +107,7 @@ export interface StateEntry {
         <bh-proof-admin-members />
       </section>
 
-      <section class="gsec" data-gallery="icon">
+      <section class="gsec" id="icon" data-gallery="icon">
         <h2 class="t-h2" i18n="@@dev.gallery.icon.heading">Icon</h2>
         <p class="note" i18n="@@dev.gallery.icon.note">
           Always aria-hidden and paired with a text label elsewhere; every name in the set is
@@ -112,7 +125,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'icon' }" />
       </section>
 
-      <section class="gsec" data-gallery="button">
+      <section class="gsec" id="button" data-gallery="button">
         <h2 class="t-h2" i18n="@@dev.gallery.button.heading">Button</h2>
 
         <p class="gsub" i18n="@@dev.gallery.button.variant.primary">Primary</p>
@@ -289,7 +302,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'button' }" />
       </section>
 
-      <section class="gsec" data-gallery="field">
+      <section class="gsec" id="field" data-gallery="field">
         <h2 class="t-h2" i18n="@@dev.gallery.field.heading">Field</h2>
         <div class="row">
           <div class="cell">
@@ -324,7 +337,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'field' }" />
       </section>
 
-      <section class="gsec" data-gallery="select">
+      <section class="gsec" id="select" data-gallery="select">
         <h2 class="t-h2" i18n="@@dev.gallery.select.heading">Select</h2>
         <div class="row">
           <div class="cell">
@@ -368,7 +381,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'select' }" />
       </section>
 
-      <section class="gsec" data-gallery="panel">
+      <section class="gsec" id="panel" data-gallery="panel">
         <h2 class="t-h2" i18n="@@dev.gallery.panel.heading">Panel</h2>
         <div class="row">
           <div class="cell">
@@ -391,7 +404,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'panel' }" />
       </section>
 
-      <section class="gsec" data-gallery="alert">
+      <section class="gsec" id="alert" data-gallery="alert">
         <h2 class="t-h2" i18n="@@dev.gallery.alert.heading">Alert</h2>
         <div class="row">
           <div class="cell">
@@ -419,7 +432,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'alert' }" />
       </section>
 
-      <section class="gsec" data-gallery="empty">
+      <section class="gsec" id="empty" data-gallery="empty">
         <h2 class="t-h2" i18n="@@dev.gallery.empty.heading">Empty</h2>
         <div class="row">
           <div class="cell">
@@ -442,7 +455,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'empty' }" />
       </section>
 
-      <section class="gsec" data-gallery="data-table">
+      <section class="gsec" id="data-table" data-gallery="data-table">
         <h2 class="t-h2" i18n="@@dev.gallery.dataTable.heading">Data table</h2>
         <bh-data-table caption="Members" i18n-caption="@@dev.gallery.dataTable.caption">
           <thead>
@@ -477,7 +490,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'data-table' }" />
       </section>
 
-      <section class="gsec" data-gallery="sheet">
+      <section class="gsec" id="sheet" data-gallery="sheet">
         <h2 class="t-h2" i18n="@@dev.gallery.sheet.heading">Sheet</h2>
         <p class="note" i18n="@@dev.gallery.sheet.note.interactiveOnly">
           Interactive-only — bh-sheet mounts a native &lt;dialog&gt;, so it cannot render statically;
@@ -519,7 +532,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'sheet' }" />
       </section>
 
-      <section class="gsec" data-gallery="shell-header">
+      <section class="gsec" id="shell-header" data-gallery="shell-header">
         <h2 class="t-h2" i18n="@@dev.gallery.shellHeader.heading">Shell header</h2>
         <p class="note" i18n="@@dev.gallery.shellHeader.note">
           The top bar shared by all three shells — brand mark, box name, an optional mono area
@@ -537,7 +550,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'shell-header' }" />
       </section>
 
-      <section class="gsec" data-gallery="dock">
+      <section class="gsec" id="dock" data-gallery="dock">
         <h2 class="t-h2" i18n="@@dev.gallery.dock.heading">Dock</h2>
         <p class="note" i18n="@@dev.gallery.dock.note">
           Floating pill mobile nav, absorbed from the global .bh-dock rules. Hidden by design above
@@ -552,7 +565,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'dock' }" />
       </section>
 
-      <section class="gsec" data-gallery="segmented">
+      <section class="gsec" id="segmented" data-gallery="segmented">
         <h2 class="t-h2" i18n="@@dev.gallery.segmented.heading">Segmented</h2>
         <div class="row">
           <div class="cell">
@@ -573,7 +586,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'segmented' }" />
       </section>
 
-      <section class="gsec" data-gallery="switch">
+      <section class="gsec" id="switch" data-gallery="switch">
         <h2 class="t-h2" i18n="@@dev.gallery.switch.heading">Switch</h2>
         <div class="row">
           <div class="cell">
@@ -599,7 +612,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'switch' }" />
       </section>
 
-      <section class="gsec" data-gallery="search-bar">
+      <section class="gsec" id="search-bar" data-gallery="search-bar">
         <h2 class="t-h2" i18n="@@dev.gallery.searchBar.heading">Search bar</h2>
         <div class="row">
           <div class="cell">
@@ -623,7 +636,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'search-bar' }" />
       </section>
 
-      <section class="gsec" data-gallery="avatar">
+      <section class="gsec" id="avatar" data-gallery="avatar">
         <h2 class="t-h2" i18n="@@dev.gallery.avatar.heading">Avatar</h2>
         <div class="row">
           <div class="cell">
@@ -661,7 +674,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'avatar' }" />
       </section>
 
-      <section class="gsec" data-gallery="pill">
+      <section class="gsec" id="pill" data-gallery="pill">
         <h2 class="t-h2" i18n="@@dev.gallery.pill.heading">Pill</h2>
         <div class="row">
           <div class="cell">
@@ -693,7 +706,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'pill' }" />
       </section>
 
-      <section class="gsec" data-gallery="day-pager">
+      <section class="gsec" id="day-pager" data-gallery="day-pager">
         <h2 class="t-h2" i18n="@@dev.gallery.dayPager.heading">Day pager</h2>
         <bh-day-pager />
         <p class="note" i18n="@@dev.gallery.dayPager.note">
@@ -705,7 +718,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'day-pager' }" />
       </section>
 
-      <section class="gsec" data-gallery="wordmark">
+      <section class="gsec" id="wordmark" data-gallery="wordmark">
         <h2 class="t-h2" i18n="@@dev.gallery.wordmark.heading">Wordmark</h2>
         <div class="row">
           <div class="cell">
@@ -725,7 +738,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'wordmark' }" />
       </section>
 
-      <section class="gsec" data-gallery="auth-layout">
+      <section class="gsec" id="auth-layout" data-gallery="auth-layout">
         <h2 class="t-h2" i18n="@@dev.gallery.authLayout.heading">Auth layout</h2>
         <p class="note" i18n="@@dev.gallery.authLayout.note.noStates">
           A frame, not a control — bh-auth-layout defers all interactive state to the projected
@@ -765,7 +778,7 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'auth-layout' }" />
       </section>
 
-      <section class="gsec" data-gallery="benchmark-board">
+      <section class="gsec" id="benchmark-board" data-gallery="benchmark-board">
         <h2 class="t-h2" i18n="@@dev.gallery.benchmarkBoard.heading">Benchmark board</h2>
         <p class="note" i18n="@@dev.gallery.benchmarkBoard.note.noStates">
           Pure information, not a control. Two distinct seeded prescriptions are drawn at random on
@@ -790,6 +803,17 @@ export interface StateEntry {
 
     /* Component sections (Task 11) — a scannable workbench, not a hero screen: a heading, a row of
        states per variant, a note where a state can't be shown by setting an input. */
+    /* The index. Wraps rather than scrolls: at phone width a horizontally-scrolling nav hides
+       most of its own targets, which defeats the point of having one. */
+    .gnav { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-3);
+      padding-bottom: var(--sp-4); border-bottom: 1px solid var(--hairline); }
+    .gnav-label { color: var(--faint); margin-right: var(--sp-1); }
+    .gnav-link { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
+      text-decoration: none; border-bottom: 1px solid transparent; }
+    .gnav-link:hover { color: var(--bone); border-bottom-color: var(--hairline); }
+    .gnav-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* Anchored sections must clear the top edge, or the heading lands flush against it. */
+    .gsec { scroll-margin-top: var(--sp-4); }
     .gsec { display: flex; flex-direction: column; gap: var(--sp-3);
       padding-top: var(--sp-6); border-top: 1px solid var(--hairline); }
     .gsec h2 { margin: 0; color: var(--bone); }
@@ -812,6 +836,17 @@ export interface StateEntry {
     .lg-how { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); }
     .lg-na .lg-how { color: var(--faint); }
     .lg-why { max-width: 52ch; }
+    /* At phone width the reason wraps onto its own full-bleed line BETWEEN two state rows, so it
+       reads as unattached prose and you cannot tell which state it belongs to — the ledger stops
+       being a table and becomes a list of orphaned sentences. Found by eyeballing the regenerated
+       phone baselines; desktop never shows it, because the reason fits inline there. Two columns
+       below the dock breakpoint put the reason under its own disposition, indented past the state
+       name, so a row stays visually one row however many lines it takes. */
+    @media (max-width: 719px) {
+      .lg { display: grid; grid-template-columns: 9ch 1fr; column-gap: var(--sp-2); row-gap: 0; }
+      .lg-state { grid-column: 1; }
+      .lg-how, .lg-why { grid-column: 2; }
+    }
     .note { margin: 0; font-size: var(--fs-sm); color: var(--bone-dim); max-width: 60ch; }
     .icongrid { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
     .iconcell { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
@@ -837,8 +872,12 @@ export interface StateEntry {
        descendant and clips anything that would escape it — the fix belongs here, not in bh-dock,
        whose fixed positioning is correct product behaviour. Below the same 719px breakpoint
        bh-dock itself uses, the box needs real height or the now-contained pill gets clipped by that
-       same contain: paint: 68px pill (56px item + 6px+6px padding) + 12px bottom gap. Left empty
-       above 719px, where .dock is display:none and there's nothing to contain. */
+       same contain: paint. The pill is 68px (56px .item min-height + 6px+6px .dock padding) and it
+       sits at bottom: calc(var(--sp-3) + env(safe-area-inset-bottom)), i.e. 12px plus whatever the
+       device reserves. 68 + 12 = 80; the shipped 96px carries 16px of headroom for that
+       safe-area inset, which is 0 in a desktop browser and non-zero on a real phone — without it
+       the pill would clip on exactly the devices this section exists to model. Left empty above
+       719px, where .dock is display:none and there's nothing to contain. */
     .dockwrap { position: relative; min-height: var(--tap); contain: paint; }
     @media (max-width: 719px) {
       .dockwrap { min-height: 96px; }
@@ -1035,6 +1074,8 @@ export class DevGalleryPage {
     ],
   };
   protected readonly iconNames = ICON_NAMES;
+  /** Drives the jump-to index. Same keys as `ledgers`, so the index cannot drift from the sections. */
+  protected readonly sectionKeys = Object.keys(this.ledgers);
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
   // it, so this page must reset its own signal on (closed) or the sheet could never reopen.

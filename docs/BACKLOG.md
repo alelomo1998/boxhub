@@ -426,6 +426,20 @@ full e2e run.
 
 - Stripe recurring / auto-renew (v1 is Checkout, one payment per period, manual renewal driven by the lapse email).
 - Class-packs / credit punch-cards (N-session decrementing buckets) — v1 entitlements are UNLIMITED or WEEKLY_LIMIT.
+- **Full entitlement model on a plan (user-stated 2026-08-22).** Today `Plan` carries ONE field,
+  `weekly_class_limit` (`Plan.java:17`). The asked-for shape is six independent limits, each
+  nullable = infinite: **daily**, **weekly**, **monthly**, **total entries**, **total
+  cancellations** — plus **a per-athlete entry ledger** so every booking an athlete has ever used
+  is tracked and countable, which is what makes "total possible entries" enforceable at all rather
+  than merely displayed. Note this subsumes the class-packs line above: an N-session decrementing
+  bucket IS "total entries" with a counter behind it, so build them together or the second one
+  rewrites the first.
+  **Sequencing risk, flagged rather than decided:** this changes `Plan`'s shape and the booking
+  engine's entitlement check, and **six Phase 2 screen milestones (M23 → M26) render and edit plans
+  against the current one-integer shape.** Landing it after them means rewriting those screens —
+  the exact "building on a wrong shape" cost M13f existed to avoid. The schema half may deserve to
+  come forward as its own small milestone before M23, on the same argument. Decide before M23's
+  spec is written, not after.
 - Reusable named per-user discount catalog (a "20% student" rule that auto-reapplies on renewal) — v1 stores
   the agreed price per subscription.
 - Online per-user discounts / Stripe coupons — self-serve Checkout charges list price only.
