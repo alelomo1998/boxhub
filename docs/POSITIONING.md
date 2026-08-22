@@ -76,15 +76,14 @@ argued against.**
 
 | # | Trigger | Where we stand |
 |---|---|---|
-| 1 | **Notifications** — "you're off the waitlist", class cancelled, payment failed | ❌ **We are silent today.** A waitlist promotion tells nobody. Owned by **M17**, which "decides the notification strategy for the whole product". The single highest-leverage unbuilt thing. |
-| 2 | **Front-desk check-in speed** on a 6am Monday | ⚠️ Built (photo grid, M5) but **never measured against a real rush**. PushPress wins defectors on tap-to-check-in specifically. |
-| 3 | **A member app that isn't embarrassing** | ❌ Web-only. Native is **M27** (Capacitor). Survivable for a pilot, fatal at scale. |
+| 1 | **Notifications** — "you're off the waitlist", class cancelled, payment failed | ❌ Silent today. **Owned by M29**, ordered before M17 so M17 consumes it. **In-app only** by decision; real push arrives with M27, inside v1.0. |
+| 2 | **Front-desk check-in speed** on a 6am Monday | ⚠️ Built (photo grid, M5) but **never measured against a real rush**. PushPress wins defectors on tap-to-check-in specifically. Rebuilt in **Project 2**. |
+| 3 | **A member app that isn't embarrassing** | ❌ Web-only until **M27** (Capacitor), which is in v1.0. |
 | 4 | **Support answered in hours, not days** | ✅ Free advantage while we are one box deep — Wodify's slowness is a *scale* problem we do not have yet. An operating commitment, not a feature. |
-| 5 | **Two-Brain metrics** — LEG (length of engagement), ARM (average revenue per member) | ❌ Not built, and **the cheapest real wedge we have.** Affiliate owners are trained on these numbers and nobody reports them well. Our `subscription` + `payment` + `entitlement_usage` tables already contain everything needed. |
+| 5 | **Two-Brain metrics** — LEG (length of engagement), ARM (average revenue per member) | ❌ Not built. **Owned by the analytics brief → M15 (LEG, at-risk) and M16 (ARM).** Affiliate owners are trained on these numbers and nobody reports them well; `subscription` + `payment` + `entitlement_usage` already hold everything needed. |
 
-**#5 deserves emphasis.** It is a reporting feature, not a platform feature — small, backend-heavy,
-and it speaks the exact language an affiliate owner already thinks in. Consider it for a near-term
-milestone rather than leaving it unscheduled.
+**#5 stays the cheapest real wedge** — a reporting feature, not a platform one, speaking the exact
+language an affiliate owner already thinks in.
 
 ---
 
@@ -108,12 +107,21 @@ Honesty here is not modesty — a claim that fails in the first week costs more 
 
 Being CrossFit-only is what pays for §3. Say no to these on purpose, and say so out loud:
 
-- **POS / retail** — apparel, supplements, self-checkout (PushPress Core).
+- **Anything AI** — no assistant, no credits, no MCP surface.
+- **A per-gym website builder** (a documented source of PushPress complaints).
+- **Per-gym theming.** Branding is **logo and name only**; colours and style stay rxed. The design
+  law's dark-only and single-accent rules were considered and **not** re-opened.
 - **Martial-arts curriculum and rank/belt tracking** (Zen Planner's genuine differentiator).
-- **A website builder** (a documented source of PushPress complaints).
 - **Generic multi-vertical scheduling** — spas, salons, appointment businesses.
-- **A full CRM/marketing suite.** Lead capture and basic nurture may earn their place eventually;
-  competing with a $329/mo marketing product does not.
+
+**Cut from v1.0:** API access, heart-rate tracking, 24/7 door access control (hardware partnerships,
+not code). **Deferred with a trigger:** the on-demand media library (reopens when rxed earns enough
+to upgrade the server) and the custom report builder (v1.1).
+
+**Reversed 2026-08-22, and worth naming:** POS/retail and lead management + campaigns were on this
+list. **They are now in v1.0** — M16 and M32 — because the pilot must let a box test *everything*.
+Being CrossFit-only still means we skip the verticals above; it no longer means we skip what a
+CrossFit box actually does on a Tuesday.
 
 ---
 
@@ -142,7 +150,26 @@ considering downgrading.
 
 ---
 
-## 8. What would falsify this
+## 8. Pricing — one tier, everything, €99/month
+
+**User-stated 2026-08-22.** No Essentials/Accelerate/Ultimate, no add-ons, no metering. Maximum
+**€99/month**, and it includes all of rxed.
+
+**Why this is a strong position and not merely a cheap one: Wodify gates Performance Tracking to
+Ultimate, its top tier.** A box paying Wodify $99 gets billing, scheduling, waivers and messaging —
+**no WOD tracking, no leaderboards, no benchmarks.** The thing Wodify is named for is an upsell or a
+paid add-on. At the same price we are not competing with their entry plan; we are competing with
+their Ultimate on the only axis a CrossFit box cares about.
+
+**Metering is their weakness, not their strength** — "2 automations / 15 automations / unlimited",
+AI credits, add-ons for the headline feature. One tier, everything, is a categorically different
+promise, and it is cheap for us to keep because we do not carry a CRM suite, a website builder or AI.
+
+**Never discount below €99 to win a deal.** Wodify's $199→$99 "for life" offer means their real
+number is $199 and they are buying market share. Matching a discount funds their product with our
+margin.
+
+## 9. What would falsify this
 
 Written down so it can be checked rather than defended:
 
@@ -155,4 +182,9 @@ Written down so it can be checked rather than defended:
 
 **Every claim in §2 and §4 comes from published reviews and comparison sites, not from talking to a
 single affiliate owner.** That is the weakest evidence in this document. **The next real input is one
-box, not more research.**
+box, not more research** — which is what the v1.0 programme exists to reach
+(`docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md`).
+
+**Note on §4 and §5, updated 2026-08-22:** every gap named there is now owned by a milestone in that
+programme, and the pilot is **v1.0 — complete, not a slice**. §5's "what we must NOT claim" still
+holds until M28 lands; it is no longer unowned.

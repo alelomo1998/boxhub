@@ -19,7 +19,11 @@ entries whose history is still load-bearing.
 
 ## Launch → Production
 
-*The deploy itself. Not scheduled into a milestone — this is the launch phase on the v1 roadmap.*
+> **OWNED SINCE 2026-08-22: this block is M28, and it is the NEXT milestone.** It was raised unowned
+> at three consecutive milestone closes. Do not re-file items from here as unscheduled. See
+> `docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md` §8.
+
+*The deploy itself.*
 
 - **Remove the component gallery at `/app/dev/components`** (M13). It ships in production unlisted
   and unlinked, rendering fabricated sample data only — deliberately, so the design system can be
@@ -704,3 +708,28 @@ missing axe coverage, and the gallery's scroll-coupled baselines.
 - **No box settings UI for the cancellation policy** (M15). `boxes.allow_late_cancel`,
   `late_cancel_refunds_entry` and `count_waitlist_cancellations` are served and PATCHable on
   `/api/box/settings`, but nothing renders them — M15 is where the box-settings screen gets its UI.
+
+
+---
+
+## Owned by the v1.0 programme (2026-08-22) — not open backlog
+
+The Wodify feature-gap audit produced these; each now has a milestone in
+`docs/ROADMAP-AT-A-GLANCE.md`. Listed so nobody re-files them as unscheduled.
+
+| Item | Owner |
+|---|---|
+| In-app messaging, staff↔member threads, notification inbox, SMS | **M29** |
+| Digital waivers, e-sign, versioning, re-sign on change | **M30** |
+| POS / retail / add-to-invoice, family groups & shared payments, payroll calculator | **M16** |
+| Lead management, conversion board, campaigns, automation rules engine, at-risk | **M32** |
+| Pre-built reports, insights dashboards, LEG / ARM | **Analytics brief** → M15 / M16 / M18 |
+| Weekly streaks | **M17** |
+| Sending mail from the gym's own domain | **M28** |
+| Custom branding — **logo and name only** | **M15** |
+
+**Cut from v1.0:** API access, heart-rate tracking, 24/7 door access control (hardware partnerships,
+not code), anything AI, per-gym website builder, per-gym theming.
+
+**Deferred with a trigger:** on-demand media library — reopens when rxed earns enough to upgrade the
+server (`docs/VPS-DEPLOYMENT.md` flags the storage limit). Custom report builder — v1.1.

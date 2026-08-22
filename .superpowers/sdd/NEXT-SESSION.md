@@ -1,16 +1,22 @@
-# Next session — open **M23, app entry & shells**.
+# Next session — open **M28, Launch → Production**.
 
-**M16a is merged and `main` is green.** M23 is next, per `docs/ROADMAP-AT-A-GLANCE.md`
-(`M23 → M14b → M14c → M17 → M24 → M25 → M26`). **Read the order from that page, never from the
-milestone number.**
+**M16a is merged and `main` is green.** **The roadmap was re-planned on 2026-08-22** and M28 is now
+first, ahead of M23. Read `docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md` before anything
+else — it changes what "the pilot" means.
 
-**M23 has NO spec and NO plan.** Start with `superpowers:brainstorming`. Do **not** jump to
-`writing-plans` — that was right for M16a because its design was already settled in conversation;
-it is wrong here. M23 is the first milestone of Phase 2's screen work and the roadmap says it
-**ships sketches you can look at before anything is built**.
+**The headline: the pilot IS v1.0.** Not a slice — a complete, finished product the box tests in
+full. A feature may be **built but idle** (Stripe ships, works and is tested; no money flows because
+the pilot is free), **never absent**. Then v1.0.1 is bug fixes, v1.1.0 is what the box asks for.
+Nineteen milestones, one €99 tier, everything included.
+
+**M28 has NO spec and NO plan — but its scope was already named.**
+`docs/superpowers/specs/2026-07-28-m12c-production-readiness-design.md` explicitly deferred one
+bullet to Launch → Production and listed it. Start with `superpowers:brainstorming` anyway: the
+scope is known, the *decisions* (which SMTP provider, which monitoring, what the restore drill
+proves, what the legal docs say) are not.
 
 ```bash
-cd ~/dev/boxhub && git checkout main && git pull && git checkout -b m23-app-entry-shells
+cd ~/dev/boxhub && git checkout main && git pull && git checkout -b m28-launch-production
 ```
 
 > **Start from `~/dev/boxhub`.** Do NOT create a git worktree and do NOT run `EnterWorktree`, even
@@ -30,10 +36,21 @@ cd ~/dev/boxhub && git checkout main && git pull && git checkout -b m23-app-entr
    multi-box states, so this is not background reading, it is the subject.
 6. **`docs/PREFLIGHT.md`** at its four moments.
 
-## What M23 is, in one line
+## What M28 is
 
-The container: what a person sees with **no gym**, with **one**, with **three**, and how they move
-between them. It decides the shell every later Phase 2 screen lives inside.
+The deploy. **It goes first so every milestone after it is deployable and viewable on a real device
+on a real domain** — worth a great deal for the fifteen screen milestones that follow.
+
+From M12c's deferred bullet, verbatim: TLS/HSTS, domain, firewall, SSH hardening, **Postgres backups
++ a restore drill**, secrets delivery, log retention, CI deploy on green. Plus: **real SMTP with
+SPF/DKIM/DMARC**, error monitoring and uptime, `BOXHUB_COOKIE_SECURE=true`, ToS/privacy/DPA (EU PII),
+rate limits measured against a class-opening rush, and deleting `/app/dev/components`.
+
+**No overlap with M12c** — compose env files, OAuth nginx locations and log PII masking are done.
+
+**Why it matters more than it looks:** "invoices and password-reset emails don't arrive" is the
+loudest complaint against BOTH Wodify and PushPress. Shipping that same bug is the one unforced
+error available to us, and it is a bug of *deployment*, not of code.
 
 ## State — the baseline to hold
 
@@ -46,8 +63,25 @@ between them. It decides the shell every later Phase 2 screen lives inside.
 | `e2e/visual.sh` | **31 specs, zero dirty baselines** | Grows |
 | §8.1 greps | all eight zero bytes | Stay zero |
 
-**M23 is FRONTEND work, so those three frontend numbers must GROW, not hold.** That is the inverse
-of M16a, where freezing them was the scope test. Do not copy M16a's gate table without changing it.
+**M28 is INFRASTRUCTURE work.** Expect the test numbers to hold, not grow — but that is not the gate
+here. The gate is evidence the deploy works: a **restore drill actually performed**, mail actually
+delivered to a real inbox with SPF/DKIM/DMARC passing, TLS actually graded, monitoring actually
+alerting. **A checklist ticked without a measurement is not this milestone's output.**
+
+## Settled decisions — do NOT re-litigate these
+
+All user-stated 2026-08-22, recorded in the v1.0 programme spec:
+
+- **Notifications are IN-APP ONLY. No email notifications.** Auth mail is separate and still needs
+  M28's SMTP. Real push arrives with M27, inside v1.0.
+- **Messaging is staff ↔ member 1:1, both directions, coaches included. No member↔member.**
+- **Branding is logo and name only.** Colours and style stay rxed; the design law's dark-only and
+  single-accent rules were considered and **not** re-opened.
+- **Cut:** API access, heart-rate tracking, 24/7 door access, anything AI, per-gym website builder.
+- **Deferred with triggers:** on-demand media library (reopens when rxed earns enough to upgrade the
+  server), custom report builder (v1.1).
+- **In v1.0 despite earlier "we don't build that":** POS/retail (M16) and lead management + campaigns
+  (M32). The box must be able to test everything.
 
 ## What M16a left you
 
@@ -117,18 +151,19 @@ and trivial glue. Executors and reviewers are **Sonnet**. Executors never guess.
 **scoped to one screen at a time** — never once over the milestone at the end. Expect 3–5
 look-and-adjust rounds per screen.
 
-## STILL UNOWNED — raise it again, this is the third close in a row
+## NO LONGER UNOWNED
 
-**`docs/BACKLOG.md`'s `Launch → Production` block belongs to no milestone.** Real SMTP plus
-SPF/DKIM/DMARC (**the entire auth flow depends on mail arriving**), Postgres backups and a restore
-drill, TLS/HSTS, `BOXHUB_COOKIE_SECURE=true`, ToS/privacy/DPA (EU PII, real money), error monitoring
-and uptime (there is none), rate limits never measured against a class-opening rush, and deleting the
-`/app/dev/components` gallery. **It must become a real scoped milestone before any box touches the
-product.** It was raised at M13f's close and at M16a's close and is still unowned.
+`Launch → Production` was raised unowned at three consecutive milestone closes. **It is M28, and it
+is next.** Do not re-file it in the backlog.
 
-## After M23
+## After M28
 
-`M14b → M14c → M17 → M24 → M25 → M26`. Read the order from `docs/ROADMAP-AT-A-GLANCE.md`, never from
-the number.
+`M23 → M29 → M14b → M14c → M17 → analytics brief → M15 → M16 → M30 → M32 → M24 → M25 → M26 →
+Project 2 (The Room) → M18 → M27 → M19 → M20 → v1.0 → pilot`.
+
+Read the order from `docs/ROADMAP-AT-A-GLANCE.md`, never from the number. **M29, M30 and M32 are
+new** (messaging & notifications; waivers & agreements; growth & automation), and **Project 2 moved
+before the beta** — The Room is differentiator #1 and #2, and without it a box will not agree to
+test.
 
 **Rewrite this file at milestone close.** It is the ONLY session prompt; do not create a second one.
