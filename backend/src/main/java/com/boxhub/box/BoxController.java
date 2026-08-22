@@ -31,10 +31,13 @@ public class BoxController {
     // (where there is no JWT), so it would have to stay unsigned — while avatarPath/imagePath,
     // which ARE uploads, stay signed and box-members-only.
     record CurrentBoxResponse(UUID id, String name, String slug, String timezone, String logoUrl,
-                              int cancelCutoffMin, int bookingHorizonWeeks, String locale, String role) {
+                              int cancelCutoffMin, int bookingHorizonWeeks, String locale, String role,
+                              boolean allowLateCancel, boolean lateCancelRefundsEntry,
+                              boolean countWaitlistCancellations) {
         static CurrentBoxResponse of(Box b) {
             return new CurrentBoxResponse(b.getId(), b.getName(), b.getSlug(), b.getTimezone(), b.getLogoUrl(),
-                    b.getCancelCutoffMin(), b.getBookingHorizonWeeks(), b.getLocale(), TenantContext.role());
+                    b.getCancelCutoffMin(), b.getBookingHorizonWeeks(), b.getLocale(), TenantContext.role(),
+                    b.isAllowLateCancel(), b.isLateCancelRefundsEntry(), b.isCountWaitlistCancellations());
         }
     }
 
@@ -45,7 +48,8 @@ public class BoxController {
 
     record PatchSettingsRequest(String name, String timezone, String logoUrl,
                                 @Min(0) Integer cancelCutoffMin, @Min(1) Integer bookingHorizonWeeks,
-                                String locale) {}
+                                String locale, Boolean allowLateCancel, Boolean lateCancelRefundsEntry,
+                                Boolean countWaitlistCancellations) {}
 
     @PatchMapping("/api/box/settings")
     public CurrentBoxResponse patchSettings(@Valid @RequestBody PatchSettingsRequest req) {
@@ -64,6 +68,12 @@ public class BoxController {
         // M13a T8: the box's language, set once here — an invited member's users.locale defaults
         // to this at registration (AuthService.register / InviteService.boxLocaleForToken).
         if (req.locale() != null && !req.locale().isBlank()) b.setLocale(req.locale().trim());
+        // M16a cancellation policy. cancelCutoffMin above is "how late is late"; these three are what
+        // happens then. Nullable so a PATCH that omits them leaves them alone, like every other field here.
+        if (req.allowLateCancel() != null) b.setAllowLateCancel(req.allowLateCancel());
+        if (req.lateCancelRefundsEntry() != null) b.setLateCancelRefundsEntry(req.lateCancelRefundsEntry());
+        if (req.countWaitlistCancellations() != null)
+            b.setCountWaitlistCancellations(req.countWaitlistCancellations());
         boxes.save(b);
         return CurrentBoxResponse.of(b);
     }

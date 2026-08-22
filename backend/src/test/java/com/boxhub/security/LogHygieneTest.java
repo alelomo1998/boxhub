@@ -148,7 +148,6 @@ class LogHygieneTest extends AbstractIntegrationTest {
         plan.setDurationDays(30);
         plan.setPriceCents(5000);
         plan.setCurrency("eur");
-        plan.setEntitlement("UNLIMITED");
         plan = plans.save(plan);
 
         Subscription sub = new Subscription();

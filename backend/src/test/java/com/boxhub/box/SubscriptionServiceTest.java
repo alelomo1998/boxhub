@@ -74,7 +74,6 @@ class SubscriptionServiceTest extends AbstractIntegrationTest {
         p.setDurationDays(durationDays);
         p.setPriceCents(3000);
         p.setCurrency("eur");
-        p.setEntitlement("UNLIMITED");
         return plans.save(p).getId();
     }
 

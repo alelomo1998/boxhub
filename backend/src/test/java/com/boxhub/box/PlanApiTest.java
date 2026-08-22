@@ -174,4 +174,28 @@ class PlanApiTest extends AbstractIntegrationTest {
                         .content("{\"name\":\"Bad\",\"durationDays\":30,\"entitlement\":\"WEEKLY_LIMIT\"}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void createAcceptsTheEightLimitsAndDerivesTheLegacyEntitlementFields() throws Exception {
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Punch Card\",\"durationDays\":30,\"entriesTotal\":10}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.entriesTotal").value(10))
+                .andExpect(jsonPath("$.entriesPerWeek").doesNotExist())
+                // A punch card has a limit, so the derived legacy field must not claim UNLIMITED.
+                .andExpect(jsonPath("$.entitlement").value("WEEKLY_LIMIT"))
+                .andExpect(jsonPath("$.weeklyClassLimit").doesNotExist());
+    }
+
+    @Test
+    void weeklyClassLimitStillMapsOntoEntriesPerWeekForTheUnrebuiltAdminScreen() throws Exception {
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Legacy Three\",\"durationDays\":30,\"weeklyClassLimit\":3,"
+                                + "\"entitlement\":\"WEEKLY_LIMIT\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.entriesPerWeek").value(3))
+                .andExpect(jsonPath("$.weeklyClassLimit").value(3));
+    }
 }

@@ -120,11 +120,13 @@ public class SubscriptionController {
         return new CheckoutResponse(url);
     }
 
+    // entitlement/weeklyClassLimit are derived, same shim and same reason as PlanController.PlanDto:
+    // frontend/src/app/features/athlete/membership.service.ts:12 still types both.
     record PlanSummaryDto(UUID id, String name, int priceCents, String currency, String entitlement,
                            Integer weeklyClassLimit, int durationDays) {
         static PlanSummaryDto of(Plan p) {
             return new PlanSummaryDto(p.getId(), p.getName(), p.getPriceCents(), p.getCurrency(),
-                    p.getEntitlement(), p.getWeeklyClassLimit(), p.getDurationDays());
+                    p.isUnlimited() ? "UNLIMITED" : "WEEKLY_LIMIT", p.getEntriesPerWeek(), p.getDurationDays());
         }
     }
 

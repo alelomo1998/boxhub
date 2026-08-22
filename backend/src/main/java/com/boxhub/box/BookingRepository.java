@@ -46,7 +46,9 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     // cleared first. See SlotRegenerationService.
     void deleteBySessionIdIn(List<UUID> sessionIds);
 
-    // Athlete's booked/checked-in count in a time window (plan weekly-limit).
+    // Athlete's booked/checked-in count in a time window. HomeController only, since M16a: the plan
+    // weekly limit moved to entitlement_usage, which regeneration cannot delete from (see
+    // EntitlementUsage). This counts what the athlete DID, not what they have consumed.
     @Query(value = """
             select count(*) from bookings b join class_sessions s on s.id = b.session_id
             where b.membership_id = :mid and b.status in ('BOOKED','CHECKED_IN')

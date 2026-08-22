@@ -2346,3 +2346,31 @@ monthly/total-entries/total-cancellations, each nullable-as-infinite, plus a per
 without which "total entries" is displayable but not enforceable. Belongs to **M16** by topic and
 subsumes its class-packs line, **but changes `Plan`'s shape**, which six Phase 2 screen milestones
 render against — decide before M23's spec is written, not after.
+
+---
+
+## M16a — plan entitlement model (2026-08-22, branch `m16a-entitlement-model`)
+
+Backend only. Backend suite 511 → **535/0/0**. Karma **419**, e2e **67**, visual **31/0 dirty** — all
+frozen deliberately, and holding them WAS the milestone's scope test.
+
+| Task | Commit | What |
+|---|---|---|
+| T1 | `7270399` | V28 — eight plan limit columns, three box policy flags, `entitlement_usage`, data migration + backfill, `MigrationEntitlementTest` |
+| T2 | `d772760` | Entities, ledger entity+repo, derived `entitlement`/`weeklyClassLimit` wire shim, 14 dependent test files fixed |
+| — | `f782ac4` | Plan correction: fourteen dependent test files, not five; `requireWeeklyLimit` survives |
+| T3 | `1aad3a8` | `PlanLimits` — eight-rule table, box-timezone DST-correct windows, 10 pinned-date unit tests |
+| T4 | `f08d0c6` | `EntitlementLedger` + the booking engine (orchestrator-implemented: pessimistic lock, money-adjacent) |
+| T5 | `4418d0e` | Box cancellation policy on `GET /api/box/current` + `PATCH /api/box/settings` |
+| T6 | `96f2280` | Eight integration tests incl. regeneration-does-not-alter-counts |
+| — | `70f34f6` | Plan corrections: eight tests not seven; one mutation was a false negative; `countInWeek` not dead |
+
+**Five claims verified false before or during execution** — three in the spec (regeneration refuses
+live bookings rather than deleting them; the late-cancel rule was unreachable behind `PAST_CUTOFF`;
+`resolveEntitlement` guards a live screen) and two in the plan (seven tests were eight;
+`countInWeek` is still used by `HomeController`). Two were caught by executors refusing to commit
+around a red test.
+
+**One negative control was itself a false negative** and only running it revealed that — the
+`lastWeeksBooking` fixture sat a year ahead of `now()`, so the `now()`-anchored mutation it existed
+to catch left it green.

@@ -75,7 +75,6 @@ class StripeCheckoutServiceTest extends AbstractIntegrationTest {
         p.setDurationDays(30);
         p.setPriceCents(5000);
         p.setCurrency("eur");
-        p.setEntitlement("UNLIMITED");
         return plans.save(p).getId();
     }
 

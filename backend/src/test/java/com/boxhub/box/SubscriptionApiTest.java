@@ -101,7 +101,6 @@ class SubscriptionApiTest extends AbstractIntegrationTest {
         planA.setDurationDays(30);
         planA.setPriceCents(5000);
         planA.setCurrency("eur");
-        planA.setEntitlement("UNLIMITED");
         planA = plans.save(planA);
     }
 
@@ -234,7 +233,6 @@ class SubscriptionApiTest extends AbstractIntegrationTest {
         planB.setDurationDays(30);
         planB.setPriceCents(4000);
         planB.setCurrency("eur");
-        planB.setEntitlement("UNLIMITED");
         planB = plans.save(planB);
         SecurityContextHolder.clearContext();
 

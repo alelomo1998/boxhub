@@ -1,134 +1,134 @@
-# Next session — open **M16a, the plan entitlement model**.
+# Next session — open **M23, app entry & shells**.
 
-**M13f is merged and `main` is green** (`e0ce258`, plus the scheduling fix `89bb8c2`). M16a is next,
-and it is **inserted before M23**.
+**M16a is merged and `main` is green.** M23 is next, per `docs/ROADMAP-AT-A-GLANCE.md`
+(`M23 → M14b → M14c → M17 → M24 → M25 → M26`). **Read the order from that page, never from the
+milestone number.**
 
-**M16a already has a spec. It does NOT have a plan.** Start with `superpowers:writing-plans`, not
-brainstorming — the design is settled and every open question was answered by the user on 2026-08-22.
-Do not re-brainstorm it and do not jump to code.
-
-**Spec:** `docs/superpowers/specs/2026-08-22-m16a-entitlement-model-design.md` — read it in full
-first. It is the authority; this file only orients you.
+**M23 has NO spec and NO plan.** Start with `superpowers:brainstorming`. Do **not** jump to
+`writing-plans` — that was right for M16a because its design was already settled in conversation;
+it is wrong here. M23 is the first milestone of Phase 2's screen work and the roadmap says it
+**ships sketches you can look at before anything is built**.
 
 ```bash
-cd ~/dev/boxhub && git checkout main && git pull && git checkout -b m16a-entitlement-model
+cd ~/dev/boxhub && git checkout main && git pull && git checkout -b m23-app-entry-shells
 ```
 
-> **Start from `~/dev/boxhub`.** Do NOT create a git worktree and do NOT run `EnterWorktree`, even if
-> a superpowers skill asks for an "isolated workspace". `git worktree list` must show exactly one
-> entry. If the harness blocks edits demanding isolation, the escape hatch is already set in
-> `.claude/settings.local.json` (`"worktree": {"bgIsolation": "none"}`) — that file is gitignored
-> globally, so a fresh clone needs it again.
+> **Start from `~/dev/boxhub`.** Do NOT create a git worktree and do NOT run `EnterWorktree`, even
+> if a superpowers skill asks for an "isolated workspace". `git worktree list` must show exactly one
+> entry. The escape hatch is already set in `.claude/settings.local.json`
+> (`"worktree": {"bgIsolation": "none"}`) — that file is gitignored globally, so a fresh clone needs
+> it again.
 
 ## Read first, in this order
 
 1. **`CLAUDE.md`** — binding, overrides anything here.
-2. **The M16a spec** (above).
-3. **`docs/TENANCY.md`** — §8 especially. The new `entitlement_usage` table is `@TenantId`, and
-   **since M21 a tenant-less read fails CLOSED and returns empty rather than erroring.**
-4. **`docs/HANDOFF.md`** — the M13f section and the scheduling-bug lesson.
-5. **`docs/PREFLIGHT.md`** at its four moments.
+2. **`docs/ROADMAP-AT-A-GLANCE.md`** — M23's one-line scope, and the execution order.
+3. **`docs/superpowers/specs/2026-08-18-v3-roadmap-platform-expansion.md`** — the phase M23 opens.
+4. **`docs/HANDOFF.md`** — the M16a section especially, and M21's multi-box tenancy work, which is
+   what makes "a person with three gyms" a real state rather than a hypothetical.
+5. **`docs/TENANCY.md`** §8 and the **boxless-session contract** — M23 is *about* the boxless and
+   multi-box states, so this is not background reading, it is the subject.
+6. **`docs/PREFLIGHT.md`** at its four moments.
 
-## What M16a is, in one paragraph
+## What M23 is, in one line
 
-A plan carries **one** limit today: `plan.weekly_class_limit`, behind a two-value `entitlement`
-string. M16a replaces that with **eight nullable limits** — entries and cancellations, each × day /
-week / month / term — where NULL means unlimited, all of them compose with **AND**, and each resets
-on its own period. Plus an **append-only `entitlement_usage` ledger**, because consumption cannot be
-counted from `booking`. **Backend only: schema, entities, the entitlement check in `BookingService`,
-tests. No screens.**
-
-## The four things most likely to trip you
-
-**1. The ledger exists because `regenerateFrom` DELETES booking rows.**
-`SlotRegenerationService` deletes bookings for every session in a regenerated range. Counting entries
-from `booking` would mean a coach editing the schedule silently changes every affected athlete's
-consumed count. So `entitlement_usage.booking_id` carries **no FK** and `session_start_at` is
-**copied, not joined** — a FK would either block that delete or cascade the ledger away with it.
-**Write the "regeneration does not alter counts" test FIRST**; it is the entire justification for the
-table, and it fails against a `booking`-derived count.
-
-**2. `entitlement` and `weeklyClassLimit` must STAY ON THE WIRE.** The spec's first draft claimed no
-frontend consumed them. **That was checked and was false** — `plans.page.ts` binds both,
-`admin.service.ts` carries `weeklyClassLimit` on its DTO, four specs reference them. The columns go;
-the fields are served as derived values, exactly as M14a kept `wodType` alive as
-`timingPreset ?? macro`. Breaking that screen is frontend scope leakage.
-
-**3. Late cancellation refunds nothing.** In-time cancel refunds the entry and spends a cancellation;
-a late cancel spends both. `booking.was_late` is already stamped at cancel time from the cutoff in
-force (V21). This was an assumption stated at design time — if the user reverses it, it becomes a
-per-plan flag, not a change to the rule.
-
-**4. Windows anchor to the SESSION being booked, not to `now`.** Booking next Tuesday counts against
-next Tuesday's day and week. Anchoring to `now` lets an athlete drain the wrong week by booking ahead.
+The container: what a person sees with **no gym**, with **one**, with **three**, and how they move
+between them. It decides the shell every later Phase 2 screen lives inside.
 
 ## State — the baseline to hold
 
 | Gate | Value | Rule |
 |---|---|---|
-| Backend suite | **511 / 0 / 0** | Grows. Every limit gets a happy + blocked test. |
-| Migration head | **V27 → V28** | Exactly one migration. |
-| Karma | **419** | **MUST NOT MOVE** |
-| e2e | **67 passed, 0 failed, 0 skipped** | **MUST NOT MOVE** |
-| `e2e/visual.sh` | **31 specs, zero dirty baselines** | **MUST NOT MOVE** |
+| Backend suite | **535 / 0 / 0** | Grows |
+| Migration head | **V28** | One migration per milestone, if any |
+| Karma | **419** | Grows — M23 is frontend work |
+| e2e | **67 passed, 0 failed, 0 skipped** | Grows |
+| `e2e/visual.sh` | **31 specs, zero dirty baselines** | Grows |
 | §8.1 greps | all eight zero bytes | Stay zero |
 
-**The frontend numbers not moving IS this milestone's test on itself** — M14a used exactly that check
-for scope leakage and it worked.
+**M23 is FRONTEND work, so those three frontend numbers must GROW, not hold.** That is the inverse
+of M16a, where freezing them was the scope test. Do not copy M16a's gate table without changing it.
 
-## The rule this programme keeps relearning
+## What M16a left you
 
-**Verify every recorded claim against current code before planning against it.** In M13f, two of four
-inherited defects no longer existed and the quarantined TV test had been passing since M21. **Seven
-plan-vs-reality conflicts were caught by executors** in a plan written hours earlier — including one
-where the plan said *Create* a spec file that already held three passing specs. And the M16a spec's
-own claim about `entitlement` consumers was false. Weight executor pushback heavily; it has been
-right every time.
+- **Eight plan limits** on `Plan` (`entriesPerDay/PerWeek/PerMonth/Total`, `cancellationsPer*`),
+  NULL = unlimited, composing with AND. `plan.entitlement` and `plan.weeklyClassLimit` are **gone as
+  columns** but still served as derived values.
+- **The shim is debt with a named owner.** `PlanController.PlanDto`,
+  `SubscriptionController.PlanSummaryDto` and `PlanController.requireWeeklyLimit` exist only to keep
+  `plans.page.ts` and `membership.service.ts` working. **M14b or M17 deletes them** — if M23 happens
+  to rebuild either screen, it inherits that obligation. See `docs/BACKLOG.md`.
+- **A per-box cancellation policy with no UI**: `allow_late_cancel`, `late_cancel_refunds_entry`,
+  `count_waitlist_cancellations`, all served and PATCHable on `/api/box/settings`, all defaulting to
+  the pre-M16a behaviour. **M15 owns the settings screen for them.**
+- **`CANCEL_LIMIT_REACHED` has no copy** in `book.page.ts`'s `reason()`, so a cancellation blocked by
+  a plan limit renders "Something went wrong — try again." Owned by M14b/M17.
 
-**Run the negative control on every test: break the implementation, watch it go red, revert.** If you
-cannot name the mutation a test catches, say so instead of counting it as coverage.
+## The rules this programme keeps relearning — all three fired again in M16a
 
-**And a calendar- or clock-dependent test that is green most days is not coverage, it is a coin
-flip.** `SlotRegenerationTest` passed on 2026-08-20 and failed on CI on 2026-08-22 with no code
-change between. Pin the condition so the failure is deterministic.
+**Verify every recorded claim against current code before planning against it.** M16a's spec made
+three assertions that were false: that regeneration deletes live bookings (it refuses them and
+deletes only CANCELLED rows), that its late-cancel rule was reachable (`PAST_CUTOFF` made it dead
+code), and that `resolveEntitlement` was pure redundancy (it guards a live screen). The plan then
+added two of its own: seven tests were really eight, and `countInWeek` was called dead while
+`HomeController` still uses it.
+
+**Weight executor pushback heavily.** Two executors refused to commit around a red test or a count
+mismatch, and both were right. That is the designed behaviour, not friction.
+
+**Run the negative control on every test — it is not a formality.** One M16a mutation was a **false
+negative**: the fixture sat a year ahead of `now()`, so a `now()`-anchored window contained neither
+session and the test stayed green under the exact mutation it existed to catch. Only running the
+mutation revealed it. **If you cannot name the mutation a test catches, say so instead of counting
+it as coverage.**
+
+**A calendar- or clock-dependent test is a coin flip.** Pin fixtures to an explicit weekday in an
+explicit zone. `BookingEngineTest.nextMondayAtTen()` and `EntitlementLimitsTest`'s anchor are the
+pattern to copy.
 
 ## Traps that have already cost time
 
-- **`docker compose` lives at `docker/docker-compose.yml`, NOT the repo root.** Every invocation
-  needs `-f docker/docker-compose.yml`.
+- **`docker compose` lives at `docker/docker-compose.yml`, NOT the repo root.**
 - **`JAVA_HOME=/opt/homebrew/opt/openjdk@21`** for every backend command; the system JDK is 26.
 - **Use `mvn clean test`, not bare `mvn test`,** after reverting anything.
 - **Maven's `-Dtest=` separator is a comma, not a plus.**
 - **cwd does not persist between commands.** Absolute paths everywhere.
+- **`npm test` alone hangs** (watch mode). Always `-- --watch=false --browsers=ChromeHeadless`.
+- **e2e:** `docker compose -f docker/docker-compose.yml build frontend backend`, then `up -d`, then
+  `cd e2e && npx playwright test`. Rebuild the image first or you measure a stale bundle.
+- **`e2e/visual.sh` runs in a Linux container** — never Playwright locally, or you compare against
+  baselines your renderer never wrote.
 - **CI runs on `push: main` and `pull_request` only.** Pushing a branch starts nothing. Merge to
-  `main`, then **wait for the run and read it** — M13f was reported as done before CI came back, and
-  CI was red.
+  `main`, then **wait for the run and read it**.
 - **Never pipe a gate through `grep`/`tail`** — in zsh `$?` after a pipe is the pipe's.
 - **`README.md` is edited in a separate opencode session.** Do not touch it.
 
 ## Working agreement (unchanged, binding)
 
 **ALWAYS subagent.** The orchestrator dispatches, reviews every diff, runs the gates, commits and
-merges. It implements only genuinely delicate work — and the entitlement check in `BookingService`
-counts as delicate: it is the booking engine, under a pessimistic lock, and a wrong diff there
-oversells a class. Executors and reviewers are **Sonnet**. Executors never guess.
+merges. It implements only genuinely delicate work (tenancy, concurrency, money, the booking engine)
+and trivial glue. Executors and reviewers are **Sonnet**. Executors never guess.
 
-**Never edit `AuthzConformanceTest` as an executor** — orchestrator only. M16a adds no routes, so it
-should not need touching at all.
+**Never edit `AuthzConformanceTest` as an executor** — orchestrator only.
 
 **Every box-scoped endpoint gets happy + auth-denied + cross-tenant-denied tests.**
 
-## STILL UNOWNED — raise it again
+**Every FE feature ships through impeccable** (shape → build → critique ≥28/40, no open P0/P1),
+**scoped to one screen at a time** — never once over the milestone at the end. Expect 3–5
+look-and-adjust rounds per screen.
 
-**`docs/BACKLOG.md`'s `Launch → Production` block belongs to no milestone.** Raised at M13f's close;
-still unowned. Real SMTP plus SPF/DKIM/DMARC (**the entire auth flow depends on mail arriving**),
-Postgres backups and a restore drill, TLS/HSTS, `BOXHUB_COOKIE_SECURE=true`, ToS/privacy/DPA (EU PII,
-real money), error monitoring and uptime (there is none), rate limits never measured against a
-class-opening rush. **It must become a real scoped milestone before any box touches the product.**
+## STILL UNOWNED — raise it again, this is the third close in a row
 
-## After M16a
+**`docs/BACKLOG.md`'s `Launch → Production` block belongs to no milestone.** Real SMTP plus
+SPF/DKIM/DMARC (**the entire auth flow depends on mail arriving**), Postgres backups and a restore
+drill, TLS/HSTS, `BOXHUB_COOKIE_SECURE=true`, ToS/privacy/DPA (EU PII, real money), error monitoring
+and uptime (there is none), rate limits never measured against a class-opening rush, and deleting the
+`/app/dev/components` gallery. **It must become a real scoped milestone before any box touches the
+product.** It was raised at M13f's close and at M16a's close and is still unowned.
 
-`M23 → M14b → M14c → M17 → M24 → M25 → M26`. Read the order from
-`docs/ROADMAP-AT-A-GLANCE.md`, never from the number.
+## After M23
+
+`M14b → M14c → M17 → M24 → M25 → M26`. Read the order from `docs/ROADMAP-AT-A-GLANCE.md`, never from
+the number.
 
 **Rewrite this file at milestone close.** It is the ONLY session prompt; do not create a second one.

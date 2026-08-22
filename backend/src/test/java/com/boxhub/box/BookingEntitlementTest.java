@@ -83,12 +83,11 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
         return sessions.save(s).getId();
     }
 
-    private UUID newPlan(String entitlement, Integer weeklyLimit) {
+    private UUID newPlan(Integer entriesPerWeek) {
         Plan p = new Plan();
-        p.setName("Plan " + entitlement);
+        p.setName("Plan " + (entriesPerWeek == null ? "UNLIMITED" : entriesPerWeek));
         p.setDurationDays(30);
-        p.setEntitlement(entitlement);
-        p.setWeeklyClassLimit(weeklyLimit);
+        p.setEntriesPerWeek(entriesPerWeek);
         return plans.save(p).getId();
     }
 
@@ -122,7 +121,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
         UUID boxId = newBox("unlimited-" + System.nanoTime());
         actAsBox(boxId);
         UUID m1 = newMembership(boxId);
-        UUID planId = newPlan("UNLIMITED", null);
+        UUID planId = newPlan(null);
         subscriptionService.recordPeriod(m1, planId, 0, "test");
 
         UUID sessionId = newSession(Instant.now().plusSeconds(3600 * 24));
@@ -135,7 +134,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
         UUID boxId = newBox("weekly-" + System.nanoTime());
         actAsBox(boxId);
         UUID m1 = newMembership(boxId);
-        UUID planId = newPlan("WEEKLY_LIMIT", 1);
+        UUID planId = newPlan(1);
         subscriptionService.recordPeriod(m1, planId, 0, "test");
 
         Instant weekAnchor = Instant.now().plusSeconds(3600 * 24);
@@ -157,7 +156,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
         UUID boxId = newBox("grandfather-" + System.nanoTime());
         actAsBox(boxId);
         UUID m1 = newMembership(boxId);
-        UUID planId = newPlan("UNLIMITED", null);
+        UUID planId = newPlan(null);
         saveSubscription(m1, planId, null); // ACTIVE, null currentPeriodEnd == grandfathered, never expires
 
         UUID sessionId = newSession(Instant.now().plusSeconds(3600 * 24));
@@ -170,7 +169,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
         UUID boxId = newBox("expired-" + System.nanoTime());
         actAsBox(boxId);
         UUID m1 = newMembership(boxId);
-        UUID planId = newPlan("UNLIMITED", null);
+        UUID planId = newPlan(null);
         saveSubscription(m1, planId, Instant.now().minusSeconds(3600)); // ACTIVE row, but period already ended
 
         UUID sessionId = newSession(Instant.now().plusSeconds(3600 * 24));
@@ -192,7 +191,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
     void lapseDoesNotDisturbExistingBookingsOnlyBlocksNewOnes() {
         UUID boxId = newBox("lapse-survives-" + System.nanoTime());
         actAsBox(boxId);
-        UUID planId = newPlan("UNLIMITED", null);
+        UUID planId = newPlan(null);
         UUID m1 = newMembership(boxId);
         subscriptionService.recordPeriod(m1, planId, 0, "test");
 
@@ -239,7 +238,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
     void waitlistPromotionStillPromotesAMemberWhoLapsedWhileWaitlisted() {
         UUID boxId = newBox("wl-lapse-" + System.nanoTime());
         actAsBox(boxId);
-        UUID planId = newPlan("UNLIMITED", null);
+        UUID planId = newPlan(null);
         UUID m1 = newMembership(boxId);
         UUID m2 = newMembership(boxId);
         subscriptionService.recordPeriod(m1, planId, 0, "test");

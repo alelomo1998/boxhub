@@ -313,6 +313,7 @@ public feed will be a single registered native query.
 | **Not `@TenantId`** | box public-profile columns on `boxes`, `box_photo`, `box_hours` | The directory reads these across boxes, for boxes the reader does not belong to. Wholly public — nothing private to leak |
 | **Not `@TenantId`, keyed on the USER** | `coach_profile`, `coach_availability`, `coach_time_off`, `coach_stripe` | A coach is one person across several boxes — §8.2 |
 | **`@TenantId`** | `room`, `pt_booking`, `post`, `post_like`, `wod_rating` (and `bookings`, `payment`, already) | Box-operational or mixed-visibility. The dominant read is a box looking at its own data |
+| **`@TenantId`** (M16a) | `entitlement_usage` | Box-operational. Every read is one box counting one of its own members' consumption, on a request thread with a box tenant. M16a added **no** native query and **no** `runAsRoot` |
 
 ### 8.2 Why the coach tables are keyed on the user
 

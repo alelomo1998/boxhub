@@ -81,7 +81,6 @@ class SubscriptionLapseTest extends AbstractIntegrationTest {
         p.setDurationDays(30);
         p.setPriceCents(4000);
         p.setCurrency("eur");
-        p.setEntitlement("UNLIMITED");
         return plans.save(p).getId();
     }
 
