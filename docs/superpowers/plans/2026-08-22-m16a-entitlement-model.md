@@ -1544,7 +1544,7 @@ cd /Users/alessandrolomonaco/dev/boxhub && git add backend/src/main/java/com/box
 
 ---
 
-## Task 6 — The seven tests the model exists for
+## Task 6 — The eight tests the model exists for
 
 **Files:**
 - Create: `backend/src/test/java/com/boxhub/box/EntitlementLimitsTest.java`
@@ -1608,7 +1608,7 @@ This test should **pass** against the Task 4 implementation. Prove it is not vac
 control named in its own javadoc: temporarily change `EntitlementLedger.firstViolated` to count from
 `BookingRepository.countInWeek`, run, **confirm this test goes red**, revert. Report the result.
 
-- [ ] **Step 3: Write the other six**
+- [ ] **Step 3: Write the other seven**
 
 ```java
     @Test
@@ -1679,7 +1679,7 @@ weakening the assertion.
 cd /Users/alessandrolomonaco/dev/boxhub/backend && \
 JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn -q clean test -Dtest=EntitlementLimitsTest > /tmp/m16a-t6.txt 2>&1; echo "EXIT=$?"
 ```
-Expected: `EXIT=0`, 7 tests.
+Expected: `EXIT=0`, **8** tests. (This step first said 7; the plan's own Step 1 + Step 3 code blocks specify eight `@Test` methods and its Step 5 mutation table has eight rows. The prose was the stale half, and the executor caught it rather than dropping a test to match.)
 
 - [ ] **Step 5: Negative control on all seven**
 
@@ -1727,7 +1727,7 @@ for p in glob.glob('target/surefire-reports/*.txt'):
     if m: t+=int(m[1]);f+=int(m[2]);e+=int(m[3]);s+=int(m[4])
 print(f'Tests {t} Failures {f} Errors {e} Skipped {s}')"
 ```
-Required: `EXIT=0`, Failures 0, Errors 0, Skipped 0, Tests **≥ 534** (511 baseline + 1 + 2 + 10 + 3 + 7).
+Required: `EXIT=0`, Failures 0, Errors 0, Skipped 0, Tests **535** (511 baseline + 1 + 2 + 10 + 3 + 8). **Measured 535 on 2026-08-22.**
 
 - [ ] **Step 2: Migration head is exactly V28**
 
@@ -1871,10 +1871,10 @@ cd /Users/alessandrolomonaco/dev/boxhub && gh run watch --exit-status
 | §4 V28 migration + backfill | T1 |
 | §4.1 `entitlement`/`weeklyClassLimit` wire shim | T2 — extended to `SubscriptionController` too |
 | §5 gates | T7 |
-| §5.1 the seven tests | T6 |
+| §5.1 the seven tests | T6 — shipped as **eight**; see Task 6 |
 | §6 out of scope | T7 step 4 is the enforcing gate |
 
-**Placeholder scan:** the six skeletons in Task 6 Step 3 are comment-specified scenarios, not code.
+**Placeholder scan:** the seven skeletons in Task 6 Step 3 are comment-specified scenarios, not code.
 That is deliberate and flagged in the step itself — each must be written out in full before running,
 and the executor is told to escalate rather than weaken any scenario it cannot express. Every other
 code block in this plan is complete and paste-ready. `adminHeaders()` / `athleteHeaders()` in Tasks 2
@@ -1884,3 +1884,25 @@ to open the file and copy it rather than invent one.
 **Type consistency:** `firstViolated`, `recordEntry`, `recordCancellation`, `refundEntry`, `window`,
 `ENTRY_RULES`, `CANCELLATION_RULES`, `FAR_FUTURE`, `isUnlimited()`, and the sixteen `Plan` / six `Box`
 accessors are spelled identically in the Interfaces block, in Tasks 2-6, and in the test snippets.
+
+
+---
+
+## Post-execution corrections (measured 2026-08-22)
+
+Recorded here rather than silently fixed, because each is a claim this plan made that turned out false.
+
+1. **Seven tests were actually eight.** The prose said seven throughout; the Step 1 + Step 3 code
+   blocks and the Step 5 mutation table both specify eight. The executor flagged the inconsistency
+   instead of dropping a test to match the count. Final gate is **535**, not 534.
+2. **The `lastWeeksBooking...` mutation was a FALSE NEGATIVE as the plan specified it.** With only
+   the plan's two assertions, anchoring `window(...)` to `Instant.now()` still let both bookings
+   succeed — the fixture sits in 2027 while `now()` is 2026, so the mutated window contained neither
+   session and the test stayed green under the mutation it was supposed to catch. A third assertion
+   (a second session in the SAME week must be blocked by `entriesPerWeek = 1`) is what actually
+   distinguishes session-anchored from now-anchored. **This is the negative control earning its
+   place: without it the plan would have shipped a test that could not fail.**
+3. **`BookingRepository.countInWeek` is NOT dead.** `HomeController:84` still uses it for the
+   athlete's weekly check-in count. Its comment was updated to say so; the method stays.
+4. **`class_sessions.capacity` has `CHECK (capacity > 0)` (V3)**, so a WAITLIST join cannot be forced
+   with `capacity = 0`. Test 1 uses a filler membership on a `capacity = 1` session instead.
