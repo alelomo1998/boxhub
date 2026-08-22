@@ -7,7 +7,7 @@ else — it changes what "the pilot" means.
 **The headline: the pilot IS v1.0.** Not a slice — a complete, finished product the box tests in
 full. A feature may be **built but idle** (Stripe ships, works and is tested; no money flows because
 the pilot is free), **never absent**. Then v1.0.1 is bug fixes, v1.1.0 is what the box asks for.
-Nineteen milestones, one €99 tier, everything included.
+Twenty milestones, one €99 tier, everything included.
 
 **M28 has NO spec and NO plan — but its scope was already named.**
 `docs/superpowers/specs/2026-07-28-m12c-production-readiness-design.md` explicitly deferred one
@@ -158,12 +158,13 @@ is next.** Do not re-file it in the backlog.
 
 ## After M28
 
-`M23 → M29 → M14b → M14c → M17 → analytics brief → M15 → M16 → M30 → M32 → M24 → M25 → M26 →
+`M23 → M29 → M14b → M14c → M17 → analytics brief → M15 → M16 → M30 → M33 → M32 → M24 → M25 → M26 →
 Project 2 (The Room) → M18 → M27 → M19 → M20 → v1.0 → pilot`.
 
-Read the order from `docs/ROADMAP-AT-A-GLANCE.md`, never from the number. **M29, M30 and M32 are
-new** (messaging & notifications; waivers & agreements; growth & automation), and **Project 2 moved
-before the beta** — The Room is differentiator #1 and #2, and without it a box will not agree to
+Read the order from `docs/ROADMAP-AT-A-GLANCE.md`, never from the number. **M29, M30, M33 and M32
+are new** (messaging & notifications; waivers & agreements; **data import & migration** — CSV-first
+from Wodify/PushPress/Zen Planner/TeamUp/Mindbody, and the thing that collapses a box's switching
+cost; growth & automation), and **Project 2 moved before the beta** — The Room is differentiator #1 and #2, and without it a box will not agree to
 test.
 
 **Rewrite this file at milestone close.** It is the ONLY session prompt; do not create a second one.

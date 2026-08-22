@@ -24,7 +24,7 @@ followed by M21, and why M13f comes after both. Trust this page's order, never t
 | 2 | **M21** identity & tenancy for multi-box | Lets an account exist with **no gym**, and lets one person belong to several. The dangerous part wasn't the login — it was that a query with no gym attached read **everything**. It now reads **nothing** unless it asks: cross-gym visibility is one explicit, greppable opt-in. | ✅ **done** |
 | 3 | **M22** new-domain schema | The tables everything in Phase 2 needs: a gym's public profile (location, photos, hours), coach profiles and availability, drop-ins, social posts and ratings, and payout accounts. Also **rooms**, added at spec time. | ✅ **done** |
 
-## Phase 2 — v1.0 (19 milestones, in order)
+## Phase 2 — v1.0 (20 milestones, in order)
 *Everything ships before the pilot. Each screen milestone goes through the full design gate.*
 
 | | Milestone | What it actually does | Status |
@@ -41,15 +41,16 @@ followed by M21, and why M13f comes after both. Trust this page's order, never t
 | 12 | **M15** admin: people | Members, member detail, subscription changes, invites, gym settings that drive booking (cancel cutoff, booking horizon, M16a's three cancellation-policy flags), **at-risk identification, LEG**, and branding — **logo and name only**. | |
 | 13 | **M16** admin: commerce | Plans and their stats, payments, receipts, Stripe setup, owner dashboard, **plus POS/retail, add-to-invoice, family groups & shared payments, the staff payroll calculator, ARM** — and **the eight-limit plan editor that kills M16a's compatibility shim**. | |
 | 14 | **M30** waivers & agreements | Templates, e-signature at join, **versioning and re-signature when terms change**, admin view of signed state. Kept separate on purpose: the one item with legal consequence, and the thing that gets under-built as a sub-item. | |
-| 15 | **M32** growth & automation | Lead management + conversion board, campaign builder with email/SMS templates, the **automation rules engine** (trigger → condition → action), at-risk conversion. **Not metered** — Wodify sells 2/15/unlimited by tier; we include them. | |
-| 16 | **M24** discovery | Browse gyms on the platform, buy a drop-in at one you don't belong to. | |
-| 17 | **M25** social | A feed of workouts, public or gym-only, likes and a 1–5 rating. Scoped to workouts on purpose. | |
-| 18 | **M26** coach reservation | A coach publishes availability and a profile; an athlete books them; the coach accepts, and chooses how they get paid. | |
-| 19 | **Project 2 — The Room** | The coach's live class runner, check-in, and the TV whiteboard — **rebuilt**. **No longer walled off, and no longer after the beta.** It is differentiator #1 and #2 in POSITIONING.md; without it a box will not agree to test. The trade: it runs without the field research it was sequenced to receive. | |
-| 20 | **M18** superadmin | Platform-wide console and analytics. Consumes M21's boxless-identity work. | |
-| 21 | **M27** Capacitor: iOS & Android | Wraps the existing app as native. **Zero UI change.** Brings **real push**, closing M29's in-app-only gap. Contains calendar time you don't control: app-store review, native Google sign-in, push certificates. | |
-| 22 | **M19** landing site | The public marketing site at `/`, app at `/app`. Built from `docs/POSITIONING.md` §7. | |
-| 23 | **M20** 2FA | Two-factor for gym owners and superadmins. | |
+| 15 | **M33** data import & migration | **CSV-first, with presets for Wodify, PushPress, Zen Planner, TeamUp and Mindbody**, plus a generic mapping. Dry run → review → commit; idempotent; matching explicit, never guessed. Imports people, subscriptions, the plan catalogue, **attendance history** (LEG depends on it), **performance — WOD scores, benchmark results, lift PRs**, waiver signed-state, class types and schedule, payment history. **Performance history is the real switching cost for a CrossFit box** — an athlete with four years of Fran times resists a move harder than the owner does, and importing it collapses that. After M30 so every target schema is final. | |
+| 16 | **M32** growth & automation | Lead management + conversion board, campaign builder with email/SMS templates, the **automation rules engine** (trigger → condition → action), at-risk conversion. **Not metered** — Wodify sells 2/15/unlimited by tier; we include them. | |
+| 17 | **M24** discovery | Browse gyms on the platform, buy a drop-in at one you don't belong to. | |
+| 18 | **M25** social | A feed of workouts, public or gym-only, likes and a 1–5 rating. Scoped to workouts on purpose. | |
+| 19 | **M26** coach reservation | A coach publishes availability and a profile; an athlete books them; the coach accepts, and chooses how they get paid. | |
+| 20 | **Project 2 — The Room** | The coach's live class runner, check-in, and the TV whiteboard — **rebuilt**. **No longer walled off, and no longer after the beta.** It is differentiator #1 and #2 in POSITIONING.md; without it a box will not agree to test. The trade: it runs without the field research it was sequenced to receive. | |
+| 21 | **M18** superadmin | Platform-wide console and analytics. Consumes M21's boxless-identity work. | |
+| 22 | **M27** Capacitor: iOS & Android | Wraps the existing app as native. **Zero UI change.** Brings **real push**, closing M29's in-app-only gap. Contains calendar time you don't control: app-store review, native Google sign-in, push certificates. | |
+| 23 | **M19** landing site | The public marketing site at `/`, app at `/app`. Built from `docs/POSITIONING.md` §7. | |
+| 24 | **M20** 2FA | Two-factor for gym owners and superadmins. | |
 
 ---
 
@@ -80,8 +81,10 @@ the design law's dark-only and single-accent rules were **not** re-opened.
 
 - **Comments on social posts** — in or out, threaded or flat. Deferred.
 - **Team workout depth** — score entry only, or full roster splitting.
-- **Importing the pilot box's existing members** — no import tooling exists anywhere in this plan.
-  Possibly an M15 line item, possibly a one-off script. **Flagged, not scoped.**
+- **Which platform presets ship in M33** — Wodify, PushPress, Zen Planner, TeamUp and Mindbody are
+  named; whether all five ship or the pilot box's own platform ships first is M33's call.
+- **API connectors for import** — v1.1 at the earliest. Wodify gates API access to its top tier and
+  PushPress's is partner-gated, so a box often cannot grant it. CSV works everywhere.
 - **SMS provider and cost model** — M29. The one channel with a variable bill.
 - **Sending gym mail from the gym's own domain** — folded into M28; how far it goes is M28's call.
 - ~~**Whether a drop-in charges through the gym's Stripe**~~ — **DECIDED 2026-08-19: it does not.**

@@ -127,10 +127,16 @@ Not "cut" — deferred, with the condition that reopens them written down.
 | **Custom report builder** | v1.1. v1.0 ships pre-built reports covering LEG, ARM, attendance and revenue; a query-builder UI is a large, low-payoff surface for a pilot. |
 | **API access, heart rate tracking, 24/7 door access** | Cut from v1.0. Door access needs hardware partnerships (Kisi, Brivo, Openpath), which is commercial work, not code. |
 
-## 8. The four new milestones
+## 8. The five new milestones
 
-Seven were proposed; **three folded into existing milestones and one was deleted outright.** What
-remains is genuinely new subsystems, not screens that belong to an existing surface.
+Seven were proposed; **two folded into existing milestones and two were deleted outright** — then
+**M33 was added on 2026-08-22** when member import was found missing. What remains is genuinely new
+subsystems, not screens that belong to an existing surface.
+
+*(Label note: M31 and M34 are dead — the commerce-completeness and integrations milestones that
+briefly held them folded into M16 and were cut. **M33's label was reassigned** from the dissolved
+insights milestone to data import. Nothing shipped under any of those labels, so nothing is
+ambiguous in git.)*
 
 ### M28 — Launch → Production
 
@@ -188,7 +194,55 @@ the **automation rules engine** (trigger → condition → action), and at-risk 
 **Depends on M28** (mail that arrives) and **M29** (the channels to send through). **Not metered** —
 Wodify sells 2 / 15 / unlimited automations by tier; we include them.
 
-## 9. v1.0 — nineteen milestones in order
+### M33 — data import & migration
+
+**Added 2026-08-22 on the user's direction, and it is not a utility — it is a competitive weapon.**
+
+**Performance history is the real switching cost for a CrossFit box.** An athlete with four years of
+Fran times and lift PRs in Wodify resists a move harder than the owner does. Import that history and
+the switching cost collapses — and rxed's benchmark-provenance model (§3 of POSITIONING.md) is one of
+the few that can hold it faithfully rather than flattening it into notes.
+
+**CSV-first with per-platform presets** (user-stated). The box exports from its old tool; we ship a
+column-mapping importer with presets for **Wodify, PushPress, Zen Planner, TeamUp and Mindbody**,
+plus a generic mapping for anything else.
+
+**Why not APIs:** Wodify gates API access to its top tier and PushPress's is partner-gated, so a box
+often *cannot* grant it even if willing. Each integration is also a separate build that breaks when a
+vendor ships a change. CSV works with every platform including ones we have never seen. API
+connectors are a v1.1 question, decided by demand, not assumed now.
+
+**What must come across:**
+
+| Data | Why it matters |
+|---|---|
+| People — name, email, phone, DOB, emergency contact, join date, status | The base. `join date` also seeds LEG. |
+| Memberships / subscriptions + the plan catalogue | Continuity of billing state, even though the pilot does not bill. |
+| **Attendance history** | LEG is computed from it. Without it every member looks new. |
+| **Performance — WOD scores, benchmark results, lift PRs** | The switching cost. The strategic half of this milestone. |
+| Waiver signed-state | Depends on **M30**; a box that cannot show a signed waiver has to re-collect them all. |
+| Class types and recurring schedule | So the box does not rebuild its week by hand. |
+| Payment history | Reporting continuity for ARM. |
+
+**Non-negotiables:**
+
+1. **Dry run → review → commit.** An import that half-applies and cannot be explained is worse than
+   no import. Report per row: created, matched, skipped, rejected — with the reason.
+2. **Idempotent and re-runnable.** A box will import twice. The second run must not duplicate anyone.
+3. **Matching is explicit, never guessed.** Email is the natural key; collisions and blanks are
+   surfaced for a human, not resolved silently.
+4. **Tenancy.** Every write runs under the box's tenant. Bulk writes over `@TenantId` entities is
+   exactly where `docs/TENANCY.md` failure modes appear — **native SQL needs a registered
+   justification, and `runAsRoot` is never the answer on a request thread.**
+5. **GDPR.** We import PII of people who never signed up with us. The **box is the controller, rxed
+   is the processor** — the DPA from M28 must cover it, and this milestone must not be the first time
+   anyone reads that sentence.
+
+**Ordered after M30**, so waivers exist as an import target and every destination schema is final.
+
+**This closes the gap §11 flagged as "flagged, not scoped".**
+
+## 9. v1.0 — twenty milestones in order
 
 | # | Milestone | Note |
 |---|---|---|
@@ -202,15 +256,16 @@ Wodify sells 2 / 15 / unlimited automations by tier; we include them.
 | 8 | **M15** admin: people | + at-risk, LEG, branding (logo/name) |
 | 9 | **M16** admin: commerce | + POS, family/shared payments, payroll, ARM, **the eight-limit plan UI** |
 | 10 | **M30** waivers & agreements | |
-| 11 | **M32** growth & automation | |
-| 12 | **M24** discovery | |
-| 13 | **M25** social | |
-| 14 | **M26** coach reservation | |
-| 15 | **Project 2 — The Room** | Runner, check-in, TV — rebuilt |
-| 16 | **M18** superadmin | |
-| 17 | **M27** Capacitor: iOS & Android | Brings real push |
-| 18 | **M19** landing site | |
-| 19 | **M20** 2FA | |
+| 11 | **M33** data import & migration | CSV-first; after M30 so every target schema is final |
+| 12 | **M32** growth & automation | |
+| 13 | **M24** discovery | |
+| 14 | **M25** social | |
+| 15 | **M26** coach reservation | |
+| 16 | **Project 2 — The Room** | Runner, check-in, TV — rebuilt |
+| 17 | **M18** superadmin | |
+| 18 | **M27** Capacitor: iOS & Android | Brings real push |
+| 19 | **M19** landing site | |
+| 20 | **M20** 2FA | |
 | → | **v1.0 → pilot** | |
 
 **The analytics brief moves up, from Phase 3 to position 7.** Its job is to ask what each stats screen
@@ -223,7 +278,7 @@ shim dies and the eight limits get a real editor. See `docs/BACKLOG.md`.
 
 ## 10. What this costs, stated once
 
-**This roughly doubles the remaining roadmap** — nineteen milestones instead of the nine a scoped-down
+**This roughly doubles the remaining roadmap** — twenty milestones instead of the nine a scoped-down
 pilot would have needed. **The user chose it explicitly**, preferring to *"double the roadmap and
 arrive ready."* Recorded here so the number is never a surprise later, and so nobody re-litigates it
 mid-programme.
@@ -234,5 +289,8 @@ mid-programme.
   into M28 as a line item; how far it goes (full domain verification vs a reply-to) is M28's call.
 - **SMS provider and cost model** — M29. Real per-message cost, and it is the one channel with a
   variable bill.
-- **Whether the pilot box's existing member data is imported** — no import tooling exists anywhere in
-  this plan. It may be a real M15 line item or a one-off script. **Flagged, not scoped.**
+- ~~**Whether the pilot box's existing member data is imported**~~ — **RESOLVED 2026-08-22: it is
+  M33**, CSV-first with per-platform presets. See §8.
+- **Which platform presets ship in v1.0** — Wodify, PushPress, Zen Planner, TeamUp and Mindbody are
+  named; whether all five ship or the pilot box's own platform ships first is M33's call.
+- **API connectors** — v1.1 at the earliest, decided by demand rather than assumed.

@@ -727,6 +727,7 @@ The Wodify feature-gap audit produced these; each now has a milestone in
 | Weekly streaks | **M17** |
 | Sending mail from the gym's own domain | **M28** |
 | Custom branding — **logo and name only** | **M15** |
+| **Importing a box's existing data from Wodify / PushPress / Zen Planner / TeamUp / Mindbody** — people, subscriptions, plans, **attendance history**, **WOD scores / benchmarks / lift PRs**, waiver state, schedule, payments. CSV-first with per-platform presets. | **M33** |
 
 **Cut from v1.0:** API access, heart-rate tracking, 24/7 door access control (hardware partnerships,
 not code), anything AI, per-gym website builder, per-gym theming.
