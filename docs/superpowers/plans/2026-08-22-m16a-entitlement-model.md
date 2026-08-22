@@ -105,10 +105,22 @@ Record these in `docs/HANDOFF.md` at close (Task 8). Each one changes what gets 
 - **Three wire consumers of the dropped fields, not one:** `PlanController.PlanDto`,
   `SubscriptionController.PlanSummaryDto` (serves the athlete membership screen), and
   `DevDataSeeder`. The spec named only the first.
-- **Five test files call `Plan.setEntitlement(...)` / `setWeeklyClassLimit(...)`** and will not
-  compile once the entity fields go: `MembershipSchemaTest:97`, `BookingEngineTest:87`,
-  `StripeWebhookTest:320`, `BookingEntitlementTest:88` (`newPlan` helper), `PlanApiTest` (JSON only
-  — request bodies, which keep working through the shim).
+- **Test files calling `Plan.setEntitlement(...)` / `setWeeklyClassLimit(...)`.** The plan first
+  listed five; executing Task 2 found **fourteen**, plus `BookingService` itself. Recorded here as
+  measured rather than as first estimated: `MembershipSchemaTest`, `BookingEngineTest`,
+  `StripeWebhookTest`, `BookingEntitlementTest` (`newPlan`, **6** call sites not 4),
+  `BookingCancellationTest`, `SubscriptionServiceTest`, `InviteSubscriptionTest`,
+  `SubscriptionLapseTest`, `StripeCheckoutServiceTest`, `SlotRegenerationTest`,
+  `SubscriptionApiTest` (2 sites), `LogHygieneTest`, and `PlanApiTest` (JSON only — request bodies,
+  which keep working through the shim). This is Moment 1 of PREFLIGHT failing in the usual way:
+  the brief listed the files the change *is*, not every file that *depends* on it.
+- **`resolveEntitlement` is NOT wholly redundant.** Task 2 asserted it "disappears with the
+  redundancy that created it" and deleting it turned `PlanApiTest.weeklyLimitEntitlementWithoutALimitIs400`
+  red. `plans.page.ts` sends `entitlement: 'WEEKLY_LIMIT'` with `weeklyClassLimit: undefined` when an
+  admin picks the limited option and leaves the number blank; without the check that becomes a
+  silently-unlimited plan named as if it were limited. **The half that rejects that survives as
+  `PlanController.requireWeeklyLimit`, called from both `create` and `patch`.** Executor escalated
+  rather than editing the test — correctly.
 - **No drop-in/visitor booking path exists yet.** `Booking.setVisitorUserId` has no production
   caller; M24 builds it. The ledger is membership-only and the backfill filters
   `membership_id is not null`.
