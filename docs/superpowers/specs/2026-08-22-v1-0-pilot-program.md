@@ -242,39 +242,58 @@ connectors are a v1.1 question, decided by demand, not assumed now.
 
 **This closes the gap §11 flagged as "flagged, not scoped".**
 
-## 9. v1.0 — twenty milestones in order
+## 9. v1.0 — thirty-four milestones, in two phases
 
-| # | Milestone | Note |
+**Revised 2026-08-22 after a full milestone review.** Six milestones were 2–3× oversized — they were
+sized before this programme loaded more into them — and the ordering principle changed: **build the
+product, then ship it.** M28 was briefly placed first on a convenience argument ("everything after is
+deployable"); that does not justify building and maintaining infrastructure for a product that does
+not exist. Its one real ordering constraint is that **M27d cannot precede it** — Apple and Google
+review a native app against a real backend, not localhost.
+
+**Phase A — build (30):** M23 → analytics brief → M29a → M29b → M14b → M14c-a → M14c-b → M17a →
+M17b → M17c → M15a → M15b → M16b → M16c → M16d → M18 → M30 → M32a → M32b → M24 → M25 → M26 → M33 →
+M27a → M27b → M27c → **M34 → M35 → M36 → M37** (The Room)
+
+**Phase B — ship (4):** M28 → M27d → M19 → M20 → **v1.0 → pilot**
+
+The per-milestone detail lives in `docs/ROADMAP-AT-A-GLANCE.md`. What changed, and why:
+
+### Splits
+
+| Was | Became | Why |
 |---|---|---|
-| 1 | **M28** Launch → Production | Everything after is deployable |
-| 2 | **M23** app entry & shells | |
-| 3 | **M29** messaging & notifications | Before M17 by design |
-| 4 | **M14b** schedule & classes surfaces | |
-| 5 | **M14c** the builder | |
-| 6 | **M17** athlete | + weekly streaks |
-| 7 | **Analytics brief** | **Moved up** — see below |
-| 8 | **M15** admin: people | + at-risk, LEG, branding (logo/name) |
-| 9 | **M16** admin: commerce | + POS, family/shared payments, payroll, ARM, **the eight-limit plan UI** |
-| 10 | **M30** waivers & agreements | |
-| 11 | **M33** data import & migration | CSV-first; after M30 so every target schema is final |
-| 12 | **M32** growth & automation | |
-| 13 | **M24** discovery | |
-| 14 | **M25** social | |
-| 15 | **M26** coach reservation | |
-| 16 | **Project 2 — The Room** | Runner, check-in, TV — rebuilt |
-| 17 | **M18** superadmin | |
-| 18 | **M27** Capacitor: iOS & Android | Brings real push |
-| 19 | **M19** landing site | |
-| 20 | **M20** 2FA | |
-| → | **v1.0 → pilot** | |
+| **M14c** | **M14c-a** builder · **M14c-b** library/benchmarks/types | Held the builder page, blocks-of-blocks at two levels, presets, swipe reorder, the scored-checkbox replacement, team WODs, the unbounded-`wod` growth bug, **deleting the Benchmarks page** and **moving Types to admin**. Three milestones under one label. |
+| **M17** | **M17a** home/book/class detail · **M17b** WOD board + leaderboard · **M17c** progress/membership/profile/analytics | Eight screens, **two of them hero screens**, plus athlete analytics and two known defects. The standing rule is one screen at a time. M17b is separate because identity lives in hero screens. |
+| **M15** | **M15a** members & detail · **M15b** settings & public profile | Members table, detail, subscription change, invites, box settings, the Types page and public-profile editing — then at-risk/LEG, branding and the cancellation-policy UI on top. |
+| **M16** | **M16b** plans & entitlements · **M16c** payments/Stripe/Connect/POS/family · **M16d** dashboard & commerce analytics | Already plans + stats + payments + Stripe + Connect + receipts + dashboard before this programme added POS, family payments, payroll and ARM. **`M16a` is taken by the shipped entitlement model**, so the splits are b/c/d — reusing `M16a` would collide in git history. |
+| **M29** | **M29a** messaging · **M29b** notifications | Two subsystems merged too eagerly. Messaging is threads and an inbox; notifications is an event system with delivery. |
+| **M32** | **M32a** leads · **M32b** automation & campaigns | Leads is screens; the automation rules engine is a backend subsystem. |
+| **M27** | **M27a** shell · **M27b** auth · **M27c** push · **M27d** store release | User-directed. Four different kinds of work with different risks — and **M27d is the only part that cannot precede M28.** |
+| **Project 2** | **M34** runner · **M35** check-in · **M36** heats & teams · **M37** TV | "Runner, check-in, TV, heats and teams, per-device views, sound" was never one milestone. |
 
-**The analytics brief moves up, from Phase 3 to position 7.** Its job is to ask what each stats screen
-must answer *and audit whether the data was ever recorded*. Running it after M15/M16 build dashboards
-means discovering a missing column with the screen already built on top of it.
+### Conflicts the review found
 
-**M16 carries a debt M16a created:** eight plan limits shipped with **no UI to set them**. The legacy
-plans screen exposes only the old weekly-limit select through the compatibility shim. M16 is where the
-shim dies and the eight limits get a real editor. See `docs/BACKLOG.md`.
+1. **Team WODs were in both M14c and Project 2** ("heats and teams"). **Seam: authoring a team WOD is
+   the builder (M14c-a); assigning heats and running teams is The Room (M36).** This also answers the
+   v3 roadmap's open "team WOD depth" question.
+2. **The quarantined TV/SSE defect is already fixed.** The v3 doc instructs Project 2 not to forget
+   `runner.spec`'s `test.fixme()`'d TV half, where a coach starts a timer and the TV never learns of
+   it. **M13f found it passing since M21.** Recorded debt that no longer exists — the same decay M13f
+   found across half its inherited list. **Verify before planning against it.**
+3. **`deploy/deploy.sh` has never successfully run.** M12c added a sentinel guard to a script that has
+   never executed. **M28's first task is debugging the script, not the deploy** — and the two nginx
+   configs must be unified first, since `docker/nginx-tls.conf` is a 154-line hand-maintained copy of
+   `docker/nginx.conf`.
+
+### Milestones needing work before they can be planned
+
+- **M24 discovery** — four open questions: does a box opt in to being listed, who edits the public
+  page, is there location search (and therefore geocoding), and does it reuse M9's
+  PENDING/ACTIVE/SUSPENDED lifecycle rather than inventing a second one. **Brainstorm first.**
+- **M26 coach reservation** — profile, availability calendar, athlete-facing view, request flow and
+  **Connect onboarding**. Five surfaces; **watch for a split at spec time.**
+- **M33 data import** — large but coherent. Flag at spec time.
 
 ## 10. What this costs, stated once
 

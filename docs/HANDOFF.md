@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-22 (**M16a merged, CI green. The roadmap was RE-PLANNED the same day: the pilot IS v1.0, twenty milestones, and M28 Launch → Production is next — not M23.**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-22 (**M16a merged, CI green. The roadmap was RE-PLANNED and then fully REVIEWED the same day: the pilot IS v1.0, thirty-four milestones in two phases, and M23 is next.**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -26,8 +26,23 @@ about. **Never discount below €99** — their $199→$99 "for life" offer mean
 `docs/ROADMAP-AT-A-GLANCE.md`. Both **supersede the ORDER** in the v3 roadmap doc — that doc's
 *reasoning* still stands, its phase sequence and its placement of the beta do not.
 
-**Twenty milestones:** M28 → M23 → M29 → M14b → M14c → M17 → analytics brief → M15 → M16 → M30 →
-M33 → M32 → M24 → M25 → M26 → Project 2 (The Room) → M18 → M27 → M19 → M20 → **v1.0 → pilot**.
+**Thirty-four milestones, in two phases.** The ordering principle is **build the product, then ship
+it** — M28 was briefly placed first on a convenience argument ("everything after is deployable"),
+which does not justify building infrastructure for a product that does not exist.
+
+**Phase A — build (30):** M23 → analytics brief → M29a → M29b → M14b → M14c-a → M14c-b → M17a → M17b → M17c →
+M15a → M15b → M16b → M16c → M16d → M18 → M30 → M32a → M32b → M24 → M25 → M26 → M33 →
+M27a → M27b → M27c → **M34 → M35 → M36 → M37** (The Room)
+
+**Phase B — ship (4):** M28 → M27d → M19 → M20 → **v1.0 → pilot**
+
+**The one real ordering constraint in Phase B: M27d (store release) cannot precede M28**, because
+Apple and Google review a native app against a real backend, not localhost.
+
+**A full milestone review on 2026-08-22 found six milestones 2–3× oversized** and split them:
+M14c→2, M17→3, M15→2, M16→3 (**b/c/d — `M16a` is taken by the shipped entitlement model**), M29→2,
+M32→2, M27→4, and **Project 2 → M34 runner / M35 check-in / M36 heats & teams / M37 TV**. Detail and
+reasoning: §9 of the programme spec.
 
 **Five new milestones**, from a full audit of Wodify's published tiers (AI and the per-gym website
 builder excluded by decision):
@@ -35,10 +50,22 @@ builder excluded by decision):
 | New | What |
 |---|---|
 | **M28** Launch → Production | The deploy. **Goes FIRST**, so everything after is viewable on a real device on a real domain. Its scope was named and deferred by **M12c in July** — read that spec before scoping. |
-| **M29** messaging & notifications | Staff ↔ member 1:1 threads both directions incl. coaches (**no member↔member**), announcements with segments, an **in-app** notification inbox, SMS channel. **No email notifications.** Before M17 so M17 consumes it. |
+| **M29a / M29b** messaging · notifications | Staff ↔ member 1:1 threads both directions incl. coaches (**no member↔member**), announcements with segments; then the event system and **in-app** inbox. **No email notifications.** Before M17 so M17 consumes it; push lands at **M27c**. |
 | **M30** waivers & agreements | Templates, e-sign, versioning, re-sign on change. Kept separate on purpose: the one item with legal consequence, and the thing that gets under-built as a sub-item. |
 | **M33** data import & migration | **CSV-first** with presets for Wodify, PushPress, Zen Planner, TeamUp, Mindbody. **Performance history is the real switching cost for a CrossFit box** — an athlete with four years of Fran times resists a move harder than the owner does. Imports attendance too; LEG depends on it. |
-| **M32** growth & automation | Leads, conversion board, campaigns, the automation rules engine, at-risk. **Not metered** — Wodify sells 2/15/unlimited by tier. |
+| **M32a / M32b** leads · automation | Leads and the conversion board; then the automation rules engine and campaigns. **Not metered** — Wodify sells 2/15/unlimited by tier. |
+
+**Three conflicts the review found, each of which changes what gets built:**
+
+1. **Team WODs were in both M14c and Project 2.** Seam: **authoring a team WOD is the builder
+   (M14c-a); assigning heats and running teams is The Room (M36).** This also answers the v3
+   roadmap's open "team WOD depth" question.
+2. **The quarantined TV/SSE defect is already fixed.** The v3 doc tells Project 2 not to forget
+   `runner.spec`'s `test.fixme()`'d TV half; **M13f found it passing since M21.** Recorded debt that
+   no longer exists — verify before planning against it.
+3. **`deploy/deploy.sh` has never successfully run.** M12c added a sentinel guard to a script that has
+   never executed, so **M28's first task is debugging the script, not the deploy** — and the two
+   nginx configs must be unified first (`docker/nginx-tls.conf` is a 154-line hand-maintained copy).
 
 **Two things moved, both deliberate reversals:**
 
@@ -64,9 +91,11 @@ upgrade the server) and the custom report builder (v1.1).
 **`Launch → Production` is no longer unowned.** It was raised unowned at three consecutive milestone
 closes. It is **M28**, and it is next.
 
-**Cost, stated once so it is never a surprise:** this roughly doubles the remaining roadmap — twenty
-milestones instead of the nine a scoped-down pilot would have needed. **The user chose it
-explicitly**, preferring to *"double the roadmap and arrive ready."* Do not re-litigate it mid-programme.
+**Cost, stated once so it is never a surprise:** thirty-four milestones instead of the nine a
+scoped-down pilot would have needed. Roughly twenty came from scope; the rest came from **splitting
+milestones that were already oversized**, which is a correction to the estimate rather than new work.
+**The user chose it explicitly**, preferring to *"double the roadmap and arrive ready."* Do not
+re-litigate it mid-programme.
 
 ## Positioning — added 2026-08-22
 
@@ -420,21 +449,20 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**Open M28, Launch → Production.** It has **no spec and no plan**, but its scope was named and
-deferred in July by `docs/superpowers/specs/2026-07-28-m12c-production-readiness-design.md` — **read
-that first, or you will rebuild work M12c already did.** Start with `superpowers:brainstorming`: the
-scope is known, the decisions (SMTP provider, monitoring stack, what the restore drill proves, what
-the legal documents say) are not.
+**Open M23, app entry & shells.** It has **no spec and no plan** — start with
+`superpowers:brainstorming`, not `writing-plans`.
 
-**M28 goes first** so every one of the nineteen milestones after it is deployable and viewable on a
-real device on a real domain. Its evidence is measurement, not a ticked checklist: a restore drill
-**performed**, mail **delivered** to a real external inbox with SPF/DKIM/DMARC observed passing, TLS
-**graded**, monitoring **alerting** after something is broken on purpose, rate limits **measured**
-under a simulated class-opening rush.
+M23 is the container: today the app is log in → pick a box → one of three shells, **all of which
+assume a box**, so a boxless account has no shell at all. M21 made boxless and multi-box real states;
+M23 is where they get a UI. It owns the boxless shell, the box switcher, the app's home for each
+case, and how a person moves between a box, another box, and no box.
 
-**M28 touches secrets, DNS, TLS and a live host.** Buying a domain, pointing DNS, provisioning the
-VPS and sending real mail to real addresses are outward-facing and hard to reverse — **confirm with
-the user before doing any of them.** Executors do not take those actions on their own.
+**It ships sketches you can look at, at 375 and 1440, before anything is built.** That requirement
+comes from M13e's first lesson — *"I shaped the sections and not the structure"* — where every defect
+the user rejected on sight came from a navigation and chrome layer that never went through shape.
+
+**M23 is the first frontend milestone in a long time**, so the frontend numbers should GROW: Karma
+419, e2e 67, visual 31 are floors now, not ceilings.
 
 *(The section below is the previous entry, kept for its M16a detail. Its "next step" is superseded.)*
 

@@ -76,11 +76,11 @@ argued against.**
 
 | # | Trigger | Where we stand |
 |---|---|---|
-| 1 | **Notifications** — "you're off the waitlist", class cancelled, payment failed | ❌ Silent today. **Owned by M29**, ordered before M17 so M17 consumes it. **In-app only** by decision; real push arrives with M27, inside v1.0. |
-| 2 | **Front-desk check-in speed** on a 6am Monday | ⚠️ Built (photo grid, M5) but **never measured against a real rush**. PushPress wins defectors on tap-to-check-in specifically. Rebuilt in **Project 2**. |
-| 3 | **A member app that isn't embarrassing** | ❌ Web-only until **M27** (Capacitor), which is in v1.0. |
+| 1 | **Notifications** — "you're off the waitlist", class cancelled, payment failed | ❌ Silent today. **Owned by M29b**, ordered before M17 so M17 consumes it. **In-app only** by decision; real push arrives with **M27c**, inside v1.0. |
+| 2 | **Front-desk check-in speed** on a 6am Monday | ⚠️ Built (photo grid, M5) but **never measured against a real rush**. PushPress wins defectors on tap-to-check-in specifically. Rebuilt in **M35**, and the milestone's own instruction is to measure it against a real 6am rush. |
+| 3 | **A member app that isn't embarrassing** | ❌ Web-only until **M27a–d** (Capacitor), which is in v1.0. |
 | 4 | **Support answered in hours, not days** | ✅ Free advantage while we are one box deep — Wodify's slowness is a *scale* problem we do not have yet. An operating commitment, not a feature. |
-| 5 | **Two-Brain metrics** — LEG (length of engagement), ARM (average revenue per member) | ❌ Not built. **Owned by the analytics brief → M15 (LEG, at-risk) and M16 (ARM).** Affiliate owners are trained on these numbers and nobody reports them well; `subscription` + `payment` + `entitlement_usage` already hold everything needed. |
+| 5 | **Two-Brain metrics** — LEG (length of engagement), ARM (average revenue per member) | ❌ Not built. **Owned by the analytics brief (#2) → M15a (LEG, at-risk) and M16d (ARM).** Affiliate owners are trained on these numbers and nobody reports them well; `subscription` + `payment` + `entitlement_usage` already hold everything needed. |
 
 **#5 stays the cheapest real wedge** — a reporting feature, not a platform one, speaking the exact
 language an affiliate owner already thinks in.
