@@ -52,10 +52,29 @@ public class SessionGenerator {
 
     /** Assumes the current tenant is the slot's box (create path sets it; generateForBox sets it). */
     public void generateForSlot(ScheduleSlot slot, ClassType type, ZoneId tz, int horizonWeeks) {
+        generateForSlot(slot, type, tz, horizonWeeks, null);
+    }
+
+    /**
+     * `notBefore` floors generation at a date instead of today. The nightly job passes null and is
+     * unaffected; only {@code SlotRegenerationService.regenerateFrom} passes a value.
+     *
+     * <p>Without it, "regenerate from Tuesday" also recreated Monday's session: this loop started at
+     * today regardless, so every slot occurrence between today and the caller's `from` that did not
+     * already exist got created BEFORE the date the caller asked to regenerate from — contradicting
+     * both the method's name and its own test. It only surfaced when `from` landed later in the week
+     * than the slot's own weekday, which is why it passed on 2026-08-20 and failed on 2026-08-22.
+     *
+     * <p>The horizon end stays anchored to today, not to the floor: a regeneration starting in the
+     * future must not also extend how far ahead the box generates.
+     */
+    public void generateForSlot(ScheduleSlot slot, ClassType type, ZoneId tz, int horizonWeeks,
+                                LocalDate notBefore) {
         DayOfWeek target = DayOfWeek.of(slot.getWeekday() + 1); // 0=Mon -> MONDAY(1)
         LocalDate today = LocalDate.now(tz);
         LocalDate end = today.plusWeeks(horizonWeeks);
-        for (LocalDate d = today; !d.isAfter(end); d = d.plusDays(1)) {
+        LocalDate start = (notBefore == null || notBefore.isBefore(today)) ? today : notBefore;
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
             if (d.getDayOfWeek() != target) continue;
             Instant startAt = ZonedDateTime.of(d, slot.getStartTime(), tz).toInstant();
             if (startAt.isBefore(Instant.now())) continue;                             // no past slots

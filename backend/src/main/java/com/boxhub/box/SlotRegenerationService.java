@@ -74,7 +74,9 @@ public class SlotRegenerationService {
         timers.deleteBySessionIdIn(sessionIds);
         sessions.deleteAll(inRange);
 
-        generator.generateForSlot(slot, type, tz, box.getBookingHorizonWeeks());
+        // Floor generation at `from`. Without it the generator restarts at today and refills the gap
+        // between today and `from`, creating sessions BEFORE the date this method is named after.
+        generator.generateForSlot(slot, type, tz, box.getBookingHorizonWeeks(), from);
     }
 
     private ResponseStatusException conflict(String reason) {

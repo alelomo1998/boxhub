@@ -53,6 +53,62 @@ class SlotRegenerationTest extends AbstractIntegrationTest {
     // One box, one active slot, and two already-materialized sessions off that slot: one in the
     // past (must survive any "from now/soon" regeneration) and one in the future (the one tests
     // book onto). capacity=1 so a second booking onto futureSessionId genuinely waitlists.
+    /**
+     * THE DEFECT THIS TEST EXISTS FOR, pinned so it cannot hide behind the calendar again.
+     *
+     * <p>`regenerateFrom(slot, from)` deleted from `from` forward and then called the generator,
+     * which restarted at TODAY — so every occurrence between today and `from` that did not already
+     * exist was created BEFORE `from`. "Regenerate from Tuesday" also recreated Monday.
+     *
+     * <p>`regeneratesForwardAndLeavesEarlierSessionsAlone` above can catch this, but only on dates
+     * where `from` happens to land later in the week than the slot's weekday: it passed on
+     * 2026-08-20 and failed on CI on 2026-08-22 with no code change between them. This test pins
+     * the slot's weekday to TOMORROW and `from` to today+3, so the gap exists on every calendar
+     * date and the failure is deterministic.
+     */
+    @Test
+    void regenerationNeverCreatesASessionBeforeTheDateItStartsFrom() {
+        ZoneId tz = ZoneId.of("Europe/Rome");
+        LocalDate today = LocalDate.now(tz);
+        LocalDate tomorrow = today.plusDays(1);
+
+        long n = System.nanoTime();
+        Box b = new Box();
+        b.setName("Floor " + n);
+        b.setSlug("floor-" + n);
+        b.setTimezone("Europe/Rome");
+        UUID boxId = boxes.save(b).getId();
+        actAsBox(boxId);
+
+        ClassType t = new ClassType();
+        t.setName("WOD");
+        UUID typeId = types.save(t).getId();
+
+        ScheduleSlot slot = new ScheduleSlot();
+        slot.setClassTypeId(typeId);
+        // 0=Mon; DayOfWeek is 1=Mon, so subtract one. The slot runs TOMORROW, always before `from`.
+        slot.setWeekday(tomorrow.getDayOfWeek().getValue() - 1);
+        slot.setStartTime(LocalTime.of(6, 0));
+        slot.setDurationMin(60);
+        slot.setCapacity(1);
+        UUID slotId = slots.save(slot).getId();
+
+        LocalDate from = today.plusDays(3);
+        regeneration.regenerateFrom(slotId, from);
+
+        Instant fromInstant = from.atStartOfDay(tz).toInstant();
+        List<Instant> before = sessions.findAll().stream()
+                .filter(x -> slotId.equals(x.getScheduleSlotId()))
+                .map(ClassSession::getStartAt)
+                .filter(at -> at.isBefore(fromInstant))
+                .sorted().toList();
+
+        assertThat(before)
+                .as("regenerateFrom(%s) must not create any session before %s, but created %s",
+                        from, from, before)
+                .isEmpty();
+    }
+
     private Ctx seedSlotWithSessions() {
         long n = System.nanoTime();
         Box b = new Box();
