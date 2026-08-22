@@ -8,6 +8,7 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 - **Milestone plans:** `docs/superpowers/plans/` — the active plan governs current work.
 - **Backlog:** `docs/BACKLOG.md` — deferred items; out-of-scope ideas go here, one line.
 - **VPS/deployment context:** `docs/VPS-DEPLOYMENT.md` — agreed OVH target, storage/backup limits and pre-production blockers.
+- **Positioning:** `docs/POSITIONING.md` — who rxed is for and who it competes with. **CrossFit-only, on purpose; the competitor is Wodify, not PushPress.** Read before arguing milestone order and before writing anything a gym owner reads. §4's five switch triggers are the ranking product decisions should be argued against.
 - **Roadmap at a glance:** `docs/ROADMAP-AT-A-GLANCE.md` — all 18 milestones in **execution order**, one line each. Milestone numbers are allocation labels, NOT a sequence (M14a is followed by M21; M13f opens Phase 2). Never infer order from a number.
 - **Next-session prompt:** `.superpowers/sdd/NEXT-SESSION.md` — the ONLY one. It is rewritten at each milestone close. Do not create a second under `docs/`; a stale `docs/NEXT-SESSION-PROMPT.md` survived from M13d to M14a and was deleted 2026-08-19.
 
