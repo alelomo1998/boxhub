@@ -1,9 +1,80 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-22 (**M16a merged. M23 is next.**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-22 (**M16a merged, CI green. The roadmap was RE-PLANNED the same day: the pilot IS v1.0, twenty milestones, and M28 Launch → Production is next — not M23.**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
+
+## THE RE-PLAN — read this before the roadmap, 2026-08-22
+
+**The pilot IS v1.0.** Not a minimum slice, not a subset: a complete, finished product the box tests
+in **full**. A feature may be **built but idle** — Stripe ships, works and is tested, but no money
+flows because the pilot is free and the box keeps its existing payment method — **never absent.** A
+feature the box cannot try is a feature the pilot cannot evaluate. Then **v1.0.1** is bug fixes and
+**v1.1.0** is what the box asks for.
+
+**The pilot:** one friendly box, **free**, real usage. Real classes, members, coaches and PII. Not
+shadowing their old tool — rxed is what they use.
+
+**Pricing: ONE tier, everything, max €99/month.** No add-ons, no metering. The reason it is a strong
+position rather than a cheap one: **Wodify gates Performance Tracking to its TOP tier**, so a box
+paying Wodify $99 gets billing and scheduling and **no WOD tracking, no leaderboards, no
+benchmarks**. At the same price we compete with their Ultimate on the only axis a CrossFit box cares
+about. **Never discount below €99** — their $199→$99 "for life" offer means their real number is $199.
+
+**Authority:** `docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md`, with the order in
+`docs/ROADMAP-AT-A-GLANCE.md`. Both **supersede the ORDER** in the v3 roadmap doc — that doc's
+*reasoning* still stands, its phase sequence and its placement of the beta do not.
+
+**Twenty milestones:** M28 → M23 → M29 → M14b → M14c → M17 → analytics brief → M15 → M16 → M30 →
+M33 → M32 → M24 → M25 → M26 → Project 2 (The Room) → M18 → M27 → M19 → M20 → **v1.0 → pilot**.
+
+**Five new milestones**, from a full audit of Wodify's published tiers (AI and the per-gym website
+builder excluded by decision):
+
+| New | What |
+|---|---|
+| **M28** Launch → Production | The deploy. **Goes FIRST**, so everything after is viewable on a real device on a real domain. Its scope was named and deferred by **M12c in July** — read that spec before scoping. |
+| **M29** messaging & notifications | Staff ↔ member 1:1 threads both directions incl. coaches (**no member↔member**), announcements with segments, an **in-app** notification inbox, SMS channel. **No email notifications.** Before M17 so M17 consumes it. |
+| **M30** waivers & agreements | Templates, e-sign, versioning, re-sign on change. Kept separate on purpose: the one item with legal consequence, and the thing that gets under-built as a sub-item. |
+| **M33** data import & migration | **CSV-first** with presets for Wodify, PushPress, Zen Planner, TeamUp, Mindbody. **Performance history is the real switching cost for a CrossFit box** — an athlete with four years of Fran times resists a move harder than the owner does. Imports attendance too; LEG depends on it. |
+| **M32** growth & automation | Leads, conversion board, campaigns, the automation rules engine, at-risk. **Not metered** — Wodify sells 2/15/unlimited by tier. |
+
+**Two things moved, both deliberate reversals:**
+
+1. **Project 2 (The Room) is no longer walled off, and runs BEFORE the beta.** The class runner and
+   TV whiteboard are differentiators #1 and #2 in `docs/POSITIONING.md`; per the user, *"without it
+   we can't convince some boxes to test it."* The cost, accepted knowingly: Project 2 now runs
+   without the field research the original sequence was designed to give it.
+2. **The analytics brief moved up**, ahead of M15/M16. Its job is to audit whether the data was ever
+   recorded — doing that *after* the dashboards are built finds a missing column too late.
+
+**Folded rather than added:** POS/retail, family & shared payments and the payroll calculator went
+into **M16**; dashboards, LEG/ARM and pre-built reports into the **analytics brief → M15/M16/M18**;
+weekly streaks into **M17**; gym-domain mail into **M28**; branding (**logo and name only**) into
+**M15**.
+
+**Cut from v1.0:** public API access, heart-rate tracking, 24/7 door access (hardware partnerships,
+not code), anything AI, per-gym website builder, **per-gym theming** — the design law's dark-only and
+single-accent rules were considered and **not** re-opened.
+
+**Deferred with a written trigger:** on-demand media library (reopens when rxed earns enough to
+upgrade the server) and the custom report builder (v1.1).
+
+**`Launch → Production` is no longer unowned.** It was raised unowned at three consecutive milestone
+closes. It is **M28**, and it is next.
+
+**Cost, stated once so it is never a surprise:** this roughly doubles the remaining roadmap — twenty
+milestones instead of the nine a scoped-down pilot would have needed. **The user chose it
+explicitly**, preferring to *"double the roadmap and arrive ready."* Do not re-litigate it mid-programme.
+
+## Positioning — added 2026-08-22
+
+`docs/POSITIONING.md` is new and should be read before arguing milestone order or writing anything a
+gym owner reads. **rxed is CrossFit-only on purpose, and the competitor is Wodify, not PushPress.**
+The seam: boxes are defecting from Wodify to PushPress and **giving up CrossFit depth to get software
+that is pleasant to use** — nobody makes them choose both. Its §7 is the raw material M19's landing
+site is built from, and every claim there is verifiable in the codebase today.
 
 ## Authoritative docs (read in this order)
 1. **`CLAUDE.md`** (repo root) — binding rules, loaded every session. Workflow + design + tenancy rules.
@@ -349,14 +420,23 @@ browserless test passing means the browser, not the app.
 
 ## Immediate next step
 
-**Open M16a, the plan entitlement model.** It has a **spec but no plan**:
-`docs/superpowers/specs/2026-08-22-m16a-entitlement-model-design.md`. That session starts with
-`superpowers:writing-plans`, not with brainstorming — the design is settled — and not with code.
+**Open M28, Launch → Production.** It has **no spec and no plan**, but its scope was named and
+deferred in July by `docs/superpowers/specs/2026-07-28-m12c-production-readiness-design.md` — **read
+that first, or you will rebuild work M12c already did.** Start with `superpowers:brainstorming`: the
+scope is known, the decisions (SMTP provider, monitoring stack, what the restore drill proves, what
+the legal documents say) are not.
 
-**M16a is inserted BEFORE M23**, on the same argument M13f was justified by. A plan carries one
-limit today (`plan.weekly_class_limit`); the real model is eight optional limits plus a usage ledger.
-M23 → M26 build the screens that display and edit plans, so landing the model after them means
-rewriting those screens. Backend only, one migration (V28), no screens — M14a's scope-leak test.
+**M28 goes first** so every one of the nineteen milestones after it is deployable and viewable on a
+real device on a real domain. Its evidence is measurement, not a ticked checklist: a restore drill
+**performed**, mail **delivered** to a real external inbox with SPF/DKIM/DMARC observed passing, TLS
+**graded**, monitoring **alerting** after something is broken on purpose, rate limits **measured**
+under a simulated class-opening rush.
+
+**M28 touches secrets, DNS, TLS and a live host.** Buying a domain, pointing DNS, provisioning the
+VPS and sending real mail to real addresses are outward-facing and hard to reverse — **confirm with
+the user before doing any of them.** Executors do not take those actions on their own.
+
+*(The section below is the previous entry, kept for its M16a detail. Its "next step" is superseded.)*
 
 ### M13f closed 2026-08-22, and CI caught something it did not cause
 
@@ -560,6 +640,10 @@ directory no longer exists and the stale registration was pruned on 2026-08-19 �
 **9 commits survive** (landing scaffold, nginx two-builds-in-one-image, sections, e2e spec). The v3
 roadmap places M19 in Phase 5. If that work is live, M19's position needs revisiting; if it is
 abandoned, the branch should be deleted deliberately rather than left to rot.
+**Still unresolved as of 2026-08-22, and re-checked: the branch exists with its 9 commits.** M19 is
+now **position 19 of 20** in the v1.0 programme, and `docs/POSITIONING.md` §7 is the raw material it
+should be built from — so whoever opens M19 must first decide whether those 9 commits are a starting
+point or are deleted.
 
 **Next Flyway is V22.** M14a used V19 (class model split), V20 (programming axes) and V21 (soft cancel).
 
