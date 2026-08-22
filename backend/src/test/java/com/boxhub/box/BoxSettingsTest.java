@@ -77,4 +77,33 @@ class BoxSettingsTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.timezone").value("Europe/Rome"));
     }
+
+    @Test
+    void currentServesTheCancellationPolicyFlagsDefaultingToTodaysBehaviour() throws Exception {
+        mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.allowLateCancel").value(false))
+                .andExpect(jsonPath("$.lateCancelRefundsEntry").value(false))
+                .andExpect(jsonPath("$.countWaitlistCancellations").value(false));
+    }
+
+    @Test
+    void adminCanPatchTheCancellationPolicy() throws Exception {
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"allowLateCancel\":true,\"lateCancelRefundsEntry\":true,"
+                                + "\"countWaitlistCancellations\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.allowLateCancel").value(true))
+                .andExpect(jsonPath("$.lateCancelRefundsEntry").value(true))
+                .andExpect(jsonPath("$.countWaitlistCancellations").value(true));
+    }
+
+    @Test
+    void anAthleteCannotPatchTheCancellationPolicy() throws Exception {
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + athleteToken)
+                        .content("{\"allowLateCancel\":true}"))
+                .andExpect(status().isForbidden());
+    }
 }
