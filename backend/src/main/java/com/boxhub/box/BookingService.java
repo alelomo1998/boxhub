@@ -6,12 +6,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,14 +25,16 @@ public class BookingService {
     private final BoxRepository boxes;
     private final PlanRepository plans;
     private final SubscriptionService subscriptions;
+    private final EntitlementLedger ledger;
 
     public BookingService(ClassSessionRepository sessions, BookingRepository bookings, BoxRepository boxes,
-                          PlanRepository plans, SubscriptionService subscriptions) {
+                          PlanRepository plans, SubscriptionService subscriptions, EntitlementLedger ledger) {
         this.sessions = sessions;
         this.bookings = bookings;
         this.boxes = boxes;
         this.plans = plans;
         this.subscriptions = subscriptions;
+        this.ledger = ledger;
     }
 
     @Transactional
@@ -50,7 +49,13 @@ public class BookingService {
             throw conflict("ALREADY_BOOKED");
         // ponytail: cutoff gates cancellation only (spec §3) — booking within the cutoff window is
         // allowed (last-minute booking is fine; last-minute self-cancel is not). See cancel() below.
-        if (entitlementBlocked(session, box, membershipId)) throw conflict("LIMIT_REACHED");
+        Subscription active = subscriptions.activeFor(membershipId)
+                .orElseThrow(() -> conflict("NO_ACTIVE_SUBSCRIPTION"));
+        // ponytail: the reason string stays the bare "LIMIT_REACHED" that book.page.ts:166 switches
+        // on. entryLimitViolated() names WHICH of the eight limits bound (spec §2.2) and the tests
+        // assert it; it reaches the wire when M14b/M17 rebuilds the athlete booking screen and can
+        // render it. Recorded in docs/BACKLOG.md rather than left implicit.
+        if (entryLimitViolated(session, box, membershipId, active) != null) throw conflict("LIMIT_REACHED");
 
         Booking b = new Booking();
         b.setSessionId(sessionId);
@@ -64,7 +69,12 @@ public class BookingService {
             b.setStatus("WAITLIST");
             b.setPosition(maxPosition + 1);
         }
-        return bookings.save(b);
+        Booking saved = bookings.save(b);
+        // A WAITLIST join consumes an ENTRY too (user decision 2026-08-22, overriding spec §3.2).
+        // Promotion therefore writes NOTHING — the entry was counted at join — which is what makes it
+        // impossible for a promotion to push anyone past a limit, and keeps cancel() a pure queue shift.
+        ledger.recordEntry(saved.getId(), membershipId, active, session.getStartAt());
+        return saved;
     }
 
     @Transactional
@@ -75,20 +85,51 @@ public class BookingService {
         Box box = boxes.findById(TenantContext.requireBoxId()).orElseThrow();
 
         boolean wasBooked = "BOOKED".equals(booking.getStatus());
-        if (wasBooked && session.getStartAt().minus(Duration.ofMinutes(box.getCancelCutoffMin())).isBefore(Instant.now())) {
-            throw conflict("PAST_CUTOFF");
-        }
 
         // was_late is computed and stamped HERE, once, from the cutoff in force right now. cancel_cutoff_min
         // is mutable (M15 puts a UI on it) — deriving lateness at read time instead would let a box
         // loosen its cutoff and retroactively forgive every late cancel in its history.
         Instant now = Instant.now();
         boolean late = session.getStartAt().minus(Duration.ofMinutes(box.getCancelCutoffMin())).isBefore(now);
+
+        // Default (allow_late_cancel = false) is EXACTLY the pre-M16a behaviour: a BOOKED booking
+        // simply cannot be cancelled past the cutoff. That default is also why spec §2.4's late-cancel
+        // rule was unreachable before M16a — PAST_CUTOFF blocked every late cancel of a BOOKED row, so
+        // was_late was only ever true on a waitlist cancel. A box that opts in gets a late cancel that
+        // succeeds and, unless late_cancel_refunds_entry, burns the entry as well as the cancellation.
+        if (wasBooked && late && !box.isAllowLateCancel()) throw conflict("PAST_CUTOFF");
+
+        // A waitlisted athlete never held a place, so their cancellation is free by default; a box can
+        // opt into counting it.
+        boolean countsCancellation = wasBooked || box.isCountWaitlistCancellations();
+
+        // A lapsed member must still be able to cancel — entitlement gates book(), never cancel()
+        // (M10's other half, pinned by BookingEntitlementTest.lapseDoesNotDisturbExistingBookings...).
+        // So no active subscription means no cancellation limit to enforce and no ledger row to write.
+        Subscription active = subscriptions.activeFor(membershipId).orElse(null);
+        if (active != null && countsCancellation) {
+            Plan plan = plans.findById(active.getPlanId()).orElseThrow();
+            if (ledger.firstViolated(PlanLimits.CANCELLATION_RULES, plan, active,
+                    session.getStartAt(), ZoneId.of(box.getTimezone()), membershipId) != null) {
+                throw conflict("CANCEL_LIMIT_REACHED");
+            }
+        }
+
         booking.setStatus("CANCELLED");
         booking.setCancelledAt(now);
         booking.setWasLate(late);
         booking.setPosition(null);
         bookings.save(booking);
+
+        // Lateness only bites someone who actually held a place. A waitlisted athlete cancelling
+        // "late" gave up nothing, so their entry always comes back.
+        boolean refundEntry = !wasBooked || !late || box.isLateCancelRefundsEntry();
+        if (active != null) {
+            if (refundEntry) ledger.refundEntry(booking.getId());
+            if (countsCancellation) {
+                ledger.recordCancellation(booking.getId(), membershipId, active, session.getStartAt());
+            }
+        }
 
         if (wasBooked) {
             List<Booking> waitlist = bookings.findBySessionIdAndStatusOrderByPosition(sessionId, "WAITLIST");
@@ -102,6 +143,8 @@ public class BookingService {
                     wl.setPosition(wl.getPosition() - 1);
                     bookings.save(wl);
                 }
+                // Deliberately no ledger write: the promoted athlete's ENTRY was recorded when they
+                // joined the waitlist. Writing one here would double-count them.
             }
         }
     }
@@ -151,21 +194,20 @@ public class BookingService {
     /**
      * M10 T4: booking rights follow the membership's active Subscription, not the dropped
      * Membership.planId. No active subscription -> can't book at all (NO_ACTIVE_SUBSCRIPTION).
-     * No weekly limit set (NULL = unlimited) -> never blocked. Otherwise the existing Mon-Sun
-     * box-timezone count vs the plan's entriesPerWeek (logic unchanged from the pre-M16a version).
-     * TODO(M16a Task 4): replaced by PlanLimits/EntitlementLedger — the full eight-rule check.
+     * <p>
+     * M16a: all four entry limits, composed with AND — every limit that is SET must pass, with no
+     * precedence between periods. Returns the code of the first violated rule (TOTAL, MONTH, WEEK,
+     * DAY — for the message, not the logic) or null when every set limit has room. A plan with all
+     * eight columns null is what the dropped {@code entitlement = 'UNLIMITED'} used to say.
+     * <p>
+     * Counts come from entitlement_usage, NOT from bookings: regeneration deletes the CANCELLED rows
+     * in its range, so a booking-derived count would let a coach editing the schedule silently alter
+     * consumption. See EntitlementUsage's javadoc.
      */
-    private boolean entitlementBlocked(ClassSession session, Box box, UUID membershipId) {
-        Subscription active = subscriptions.activeFor(membershipId).orElseThrow(() -> conflict("NO_ACTIVE_SUBSCRIPTION"));
+    private String entryLimitViolated(ClassSession session, Box box, UUID membershipId, Subscription active) {
         Plan plan = plans.findById(active.getPlanId()).orElseThrow();
-        Integer limit = plan.getEntriesPerWeek();
-        if (limit == null) return false;
-
-        ZoneId tz = ZoneId.of(box.getTimezone());
-        LocalDate monday = session.getStartAt().atZone(tz).toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        Instant weekStart = monday.atStartOfDay(tz).toInstant();
-        Instant weekEnd = monday.plusWeeks(1).atStartOfDay(tz).toInstant();
-        return bookings.countInWeek(membershipId, weekStart, weekEnd) >= limit;
+        return ledger.firstViolated(PlanLimits.ENTRY_RULES, plan, active,
+                session.getStartAt(), ZoneId.of(box.getTimezone()), membershipId);
     }
 
     private ResponseStatusException conflict(String reason) {

@@ -14,7 +14,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -157,33 +161,46 @@ class BookingEngineTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void weeklyLimitBlocksAtBoundaryAndIgnoresWaitlist() {
+    void weeklyLimitBlocksAtBoundaryAndAWaitlistJoinCountsTowardIt() {
         UUID boxId = newBox("limit-" + System.nanoTime(), 120);
         actAsBox(boxId);
-        UUID planId = newPlan(1);
+        UUID planId = newPlan(2);
         UUID m1 = newMembership(boxId, planId);
         UUID other = newMembership(boxId, null);
 
-        Instant weekAnchor = Instant.now().plusSeconds(3600 * 24); // same week for all three sessions
+        Instant weekAnchor = nextMondayAtTen(); // pinned: all three sessions provably in one week
         UUID fullSession = newSession(1, weekAnchor);
         UUID sessionB = newSession(5, weekAnchor.plusSeconds(3600));
         UUID sessionC = newSession(5, weekAnchor.plusSeconds(7200));
 
-        // fill fullSession with someone else, then m1 waitlists -> must not count toward m1's limit
+        // Fill fullSession with someone else, then m1 waitlists. M16a REVERSED the old rule here: a
+        // waitlist join now consumes an entry (user decision, 2026-08-22). Before M16a the count came
+        // from `bookings` filtered to BOOKED/CHECKED_IN, so a waitlisted athlete was free — which let
+        // someone already at their limit queue for every class in the week and be promoted past it.
+        // Charging at join is exactly what makes promotion safe: promotion writes no ledger row, so it
+        // can never push anyone over a limit.
         bookingService.book(fullSession, other);
         Booking waitlisted = bookingService.book(fullSession, m1);
         assertThat(waitlisted.getStatus()).isEqualTo("WAITLIST");
 
-        // limit is 1: first real BOOKED succeeds
+        // limit is 2, and the waitlist join already spent one: this BOOKED lands exactly on the boundary
         Booking booked = bookingService.book(sessionB, m1);
         assertThat(booked.getStatus()).isEqualTo("BOOKED");
 
-        // second BOOKED in the same week hits the limit
+        // third entry in the same week hits the limit
         assertThatThrownBy(() -> bookingService.book(sessionC, m1))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
                     assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
                     assertThat(ex.getReason()).isEqualTo("LIMIT_REACHED");
                 });
+    }
+
+    /** A Monday 10:00 Europe/Rome, 8-14 days out. Pinned to a weekday rather than now()+24h so a
+     *  "same week" fixture cannot straddle a Monday boundary on some days of the week and not others. */
+    private static Instant nextMondayAtTen() {
+        ZoneId tz = ZoneId.of("Europe/Rome");
+        return LocalDate.now(tz).with(TemporalAdjusters.next(DayOfWeek.MONDAY)).plusWeeks(1)
+                .atStartOfDay(tz).plusHours(10).toInstant();
     }
 
     @Test
