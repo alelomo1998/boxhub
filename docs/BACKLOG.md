@@ -675,7 +675,15 @@ What was **not** done, and is genuinely still open, is filed as individual lines
 here — desktop sparseness, the heading tier, the `bh-button` API consolidation, the delete sheet's
 missing axe coverage, and the gallery's scroll-coupled baselines.
 
-## dependency-scan is red on main (not caused by M13d)
+## ~~dependency-scan is red on main (not caused by M13d)~~ — RESOLVED, verified 2026-08-25
+
+> **No longer true.** `dependency-scan` has passed on `main` at every run checked: `ef4a8a6`,
+> `3bf0d56`, and the scheduled run on 2026-08-24. The advisory that caused it cleared on its own, as
+> a newly-published advisory against an unchanged dependency eventually does. **`osv-scanner.toml`
+> was never touched, which is the right outcome** — nobody reached for the ignore file. Kept below
+> for the reasoning, which still applies the next time it fires.
+
+### Original entry
 - `osv-scan` exits 1 against `backend/target/bom.json` (107 packages). It **first failed on the scheduled run at 04:40 on 2026-08-17, before M13d merged**, and last succeeded 2026-08-10 — so it is a newly-published advisory against an unchanged dependency. Verified M13d changed no dependencies at all: the only `package.json` diff in the whole milestone adds an `extract-i18n` npm script, and the scan gates the backend SBOM only.
 - The workflow has no severity threshold by design — it fails on any finding — and `osv-scanner.toml` at the repo root is the documented place for findings that are real but deliberately not blocking. Read the advisory first and decide; do not reach for the ignore file by reflex.
 - `passwordErrorMessage()` (`frontend/src/app/core/auth/auth.models.ts:28-34`) returns **unmarked English** for `PASSWORD_TOO_SHORT` and `PASSWORD_BREACHED`, so those two sentences are untranslatable. Six consumers now: reset, signup, join, start-box, the legacy security page, and M13e's password section. Repeatedly described as "already filed" during M13d and M13e — it was not; a reviewer grepped and found no entry. Filed now.

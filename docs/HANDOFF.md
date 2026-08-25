@@ -1,6 +1,6 @@
 # rxed (formerly BoxHub) — Session Hand-off
 
-**Updated:** 2026-08-22 (**M16a merged, CI green. The roadmap was RE-PLANNED and then fully REVIEWED the same day: the pilot IS v1.0, thirty-four milestones in two phases, and M23 is next.**). Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
+**Updated:** 2026-08-25 (**M16a merged; the roadmap was re-planned and fully reviewed on 2026-08-22. The pilot IS v1.0 — thirty-four milestones in two phases — and M23 is next.**) · **`main` = `3bf0d56`, tree clean, both CI workflows green, and the scheduled `dependency-scan` passed again on 2026-08-24.** Nothing has been merged since M16a, so every gate number below is still the measured value. Read this first, then the authoritative docs it points to. Everything here is current as of `main`, except where it names an open branch.
 
 ## What BoxHub is
 Multi-tenant CrossFit box platform: athletes book classes & track WODs, coaches program & run classes, box admins manage members/schedule, plus a TV whiteboard. Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16, Docker Compose behind nginx, one VPS target. **Repo: `~/dev/boxhub`** (moved off the iCloud-synced Desktop on 2026-08-02 — that alone killed most of the ENVIRONMENT TRAPS below), GitHub `alelomo1998/boxhub` (private), CI green on push (`ci` + `dependency-scan` — check the run, a local green is not the gate).
@@ -668,10 +668,15 @@ directory no longer exists and the stale registration was pruned on 2026-08-19 �
 **9 commits survive** (landing scaffold, nginx two-builds-in-one-image, sections, e2e spec). The v3
 roadmap places M19 in Phase 5. If that work is live, M19's position needs revisiting; if it is
 abandoned, the branch should be deleted deliberately rather than left to rot.
-**Still unresolved as of 2026-08-22, and re-checked: the branch exists with its 9 commits.** M19 is
-now **position 19 of 20** in the v1.0 programme, and `docs/POSITIONING.md` §7 is the raw material it
-should be built from — so whoever opens M19 must first decide whether those 9 commits are a starting
-point or are deleted.
+**Still unresolved as of 2026-08-25, and re-checked: the branch exists with its 9 commits.** M19 is
+now **#37, in Phase B**, and `docs/POSITIONING.md` §7 is the raw material it should be built from —
+so whoever opens M19 must first decide whether those 9 commits are a starting point or are deleted.
+
+**A second stale branch surfaced on 2026-08-25: `oc/opencode-setup`** — one commit
+(`1025db2`, "parallel worktree setup"), **220 commits behind `main`**, from the M13d era. The
+parallel-worktree experiment it set up is not how this project works now (see the
+branch-not-worktree rule). It should be deleted deliberately rather than left to rot, same as
+`oc/m19-landing`. Two branches, one decision each — neither is urgent, both are rot.
 
 **Next Flyway is V22.** M14a used V19 (class model split), V20 (programming axes) and V21 (soft cancel).
 

@@ -1,7 +1,9 @@
 # Next session — open **M23, app entry & shells**.
 
-**M16a is merged, `main` is green, CI is green.** On 2026-08-22 the roadmap was **re-planned and then
-fully reviewed**. Read `docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md` before anything else
+**`main` = `3bf0d56`, tree clean, both CI workflows green** (re-checked 2026-08-25; the scheduled
+`dependency-scan` also passed on 2026-08-24). **Nothing has been merged since M16a**, so every gate
+number below is a measured value, not a remembered one. On 2026-08-22 the roadmap was **re-planned
+and then fully reviewed**. Read `docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md` before anything else
 — most of what you may have absorbed about the order is from before it.
 
 **The headline: the pilot IS v1.0.** Not a slice — a complete, finished product the box tests in
@@ -179,5 +181,15 @@ Read the order from `docs/ROADMAP-AT-A-GLANCE.md`, never from a number. Three th
   is differentiator #1 and #2 in `POSITIONING.md`; without it a box will not agree to test.
 - **M27d (store release) is the one Phase B ordering constraint** — Apple and Google review a native
   app against a real backend, so it cannot precede M28.
+
+## Two stale branches, one decision each — neither urgent, both rot
+
+- **`oc/m19-landing`** — 9 real commits (landing scaffold, two-builds-in-one-image nginx, sections,
+  an e2e spec). M19 is **#37**. Starting point, or deleted?
+- **`oc/opencode-setup`** — one commit, **220 behind `main`**, from the M13d era. It set up the
+  parallel-worktree experiment that is explicitly not how this project works now. Almost certainly
+  delete.
+
+Do not act on either without asking — deleting a branch is not reversible from here.
 
 **Rewrite this file at milestone close.** It is the ONLY session prompt; do not create a second one.
