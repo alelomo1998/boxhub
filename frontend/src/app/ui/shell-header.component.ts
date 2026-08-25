@@ -10,6 +10,10 @@ import { Component, computed, input } from '@angular/core';
   standalone: true,
   template: `
     <header class="top">
+      <!-- ng-content inside a control-flow block is only INSTANTIATED when that branch renders,
+           so this is safe precisely because customBrand is a per-shell constant and never
+           toggles at runtime. If a consumer ever needs to flip it live, move the branch to a
+           class binding on .brand instead of switching the projection on and off. -->
       @if (customBrand()) {
         <ng-content select="[brand]" />
       } @else {
