@@ -108,6 +108,32 @@ public class DevDataSeeder implements CommandLineRunner {
         User athlete6 = seed(demo, "athlete6@demo.io", "Nina Petrova", "ATHLETE");
         User athlete7 = seed(demo, "athlete7@demo.io", "Leo Rossi", "ATHLETE");
         User athlete8 = seed(demo, "athlete8@demo.io", "Ana Costa", "ATHLETE");
+
+        // M23 fixtures. The app has three account shapes and only one of them was seeded:
+        // every demo user held exactly one membership, so login() auto-selected and no test
+        // could reach the hub, and no test could switch gyms. These two close that.
+        Box northside = new Box();
+        northside.setName("Northside Barbell");
+        northside.setSlug("northside");
+        northside.setTimezone("Europe/Rome");
+        boxes.save(northside);
+
+        // Holds TWO gyms with DIFFERENT roles, which is the case M21 made real and the case a
+        // switcher has to get right: switching must land on the target gym's role home, not the
+        // one you came from.
+        User multi = seed(demo, "multi@demo.io", "Multi Box", "ATHLETE");
+        Membership northsideAdmin = new Membership();
+        northsideAdmin.setUser(multi);
+        northsideAdmin.setBox(northside);
+        northsideAdmin.setRole("BOX_ADMIN");
+        memberships.save(northsideAdmin);
+
+        // Registered, verified, and belonging to NO gym — the state every account starts in,
+        // and the one that had no shell at all before M23.
+        User nobox = authService.register("nobox@demo.io", "boxhub-demo-2026", "No Box");
+        nobox.setEmailVerified(true);
+        userRepo.save(nobox);
+
         List<User> athletes = List.of(athlete, athlete2, athlete3, athlete4, athlete5, athlete6, athlete7, athlete8);
 
         seedClassesAndProgramming(demo, coach.getId(), coach2.getId());
