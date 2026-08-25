@@ -334,6 +334,9 @@
   .chip.warn { color: var(--warn); }
   .chip.danger { color: var(--danger); }
   .chip.now { color: var(--faint); border-color: var(--hairline); }
+  /* The neutral status a MEMBER sees on a gym that is not ACTIVE. Quiet on
+     purpose — it reports a fact they cannot act on. */
+  .gym.off .chip:not(.warn):not(.danger) { color: var(--faint); border-color: var(--hairline); }
 
   /* --- empty state --- */
   .empty {
@@ -668,7 +671,7 @@
                   <span class="mark quiet">D</span>
                   <span class="meta">
                     <span class="gname">Downtown Barbell</span>
-                    <span class="grole">Owner</span>
+                    <span class="grole">Admin</span>
                   </span>
                   <span class="go">›</span>
                 </button>
@@ -731,7 +734,7 @@
                     <span class="mark quiet">D</span>
                     <span class="meta">
                       <span class="gname">Downtown Barbell</span>
-                      <span class="grole">Owner</span>
+                      <span class="grole">Admin</span>
                     </span>
                     <span class="go">›</span>
                   </button>
@@ -786,7 +789,7 @@
                   <span class="mark muted">N</span>
                   <span class="meta">
                     <span class="gname">Nordic Strength</span>
-                    <span class="grole">Owner</span>
+                    <span class="grole">Admin</span>
                   </span>
                   <span class="chip warn">In review</span>
                 </span>
@@ -796,7 +799,7 @@
                     <span class="gname">Downtown Barbell</span>
                     <span class="grole">Coach</span>
                   </span>
-                  <span class="chip danger">Closed</span>
+                  <span class="chip">Unavailable</span>
                 </span>
               </div>
             </div>
@@ -819,11 +822,11 @@
       </div>
 
       <div class="vp" style="flex:1; min-width:280px; max-width:420px;">
-        <p class="vp-label">the copy question</p>
-        <div class="callouts" style="border-left-color: var(--warn);">
-          <div class="callout"><span class="k">?</span><span class="v"><b>"In review" and "Closed" are my words, not the system's.</b> The enum values are PENDING, ACTIVE, SUSPENDED and REJECTED. A member of a SUSPENDED gym should probably not be told the gym is suspended — that is a platform-side fact about the owner's account, not news the athlete is owed.</span></div>
-          <div class="callout"><span class="k">?</span><span class="v">The alternative is one neutral label — <b>"Unavailable"</b> — for every non-ACTIVE state, which leaks nothing and explains nothing. I lean neutral for members, specific for owners, since an owner needs to know their own gym is in review.</span></div>
-          <div class="callout"><span class="k">?</span><span class="v">Either way this is copy the <b>gym owner and the athlete read differently</b>, so it wants your call rather than my guess.</span></div>
+        <p class="vp-label">decided · 2026-08-25</p>
+        <div class="callouts">
+          <div class="callout"><span class="k">01</span><span class="v"><b>The label depends on the role you hold at that gym, not on the status alone.</b> This one screen shows both rules: the person is ADMIN at Nordic Strength, so they are told it is <b>In review</b> — their own gym, their own problem to act on. They are a COACH at Downtown Barbell, so they are told only <b>Unavailable</b>.</span></div>
+          <div class="callout"><span class="k">02</span><span class="v">A member cannot act on "suspended", and it is a fact about the <em>owner's</em> account rather than theirs. Neutral for members leaks nothing sideways; specific for admins tells the one person who can do something about it.</span></div>
+          <div class="callout"><span class="k">03</span><span class="v">Both strings are i18n-marked. The enum values — PENDING, ACTIVE, SUSPENDED, REJECTED — never reach the screen, the same way <span class="inline-code">BOX_ADMIN</span> no longer does.</span></div>
         </div>
       </div>
     </div>
@@ -1026,7 +1029,7 @@
                     <span class="mark">C</span>
                     <span class="meta">
                       <span class="gname" style="font-size:var(--fs-body)">CrossFit Oslo</span>
-                      <span class="grole">Owner</span>
+                      <span class="grole">Admin</span>
                     </span>
                     <span class="chip now">Current</span>
                   </span>
@@ -1068,41 +1071,44 @@
   <section class="plate">
     <div class="plate-head">
       <p class="plate-num">06</p>
-      <h2 class="plate-title">Open questions</h2>
+      <h2 class="plate-title">What the drawing settled</h2>
       <p class="plate-note">
-        Things the sketches surfaced that I will not decide alone. Each one changes built code, so
-        they are cheaper to answer now than at critique.
+        Four questions the sketches surfaced. Two were the user's call and were answered; two carry a
+        recorded judgement, so a later critique argues with a reason rather than a blank.
       </p>
     </div>
 
     <div class="open-q">
-      <div class="q">
-        <h4>The volt budget on the hub's empty state</h4>
-        <p>The design law gives a plumbing screen exactly one volt element. The empty state has two:
-          the active dock icon (which <span class="inline-code">bh-dock</span> paints volt on every
-          shell already) and the primary button. Options: make the empty-state button a ghost and
-          let the dock keep the accent; or accept that the dock's active icon is shell chrome rather
-          than screen content and does not spend the screen's budget. <b>I lean to the second</b> —
-          otherwise every screen in the product is already over budget.</p>
+      <div class="q" style="border-left-color: var(--good)">
+        <h4>Status copy — decided</h4>
+        <p><b>Neutral for members, specific for admins.</b> The label keys off the role you hold at
+          that gym, not the status alone: an ADMIN at a PENDING gym is told "In review"; a member of
+          a SUSPENDED gym is told only "Unavailable". A member cannot act on "suspended", and it is
+          a fact about the owner's account rather than theirs.</p>
+      </div>
+      <div class="q" style="border-left-color: var(--good)">
+        <h4>Role labels — decided</h4>
+        <p><b>Athlete / Coach / Admin.</b> "Owner" was warmer but wrong for a gym whose admin is a
+          hired manager; "Admin" is true whoever holds the role. The raw enum never reaches a
+          screen, and all three strings are i18n-marked — today's picker prints
+          <span class="inline-code">BOX_ADMIN</span> unmarked, which is the defect this replaces.</p>
       </div>
       <div class="q">
-        <h4>What a member is told about a gym that is not ACTIVE</h4>
-        <p>Plate 03. Neutral "Unavailable" for everyone, or status-specific copy that differs for the
-          owner of that gym versus one of its athletes?</p>
+        <h4>The volt budget on the hub's empty state — judged, re-openable</h4>
+        <p>The law gives a plumbing screen one volt element; the empty state appears to have two, the
+          active dock icon and the primary button. <b>Taken: the dock's active icon is shell chrome,
+          not screen content, and does not spend the screen's budget.</b> The alternative reading
+          says every shipped screen in the product is already over budget, which is the weaker
+          reading. If the critique disagrees, the fix is one line — the empty-state button goes
+          ghost.</p>
       </div>
       <div class="q">
-        <h4>Does landing on the hub clear your active gym?</h4>
-        <p>Proposed: <b>no</b>. Visiting <span class="inline-code">/gyms</span> leaves
+        <h4>Does landing on the hub clear your active gym? — judged, re-openable</h4>
+        <p><b>Taken: no.</b> Visiting <span class="inline-code">/gyms</span> leaves
           <span class="inline-code">bh_active_box</span> intact, so <span class="inline-code">/</span>
-          still resumes and the hub can mark which gym you are in. The consequence is that "no gym"
-          is a state you can look at without being a state you have entered — which is what makes the
-          Current chip meaningful.</p>
-      </div>
-      <div class="q">
-        <h4>Role labels</h4>
-        <p>Sketches say Athlete / Coach / Owner. The enum is ATHLETE / COACH / BOX_ADMIN. "Owner" is
-          my word for BOX_ADMIN and it may be wrong for a gym where the admin is a manager rather
-          than the owner. "Admin" is the safe alternative.</p>
+          still resumes and the hub can mark which gym you are in. The consequence is deliberate:
+          "no gym" becomes a state you can <em>look at</em> without being a state you have
+          <em>entered</em> — which is exactly what makes the Current chip mean anything.</p>
       </div>
     </div>
   </section>
