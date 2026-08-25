@@ -389,6 +389,15 @@ full e2e run.
 ### → Unscheduled chore
 - Impeccable detector false-positive: Angular `[src]` bindings inside `@if` guards trip `broken-image` —
   consider a repo-level ignore if the noise annoys.
+- **Nothing in the app links from one shell to another, so a `BOX_ADMIN` cannot reach `/coach` or
+  `/athlete` except by typing the URL.** `roleGuard(['ATHLETE','COACH','BOX_ADMIN'])` admits them and
+  `roleGuard(['COACH','BOX_ADMIN'])` admits them, but every `routerLink` in `features/admin`,
+  `features/coach` and `features/athlete` stays inside its own area — measured 2026-08-25, zero
+  cross-shell links in the codebase. **In a small box the owner coaches and trains, so this is the
+  norm rather than an edge case.** Deliberately excluded from M23 by the user (2026-08-25) to keep
+  that milestone to box switching; it is filed rather than fixed because the control would sit in
+  the same place in the chrome as M23's box switcher, so whoever takes it touches
+  `bh-shell-header` a second time. **Not scheduled — needs a destination.**
 
 ## Project 2 · The Room *(TV board — owned end to end there)*
 
