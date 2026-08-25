@@ -4,6 +4,7 @@ import { superadminGuard } from './core/auth/superadmin.guard';
 import { sessionGuard } from './core/auth/session.guard';
 import { unsavedGuard } from './core/unsaved.guard';
 import { accountIndexGuard } from './features/account/account-index.page';
+import { entryGuard } from './core/auth/entry.guard';
 
 export const routes: Routes = [
   // Unguarded on purpose — fabricated data, no API call, needs to be reachable on a real device
@@ -118,6 +119,7 @@ export const routes: Routes = [
   { path: 'membership', pathMatch: 'full', redirectTo: 'athlete/membership' },
   { path: 'receipts/:paymentId', title: $localize`:@@route.receipt.view:Receipt`, canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/receipt/receipt.page').then(m => m.ReceiptPage) },
-  { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
-  { path: '**', redirectTo: 'auth/login' },
+  // `children: []` because the guard always returns a UrlTree — these paths have no screen.
+  { path: '', pathMatch: 'full', canActivate: [entryGuard], children: [] },
+  { path: '**', canActivate: [entryGuard], children: [] },
 ];
