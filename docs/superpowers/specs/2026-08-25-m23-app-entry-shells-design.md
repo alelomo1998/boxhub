@@ -234,6 +234,37 @@ over it. That is written here so the next person to touch this screen meets the 
 V28, and `AuthzConformanceTest` is **untouched** — which is the correct outcome, since the only
 permitted edit to that file is registering a genuinely new route and there is none.
 
+### 6.1 One backend file does change: the dev seeder
+
+Found while planning, not while designing, and recorded because it contradicts a flat reading of
+"no backend": **the fixtures this milestone's two headline e2e tests need do not exist.**
+
+`shared/DevDataSeeder` seeds exactly **one** box (`slug = "demo"`), and every seeded user holds
+exactly one membership — which is why `a11y.spec.ts` carries the comment that `login()`
+auto-selects for `admin@demo.io` and redirects straight past the picker. `super@demo.io` is
+registered with no membership, but it is a *superadmin*, so it exercises `superadminGuard` rather
+than the boxless path.
+
+So there is **no multi-box account to switch with** and **no plain boxless account to land on the
+hub**. Without new fixtures the milestone's premise is untestable end to end, which is the one
+outcome this programme refuses — *a screen is not verified until e2e runs on it.*
+
+The seeder gains three things, using its existing `seed(box, email, name, role)` helper:
+
+| Fixture | Why |
+|---|---|
+| A second ACTIVE box | `Box.status` defaults to `"ACTIVE"`, so it needs no extra setup |
+| `multi@demo.io` — ATHLETE at the demo box, BOX_ADMIN at the second | The switcher, and the role-differs-per-gym landing |
+| `nobox@demo.io` — registered, verified, **zero** memberships | The hub's empty state and the boxless entry resolution |
+
+**This is not a widening of scope.** `DevDataSeeder` is `@Profile("dev")` — it is test data, not
+production code, and it adds no route, no DTO, no repository method and no migration. §6's claim
+stands as written.
+
+**Checked before proposing it:** nothing asserts a box count anywhere in the e2e or backend
+suites, and `onboarding.spec.ts`'s approval-queue assertion is scoped by `hasText: BOX_NAME` to the
+box that spec creates, so a second seeded box cannot perturb it.
+
 ---
 
 ## 7. Design law compliance
@@ -266,7 +297,7 @@ broken login submit shipped past 272 green specs with the password in the URL.
 | Karma | **419 / 419**, measured on this branch 2026-08-25 | **Floor.** Every new component owes specs. |
 | e2e | 67 / 0 / 0 | **Grows.** New specs for the hub, the switcher and the entry resolution. |
 | `e2e/visual.sh` | 31 specs | **Grows**, and two picker baselines are **replaced**. Linux container only. |
-| Backend | unchanged | Holds — M23 touches no backend. |
+| Backend | unchanged | Holds. The only backend file touched is the `@Profile("dev")` seeder (§6.1). |
 | Migration head | V28 | Unchanged. |
 | §8.1 greps | eight × zero bytes | Stay zero. |
 | `AuthzConformanceTest` | green, untouched | No new route. Orchestrator audits any edit. |
