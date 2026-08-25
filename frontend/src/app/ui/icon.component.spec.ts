@@ -59,4 +59,12 @@ describe('IconComponent', () => {
       expect(geometryCount).withContext(`icon "${name}" rendered no geometry`).toBeGreaterThan(0);
     }
   });
+
+  it('renders the user icon, which the hub dock needs for its Account tab', async () => {
+    await TestBed.configureTestingModule({ imports: [IconComponent] }).compileComponents();
+    const f = TestBed.createComponent(IconComponent);
+    f.componentRef.setInput('name', 'user');
+    f.detectChanges();
+    expect(f.nativeElement.querySelectorAll('svg path, svg circle').length).toBeGreaterThan(0);
+  });
 });

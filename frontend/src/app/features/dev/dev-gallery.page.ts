@@ -547,6 +547,16 @@ export interface StateEntry {
             </bh-button>
           </bh-shell-header>
         </div>
+        <div class="shellwrap">
+          <bh-shell-header [customBrand]="true" area="Admin">
+            <!-- The host's own brand block. In the product this slot holds the box switcher,
+                 which injects AuthService and therefore cannot live in app/ui/. -->
+            <button brand class="demo-brandbtn" type="button">
+              <span class="demo-brandmark" aria-hidden="true">C</span>
+              <span i18n="@@dev.gallery.shellHeader.customBrand">CrossFit Oslo</span>
+            </button>
+          </bh-shell-header>
+        </div>
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'shell-header' }" />
       </section>
 
@@ -888,6 +898,14 @@ export interface StateEntry {
     .demo-w220 { width: 220px; }
     .demo-flush { margin: 0; }
     .demo-flush-pad { margin: 0; padding: var(--sp-3); }
+
+    .demo-brandbtn { display: flex; align-items: center; gap: 10px; background: none;
+      border: 1px solid transparent; border-radius: var(--r-ctl); padding: 3px var(--sp-2) 3px 3px;
+      min-height: var(--tap); cursor: pointer; font: inherit; color: var(--bone); }
+    .demo-brandbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .demo-brandmark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt);
+      color: var(--on-volt); display: grid; place-items: center; font-family: var(--font-display);
+      font-weight: 800; font-size: var(--fs-body); }
   `],
 })
 export class DevGalleryPage {
@@ -912,9 +930,9 @@ export class DevGalleryPage {
     ],
     'shell-header': [
       { state: 'default', how: 'rendered' },
-      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.hover:renders no interactive element of its own — the projected nav links and action buttons carry their own, shown in their own sections` },
-      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.focus:never focusable itself; the projected nav links and action buttons carry their own focus ring` },
-      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.active:never pressed itself; the projected nav links and action buttons carry their own` },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.hover:renders no interactive element of its own — the projected brand, nav links and action buttons carry their own, shown in their own sections` },
+      { state: 'focus', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.focus:never focusable itself; the projected brand, nav links and action buttons carry their own focus ring` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.active:never pressed itself; the projected brand, nav links and action buttons carry their own` },
       { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.disabled:chrome is never disabled; it is present or it is not rendered` },
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.loading:renders synchronously from the already-resolved session` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.shellHeader.error:chrome has nothing to fail at; the routed screen renders its own error` },

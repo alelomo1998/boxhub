@@ -10,10 +10,14 @@ import { Component, computed, input } from '@angular/core';
   standalone: true,
   template: `
     <header class="top">
-      <div class="brand">
-        <span class="mark" aria-hidden="true">{{ initial() }}</span>
-        <span class="bn">{{ boxName() }}</span>
-      </div>
+      @if (customBrand()) {
+        <ng-content select="[brand]" />
+      } @else {
+        <div class="brand">
+          <span class="mark" aria-hidden="true">{{ initial() }}</span>
+          <span class="bn">{{ boxName() }}</span>
+        </div>
+      }
       @if (area()) { <span class="area">{{ area() }}</span> }
       <ng-content select="[nav]" />
       <div class="acts"><ng-content select="[actions]" /></div>
@@ -49,9 +53,19 @@ import { Component, computed, input } from '@angular/core';
   `],
 })
 export class ShellHeaderComponent {
-  boxName = input.required<string>();
+  /** Empty when the host projects its own brand — see customBrand. */
+  boxName = input('');
   /** Rendered as a mono eyebrow beside the box name — "Coach", "Admin". Empty for athlete. */
   area = input('');
+  /**
+   * The host supplies the brand block itself, projected into [brand], and the default mark +
+   * name is not rendered. Two consumers need this and they are the same need: the hub has no
+   * box to name, and the three box shells put the SWITCHER there. An explicit input rather than
+   * a contentChild query, because a boolean is greppable and a content query is not — and
+   * because app/ui/ stays presentational, so the switcher (which injects AuthService and Router)
+   * cannot live in here.
+   */
+  customBrand = input(false);
 
   /* The badge beside a box's name is the box's own initial. It used to be a hardcoded "B" for
      BoxHub, which survived the rename because a single letter does not look like a brand string —

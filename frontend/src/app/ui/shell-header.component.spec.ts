@@ -42,3 +42,36 @@ describe('ShellHeaderComponent', () => {
     expect(f.nativeElement.querySelectorAll('header').length).toBe(1);
   });
 });
+
+@Component({
+  standalone: true,
+  imports: [ShellHeaderComponent],
+  template: `
+    <bh-shell-header [customBrand]="true">
+      <span brand data-testid="projected-brand">MY OWN BRAND</span>
+    </bh-shell-header>`,
+})
+class CustomBrandHost {}
+
+describe('ShellHeaderComponent custom brand', () => {
+  it('renders the projected brand and suppresses the default block', async () => {
+    await TestBed.configureTestingModule({ imports: [CustomBrandHost] }).compileComponents();
+    const f = TestBed.createComponent(CustomBrandHost);
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('[data-testid="projected-brand"]')).not.toBeNull();
+    // The volt mark belongs to the default block. Rendering BOTH would put two brands in one
+    // bar and spend the chrome's volt budget twice.
+    expect(el.querySelector('.mark')).toBeNull();
+  });
+
+  it('still renders the default brand when customBrand is not set', async () => {
+    await TestBed.configureTestingModule({ imports: [ShellHeaderComponent] }).compileComponents();
+    const f = TestBed.createComponent(ShellHeaderComponent);
+    f.componentRef.setInput('boxName', 'Demo Box');
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('.mark')?.textContent?.trim()).toBe('D');
+    expect(el.querySelector('.bn')?.textContent?.trim()).toBe('Demo Box');
+  });
+});
