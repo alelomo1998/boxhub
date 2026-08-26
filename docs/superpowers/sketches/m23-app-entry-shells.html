@@ -1,0 +1,1125 @@
+<title>M23 App Shells</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap">
+
+<style>
+  /* ------------------------------------------------------------------
+     rxed design tokens — copied verbatim from frontend/src/styles/_tokens.scss
+     so these sketches render in the product's real values, not approximations.
+     Dark-only on purpose: the product is dark-only by law (design law §2.1),
+     and a light rendering of these screens would misrepresent them. Every
+     colour below is painted explicitly, so the page holds on any host ground.
+     ------------------------------------------------------------------ */
+  :root {
+    color-scheme: dark;
+
+    --ground: #0d110e;
+    --surface: #151a16;
+    --surface-2: #1d231e;
+    --hairline: #2a322c;
+
+    --bone: #f2f4ef;
+    --bone-dim: #a7b0a6;
+    --faint: #7c8779;
+
+    --volt: #dfff4e;
+    --on-volt: #0d110e;
+
+    --good: #3fcf8e;
+    --warn: #f0883e;
+    --danger: #e5484d;
+    --on-danger: #0d110e;
+    --disabled: #4a5249;
+
+    --scrim: rgba(6, 9, 7, 0.62);
+    --focus: var(--volt);
+
+    --font-display: "Archivo", system-ui, -apple-system, sans-serif;
+    --font-body: "Archivo", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --r-xs: 4px;
+    --r-ctl: 8px;
+    --r-card: 12px;
+    --r-full: 999px;
+    --edge: var(--r-ctl);
+    --shadow-float: 0 8px 28px rgba(3, 5, 4, 0.55);
+
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+    --sp-5: 20px; --sp-6: 24px; --sp-8: 40px; --sp-10: 64px;
+
+    --fs-hero: 2.5rem;
+    --fs-display: 1.75rem;
+    --fs-h2: 1.25rem;
+    --fs-body: 0.9375rem;
+    --fs-sm: 0.8125rem;
+    --fs-meta: 0.6875rem;
+
+    --tap: 44px;
+
+    /* Sketch-sheet chrome only — NOT product tokens. Deliberately a shade below
+       --ground so a device frame reads as a screen sitting on a studio surface,
+       and annotation never gets mistaken for product. */
+    --sheet-ground: #080b09;
+    --sheet-rule: #1a201b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--sheet-ground);
+    color: var(--bone);
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--sp-10) var(--sp-5) var(--sp-10);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+  }
+
+  /* ---------- page chrome ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--fs-meta);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0;
+  }
+
+  h1.title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: 1.03;
+    letter-spacing: -0.025em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    margin: 0;
+    color: var(--bone);
+  }
+
+  .standfirst {
+    max-width: 62ch;
+    color: var(--bone-dim);
+    margin: 0;
+  }
+
+  .standfirst strong { color: var(--bone); font-weight: 600; }
+
+  .decisions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1px;
+    background: var(--sheet-rule);
+    border: 1px solid var(--sheet-rule);
+    border-radius: var(--r-card);
+    overflow: hidden;
+  }
+
+  .decision { background: var(--sheet-ground); padding: var(--sp-4); display: flex; flex-direction: column; gap: 6px; }
+
+  .decision dt {
+    font-family: var(--font-mono);
+    font-size: var(--fs-meta);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .decision dd { margin: 0; font-size: var(--fs-sm); color: var(--bone); line-height: 1.45; }
+
+  section.plate { display: flex; flex-direction: column; gap: var(--sp-5); }
+
+  .plate-head { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--sheet-rule); padding-top: var(--sp-5); }
+
+  .plate-num {
+    font-family: var(--font-mono);
+    font-size: var(--fs-meta);
+    letter-spacing: 0.12em;
+    color: var(--faint);
+  }
+
+  h2.plate-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.015em;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--bone);
+  }
+
+  .plate-note { max-width: 68ch; color: var(--bone-dim); font-size: var(--fs-sm); margin: 0; }
+  .plate-note code, .inline-code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--bone);
+    background: var(--surface-2);
+    border-radius: var(--r-xs);
+    padding: 1px 5px;
+  }
+
+  .viewports { display: flex; flex-wrap: wrap; gap: var(--sp-8); align-items: flex-start; }
+
+  .vp { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+  .vp-label {
+    font-family: var(--font-mono);
+    font-size: var(--fs-meta);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .vp-label b { color: var(--bone-dim); font-weight: 400; }
+
+  /* ---------- device frames ---------- */
+
+  .frame {
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+    overflow: hidden;
+    background: var(--ground);
+    box-shadow: var(--shadow-float);
+    position: relative;
+  }
+
+  .frame-375 { width: 375px; height: 667px; }
+
+  /* 1440 is rendered at true width on a fixed canvas and scaled down, so every
+     dimension inside stays honest — the breakpoints resolve at 1440, not at the
+     scaled size. The wrapper carries the scaled box so layout does not overlap. */
+  .scaler { width: 864px; height: 540px; overflow: hidden; border-radius: var(--r-card); }
+  .scaler > .canvas-1440 { width: 1440px; height: 900px; transform: scale(0.6); transform-origin: top left; }
+
+  .screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--ground); position: relative; overflow: hidden; }
+
+  /* ================================================================
+     PRODUCT MARKUP — faithful to the shipped components.
+     bh-shell-header, bh-dock and the box-picker row styles are copied
+     from their source files so these read as the real thing.
+     ================================================================ */
+
+  /* --- bh-shell-header --- */
+  .top {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-5);
+    border-bottom: 1px solid var(--hairline);
+    background: var(--ground);
+    flex-shrink: 0;
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+  .mark {
+    width: 30px; height: 30px; border-radius: var(--r-ctl);
+    background: var(--volt); color: var(--on-volt);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body);
+    flex-shrink: 0;
+  }
+
+  /* A gym you are NOT currently in: same shape, no volt. Keeps the accent
+     meaning "now" rather than becoming a decorative avatar treatment. */
+  .mark.quiet { background: var(--surface-2); color: var(--bone-dim); border: 1px solid var(--hairline); }
+  .mark.muted { background: var(--surface); color: var(--disabled); border: 1px solid var(--hairline); }
+
+  .bn {
+    font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body);
+    text-transform: uppercase; letter-spacing: 0.02em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--bone);
+  }
+
+  .area {
+    font-family: var(--font-mono); font-size: var(--fs-meta);
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint);
+  }
+
+  .acts { display: flex; gap: 2px; margin-left: auto; align-items: center; }
+
+  .icon-btn {
+    min-width: var(--tap); min-height: var(--tap);
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--r-full); color: var(--faint); background: none; border: none;
+  }
+
+  /* The rxed wordmark, used on the hub where there is no box to name. Monochrome
+     in app chrome per design law §10.2. */
+  .wordmark {
+    font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body);
+    letter-spacing: -0.01em; color: var(--bone); text-transform: lowercase;
+  }
+
+  /* --- the switcher affordance, NEW in M23 --- */
+  .switcher {
+    display: flex; align-items: center; gap: 10px;
+    background: none; border: 1px solid transparent; border-radius: var(--r-ctl);
+    padding: 3px var(--sp-2) 3px 3px; margin-left: -3px;
+    min-height: var(--tap); cursor: pointer; font: inherit; color: inherit;
+  }
+  .switcher:hover { border-color: var(--hairline); background: var(--surface); }
+  .chev { color: var(--faint); font-size: 10px; line-height: 1; margin-left: 2px; }
+
+  /* --- desktop header nav (athlete/coach pattern) --- */
+  .hnav { display: flex; gap: var(--sp-1); flex: 1; justify-content: center; }
+  .hitem {
+    display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--sp-4);
+    border-radius: var(--r-full); color: var(--bone-dim); font-weight: 600; font-size: 14px;
+  }
+  .hitem.active { background: var(--surface-2); color: var(--bone); }
+
+  /* --- content --- */
+  .content { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; overflow: hidden; }
+  .content.phone { padding: var(--sp-4) var(--sp-4) 88px; }
+
+  .h-display {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: var(--fs-display); letter-spacing: -0.02em; text-transform: uppercase;
+    margin: 0 0 var(--sp-4); color: var(--bone);
+  }
+
+  .t-eyebrow {
+    font-family: var(--font-mono); font-size: var(--fs-meta);
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint);
+    margin: 0 0 var(--sp-2);
+  }
+
+  /* --- gym rows (box-picker .box, extended with the initial mark) --- */
+  .gyms { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+  .gym {
+    display: flex; align-items: center; gap: var(--sp-3);
+    background: var(--surface-2); border: 1px solid var(--hairline);
+    border-radius: var(--edge); padding: var(--sp-3) var(--sp-4);
+    text-align: left; width: 100%; cursor: pointer; font: inherit; color: inherit;
+  }
+  .gym:hover { border-color: var(--bone-dim); }
+  .gym .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .gym .gname {
+    min-width: 0; overflow-wrap: anywhere;
+    font-family: var(--font-display); font-weight: 800; text-transform: uppercase;
+    font-size: var(--fs-h2); letter-spacing: -0.01em; color: var(--bone); line-height: 1.15;
+  }
+  .gym .grole {
+    font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
+    color: var(--bone-dim); text-transform: uppercase;
+  }
+  .gym .go { color: var(--faint); font-size: var(--fs-h2); flex-shrink: 0; }
+
+  /* Unavailable: not a hover target, not a link. The status is known from
+     /api/me before the row is ever tapped. */
+  .gym.off { cursor: not-allowed; background: var(--surface); }
+  .gym.off:hover { border-color: var(--hairline); }
+  .gym.off .gname { color: var(--faint); }
+  .gym.off .grole { color: var(--disabled); }
+
+  .chip {
+    font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 3px var(--sp-2); border-radius: var(--r-full);
+    border: 1px solid currentColor; flex-shrink: 0; line-height: 1.4;
+  }
+  .chip.warn { color: var(--warn); }
+  .chip.danger { color: var(--danger); }
+  .chip.now { color: var(--faint); border-color: var(--hairline); }
+  /* The neutral status a MEMBER sees on a gym that is not ACTIVE. Quiet on
+     purpose — it reports a fact they cannot act on. */
+  .gym.off .chip:not(.warn):not(.danger) { color: var(--faint); border-color: var(--hairline); }
+
+  /* --- empty state --- */
+  .empty {
+    border: 1px solid var(--hairline); border-radius: var(--r-card);
+    padding: var(--sp-6) var(--sp-5); display: flex; flex-direction: column;
+    gap: var(--sp-3); align-items: flex-start; background: var(--surface);
+  }
+  .empty h3 {
+    font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2);
+    text-transform: uppercase; letter-spacing: -0.01em; margin: 0; color: var(--bone);
+  }
+  .empty p { margin: 0; color: var(--bone-dim); font-size: var(--fs-sm); max-width: 42ch; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: var(--tap); padding: 0 var(--sp-5); border-radius: var(--r-ctl);
+    background: var(--volt); color: var(--on-volt); border: none;
+    font-family: var(--font-body); font-weight: 700; font-size: var(--fs-body);
+    cursor: pointer;
+  }
+  .btn.ghost { background: none; color: var(--bone); border: 1px solid var(--hairline); }
+
+  /* --- bh-dock --- */
+  .dock {
+    position: absolute; left: var(--sp-4); right: var(--sp-4); bottom: var(--sp-3);
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px;
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: var(--r-full); padding: 6px; box-shadow: var(--shadow-float);
+    max-width: 480px; margin: 0 auto;
+  }
+  .dock .item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; min-height: 56px; border-radius: var(--r-full); color: var(--bone-dim);
+  }
+  .dock .item.active { background: var(--surface-2); color: var(--bone); }
+  .dock .item.active .ico { color: var(--volt); }
+  .dock .tlabel {
+    font-family: var(--font-mono); font-size: var(--fs-meta);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .ico { width: 20px; height: 20px; display: block; }
+
+  /* --- bh-sheet --- */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--surface); border-top: 1px solid var(--hairline);
+    border-radius: var(--r-card) var(--r-card) 0 0;
+    box-shadow: var(--shadow-float); padding: var(--sp-4);
+    display: flex; flex-direction: column; gap: var(--sp-3);
+  }
+  /* On desktop the same sheet anchors to the control rather than the bottom edge. */
+  .sheet.anchored {
+    left: var(--sp-5); right: auto; top: 52px; bottom: auto; width: 360px;
+    border: 1px solid var(--hairline); border-radius: var(--r-card);
+  }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+  .sheet-title {
+    font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body);
+    text-transform: uppercase; letter-spacing: 0.02em; margin: 0; color: var(--bone);
+  }
+  .sheet-divider { height: 1px; background: var(--hairline); margin: var(--sp-1) 0; }
+  .all-gyms {
+    display: flex; align-items: center; justify-content: space-between;
+    min-height: var(--tap); padding: 0 var(--sp-2); color: var(--bone);
+    font-size: var(--fs-body); border-radius: var(--r-ctl); cursor: pointer;
+    background: none; border: none; font: inherit; width: 100%; text-align: left;
+  }
+  .all-gyms:hover { background: var(--surface-2); }
+
+  /* --- admin side nav, for the in-box header plate --- */
+  .adminwrap { display: grid; grid-template-columns: 210px 1fr; flex: 1; min-height: 0; }
+  .side { border-right: 1px solid var(--hairline); padding: var(--sp-5) var(--sp-4); display: flex; flex-direction: column; gap: 3px; }
+  .s-item { display: flex; align-items: center; min-height: var(--tap); padding: 0 12px; border-radius: var(--edge); color: var(--bone-dim); font-size: 14px; font-weight: 500; }
+  .s-item.active { background: var(--surface-2); color: var(--bone); }
+
+  .fakeblock { border: 1px dashed var(--hairline); border-radius: var(--r-card); flex: 1; display: grid; place-items: center; color: var(--disabled); font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* --- annotation callouts --- */
+  .callouts { display: flex; flex-direction: column; gap: var(--sp-3); border-left: 2px solid var(--sheet-rule); padding-left: var(--sp-4); }
+  .callout { display: flex; gap: var(--sp-3); align-items: flex-start; }
+  .callout .k {
+    font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
+    color: var(--volt); flex-shrink: 0; padding-top: 3px; min-width: 22px;
+  }
+  .callout .v { font-size: var(--fs-sm); color: var(--bone-dim); line-height: 1.5; }
+  .callout .v b { color: var(--bone); font-weight: 600; }
+
+  /* --- route map --- */
+  .routemap {
+    border: 1px solid var(--sheet-rule); border-radius: var(--r-card);
+    padding: var(--sp-5); overflow-x: auto; background: var(--ground);
+  }
+  .routemap pre {
+    margin: 0; font-family: var(--font-mono); font-size: var(--fs-sm);
+    line-height: 1.75; color: var(--bone-dim); white-space: pre;
+  }
+  .routemap .hi { color: var(--volt); }
+  .routemap .dim { color: var(--disabled); }
+
+  table.routes { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+  table.routes th, table.routes td { text-align: left; padding: var(--sp-3) var(--sp-3); border-bottom: 1px solid var(--sheet-rule); vertical-align: top; }
+  table.routes th {
+    font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--faint); font-weight: 400;
+  }
+  table.routes td:first-child { font-family: var(--font-mono); color: var(--bone); white-space: nowrap; }
+  table.routes td { color: var(--bone-dim); }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--sheet-rule); border-radius: var(--r-card); }
+
+  .open-q { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .q {
+    border: 1px solid var(--sheet-rule); border-left: 3px solid var(--warn);
+    border-radius: var(--r-ctl); padding: var(--sp-4); background: var(--ground);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .q h4 { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--bone); font-family: var(--font-display); }
+  .q p { margin: 0; font-size: var(--fs-sm); color: var(--bone-dim); }
+
+  footer.foot { border-top: 1px solid var(--sheet-rule); padding-top: var(--sp-5); color: var(--faint); font-size: var(--fs-sm); }
+
+  @media (max-width: 900px) {
+    .scaler { width: 100%; max-width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Milestone 23 · sketches before build · 2026-08-25</p>
+    <h1 class="title">App entry &amp; shells</h1>
+    <p class="standfirst">
+      Today rxed is: log in → pick a box → one of three shells, <strong>all of which assume a box</strong>.
+      An account with no gym has no shell at all — and that is the state
+      <strong>every account starts in</strong>, because registration never creates a membership.
+      These are the screens that give "no gym" and "several gyms" a place to live, drawn at both
+      widths before any of them is built.
+    </p>
+
+    <dl class="decisions">
+      <div class="decision">
+        <dt>Boxless</dt>
+        <dd>A full shell with a dock — not a warning screen.</dd>
+      </div>
+      <div class="decision">
+        <dt>Hub, not floor</dt>
+        <dd>One screen serves zero gyms and five. Replaces <span class="inline-code">/auth/boxes</span>.</dd>
+      </div>
+      <div class="decision">
+        <dt>Scope</dt>
+        <dd>Box switching only. Area switching is filed, not built.</dd>
+      </div>
+      <div class="decision">
+        <dt>Entry</dt>
+        <dd><span class="inline-code">/</span> resumes your last gym; the hub is the fallback.</dd>
+      </div>
+    </dl>
+  </header>
+
+  <!-- ============================================================ -->
+  <section class="plate">
+    <div class="plate-head">
+      <p class="plate-num">00 · the contract</p>
+      <h2 class="plate-title">Where a person lands</h2>
+      <p class="plate-note">
+        Three of these arrows exist today and all three point at a login form for someone who is
+        already logged in. <span class="inline-code">roleGuard</span> sends a boxless session to
+        <span class="inline-code">/auth/login</span>; so does the account area's Done control; so
+        does the bare <span class="inline-code">/</span>.
+      </p>
+    </div>
+
+    <div class="routemap">
+<pre>GET /
+  │
+  ├─ no session ──────────────────────────────→ /auth/login
+  │
+  └─ session
+       │
+       ├─ active box restored from localStorage ─→ <span class="hi">/athlete · /coach · /admin</span>
+       │                                            (role home for THAT gym)
+       │
+       └─ no active box
+            │
+            ├─ has memberships ───────────────→ <span class="hi">/gyms</span>        <span class="dim">the hub, listed</span>
+            │
+            └─ no memberships ────────────────→ <span class="hi">/gyms</span>        <span class="dim">the hub, empty</span></pre>
+    </div>
+
+    <div class="tablewrap">
+      <table class="routes">
+        <thead>
+          <tr><th>Route</th><th>Today</th><th>After M23</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>/gyms</td><td>—</td><td>The hub. Your gyms, or the empty state.</td></tr>
+          <tr><td>/gyms/join</td><td>—</td><td>How to get in. Invite path now; the directory lands above it at M24.</td></tr>
+          <tr><td>/auth/boxes</td><td>The box picker</td><td>Redirect to /gyms. Kept — it is in browser history.</td></tr>
+          <tr><td>/</td><td>→ /auth/login, always</td><td>Resolves by state, per the map above.</td></tr>
+          <tr><td>**</td><td>→ /auth/login</td><td>Same resolution as /.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="plate">
+    <div class="plate-head">
+      <p class="plate-num">01 · the hub</p>
+      <h2 class="plate-title">No gyms yet</h2>
+      <p class="plate-note">
+        What a brand-new account sees the moment it verifies its email. Today this person is shown a
+        login form. The copy names the one thing that actually gets them in, and the dock is real —
+        Join is a working destination, not a placeholder.
+      </p>
+    </div>
+
+    <div class="viewports">
+      <div class="vp">
+        <p class="vp-label">375 · <b>actual size</b></p>
+        <div class="frame frame-375">
+          <div class="screen">
+            <div class="top">
+              <div class="brand"><span class="wordmark">rxed</span></div>
+            </div>
+            <div class="content phone">
+              <h2 class="h-display">Your gyms</h2>
+              <div class="empty">
+                <h3>No gyms yet</h3>
+                <p>Your gym sends you an invite link. Accept it and the gym shows up here.</p>
+                <button class="btn">How to join</button>
+              </div>
+            </div>
+            <nav class="dock">
+              <span class="item active">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                <span class="tlabel">Gyms</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                <span class="tlabel">Join</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.2-5.5 7-5.5s7 2 7 5.5"/></svg>
+                <span class="tlabel">Account</span>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="vp">
+        <p class="vp-label">1440 · <b>shown at 60%</b></p>
+        <div class="scaler">
+          <div class="canvas-1440">
+            <div class="screen">
+              <div class="top">
+                <div class="brand"><span class="wordmark">rxed</span></div>
+                <nav class="hnav">
+                  <span class="hitem active">Your gyms</span>
+                  <span class="hitem">Join a gym</span>
+                  <span class="hitem">Account</span>
+                </nav>
+                <div class="acts"><span class="icon-btn">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5V3h4"/><path d="m14 16 4-4-4-4"/><path d="M18 12H9"/></svg>
+                </span></div>
+              </div>
+              <div class="content" style="max-width:640px;">
+                <h2 class="h-display">Your gyms</h2>
+                <div class="empty">
+                  <h3>No gyms yet</h3>
+                  <p>Your gym sends you an invite link. Accept it and the gym shows up here.</p>
+                  <button class="btn">How to join</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callouts">
+      <div class="callout"><span class="k">01</span><span class="v">The dock's third tab leaves the shell for the existing <span class="inline-code">/account</span> area. That area already works boxless — it is guarded by <span class="inline-code">sessionGuard</span>, deliberately, and the comment in the file says why. <b>Its Done control must stop returning to the login page.</b></span></div>
+      <div class="callout"><span class="k">02</span><span class="v">Desktop drops the dock for header nav, matching the athlete and coach shells exactly. The breakpoint is the one already in the codebase: <span class="inline-code">720px</span>.</span></div>
+      <div class="callout"><span class="k">03</span><span class="v">One volt element: the active dock icon. The empty state's button is the primary action, and the primary button is volt by law — <b>so on this screen the dock icon and the button are both volt.</b> Flagged as an open question below.</span></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="plate">
+    <div class="plate-head">
+      <p class="plate-num">02 · the hub</p>
+      <h2 class="plate-title">Three gyms, one of them yours right now</h2>
+      <p class="plate-note">
+        The same screen with memberships. Roles differ per gym — that is the point of M21 — so the
+        role rides on the row, and tapping lands you in <em>that gym's</em> role home, not the one
+        you came from.
+      </p>
+    </div>
+
+    <div class="viewports">
+      <div class="vp">
+        <p class="vp-label">375 · <b>actual size</b></p>
+        <div class="frame frame-375">
+          <div class="screen">
+            <div class="top">
+              <div class="brand"><span class="wordmark">rxed</span></div>
+            </div>
+            <div class="content phone">
+              <h2 class="h-display">Your gyms</h2>
+              <div class="gyms">
+                <button class="gym">
+                  <span class="mark">C</span>
+                  <span class="meta">
+                    <span class="gname">CrossFit Oslo</span>
+                    <span class="grole">Athlete</span>
+                  </span>
+                  <span class="chip now">Current</span>
+                </button>
+                <button class="gym">
+                  <span class="mark quiet">B</span>
+                  <span class="meta">
+                    <span class="gname">Box 22</span>
+                    <span class="grole">Coach</span>
+                  </span>
+                  <span class="go">›</span>
+                </button>
+                <button class="gym">
+                  <span class="mark quiet">D</span>
+                  <span class="meta">
+                    <span class="gname">Downtown Barbell</span>
+                    <span class="grole">Admin</span>
+                  </span>
+                  <span class="go">›</span>
+                </button>
+              </div>
+            </div>
+            <nav class="dock">
+              <span class="item active">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                <span class="tlabel">Gyms</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                <span class="tlabel">Join</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.2-5.5 7-5.5s7 2 7 5.5"/></svg>
+                <span class="tlabel">Account</span>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="vp">
+        <p class="vp-label">1440 · <b>shown at 60%</b></p>
+        <div class="scaler">
+          <div class="canvas-1440">
+            <div class="screen">
+              <div class="top">
+                <div class="brand"><span class="wordmark">rxed</span></div>
+                <nav class="hnav">
+                  <span class="hitem active">Your gyms</span>
+                  <span class="hitem">Join a gym</span>
+                  <span class="hitem">Account</span>
+                </nav>
+                <div class="acts"><span class="icon-btn">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5V3h4"/><path d="m14 16 4-4-4-4"/><path d="M18 12H9"/></svg>
+                </span></div>
+              </div>
+              <div class="content" style="max-width:640px;">
+                <h2 class="h-display">Your gyms</h2>
+                <div class="gyms">
+                  <button class="gym">
+                    <span class="mark">C</span>
+                    <span class="meta">
+                      <span class="gname">CrossFit Oslo</span>
+                      <span class="grole">Athlete</span>
+                    </span>
+                    <span class="chip now">Current</span>
+                  </button>
+                  <button class="gym">
+                    <span class="mark quiet">B</span>
+                    <span class="meta">
+                      <span class="gname">Box 22</span>
+                      <span class="grole">Coach</span>
+                    </span>
+                    <span class="go">›</span>
+                  </button>
+                  <button class="gym">
+                    <span class="mark quiet">D</span>
+                    <span class="meta">
+                      <span class="gname">Downtown Barbell</span>
+                      <span class="grole">Admin</span>
+                    </span>
+                    <span class="go">›</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callouts">
+      <div class="callout"><span class="k">01</span><span class="v">The volt initial-mark means <b>the gym you are in now</b> — the same vocabulary <span class="inline-code">bh-shell-header</span> already uses, not a new one. Other gyms get the identical shape with no accent, so volt keeps meaning "now" instead of becoming a decorative avatar.</span></div>
+      <div class="callout"><span class="k">02</span><span class="v">The row reads <b>Owner</b>, not <span class="inline-code">BOX_ADMIN</span>. The picker today renders <span class="inline-code">{{ m.role }}</span> raw, so it literally prints the enum — which is also an unmarked English string, against the standing i18n rule. M23 owes a marked label map.</span></div>
+      <div class="callout"><span class="k">03</span><span class="v">Everything on this screen comes from <span class="inline-code">/api/me</span>, which a boxless session may already read. <b>No new endpoint, no DTO, no migration</b> — <span class="inline-code">Membership</span> is deliberately not a <span class="inline-code">@TenantId</span> entity.</span></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="plate">
+    <div class="plate-head">
+      <p class="plate-num">03 · the hub</p>
+      <h2 class="plate-title">A gym you cannot open</h2>
+      <p class="plate-note">
+        A box can be PENDING (awaiting platform approval) or SUSPENDED. Today the picker lets you tap
+        one and only then surfaces a 403 from the token mint, because the failure lives in the
+        server round-trip. The status is already in hand from <span class="inline-code">/api/me</span>
+        — so the row says so before you touch it, and the error arm stays as the backstop.
+      </p>
+    </div>
+
+    <div class="viewports">
+      <div class="vp">
+        <p class="vp-label">375 · <b>actual size</b></p>
+        <div class="frame frame-375">
+          <div class="screen">
+            <div class="top">
+              <div class="brand"><span class="wordmark">rxed</span></div>
+            </div>
+            <div class="content phone">
+              <h2 class="h-display">Your gyms</h2>
+              <div class="gyms">
+                <button class="gym">
+                  <span class="mark">C</span>
+                  <span class="meta">
+                    <span class="gname">CrossFit Oslo</span>
+                    <span class="grole">Athlete</span>
+                  </span>
+                  <span class="chip now">Current</span>
+                </button>
+                <span class="gym off">
+                  <span class="mark muted">N</span>
+                  <span class="meta">
+                    <span class="gname">Nordic Strength</span>
+                    <span class="grole">Admin</span>
+                  </span>
+                  <span class="chip warn">In review</span>
+                </span>
+                <span class="gym off">
+                  <span class="mark muted">D</span>
+                  <span class="meta">
+                    <span class="gname">Downtown Barbell</span>
+                    <span class="grole">Coach</span>
+                  </span>
+                  <span class="chip">Unavailable</span>
+                </span>
+              </div>
+            </div>
+            <nav class="dock">
+              <span class="item active">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                <span class="tlabel">Gyms</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                <span class="tlabel">Join</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.2-5.5 7-5.5s7 2 7 5.5"/></svg>
+                <span class="tlabel">Account</span>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="vp" style="flex:1; min-width:280px; max-width:420px;">
+        <p class="vp-label">decided · 2026-08-25</p>
+        <div class="callouts">
+          <div class="callout"><span class="k">01</span><span class="v"><b>The label depends on the role you hold at that gym, not on the status alone.</b> This one screen shows both rules: the person is ADMIN at Nordic Strength, so they are told it is <b>In review</b> — their own gym, their own problem to act on. They are a COACH at Downtown Barbell, so they are told only <b>Unavailable</b>.</span></div>
+          <div class="callout"><span class="k">02</span><span class="v">A member cannot act on "suspended", and it is a fact about the <em>owner's</em> account rather than theirs. Neutral for members leaks nothing sideways; specific for admins tells the one person who can do something about it.</span></div>
+          <div class="callout"><span class="k">03</span><span class="v">Both strings are i18n-marked. The enum values — PENDING, ACTIVE, SUSPENDED, REJECTED — never reach the screen, the same way <span class="inline-code">BOX_ADMIN</span> no longer does.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="plate">
+    <div class="plate-head">
+      <p class="plate-num">04 · joining</p>
+      <h2 class="plate-title">Join a gym — today, and at M24</h2>
+      <p class="plate-note">
+        The tab you asked to reserve for discovery, occupied by something that already works. The
+        invite path ships today; the directory lands above it at M24 and the invite path survives
+        underneath, so nothing here gets re-shaped.
+      </p>
+    </div>
+
+    <div class="viewports">
+      <div class="vp">
+        <p class="vp-label">375 · <b>today</b></p>
+        <div class="frame frame-375">
+          <div class="screen">
+            <div class="top">
+              <div class="brand"><span class="wordmark">rxed</span></div>
+            </div>
+            <div class="content phone">
+              <h2 class="h-display">Join a gym</h2>
+              <div class="empty">
+                <h3>Ask your gym for a link</h3>
+                <p>Gyms on rxed invite their members by email. The link in that email adds you
+                   straight away — you do not need a code.</p>
+                <p style="color:var(--faint)">Already clicked one and nothing happened? It may have
+                   been sent to a different email address than the one you signed up with.</p>
+              </div>
+            </div>
+            <nav class="dock">
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                <span class="tlabel">Gyms</span>
+              </span>
+              <span class="item active">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                <span class="tlabel">Join</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.2-5.5 7-5.5s7 2 7 5.5"/></svg>
+                <span class="tlabel">Account</span>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="vp">
+        <p class="vp-label">375 · <b>M24 adds the directory ABOVE</b></p>
+        <div class="frame frame-375" style="opacity:.72;">
+          <div class="screen">
+            <div class="top">
+              <div class="brand"><span class="wordmark">rxed</span></div>
+            </div>
+            <div class="content phone">
+              <h2 class="h-display">Join a gym</h2>
+              <div style="border:1px dashed var(--volt); border-radius:var(--r-card); padding:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-3); margin-bottom:var(--sp-4);">
+                <p class="t-eyebrow" style="margin:0; color:var(--volt)">Arrives with M24</p>
+                <div style="height:40px; border:1px solid var(--hairline); border-radius:var(--r-ctl); display:flex; align-items:center; padding:0 var(--sp-3); color:var(--disabled); font-size:var(--fs-sm)">Search gyms near you</div>
+                <div class="gym" style="cursor:default"><span class="mark quiet">C</span><span class="meta"><span class="gname" style="font-size:var(--fs-body)">CrossFit Oslo</span><span class="grole">0.8 km</span></span><span class="go">›</span></div>
+                <div class="gym" style="cursor:default"><span class="mark quiet">S</span><span class="meta"><span class="gname" style="font-size:var(--fs-body)">Sentrum CF</span><span class="grole">2.1 km</span></span><span class="go">›</span></div>
+              </div>
+              <div class="sheet-divider"></div>
+              <div class="empty" style="margin-top:var(--sp-4)">
+                <h3>Have an invite?</h3>
+                <p>Your gym's link still works, and always will.</p>
+              </div>
+            </div>
+            <nav class="dock">
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                <span class="tlabel">Gyms</span>
+              </span>
+              <span class="item active">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                <span class="tlabel">Join</span>
+              </span>
+              <span class="item">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.2-5.5 7-5.5s7 2 7 5.5"/></svg>
+                <span class="tlabel">Account</span>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callouts">
+      <div class="callout"><span class="k">01</span><span class="v">The right-hand plate is <b>not M23 work</b> — it is drawn only to prove the M24 directory drops in without re-shaping this screen. Building it here would break milestone lock.</span></div>
+      <div class="callout"><span class="k">02</span><span class="v">No paste-a-code field. Invites are links, and <span class="inline-code">/join/:token</span> already handles them. <b>Inventing a code entry would be inventing a mechanism the backend does not have.</b></span></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="plate">
+    <div class="plate-head">
+      <p class="plate-num">05 · the switcher</p>
+      <h2 class="plate-title">Moving between gyms</h2>
+      <p class="plate-note">
+        The box name in the header becomes the control. Closed, it is what ships today plus a
+        chevron; open, it lists your other gyms and the way back to the hub. It is the same control
+        in all three shells, and it is the one M27a later wraps natively.
+      </p>
+    </div>
+
+    <div class="viewports">
+      <div class="vp">
+        <p class="vp-label">375 · <b>open, coach shell</b></p>
+        <div class="frame frame-375">
+          <div class="screen">
+            <div class="top">
+              <button class="switcher">
+                <span class="mark">C</span>
+                <span class="bn">CrossFit Oslo</span>
+                <span class="chev">▾</span>
+              </button>
+              <span class="area">Coach</span>
+            </div>
+            <div class="content phone">
+              <div class="fakeblock" style="height:180px">coach classes</div>
+            </div>
+            <div class="scrim"></div>
+            <div class="sheet">
+              <div class="sheet-head">
+                <h3 class="sheet-title">Switch gym</h3>
+                <span class="icon-btn" style="min-width:32px;min-height:32px">✕</span>
+              </div>
+              <div class="gyms">
+                <span class="gym" style="cursor:default">
+                  <span class="mark">C</span>
+                  <span class="meta">
+                    <span class="gname" style="font-size:var(--fs-body)">CrossFit Oslo</span>
+                    <span class="grole">Coach</span>
+                  </span>
+                  <span class="chip now">Current</span>
+                </span>
+                <button class="gym">
+                  <span class="mark quiet">B</span>
+                  <span class="meta">
+                    <span class="gname" style="font-size:var(--fs-body)">Box 22</span>
+                    <span class="grole">Athlete</span>
+                  </span>
+                  <span class="go">›</span>
+                </button>
+              </div>
+              <div class="sheet-divider"></div>
+              <button class="all-gyms"><span>All gyms</span><span class="go">›</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vp">
+        <p class="vp-label">1440 · <b>open, admin shell · 60%</b></p>
+        <div class="scaler">
+          <div class="canvas-1440">
+            <div class="screen">
+              <div class="top">
+                <button class="switcher">
+                  <span class="mark">C</span>
+                  <span class="bn">CrossFit Oslo</span>
+                  <span class="chev">▾</span>
+                </button>
+                <span class="area">Admin</span>
+                <div class="acts">
+                  <span class="icon-btn">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+                  </span>
+                  <span class="icon-btn">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5V3h4"/><path d="m14 16 4-4-4-4"/><path d="M18 12H9"/></svg>
+                  </span>
+                </div>
+              </div>
+              <div class="adminwrap">
+                <nav class="side">
+                  <span class="s-item active">Dashboard</span>
+                  <span class="s-item">Members</span>
+                  <span class="s-item">Schedule</span>
+                  <span class="s-item">Invites</span>
+                  <span class="s-item">Plans</span>
+                  <span class="s-item">Payments</span>
+                </nav>
+                <div class="content" style="display:flex">
+                  <div class="fakeblock">admin dashboard</div>
+                </div>
+              </div>
+              <div class="scrim"></div>
+              <div class="sheet anchored">
+                <div class="sheet-head">
+                  <h3 class="sheet-title">Switch gym</h3>
+                </div>
+                <div class="gyms">
+                  <span class="gym" style="cursor:default">
+                    <span class="mark">C</span>
+                    <span class="meta">
+                      <span class="gname" style="font-size:var(--fs-body)">CrossFit Oslo</span>
+                      <span class="grole">Admin</span>
+                    </span>
+                    <span class="chip now">Current</span>
+                  </span>
+                  <button class="gym">
+                    <span class="mark quiet">B</span>
+                    <span class="meta">
+                      <span class="gname" style="font-size:var(--fs-body)">Box 22</span>
+                      <span class="grole">Coach</span>
+                    </span>
+                    <span class="go">›</span>
+                  </button>
+                  <button class="gym">
+                    <span class="mark quiet">D</span>
+                    <span class="meta">
+                      <span class="gname" style="font-size:var(--fs-body)">Downtown Barbell</span>
+                      <span class="grole">Athlete</span>
+                    </span>
+                    <span class="go">›</span>
+                  </button>
+                </div>
+                <div class="sheet-divider"></div>
+                <button class="all-gyms"><span>All gyms</span><span class="go">›</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callouts">
+      <div class="callout"><span class="k">01</span><span class="v"><b>The switcher renders even with one gym.</b> Otherwise a single-gym member can never reach Join to add a second, and moving cities is a real thing. With one gym the sheet is the current row plus <em>All gyms</em>.</span></div>
+      <div class="callout"><span class="k">02</span><span class="v"><span class="inline-code">bh-shell-header</span> lives in <span class="inline-code">app/ui/</span>, which stays presentational and clean. So the switcher is a <b>feature</b> component projected into a new brand slot — the header gains a slot, not a service dependency, and the fallback stays the static brand it renders today.</span></div>
+      <div class="callout"><span class="k">03</span><span class="v">Switching calls the existing <span class="inline-code">selectBox()</span> and lands on the role home <b>for the target gym</b>. The multi-tab case is already solved: M21's interceptor re-mints once on a <span class="inline-code">409 STALE_BOX</span>.</span></div>
+      <div class="callout"><span class="k">04</span><span class="v">On 375 the control sits top-left, outside the thumb zone. Accepted: switching gym is a rare action, and the sheet it opens is thumb-reachable. <b>Noted so the critique can disagree with it on purpose rather than discover it.</b></span></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="plate">
+    <div class="plate-head">
+      <p class="plate-num">06</p>
+      <h2 class="plate-title">What the drawing settled</h2>
+      <p class="plate-note">
+        Four questions the sketches surfaced. Two were the user's call and were answered; two carry a
+        recorded judgement, so a later critique argues with a reason rather than a blank.
+      </p>
+    </div>
+
+    <div class="open-q">
+      <div class="q" style="border-left-color: var(--good)">
+        <h4>Status copy — decided</h4>
+        <p><b>Neutral for members, specific for admins.</b> The label keys off the role you hold at
+          that gym, not the status alone: an ADMIN at a PENDING gym is told "In review"; a member of
+          a SUSPENDED gym is told only "Unavailable". A member cannot act on "suspended", and it is
+          a fact about the owner's account rather than theirs.</p>
+      </div>
+      <div class="q" style="border-left-color: var(--good)">
+        <h4>Role labels — decided</h4>
+        <p><b>Athlete / Coach / Admin.</b> "Owner" was warmer but wrong for a gym whose admin is a
+          hired manager; "Admin" is true whoever holds the role. The raw enum never reaches a
+          screen, and all three strings are i18n-marked — today's picker prints
+          <span class="inline-code">BOX_ADMIN</span> unmarked, which is the defect this replaces.</p>
+      </div>
+      <div class="q">
+        <h4>The volt budget on the hub's empty state — judged, re-openable</h4>
+        <p>The law gives a plumbing screen one volt element; the empty state appears to have two, the
+          active dock icon and the primary button. <b>Taken: the dock's active icon is shell chrome,
+          not screen content, and does not spend the screen's budget.</b> The alternative reading
+          says every shipped screen in the product is already over budget, which is the weaker
+          reading. If the critique disagrees, the fix is one line — the empty-state button goes
+          ghost.</p>
+      </div>
+      <div class="q">
+        <h4>Does landing on the hub clear your active gym? — judged, re-openable</h4>
+        <p><b>Taken: no.</b> Visiting <span class="inline-code">/gyms</span> leaves
+          <span class="inline-code">bh_active_box</span> intact, so <span class="inline-code">/</span>
+          still resumes and the hub can mark which gym you are in. The consequence is deliberate:
+          "no gym" becomes a state you can <em>look at</em> without being a state you have
+          <em>entered</em> — which is exactly what makes the Current chip mean anything.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p style="margin:0">
+      Drawn with rxed's own tokens, faces and component styles — <span class="inline-code">_tokens.scss</span>,
+      <span class="inline-code">shell-header.component.ts</span>, <span class="inline-code">dock.component.ts</span>,
+      <span class="inline-code">box-picker.page.ts</span>. Dark-only because the product is dark-only.
+      Nothing here is built yet; the spec follows once these are settled.
+    </p>
+  </footer>
+
+</div>

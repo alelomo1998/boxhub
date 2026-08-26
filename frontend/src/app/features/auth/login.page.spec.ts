@@ -178,7 +178,7 @@ describe('LoginPage', () => {
     expect(navSpy).toHaveBeenCalledWith('/wod/today');
   }));
 
-  it('routes to the box picker when the user has more than one membership', fakeAsync(() => {
+  it('routes to the gyms hub when the user has more than one membership', fakeAsync(() => {
     const fixture = setup();
     fixture.detectChanges();
     http.expectOne('/api/auth/providers').flush({ google: false });
@@ -200,7 +200,7 @@ describe('LoginPage', () => {
         ] });
     flushMicrotasks();
 
-    expect(navSpy).toHaveBeenCalledWith('/auth/boxes');
+    expect(navSpy).toHaveBeenCalledWith('/gyms');
   }));
 
   it('clicking the submit button fires submit() and prevents the native GET-with-password-in-URL submit', () => {

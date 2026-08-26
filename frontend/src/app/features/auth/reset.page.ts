@@ -138,7 +138,7 @@ export class ResetPage implements OnInit {
             error: () => { this.boxUnavailable.set(true); this.focusField('reset-box-unavailable'); },
           });
         } else {
-          this.router.navigateByUrl('/auth/boxes');
+          this.router.navigateByUrl('/gyms');
         }
       },
       error: (e: HttpErrorResponse) => {

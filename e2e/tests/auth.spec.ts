@@ -106,8 +106,8 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
     await page.fill('input[name="email"]', EMAIL);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
-    // A fresh signup carries no box membership, so login lands on the box picker, not a shell.
-    await expect(page).toHaveURL(/auth\/boxes/);
+    // A fresh signup carries no box membership, so login lands on the gyms hub, not a shell.
+    await expect(page).toHaveURL(/\/gyms/);
   });
 
   test('forgot password: the reset link in the inbox sets a new password and logs in', async () => {
@@ -139,7 +139,7 @@ test.describe.serial('end-to-end auth journey through a real inbox', () => {
     await page.fill('input[name="email"]', EMAIL);
     await page.fill('input[name="password"]', NEW_PASSWORD);
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(/auth\/boxes/);
+    await expect(page).toHaveURL(/\/gyms/);
 
     await page.request.post('/api/auth/logout-all', { headers: await xsrfHeaders(page) });
     // The session is dead server-side, not merely dropped by this tab — /api/me proves it

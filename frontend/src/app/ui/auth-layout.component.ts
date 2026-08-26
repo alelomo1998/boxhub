@@ -52,7 +52,7 @@ import { WordmarkComponent } from './wordmark.component';
       justify-content: center; padding: var(--sp-6) var(--sp-4); }
 
     /* Plain stacked column is the base case for BOTH variants — narrow at every width, split
-       below 720px. 420px is this codebase's existing form-column width (box-picker, settings,
+       below 720px. 420px is this codebase's existing form-column width (settings,
        subscriptions, box-stripe all use it) — following the convention rather than inventing a
        number. No border/background/radius here: bounding the card visually is a split-only,
        desktop-only choice below. */

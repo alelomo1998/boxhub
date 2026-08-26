@@ -1,11 +1,11 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { BRAND_NAME } from '../../core/brand';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { IconComponent } from '../../ui/icon.component';
+import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 
 /** Coach shell: header nav on desktop, floating pill dock on mobile. */
 @Component({
@@ -13,11 +13,12 @@ import { IconComponent } from '../../ui/icon.component';
   standalone: true,
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive,
-    ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent,
+    ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent, BoxSwitcherComponent,
   ],
   template: `
     <div class="app">
-      <bh-shell-header [boxName]="boxName" area="Coach">
+      <bh-shell-header [customBrand]="true" area="Coach">
+        <bh-box-switcher brand />
         <nav nav class="hnav" aria-label="Coach">
           @for (t of tabs; track t.link) {
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
@@ -56,7 +57,6 @@ import { IconComponent } from '../../ui/icon.component';
 export class CoachShellPage {
   private auth = inject(AuthService);
   private router = inject(Router);
-  boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
 
   tabs: DockTab[] = [
     { link: 'classes', label: 'Classes', icon: 'calendar' },

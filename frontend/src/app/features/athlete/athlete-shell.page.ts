@@ -2,12 +2,12 @@ import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@ang
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
-import { BRAND_NAME } from '../../core/brand';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
 import { ProfileSheetComponent } from './profile-sheet.component';
 import { HomeService } from './home.service';
+import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 
 /** Athlete shell: header nav on desktop, floating pill dock on mobile. */
 @Component({
@@ -15,11 +15,12 @@ import { HomeService } from './home.service';
   standalone: true,
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, SheetComponent, AvatarComponent,
-    ShellHeaderComponent, DockComponent, ProfileSheetComponent,
+    ShellHeaderComponent, DockComponent, ProfileSheetComponent, BoxSwitcherComponent,
   ],
   template: `
     <div class="app">
-      <bh-shell-header [boxName]="boxName">
+      <bh-shell-header [customBrand]="true">
+        <bh-box-switcher brand />
         <nav nav class="hnav" aria-label="Athlete">
           @for (t of tabs; track t.link) {
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
@@ -65,7 +66,6 @@ export class AthleteShellPage implements OnInit {
 
   profileOpen = signal(false);
   avatarPath = signal<string | null>(null);
-  boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
   userName = '';
 
   tabs: DockTab[] = [

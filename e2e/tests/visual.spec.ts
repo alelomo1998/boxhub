@@ -189,19 +189,34 @@ for (const screen of SCREENS) {
   }
 }
 
-// box-picker needs a session, and admin@demo.io has exactly one membership — login() AUTO-SELECTS
-// it and redirects straight past the picker. Logging in and then navigating to /app/auth/boxes
-// directly is the only way to see the picker itself (same trick as a11y.spec.ts).
+// nobox@demo.io holds no membership, so it lands on the hub's empty state directly.
 for (const vp of [PHONE, DESKTOP]) {
-  test(`box-picker (${vp.name}) is visually unchanged`, async ({ page }) => {
+  test(`gym-hub-empty (${vp.name}) is visually unchanged`, async ({ page }) => {
     await page.clock.setFixedTime(FROZEN_TIME);
     await page.setViewportSize({ width: vp.width, height: vp.height });
-    await login(page, 'admin@demo.io');
-    await page.goto('/app/auth/boxes');
-    await expect(page.getByRole('heading', { name: 'Your boxes' })).toBeVisible();
+    await login(page, 'nobox@demo.io');
+    await expect(page).toHaveURL(/\/app\/gyms$/);
+    await expect(page.getByTestId('gyms-empty')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
 
-    await expect(page).toHaveScreenshot(`box-picker-${vp.name}.png`, {
+    await expect(page).toHaveScreenshot(`gym-hub-empty-${vp.name}.png`, {
+      animations: 'disabled',
+      threshold: 0,
+      maxDiffPixels: 100,
+    });
+  });
+}
+
+// multi@demo.io holds two memberships, so this captures the hub's populated list state.
+for (const vp of [PHONE, DESKTOP]) {
+  test(`gym-hub-list (${vp.name}) is visually unchanged`, async ({ page }) => {
+    await page.clock.setFixedTime(FROZEN_TIME);
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await login(page, 'multi@demo.io');
+    await expect(page).toHaveURL(/\/app\/gyms$/);
+    await page.evaluate(() => document.fonts.ready);
+
+    await expect(page).toHaveScreenshot(`gym-hub-list-${vp.name}.png`, {
       animations: 'disabled',
       threshold: 0,
       maxDiffPixels: 100,

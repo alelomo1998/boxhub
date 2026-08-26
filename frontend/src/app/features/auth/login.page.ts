@@ -137,7 +137,7 @@ export class LoginPage implements OnInit {
               $localize`:@@auth.login.error.boxUnavailable:This box is unavailable — contact your box for help.`),
           });
         } else {
-          this.router.navigateByUrl('/auth/boxes');
+          this.router.navigateByUrl('/gyms');
         }
       },
       error: (e: HttpErrorResponse) => {

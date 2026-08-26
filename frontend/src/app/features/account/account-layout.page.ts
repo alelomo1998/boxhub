@@ -138,6 +138,6 @@ export class AccountLayoutPage {
     if (this.hasHistory()) { this.location.back(); return; }
     // Opened from a pasted URL: back() would leave the tab on a blank page.
     const box = this.auth.activeBox();
-    this.router.navigateByUrl(box ? redirectForRole(box.role) : '/auth/login');
+    this.router.navigateByUrl(box ? redirectForRole(box.role) : '/gyms');
   }
 }

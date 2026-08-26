@@ -108,6 +108,92 @@ public class DevDataSeeder implements CommandLineRunner {
         User athlete6 = seed(demo, "athlete6@demo.io", "Nina Petrova", "ATHLETE");
         User athlete7 = seed(demo, "athlete7@demo.io", "Leo Rossi", "ATHLETE");
         User athlete8 = seed(demo, "athlete8@demo.io", "Ana Costa", "ATHLETE");
+
+        // M23 fixtures. The app has three account shapes and only one of them was seeded:
+        // every demo user held exactly one membership, so login() auto-selected and no test
+        // could reach the hub, and no test could switch gyms. These two close that.
+        Box northside = new Box();
+        northside.setName("Northside Barbell");
+        northside.setSlug("northside");
+        northside.setTimezone("Europe/Rome");
+        boxes.save(northside);
+
+        // Holds TWO gyms with DIFFERENT roles, which is the case M21 made real and the case a
+        // switcher has to get right: switching must land on the target gym's role home, not the
+        // one you came from.
+        User multi = seed(demo, "multi@demo.io", "Multi Box", "ATHLETE");
+        Membership northsideAdmin = new Membership();
+        northsideAdmin.setUser(multi);
+        northsideAdmin.setBox(northside);
+        northsideAdmin.setRole("BOX_ADMIN");
+        memberships.save(northsideAdmin);
+
+        // Registered, verified, and belonging to NO gym — the state every account starts in,
+        // and the one that had no shell at all before M23.
+        User nobox = authService.register("nobox@demo.io", "boxhub-demo-2026", "No Box");
+        nobox.setEmailVerified(true);
+        userRepo.save(nobox);
+
+        // M23 multi-gym fixtures, part 2. Nearly every demo account still held exactly one
+        // membership, so the hub and the switcher were only ever exercised with two-gym data.
+        // Three more boxes, in the three statuses the hub has to render, plus three accounts
+        // that hit the corners multi@demo.io and nobox@demo.io don't reach.
+        Box southside = new Box();
+        southside.setName("Southside Strength");
+        southside.setSlug("southside");
+        southside.setTimezone("Europe/Rome");
+        boxes.save(southside);
+
+        Box harbour = new Box();
+        harbour.setName("Harbour CrossFit");
+        harbour.setSlug("harbour");
+        harbour.setTimezone("Europe/Rome");
+        harbour.setStatus("PENDING");
+        boxes.save(harbour);
+
+        Box oldmill = new Box();
+        oldmill.setName("Old Mill Athletics");
+        oldmill.setSlug("oldmill");
+        oldmill.setTimezone("Europe/Rome");
+        oldmill.setStatus("SUSPENDED");
+        boxes.save(oldmill);
+
+        // Three gyms, three different roles — the case where switching must land on the TARGET
+        // gym's role home, not the one you came from (multi@demo.io only ever proves two gyms).
+        User triple = seed(demo, "triple@demo.io", "Tria Nolan", "ATHLETE");
+        Membership tripleNorthsideCoach = new Membership();
+        tripleNorthsideCoach.setUser(triple);
+        tripleNorthsideCoach.setBox(northside);
+        tripleNorthsideCoach.setRole("COACH");
+        memberships.save(tripleNorthsideCoach);
+        Membership tripleSouthsideAdmin = new Membership();
+        tripleSouthsideAdmin.setUser(triple);
+        tripleSouthsideAdmin.setBox(southside);
+        tripleSouthsideAdmin.setRole("BOX_ADMIN");
+        memberships.save(tripleSouthsideAdmin);
+
+        // Same two-gym shape as multi@demo.io, roles inverted — coach at home, athlete away.
+        User duo = seed(demo, "duo@demo.io", "Dio Marsh", "COACH");
+        Membership duoNorthsideAthlete = new Membership();
+        duoNorthsideAthlete.setUser(duo);
+        duoNorthsideAthlete.setBox(northside);
+        duoNorthsideAthlete.setRole("ATHLETE");
+        memberships.save(duoNorthsideAthlete);
+
+        // Both unreachable-gym states in one account: BOX_ADMIN of a PENDING gym ("In review")
+        // and ATHLETE of a SUSPENDED gym ("Unavailable"), next to one reachable membership.
+        User blocked = seed(demo, "blocked@demo.io", "Billie Okafor", "ATHLETE");
+        Membership blockedHarbourAdmin = new Membership();
+        blockedHarbourAdmin.setUser(blocked);
+        blockedHarbourAdmin.setBox(harbour);
+        blockedHarbourAdmin.setRole("BOX_ADMIN");
+        memberships.save(blockedHarbourAdmin);
+        Membership blockedOldmillAthlete = new Membership();
+        blockedOldmillAthlete.setUser(blocked);
+        blockedOldmillAthlete.setBox(oldmill);
+        blockedOldmillAthlete.setRole("ATHLETE");
+        memberships.save(blockedOldmillAthlete);
+
         List<User> athletes = List.of(athlete, athlete2, athlete3, athlete4, athlete5, athlete6, athlete7, athlete8);
 
         seedClassesAndProgramming(demo, coach.getId(), coach2.getId());

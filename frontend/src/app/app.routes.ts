@@ -4,13 +4,15 @@ import { superadminGuard } from './core/auth/superadmin.guard';
 import { sessionGuard } from './core/auth/session.guard';
 import { unsavedGuard } from './core/unsaved.guard';
 import { accountIndexGuard } from './features/account/account-index.page';
+import { entryGuard } from './core/auth/entry.guard';
 
 export const routes: Routes = [
   // Unguarded on purpose — fabricated data, no API call, needs to be reachable on a real device
   // against the real CSP. Unlisted, unlinked; deletion at launch is filed in docs/BACKLOG.md.
   { path: 'dev/components', title: $localize`:@@route.dev.components:Component gallery`, loadComponent: () => import('./features/dev/dev-gallery.page').then(m => m.DevGalleryPage) },
   { path: 'auth/login', title: $localize`:@@route.auth.login:Log in`, loadComponent: () => import('./features/auth/login.page').then(m => m.LoginPage) },
-  { path: 'auth/boxes', title: $localize`:@@route.auth.boxes:Choose your box`, loadComponent: () => import('./features/auth/box-picker.page').then(m => m.BoxPickerPage) },
+  // The picker's old address. Kept as a redirect, not deleted: it is in users' history.
+  { path: 'auth/boxes', redirectTo: '/gyms', pathMatch: 'full' },
   { path: 'auth/signup', title: $localize`:@@route.auth.signup:Sign up`, loadComponent: () => import('./features/auth/signup.page').then(m => m.SignupPage) },
   { path: 'auth/start', title: $localize`:@@route.auth.start:Start your box`, loadComponent: () => import('./features/auth/start-box.page').then(m => m.StartBoxPage) },
   { path: 'superadmin', title: $localize`:@@route.superadmin.console:Superadmin`, canActivate: [superadminGuard],
@@ -42,6 +44,16 @@ export const routes: Routes = [
       { path: 'danger', title: $localize`:@@route.account.danger:Danger zone`,
         loadComponent: () => import('./features/account/danger.page').then(m => m.DangerPage) },
     ] },
+  {
+    path: 'gyms', canActivate: [sessionGuard],
+    loadComponent: () => import('./features/gyms/hub-shell.page').then(m => m.HubShellPage),
+    children: [
+      { path: '', pathMatch: 'full', title: $localize`:@@route.gyms.hub:Your gyms`,
+        loadComponent: () => import('./features/gyms/gyms.page').then(m => m.GymsPage) },
+      { path: 'join', title: $localize`:@@route.gyms.join:Join a gym`,
+        loadComponent: () => import('./features/gyms/join.page').then(m => m.JoinGymPage) },
+    ],
+  },
   {
     path: 'athlete', canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/athlete/athlete-shell.page').then(m => m.AthleteShellPage),
@@ -107,6 +119,7 @@ export const routes: Routes = [
   { path: 'membership', pathMatch: 'full', redirectTo: 'athlete/membership' },
   { path: 'receipts/:paymentId', title: $localize`:@@route.receipt.view:Receipt`, canActivate: [roleGuard(['ATHLETE', 'COACH', 'BOX_ADMIN'])],
     loadComponent: () => import('./features/receipt/receipt.page').then(m => m.ReceiptPage) },
-  { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
-  { path: '**', redirectTo: 'auth/login' },
+  // `children: []` because the guard always returns a UrlTree — these paths have no screen.
+  { path: '', pathMatch: 'full', canActivate: [entryGuard], children: [] },
+  { path: '**', canActivate: [entryGuard], children: [] },
 ];

@@ -2374,3 +2374,122 @@ around a red test.
 **One negative control was itself a false negative** and only running it revealed that — the
 `lastWeeksBooking` fixture sat a year ahead of `now()`, so the `now()`-anchored mutation it existed
 to catch left it green.
+
+## M23 — app entry & shells (2026-08-25, branch `m23-app-entry-shells`, from `f292d5d`) — **IN PROGRESS, 3 of 11 tasks**
+
+Frontend. Karma 419 → **427**. Backend **535/0/0** (unchanged). Migration head **V28** (unchanged).
+All eight §8.1 greps zero. `AuthzConformanceTest` untouched — this milestone adds no Spring route.
+
+**Shaped before built.** Sketches at 375 and 1440 shipped before any code, per M13e's first lesson:
+`docs/superpowers/sketches/m23-app-entry-shells.html`, published at
+https://claude.ai/code/artifact/a1071188-568b-4eef-8f27-6f3e2aaf2d77
+
+| Task | Commit | What |
+|---|---|---|
+| — | `c21e26e` | Six sketch plates: entry resolution, hub empty/listed/unavailable, join today + at M24, switcher in two shells |
+| — | `21374a8` | Sketches record the two copy decisions rather than asking them twice |
+| — | `879c583` | Design spec, every claim re-verified against code |
+| — | `e9bb8fa` | 11-task implementation plan, TDD, negative control mandatory on every test |
+| T1 | `7ca563b` | `core/auth/labels.ts` — `roleLabel`/`boxStatusLabel`/`isReachable`, marked strings, allowlist fails closed |
+| T2 | `d6689c4` | Seeder: second box `northside`, `multi@demo.io` (ATHLETE at demo + BOX_ADMIN at northside), `nobox@demo.io` |
+| T3 | `a0d5199` | `bh-shell-header` `[brand]` slot + `customBrand` input; `user` icon; gallery custom-brand example |
+| — | `f5bc878` | Note on why `ng-content` inside `@if` is safe here |
+
+**Six decisions, each taken against a drawn alternative** (user-stated 2026-08-25): boxless gets a
+full shell with a dock, not a warning screen · the boxless home IS the picker, one hub at `/gyms`
+replacing `/auth/boxes` · box switching only, area switching filed · `/` resolves by state and
+resumes your last gym · status copy keys off the role held at that gym · role labels are
+Athlete/Coach/**Admin**.
+
+**Four claims the code contradicted, found before planning against them:**
+1. Boxless is not an edge case — `AuthService.register` creates a `User` and never a `Membership`,
+   so **every account starts boxless**. `signup.page.ts:50` already carried the comment
+   *"Signup dead-ends with no gym otherwise"*.
+2. The dead end is in **three** files, not one — `role.guard.ts`, `account-layout.page.ts:141`, and
+   the `/` redirect. `superadminGuard` has the same shape.
+3. **Three** pages navigate to the picker, not one. `reset.page.ts:141` and `verify.page.ts:159`
+   were invisible until the dependents grep.
+4. There are **zero cross-shell links in the app** — a `BOX_ADMIN` reaches `/coach` or `/athlete`
+   only by typing the URL. Filed to `docs/BACKLOG.md`; deliberately out of M23 scope.
+
+**Two things planning found that designing had not:**
+- **The e2e fixtures did not exist.** One box, every user with exactly one membership, so login
+  auto-selected and nothing could reach a hub or switch gyms. Spec §6.1 records it; T2 fixes it.
+- **The dev gallery asserts an exhaustive 20-section list**, so the switcher must NOT get a section
+  — it is a feature component. `shell-header`'s existing section grew a custom-brand example, and
+  its ledger's hover/focus/active reasons were reworded: they claimed the header renders no
+  interactive element of its own, which stops being true once the brand slot can hold a control.
+
+**Environment trap, cost one failed run:** `NODE_OPTIONS` in that session preloaded a temp file that
+did not exist, so every bare `npm` command died with `MODULE_NOT_FOUND` before Karma started — which
+looks like a broken project and is not. Every frontend gate runs as
+`env -u NODE_OPTIONS npm test -- --watch=false --browsers=ChromeHeadless`.
+
+**cwd persistence bit three times in one session**, all three after a `cd .../frontend`. Absolute
+paths in every command, including `git add`.
+
+---
+
+## M23 close — tasks 4–11, 2026-08-27
+
+**Merged to `main`. Branch deleted at merge**, per the standing rule adopted this session: merge and
+delete are one step, so nobody has to later work out which stale branch still holds unmerged work.
+
+### Final gates, all measured this session
+
+| Gate | Value |
+|---|---|
+| Karma | **445 / 445** |
+| Backend | **535 / 0 / 0 / 0** |
+| Production build | green |
+| e2e | **76 passed / 0 failed / 0 skipped** |
+| Visual | **33 / 33** (verified on three separate clean-stack runs) |
+| Eight §8.1 greps | all **0 bytes** |
+| `box-picker` references in `frontend/src` | **0 bytes** |
+| `runAsRoot` in controllers | **0** |
+| `AuthzConformanceTest` | untouched, empty diff vs `main` |
+
+### Impeccable, one pass per screen, scored again after fixes
+
+| Screen | Before | After |
+|---|---|---|
+| Hub | 34/40, 1 P1 | **35/40**, none open |
+| Join | 28/40, 1 P1 | **33/40**, none open |
+| Switcher | 26/40, **1 P0** | **38/40**, none open |
+
+Critiques ran source-only: the browser extension was not connected, so no screen was reviewed as
+rendered. That is a real limitation of these scores and is recorded rather than glossed.
+
+### What the plan got wrong, and what only running things caught
+
+1. **Task 4's "Karma passes, only the build fails" was wrong — both failed.** `app.routes.spec.ts`
+   imports the route table, Karma bundles every spec into one webpack bundle, and webpack resolves
+   dynamic `import()` targets at build time. One missing lazy module fails the whole bundle with
+   **zero tests run**. The executor refused to stub around it and was right.
+2. **Task 5's negative control was decoration.** It clicked a row to prove `enter()`'s guard, but an
+   unreachable gym renders as a `div` with no click handler, so deleting the guard left it green.
+   Only *running* the control revealed it. A spec calling `enter()` directly now covers the line.
+3. **Task 7's spec could not pass as written.** Its `run()` helper called
+   `TestBed.configureTestingModule` once per invocation and one test called it three times; TestBed
+   refuses that after `runInInjectionContext` instantiates the module. Fixed with a reset in the
+   helper — the guard itself was correct.
+4. **The dependents grep missed two e2e files.** `auth.spec.ts` and `onboarding.spec.ts` write the
+   URL as an escaped regex, `/auth\/boxes/`, which `grep "auth/boxes"` cannot match. Only the full
+   suite found them. **A grep is only as good as the escaping in the file it searches.**
+5. **A `--update-snapshots` run against a stale container rewrote eleven baselines spuriously.**
+   Restoring the originals and re-running showed 30 of 33 still passing — only `icon-*` had really
+   changed. A verify immediately after an update always passes and proves nothing.
+6. **Two contrast defects survived the first critique**, both found by computing ratios rather than
+   reading the token comments: the status chip at 4.27:1, and the unreachable row's role label at
+   **2.18:1**. `--disabled`'s AA exemption covers an inactive *control's* label; that row is
+   deliberately a `div`, so the exemption never applied.
+7. **The user found a bug no gate did:** opening Join left the Gyms tab selected. `bh-dock` matched
+   by prefix and `/gyms` is a prefix of `/gyms/join`. Two tabs claimed `aria-current="page"`.
+
+### Pre-existing defect found and filed, not fixed
+
+`DevDataSeeder.todaySession()` offsets from `Instant.now()` with no clamp to the box's local day, so
+seeding within ~40 minutes of midnight pushes a class out of "today". Measured on both sides:
+at 23:46 `Burn It` landed tomorrow and `programming.spec` failed; at 00:02 `WOD Class` landed
+yesterday and `tracking` + `runner` failed. Green outside the window. In `docs/BACKLOG.md`.
+**CI is time-of-day dependent until it is fixed.**

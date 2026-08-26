@@ -389,6 +389,15 @@ full e2e run.
 ### → Unscheduled chore
 - Impeccable detector false-positive: Angular `[src]` bindings inside `@if` guards trip `broken-image` —
   consider a repo-level ignore if the noise annoys.
+- **Nothing in the app links from one shell to another, so a `BOX_ADMIN` cannot reach `/coach` or
+  `/athlete` except by typing the URL.** `roleGuard(['ATHLETE','COACH','BOX_ADMIN'])` admits them and
+  `roleGuard(['COACH','BOX_ADMIN'])` admits them, but every `routerLink` in `features/admin`,
+  `features/coach` and `features/athlete` stays inside its own area — measured 2026-08-25, zero
+  cross-shell links in the codebase. **In a small box the owner coaches and trains, so this is the
+  norm rather than an edge case.** Deliberately excluded from M23 by the user (2026-08-25) to keep
+  that milestone to box switching; it is filed rather than fixed because the control would sit in
+  the same place in the chrome as M23's box switcher, so whoever takes it touches
+  `bh-shell-header` a second time. **Not scheduled — needs a destination.**
 
 ## Project 2 · The Room *(TV board — owned end to end there)*
 
@@ -742,3 +751,13 @@ not code), anything AI, per-gym website builder, per-gym theming.
 
 **Deferred with a trigger:** on-demand media library — reopens when rxed earns enough to upgrade the
 server (`docs/VPS-DEPLOYMENT.md` flags the storage limit). Custom report builder — v1.1.
+
+**Dev seeder loses a class near midnight (found M23, pre-existing).**
+`DevDataSeeder.todaySession()` places the two demo classes at `Instant.now().minus(20m)` and
+`Instant.now().plus(40m)`, and its comment claims this holds "regardless of seed time". It does
+not: the offsets are raw instants with no clamp to the box's local day, so seeding within ~40
+minutes of midnight pushes one class out of the box-timezone "today" the coach screens query.
+Measured 2026-08-26/27 — at 23:46 `Burn It` landed on tomorrow and `programming.spec.ts` failed;
+at 00:02 `WOD Class`/Fran landed on yesterday and `tracking.spec.ts` + `runner.spec.ts` failed.
+Both are green outside the window. Fix: clamp both sessions to the box's local day (e.g. seed at
+fixed local hours) rather than offsetting from now. Until then CI is time-of-day dependent.

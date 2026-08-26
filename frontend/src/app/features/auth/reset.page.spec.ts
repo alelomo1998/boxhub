@@ -180,7 +180,7 @@ describe('ResetPage', () => {
       expect(el.textContent).withContext('must say the password was changed').toContain('Password changed');
     }));
 
-    it('several memberships still go to /auth/boxes, unselected', fakeAsync(() => {
+    it('several memberships still go to /gyms, unselected', fakeAsync(() => {
       const fixture = setup();
       fixture.detectChanges();
       spyOn(router, 'navigateByUrl');
@@ -193,7 +193,7 @@ describe('ResetPage', () => {
 
       // No box-token request should ever be made — http.verify() in afterEach would fail this
       // test if one were left pending.
-      expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/boxes');
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/gyms');
     }));
   });
 });
