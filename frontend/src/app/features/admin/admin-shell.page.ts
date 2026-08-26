@@ -2,11 +2,11 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
-import { BRAND_NAME } from '../../core/brand';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { IconComponent } from '../../ui/icon.component';
+import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 
 /** Admin: SaaS shell on desktop (side nav + top bar), bottom tabs + More sheet on mobile. */
 @Component({
@@ -14,11 +14,12 @@ import { IconComponent } from '../../ui/icon.component';
   standalone: true,
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, SheetComponent,
-    ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent,
+    ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent, BoxSwitcherComponent,
   ],
   template: `
     <div class="admin">
-      <bh-shell-header class="top" [boxName]="boxName" area="Admin">
+      <bh-shell-header class="top" [customBrand]="true" area="Admin">
+        <bh-box-switcher brand />
         <a actions routerLink="/account" aria-label="Security" title="Security" data-testid="admin-security-link">
           <bh-icon name="settings" />
         </a>
@@ -101,7 +102,6 @@ import { IconComponent } from '../../ui/icon.component';
 export class AdminShellPage {
   auth = inject(AuthService);
   private router = inject(Router);
-  boxName = this.auth.activeBox()?.boxName || BRAND_NAME;
   moreOpen = signal(false);
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
