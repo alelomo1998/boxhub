@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { signal } from '@angular/core';
-import { of } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { BoxSwitcherComponent } from './box-switcher.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { MembershipDto } from '../../core/auth/auth.models';
@@ -64,5 +64,37 @@ describe('BoxSwitcherComponent', () => {
     el.querySelector<HTMLElement>('[data-testid="box-switcher"]')!.click();
     f.detectChanges();
     expect(el.querySelector('[data-testid="switch-to-nb"]')).toBeNull();
+  });
+
+  // P0: the mint can still 403 between page load and tap (box status changed, token denied).
+  // The sheet must stay open and say so, not close silently on the person mid-tap.
+  it('keeps the sheet open and shows an inline error when the switch fails', () => {
+    const { f, el, auth } = setup([m(), m({ boxId: 'b2', boxSlug: 'nb', boxName: 'Northside', role: 'BOX_ADMIN' })]);
+    auth.selectBox.and.returnValue(throwError(() => new Error('403')));
+    el.querySelector<HTMLElement>('[data-testid="box-switcher"]')!.click();
+    f.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="switch-to-nb"]')!.click();
+    f.detectChanges();
+    expect(el.querySelector('bh-sheet')).not.toBeNull();
+    const alert = el.querySelector('[data-testid="switcher-error"]');
+    expect(alert).not.toBeNull();
+    expect(alert!.textContent).toContain('unavailable');
+  });
+
+  // P1: switching is a genuine network round trip. Use a Subject so the request never resolves
+  // synchronously — a spy returning of(...) completes before the assertion ever runs.
+  it('shows the target row as busy while a switch is in flight', () => {
+    const { f, el, auth } = setup([m(), m({ boxId: 'b2', boxSlug: 'nb', boxName: 'Northside', role: 'BOX_ADMIN' })]);
+    const pending = new Subject<void>();
+    auth.selectBox.and.returnValue(pending.asObservable());
+    el.querySelector<HTMLElement>('[data-testid="box-switcher"]')!.click();
+    f.detectChanges();
+    const row = el.querySelector<HTMLElement>('[data-testid="switch-to-nb"]')!;
+    row.click();
+    f.detectChanges();
+    expect(row.getAttribute('aria-busy')).toBe('true');
+    expect(row.textContent).toContain('Opening');
+    pending.next();
+    pending.complete();
   });
 });

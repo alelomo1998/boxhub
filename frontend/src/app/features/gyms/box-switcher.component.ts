@@ -4,6 +4,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { MembershipDto, redirectForRole } from '../../core/auth/auth.models';
 import { roleLabel, isReachable } from '../../core/auth/labels';
 import { SheetComponent } from '../../ui/sheet.component';
+import { AlertComponent } from '../../ui/alert.component';
 
 /**
  * The box name in the shell header, turned into the control that moves you between gyms.
@@ -22,9 +23,9 @@ import { SheetComponent } from '../../ui/sheet.component';
 @Component({
   selector: 'bh-box-switcher',
   standalone: true,
-  imports: [SheetComponent, RouterLink],
+  imports: [SheetComponent, RouterLink, AlertComponent],
   template: `
-    <button type="button" class="switcher" (click)="open.set(true)"
+    <button type="button" class="switcher" (click)="openSheet()"
             data-testid="box-switcher"
             [attr.aria-label]="switchLabel()" aria-haspopup="dialog">
       <span class="mark" aria-hidden="true">{{ initial() }}</span>
@@ -37,16 +38,25 @@ import { SheetComponent } from '../../ui/sheet.component';
     <bh-sheet [open]="open()" title="Switch gym" i18n-title="@@switcher.title"
               label="Switch gym" i18n-label="@@switcher.label" (closed)="open.set(false)">
       @if (open()) {
+        @if (error()) {
+          <bh-alert tone="danger" data-testid="switcher-error">{{ error() }}</bh-alert>
+        }
         <div class="rows">
           @for (m of others(); track m.boxId) {
             <button type="button" class="row" (click)="switchTo(m)"
+                    [attr.aria-busy]="entering() === m.boxId"
+                    [attr.aria-disabled]="entering() !== null ? 'true' : null"
                     [attr.data-testid]="'switch-to-' + m.boxSlug">
               <span class="rmark" aria-hidden="true">{{ letter(m) }}</span>
               <span class="meta">
                 <span class="rname">{{ m.boxName }}</span>
                 <span class="rrole">{{ label(m) }}</span>
               </span>
-              <span class="go" aria-hidden="true">&rsaquo;</span>
+              @if (entering() === m.boxId) {
+                <span class="chip" i18n="@@switcher.opening">Opening…</span>
+              } @else {
+                <span class="go" aria-hidden="true">&rsaquo;</span>
+              }
             </button>
           }
         </div>
@@ -80,7 +90,10 @@ import { SheetComponent } from '../../ui/sheet.component';
     .row { display: flex; align-items: center; gap: var(--sp-3); width: 100%; text-align: left;
       background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       padding: var(--sp-3); cursor: pointer; font: inherit; color: inherit; }
-    .row:hover { border-color: var(--bone-dim); }
+    .row:hover:not([aria-disabled]) { border-color: var(--bone-dim); }
+    /* While one switch is in flight the handler ignores taps on every other row. Saying so is
+       the sibling hub screen's behaviour too; without it the rows stay silently inert. */
+    .row[aria-disabled] { opacity: .6; cursor: not-allowed; }
     .row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .rmark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--surface);
       color: var(--bone-dim); border: 1px solid var(--hairline); display: grid; place-items: center;
@@ -91,6 +104,11 @@ import { SheetComponent } from '../../ui/sheet.component';
     .rrole { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--bone-dim); }
     .go { color: var(--faint); flex-shrink: 0; }
+    /* --bone-dim, not --faint: this chip sits on --surface-2 (the row background), where
+       --faint measures 4.27:1 and fails AA — the same reasoning as gyms.page.ts's .chip. */
+    .chip { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 3px var(--sp-2); border-radius: var(--r-full);
+      border: 1px solid var(--hairline); color: var(--bone-dim); flex-shrink: 0; white-space: nowrap; }
 
     .allgyms { display: flex; align-items: center; justify-content: space-between;
       min-height: var(--tap); margin-top: var(--sp-3); padding: 0 var(--sp-2);
@@ -103,7 +121,10 @@ export class BoxSwitcherComponent {
   private router = inject(Router);
 
   open = signal(false);
-  private switching = signal(false);
+  error = signal('');
+  /** boxId in flight, or null. Mirrors gyms.page.ts's `entering`: per-row, not a single boolean,
+   *  so the specific row being switched to shows the pending affordance. */
+  entering = signal<string | null>(null);
 
   activeName = computed(() => this.auth.activeBox()?.boxName ?? '');
   initial = computed(() => this.activeName().trim().charAt(0).toUpperCase());
@@ -120,22 +141,32 @@ export class BoxSwitcherComponent {
   letter(m: MembershipDto): string { return (m.boxName || '').trim().charAt(0).toUpperCase(); }
   label(m: MembershipDto): string { return roleLabel(m.role); }
 
+  openSheet(): void {
+    this.error.set('');
+    this.open.set(true);
+  }
+
   switchTo(m: MembershipDto): void {
     // Guard in the handler, never a [disabled] attribute — a native disabled drops the pressed
     // control out of the a11y tree and sends focus to <body>.
-    if (this.switching()) return;
-    this.switching.set(true);
+    if (this.entering()) return;
+    this.error.set('');
+    this.entering.set(m.boxId);
     this.auth.selectBox(m.boxId).subscribe({
       next: () => {
-        this.switching.set(false);
+        this.entering.set(null);
         this.open.set(false);
         // The role in the TARGET gym. Roles differ per gym; the page you are on may not exist
         // for the role you hold over there.
         this.router.navigateByUrl(redirectForRole(m.role));
       },
+      // Status can change between page load and tap, so the mint can still 403 (M9). Keep the
+      // sheet open and show the failure where the user is looking — the identical contract
+      // gyms.page.ts's enter() uses for the same call.
       error: () => {
-        this.switching.set(false);
-        this.open.set(false);
+        this.entering.set(null);
+        this.error.set(
+          $localize`:@@switcher.error.unavailable:This gym is unavailable — contact your gym for help.`);
       },
     });
   }

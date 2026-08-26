@@ -2,7 +2,13 @@ import { Component, input } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { IconComponent, IconName } from './icon.component';
 
-export interface DockTab { link: string; label: string; icon: IconName; }
+/**
+ * `exact` opts a tab into exact-match highlighting. It defaults to prefix matching, which is
+ * what every shell whose tabs are siblings wants (/athlete/home vs /athlete/book can never both
+ * match). Set it when one tab's link is a PREFIX of another's: /gyms is a prefix of /gyms/join,
+ * so without this both light up at once and two items claim aria-current="page".
+ */
+export interface DockTab { link: string; label: string; icon: IconName; exact?: boolean; }
 
 /**
  * The floating pill dock — mobile primary navigation for all three shells. Absorbs the global
@@ -22,6 +28,7 @@ export interface DockTab { link: string; label: string; icon: IconName; }
     <nav class="dock" [attr.aria-label]="label()">
       @for (t of tabs(); track t.link) {
         <a class="item" [routerLink]="t.link" routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: !!t.exact }"
            ariaCurrentWhenActive="page">
           <bh-icon [name]="t.icon" [size]="20" />
           <span class="tlabel">{{ t.label }}</span>

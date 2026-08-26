@@ -179,6 +179,21 @@ The dev profile seeds these local accounts:
 | Athlete | `athlete@demo.io` | `boxhub-demo-2026` |
 | Superadmin | `super@demo.io` | `boxhub-demo-2026` |
 
+Each of those holds exactly one gym, so logging in as any of them selects that gym automatically
+and goes straight to a shell. To see the gyms hub, the box switcher, or the states a gym can be
+in, use one of these instead — same password, `boxhub-demo-2026`:
+
+| Email | Gyms | What it is for |
+|---|---|---|
+| `triple@demo.io` | Athlete @ Demo Box · Coach @ Northside Barbell · Admin @ Southside Strength | Three gyms, a **different role in each**. Switching has to land on the target gym's role home, not the one you came from. |
+| `duo@demo.io` | Coach @ Demo Box · Athlete @ Northside Barbell | Two gyms with the roles inverted relative to `multi@demo.io`. |
+| `multi@demo.io` | Athlete @ Demo Box · Admin @ Northside Barbell | Two gyms. Used by the e2e suite and by a visual baseline — **changing its memberships breaks both.** |
+| `blocked@demo.io` | Athlete @ Demo Box · Admin @ Harbour CrossFit (pending) · Athlete @ Old Mill Athletics (suspended) | The unreachable-gym states: an admin of a pending gym is told "In review", a member of a suspended gym only "Unavailable". |
+| `nobox@demo.io` | none | Belongs to no gym — the state every account starts in, since registering creates a user and no membership. Lands on the empty hub. |
+
+Only `Demo Box` carries seeded content (classes, scores, bookings, plans). The other four gyms
+exist to give the hub and the switcher something real to show.
+
 These credentials are for the dev profile only. Never enable `SPRING_PROFILES_ACTIVE=dev` in a
 production environment.
 

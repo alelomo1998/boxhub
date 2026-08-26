@@ -94,7 +94,7 @@ import { AlertComponent } from '../../ui/alert.component';
       font-size: var(--fs-body); background: var(--surface); color: var(--bone-dim);
       border: 1px solid var(--hairline); }
     .mk.mark { background: var(--volt); color: var(--on-volt); border-color: var(--volt); }
-    .mk.muted { color: var(--disabled); }
+    .mk.muted { color: var(--faint); }
 
     .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
     /* min-width:0 + overflow-wrap: a long unbreakable gym name pushed the whole PAGE into
@@ -107,12 +107,20 @@ import { AlertComponent } from '../../ui/alert.component';
        fails AA. The token's documented 5.1:1 is against --ground, and nothing here is. */
     .grole { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       color: var(--bone-dim); text-transform: uppercase; }
-    .gym.off .grole { color: var(--disabled); }
+    /* --faint (4.70:1 on --surface), NOT --disabled (2.18:1). --disabled's AA exemption is for
+       an inactive CONTROL's own label; this row is deliberately a div and not a control, and the
+       role it names is real information about the member. Matches .gname's choice one rule up. */
+    .gym.off .grole { color: var(--faint); }
     .go { color: var(--faint); font-size: var(--fs-h2); flex-shrink: 0; }
 
+    /* --bone-dim, not --faint, for the same reason .grole above carries it: the chip on a
+       reachable row sits on --surface-2, where --faint measures 4.27:1 and fails AA. This is
+       live status text ("Current", "Opening…") at --fs-meta, so it is not large-text exempt.
+       The off-row chip sits on --surface (4.70:1) and would have passed, but one colour for
+       one component beats two that differ by which row they landed on. */
     .chip { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       text-transform: uppercase; padding: 3px var(--sp-2); border-radius: var(--r-full);
-      border: 1px solid var(--hairline); color: var(--faint); flex-shrink: 0; white-space: nowrap; }
+      border: 1px solid var(--hairline); color: var(--bone-dim); flex-shrink: 0; white-space: nowrap; }
 
     .empty { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-6) var(--sp-5); display: flex; flex-direction: column;

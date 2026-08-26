@@ -31,7 +31,7 @@ import { WordmarkComponent } from '../../ui/wordmark.component';
         <nav nav class="hnav" aria-label="Your account" i18n-aria-label="@@hub.nav.label">
           @for (t of tabs; track t.link) {
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active"
-               [routerLinkActiveOptions]="{ exact: t.link === '/gyms' }"
+               [routerLinkActiveOptions]="{ exact: !!t.exact }"
                ariaCurrentWhenActive="page">{{ t.label }}</a>
           }
         </nav>
@@ -66,7 +66,9 @@ export class HubShellPage {
   /* Absolute links, not relative: the Account tab leaves this shell entirely, and mixing
      relative and absolute in one dock is how a tab silently resolves against the wrong parent. */
   tabs: DockTab[] = [
-    { link: '/gyms', label: $localize`:@@hub.tab.gyms:Gyms`, icon: 'house' },
+    /* exact: /gyms is a prefix of /gyms/join, so without this both tabs read as active at
+       once — in the dock AND in the a11y tree, where two items claimed aria-current="page". */
+    { link: '/gyms', label: $localize`:@@hub.tab.gyms:Gyms`, icon: 'house', exact: true },
     { link: '/gyms/join', label: $localize`:@@hub.tab.join:Join`, icon: 'plus' },
     { link: '/account', label: $localize`:@@hub.tab.account:Account`, icon: 'user' },
   ];

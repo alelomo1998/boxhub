@@ -751,3 +751,13 @@ not code), anything AI, per-gym website builder, per-gym theming.
 
 **Deferred with a trigger:** on-demand media library — reopens when rxed earns enough to upgrade the
 server (`docs/VPS-DEPLOYMENT.md` flags the storage limit). Custom report builder — v1.1.
+
+**Dev seeder loses a class near midnight (found M23, pre-existing).**
+`DevDataSeeder.todaySession()` places the two demo classes at `Instant.now().minus(20m)` and
+`Instant.now().plus(40m)`, and its comment claims this holds "regardless of seed time". It does
+not: the offsets are raw instants with no clamp to the box's local day, so seeding within ~40
+minutes of midnight pushes one class out of the box-timezone "today" the coach screens query.
+Measured 2026-08-26/27 — at 23:46 `Burn It` landed on tomorrow and `programming.spec.ts` failed;
+at 00:02 `WOD Class`/Fran landed on yesterday and `tracking.spec.ts` + `runner.spec.ts` failed.
+Both are green outside the window. Fix: clamp both sessions to the box's local day (e.g. seed at
+fixed local hours) rather than offsetting from now. Until then CI is time-of-day dependent.
