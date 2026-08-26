@@ -88,8 +88,8 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
 
     // The owner has exactly one membership — the box they just created — so verify's
     // auto-select (M8 fix, shipped M13d) mints the box token itself and lands them
-    // straight on /admin. No manual box-picker step, unlike a multi-membership user
-    // (who still lands on /app/auth/boxes to choose).
+    // straight on /admin. No manual hub step, unlike a multi-membership user
+    // (who still lands on /app/gyms to choose).
     await expect(page).toHaveURL(/\/admin/);
 
     await expect(page.getByTestId('pending-banner')).toBeVisible();
@@ -106,8 +106,8 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
     await page.fill('input[name="email"]', SUPERADMIN_EMAIL);
     await page.fill('input[name="password"]', SUPERADMIN_PASSWORD);
     await page.click('button[type="submit"]');
-    // Superadmin carries no box membership — login lands on the box picker, not a shell.
-    await expect(page).toHaveURL(/auth\/boxes/);
+    // Superadmin carries no box membership — login lands on the gyms hub, not a shell.
+    await expect(page).toHaveURL(/\/gyms/);
 
     await page.goto('/app/superadmin');
     const row = page.locator('[data-testid^="queue-row-"]', { hasText: BOX_NAME });

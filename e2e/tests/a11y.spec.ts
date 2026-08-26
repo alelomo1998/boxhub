@@ -158,8 +158,7 @@ const SCREENS: Array<{
   {
     // sessions.page.ts starts in a 'loading' skeleton state; sessions-list only renders once state
     // flips to 'ready' AND at least one session came back. login() just created the current
-    // session via a real request, so the list is non-empty — same proof-of-non-vacuity as
-    // box-picker's "at least one membership row" below.
+    // session via a real request, so the list is non-empty.
     name: 'account-sessions', path: '/app/account/sessions', widths: [MOBILE, SCREEN_DESKTOP],
     ready: page => expect(page.locator('[data-testid="sessions-list"]')).toBeVisible(),
     needsLogin: true,
@@ -210,18 +209,33 @@ for (const screen of SCREENS) {
   }
 }
 
-// box-picker needs a session, and admin@demo.io has exactly one membership — login() AUTO-SELECTS
-// it and redirects straight past the picker. Logging in and then navigating to /app/auth/boxes
-// directly is the only way to see the picker itself, not a URL that lands on it.
-test('box-picker (mobile) has zero WCAG 2.2 AA violations', async ({ page }) => {
+// nobox@demo.io holds no membership, so it lands on the hub directly — no navigating past an
+// auto-select, which is what the old box-picker scan had to work around.
+test('the gym hub (mobile) has zero WCAG 2.2 AA violations', async ({ page }) => {
   await page.setViewportSize(MOBILE);
-  await login(page, 'admin@demo.io');
-  await page.goto('/app/auth/boxes');
+  await login(page, 'nobox@demo.io');
+  await expect(page).toHaveURL(/\/app\/gyms$/);
 
-  await expect(page.getByRole('heading', { name: 'Your boxes' })).toBeVisible();
-  // At least one membership row rendered — the slug-keyed testid isn't known up front, so this
-  // proves the list itself, the same shape as the bh-dock nav-count check above.
-  expect(await page.locator('.list button.box').count()).toBeGreaterThan(0);
+  const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  expect(violations.map(v => `${v.id}: ${v.nodes.length} node(s)`)).toEqual([]);
+});
+
+// multi@demo.io holds two memberships, so this scans the hub's populated (non-empty) state —
+// the row list, not the empty-state panel above.
+test('the gym hub, populated (mobile) has zero WCAG 2.2 AA violations', async ({ page }) => {
+  await page.setViewportSize(MOBILE);
+  await login(page, 'multi@demo.io');
+  await expect(page).toHaveURL(/\/app\/gyms$/);
+
+  const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  expect(violations.map(v => `${v.id}: ${v.nodes.length} node(s)`)).toEqual([]);
+});
+
+test('the join surface (mobile) has zero WCAG 2.2 AA violations', async ({ page }) => {
+  await page.setViewportSize(MOBILE);
+  await login(page, 'nobox@demo.io');
+  await page.goto('/app/gyms/join');
+  await expect(page.getByTestId('join-explainer')).toBeVisible();
 
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   expect(violations.map(v => `${v.id}: ${v.nodes.length} node(s)`)).toEqual([]);
