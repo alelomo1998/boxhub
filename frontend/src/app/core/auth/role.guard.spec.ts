@@ -26,4 +26,16 @@ describe('roleGuard', () => {
     const result = TestBed.runInInjectionContext(() => roleGuard(['BOX_ADMIN'])({} as any, {} as any));
     expect(result).toBe(true);
   });
+
+  it('sends a signed-in member with no active gym to the hub, not to a login form', () => {
+    TestBed.inject(AuthService).session.set(
+      { id: 'u1', email: 'a@b.io', name: 'Ann', memberships: [], superadmin: false });
+    const result = TestBed.runInInjectionContext(() => roleGuard(['ATHLETE'])({} as any, {} as any));
+    expect(result instanceof UrlTree && result.toString()).toBe('/gyms');
+  });
+
+  it('still sends an anonymous visitor to the login form', () => {
+    const result = TestBed.runInInjectionContext(() => roleGuard(['ATHLETE'])({} as any, {} as any));
+    expect(result instanceof UrlTree && result.toString()).toBe('/auth/login');
+  });
 });

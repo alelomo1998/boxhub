@@ -113,7 +113,7 @@ describe('VerifyPage', () => {
       expect(text).withContext('must not claim the link was invalid').not.toContain('Invalid link');
     }));
 
-    it('multiple memberships still go to the box picker, unselected', fakeAsync(() => {
+    it('multiple memberships still go to the gyms hub, unselected', fakeAsync(() => {
       const fixture = setup();
       fixture.detectChanges();
       spyOn(router, 'navigateByUrl');
@@ -125,7 +125,7 @@ describe('VerifyPage', () => {
 
       // No box-token request should ever be made — http.verify() in afterEach would
       // fail this test if one were left pending.
-      expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/boxes');
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/gyms');
     }));
   });
 

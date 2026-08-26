@@ -1,8 +1,8 @@
 import { Role } from './auth.models';
 
 /**
- * The enum never reaches a screen. box-picker.page.ts rendered `{{ m.role }}` raw, so a box
- * admin's row read BOX_ADMIN — untranslatable, and an unmarked user-facing English string
+ * The enum never reaches a screen. The gyms hub's predecessor rendered `{{ m.role }}` raw, so a
+ * box admin's row read BOX_ADMIN — untranslatable, and an unmarked user-facing English string
  * against the standing i18n rule. One module, because the hub and the switcher both need it.
  */
 export function roleLabel(role: Role): string {

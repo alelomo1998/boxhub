@@ -156,7 +156,7 @@ export class VerifyPage implements OnInit, OnDestroy {
             error: () => this.status.set('box-unavailable'),
           });
         } else {
-          this.router.navigateByUrl('/auth/boxes');
+          this.router.navigateByUrl('/gyms');
         }
       },
       error: (e: HttpErrorResponse) => {

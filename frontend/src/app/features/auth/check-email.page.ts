@@ -111,8 +111,8 @@ export class CheckEmailPage implements OnDestroy {
    * makes this necessary rather than nice: bh-button uses the NATIVE disabled attribute, so the
    * moment the cooldown starts, the button the user just pressed leaves the a11y tree and focus
    * falls to <body> — they would have to tab from the top of the page to reach anything. The
-   * same defect scored a P1 on box-picker. Second, it announces the outcome, which a silently
-   * swapped label does not.
+   * same defect scored a P1 on the gyms hub's predecessor. Second, it announces the outcome,
+   * which a silently swapped label does not.
    */
   private focusResult(testId: string) {
     // afterNextRender, NOT queueMicrotask. The app runs zone.js change detection with
