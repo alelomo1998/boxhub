@@ -65,7 +65,40 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   exists to avoid. So the obligation moved onto the rewrite: **a screen is not done unless its
   strings are marked and its dates/money go through locale-aware formatting.** No new hardcoded
   user-facing string, ever. No new hand-written `€`.
-- **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through impeccable (shape → build → critique ≥28/40, no open P0/P1)**.
+- **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through the impeccable routine below**.
+
+## The impeccable routine (binding, raised 2026-08-27)
+
+**Per screen, not per milestone. Not a menu — the gate is all four steps.**
+
+```
+shape → build → audit (≥16/20) → critique (≥32/40) → fix every P0/P1 → re-score BOTH
+```
+
+- **`audit` runs BEFORE `critique`.** It is deterministic and cheap, and its findings should inform
+  the design review rather than the reverse. M23 needed three critique passes to catch two WCAG AA
+  contrast failures (4.27:1, then 2.18:1) — both sit in `audit`'s accessibility dimension.
+- **Both run with Claude in Chrome connected.** A source-only pass is provisional: `critique` scores
+  Nielsen heuristics, so ~36 of its 40 points can be earned without anyone seeing a rendered pixel.
+  **If the browser is unavailable, stop and ask — do not score anyway.**
+- **≥32/40, not 28.** 28 is 7/10; the bar is 8. A score measured with a P0 or P1 still open is not
+  the screen's score.
+
+**Conditional passes — when the trigger applies, not by default:**
+
+| Command | Trigger |
+|---|---|
+| `harden` | The screen renders real data. A long gym name already pushed a page into horizontal scroll at 200% zoom on the old box picker. |
+| `clarify` | The screen is mostly copy. M23's join screen was ~90% prose and had real copy defects. |
+| `interaction-design` | A new component. Its eight states map onto the seven-states + dev-gallery contract. |
+| `layout` | Only after audit or critique flags spacing or hierarchy — it is a fix command, not a review. |
+
+**Never routine:** `bolder`, `delight`, `overdrive`, `distill` — identity/hero screens only, never
+plumbing. **`live` does not work here**: it needs a dev server with HMR and the app is served
+through Docker/nginx.
+
+**impeccable and superpowers are separate plugins with no cross-references** — only this file joins
+them, and `superpowers:brainstorming` overlaps `impeccable shape`.
 
 ## Pre-flight (binding) — `docs/PREFLIGHT.md`
 
