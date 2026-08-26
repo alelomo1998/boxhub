@@ -2427,3 +2427,69 @@ looks like a broken project and is not. Every frontend gate runs as
 
 **cwd persistence bit three times in one session**, all three after a `cd .../frontend`. Absolute
 paths in every command, including `git add`.
+
+---
+
+## M23 close — tasks 4–11, 2026-08-27
+
+**Merged to `main`. Branch deleted at merge**, per the standing rule adopted this session: merge and
+delete are one step, so nobody has to later work out which stale branch still holds unmerged work.
+
+### Final gates, all measured this session
+
+| Gate | Value |
+|---|---|
+| Karma | **445 / 445** |
+| Backend | **535 / 0 / 0 / 0** |
+| Production build | green |
+| e2e | **76 passed / 0 failed / 0 skipped** |
+| Visual | **33 / 33** (verified on three separate clean-stack runs) |
+| Eight §8.1 greps | all **0 bytes** |
+| `box-picker` references in `frontend/src` | **0 bytes** |
+| `runAsRoot` in controllers | **0** |
+| `AuthzConformanceTest` | untouched, empty diff vs `main` |
+
+### Impeccable, one pass per screen, scored again after fixes
+
+| Screen | Before | After |
+|---|---|---|
+| Hub | 34/40, 1 P1 | **35/40**, none open |
+| Join | 28/40, 1 P1 | **33/40**, none open |
+| Switcher | 26/40, **1 P0** | **38/40**, none open |
+
+Critiques ran source-only: the browser extension was not connected, so no screen was reviewed as
+rendered. That is a real limitation of these scores and is recorded rather than glossed.
+
+### What the plan got wrong, and what only running things caught
+
+1. **Task 4's "Karma passes, only the build fails" was wrong — both failed.** `app.routes.spec.ts`
+   imports the route table, Karma bundles every spec into one webpack bundle, and webpack resolves
+   dynamic `import()` targets at build time. One missing lazy module fails the whole bundle with
+   **zero tests run**. The executor refused to stub around it and was right.
+2. **Task 5's negative control was decoration.** It clicked a row to prove `enter()`'s guard, but an
+   unreachable gym renders as a `div` with no click handler, so deleting the guard left it green.
+   Only *running* the control revealed it. A spec calling `enter()` directly now covers the line.
+3. **Task 7's spec could not pass as written.** Its `run()` helper called
+   `TestBed.configureTestingModule` once per invocation and one test called it three times; TestBed
+   refuses that after `runInInjectionContext` instantiates the module. Fixed with a reset in the
+   helper — the guard itself was correct.
+4. **The dependents grep missed two e2e files.** `auth.spec.ts` and `onboarding.spec.ts` write the
+   URL as an escaped regex, `/auth\/boxes/`, which `grep "auth/boxes"` cannot match. Only the full
+   suite found them. **A grep is only as good as the escaping in the file it searches.**
+5. **A `--update-snapshots` run against a stale container rewrote eleven baselines spuriously.**
+   Restoring the originals and re-running showed 30 of 33 still passing — only `icon-*` had really
+   changed. A verify immediately after an update always passes and proves nothing.
+6. **Two contrast defects survived the first critique**, both found by computing ratios rather than
+   reading the token comments: the status chip at 4.27:1, and the unreachable row's role label at
+   **2.18:1**. `--disabled`'s AA exemption covers an inactive *control's* label; that row is
+   deliberately a `div`, so the exemption never applied.
+7. **The user found a bug no gate did:** opening Join left the Gyms tab selected. `bh-dock` matched
+   by prefix and `/gyms` is a prefix of `/gyms/join`. Two tabs claimed `aria-current="page"`.
+
+### Pre-existing defect found and filed, not fixed
+
+`DevDataSeeder.todaySession()` offsets from `Instant.now()` with no clamp to the box's local day, so
+seeding within ~40 minutes of midnight pushes a class out of "today". Measured on both sides:
+at 23:46 `Burn It` landed tomorrow and `programming.spec` failed; at 00:02 `WOD Class` landed
+yesterday and `tracking` + `runner` failed. Green outside the window. In `docs/BACKLOG.md`.
+**CI is time-of-day dependent until it is fixed.**
