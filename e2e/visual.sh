@@ -22,5 +22,5 @@ docker run --rm \
   -v "$PWD:/e2e" -w /e2e \
   -e BH_VISUAL=1 \
   -e E2E_BASE_URL=http://host.docker.internal \
-  mcr.microsoft.com/playwright:v1.62.0-noble \
+  mcr.microsoft.com/playwright:v1.62.1-noble \
   npx playwright test visual.spec.ts "$@"
