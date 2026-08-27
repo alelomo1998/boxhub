@@ -1,7 +1,7 @@
-# Next session — **the analytics brief. M23 is closed and merged.**
+# Next session — **M29a messaging. The analytics brief is closed.**
 
-M23 (app entry & shells) is **done, merged to `main`, and its branch deleted**. Nothing is in
-flight. Start from a clean `main`.
+The analytics brief is **written and committed**. It was a document, not a build, so there is no
+branch and nothing to merge. Start from a clean `main`.
 
 ```bash
 cd ~/dev/boxhub && git checkout main && git pull && git branch -a   # expect main, and only main
@@ -14,64 +14,92 @@ cd ~/dev/boxhub && git checkout main && git pull && git branch -a   # expect mai
 
 ---
 
-## Read first, in this order
+## THREE DECISIONS ARE OPEN AND THEY BLOCK PLANNING — ask before building anything
 
-1. **`CLAUDE.md`** — binding, overrides anything here.
-2. **`docs/ROADMAP-AT-A-GLANCE.md`** — execution order. **Milestone numbers are labels, not a
-   sequence.** The analytics brief is next.
-3. **`docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md`** — the pilot IS v1.0: complete, not
-   a slice. Built-but-idle is fine; absent is not.
-4. **`docs/POSITIONING.md`** — before writing anything a gym owner reads.
-5. **`docs/PREFLIGHT.md`** at its four moments.
+The brief ends with these. They are the user's to rule on, not the orchestrator's to assume.
+
+1. **D-1: editing a class's programming deletes every score logged against it.** Live, reachable,
+   verified. `PUT /api/box/sessions/{sessionId}/items` →
+   `programming/SessionItemController.java:94` → `wod_score` cascades. No score guard, no date
+   guard. **Fix now as a defect, or fold into `M14c-a`**, which rebuilds the builder anyway?
+   Filed in `docs/BACKLOG.md`.
+2. **Migration timing.** The brief forces **six migrations** (see its §5). One migration milestone
+   before `M29a`, or fold each into the milestone that consumes it? Folding is later and riskier;
+   a single early pass is cheaper and is off the current plan.
+3. **Multi-box athlete analytics.** An athlete in three gyms holds three memberships, so scores,
+   PRs and attendance are per-box. Is `M17c` scoped to the current box (simple, and loses your PR
+   history when you change gym), or aggregated across the person? `M21` made this possible without
+   deciding it.
 
 ---
 
-## What the next task actually is
+## Read first, in this order
 
-**The analytics brief is a written brief, not a build.** It has three jobs:
+1. **`CLAUDE.md`** — binding, overrides anything here.
+2. **`docs/superpowers/specs/2026-08-27-analytics-brief.md`** — **new.** Read §5 before any backend
+   work and §4 before any chart. It changes what M15a, M16d, M17c and M18 can promise.
+3. **`docs/ROADMAP-AT-A-GLANCE.md`** — execution order. Milestone numbers are labels, not a
+   sequence. **M29a is next.**
+4. **`docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md`** — the pilot IS v1.0.
+5. **`docs/POSITIONING.md`** — before writing anything a gym owner reads. **Note: the brief
+   corrects its §5** — `subscription`/`payment`/`entitlement_usage` do *not* hold everything LEG
+   needs, because nothing records that a member left.
+6. **`docs/PREFLIGHT.md`** at its four moments.
 
-1. **Audit whether Phase 1 ever recorded the data** the reports will need. If it did not, that is a
-   finding, and it belongs in the brief rather than being quietly backfilled later.
-2. **Define "revenue".** Comped subscriptions carry no `payment` row, so any naive sum is wrong in a
-   way nobody notices until a gym owner disputes a number.
-3. **Own the categorical chart palette, which does not exist.** There is one accent and three
-   semantic hues that already mean something — a five-series chart drawn in volt/green/orange/red
-   tells the reader one series is an error. **M17c needs this palette; do not let it improvise one.**
+---
+
+## What the analytics brief established — do not re-derive it
+
+- **10 named misses**, M-1..M-10, each with `path:line` evidence. **Six force a migration:** an
+  append-only `membership_event` table (M-1, without which **LEG and churn cannot be computed at
+  all**), `payment.settled_at` (M-2), a `refund` table plus `charge.refunded` on the webhook (M-3),
+  an explicit `subscription.kind` (M-4), `boxes.currency` (M-5), and
+  `class_sessions.ran_by_membership_id` (M-6, without which the payroll calculator pays people from
+  the *assignment* column).
+- **Revenue is defined**, and two of its five clauses cannot be written until M-2 and M-3 land.
+  Until then any revenue figure is gross, cash-basis, attributed to checkout date — shippable, but
+  **only if the screen says so**. Revenue never reads `subscription`. **ARM divides by *paying*
+  members**, never by all of them.
+- **The categorical chart palette exists and is committed** as `--cat-1..--cat-6` in
+  `frontend/src/styles/_tokens.scss`. Six is the **ceiling**, not a starting point; a seventh
+  series folds into "Other" or facets. **Charts on analytics screens use no volt at all** — those
+  screens are plumbing, and the box switcher already spent the shell's volt budget.
+- **Two live defects** were found while auditing: D-1 above, and D-2, `SlotRegenerationService`
+  deleting sessions nothing refills — latent today because no controller calls it, and it goes
+  live the moment **`M14b`** wires up a schedule-edit flow. Both are in `docs/BACKLOG.md`.
 
 ---
 
 ## Where things stand
 
-`main` carries M23. Gates as measured at close:
+`main` carries M23 and the analytics brief. Gates as measured **this session**, on the tokens change:
 
-| Gate | Value |
-|---|---|
-| Karma | **450 / 450** |
-| Backend | **535 / 0 / 0 / 0** |
-| e2e | **76 passed / 0 failed / 0 skipped** |
-| Visual | **33 / 33** (verified twice on a clean stack) |
-| Eight §8.1 greps | all **0 bytes** |
-| `AuthzConformanceTest` | untouched |
+| Gate | Value | Measured |
+|---|---|---|
+| Karma | **450 / 450** | ✅ this session |
+| Production build | **green** (`ng build --configuration production`) | ✅ this session |
+| Eight §8.1 greps | all **0 hits** | ✅ this session |
+| Backend | 535 / 0 / 0 / 0 | inherited from M23 — **not re-run**, no backend file changed |
+| e2e | 76 passed / 0 failed / 0 skipped | inherited from M23 — **not re-run** |
+| Visual | 33 / 33 | inherited from M23 — **not re-run** |
+| `AuthzConformanceTest` | untouched | — |
 
-M23's three screens were re-scored with the browser connected and all clear the gate:
-**hub 32/40, join 33/40, switcher 36/40, audit 17/18/17 of 20, no open P0/P1.** The hub clears by
-exactly zero margin and still carries P2s — treat it as a pass, not a comfortable one.
-
-**These are real numbers, measured this session, not inherited.** The previous handoff carried an
-e2e count of 67 marked "inherited and unverified" — it was 67 only because three specs were failing
-and five never ran. Say which numbers you measured.
+**Say which numbers you measured.** The three inherited rows are honest to carry only because this
+session changed documentation plus six additive CSS custom properties that no screen consumes yet —
+nothing that e2e or a visual baseline can see. The first milestone that touches a screen re-measures
+all of them.
 
 ### Environment that is already set up — do not rediscover it
 
-- **Claude in Chrome is installed and connecting.** If `tabs_context_mcp` says "not connected",
-  it is a dropped connection, not a missing install: check the extension is enabled and signed in
-  to the same account, and that the frontmost Chrome window is the `Default` profile.
+- **Claude in Chrome is installed and connecting.** If `tabs_context_mcp` says "not connected", it
+  is a dropped connection, not a missing install: check the extension is enabled and signed in to
+  the same account, and that the frontmost Chrome window is the `Default` profile.
 - **The dev stack runs from `docker/docker-compose.yml`**; the app is at `http://localhost/app/`.
 - **Multi-gym demo accounts exist**, all with password `boxhub-demo-2026` — `triple@demo.io`
   (three gyms, a different role in each), `duo@demo.io` (two), `blocked@demo.io` (one active, one
   PENDING, one SUSPENDED — the only way to see both unreachable states), `nobox@demo.io` (none).
-  They are documented in `README.md`. **Do not change `multi@demo.io`'s memberships** — a visual
-  baseline is recorded against them.
+  Documented in `README.md`. **Do not change `multi@demo.io`'s memberships** — a visual baseline is
+  recorded against them.
 
 ---
 
@@ -81,36 +109,25 @@ and five never ran. Say which numbers you measured.
 shape → build → audit (≥16/20) → critique (≥32/40) → fix every P0/P1 → re-score BOTH
 ```
 
-Per screen. **`audit` runs first** — it is deterministic and cheap, and its findings should feed the
+Per screen. **`audit` runs first** — deterministic and cheap, and its findings should feed the
 design review rather than the reverse. **Both run with Claude in Chrome connected.** If the
 extension is unavailable, **stop and ask** — do not score source-only and hand over a number.
 
-Raised from 28 to **32/40** on 2026-08-27: 28 is 7/10 and the bar is 8. Conditional passes
-(`harden`, `clarify`, `interaction-design`, `layout`) and the never-routine list are in `CLAUDE.md`.
-
 **Do not exempt static screens from the bar.** That exemption was proposed and rejected with
-evidence: the join screen's "help & documentation" heuristic went **1/4 → 3/4 on one added
-sentence**, because for a screen whose job *is* documentation, help is satisfied by the copy closing
-every loop it opens. The rubric caps a *lazy* static screen, not a correct one.
+evidence: M23's join screen went **1/4 → 3/4** on the help heuristic from one added sentence. The
+rubric caps a *lazy* static screen, not a correct one.
 
 ### Why the browser half is not optional
 
-The three M23 screens had already been critiqued three times from source. The first browser-
-connected pass found six defects those had all missed, including:
+Three source-only critiques of M23's three screens missed six defects the first browser-connected
+pass caught, including **`margin-block: auto` that centred nothing** (in Angular the flex child of a
+shell's `.content` is the component's **host element** — when centring a routed screen, style
+`:host`), and **a scrim that had silently drifted in every sheet in the app** (Chrome cannot inherit
+`:root` vars into `::backdrop`, so `bh-sheet`'s literal fallback is what renders — **if you change
+`--scrim`, change the literal too**).
 
-- **`margin-block: auto` that centred nothing.** In Angular the flex child of a shell's `.content`
-  is the component's **host element**, not any panel in its template. Valid CSS, green build,
-  passing tests, zero visual effect. **When centring a routed screen, style `:host`.**
-- **A scrim that had silently drifted in every sheet in the app** — `bh-sheet`'s `::backdrop`
-  literal fallback said `rgba(10,7,4,0.55)` against a token of `rgba(6,9,7,0.62)`, with a comment
-  falsely claiming they matched. Chrome cannot inherit `:root` vars into `::backdrop`, so the
-  fallback is what renders. **If you change `--scrim`, change the literal too.**
-- **A transient AA failure no static check could catch** — `aria-disabled` was set on every row
-  during a switch, including the busy one, so the "Opening…" chip rendered at 0.6 opacity (~3.4:1).
-
-**A screenshot read is not a source read.** An orchestrator claim that a screen showed "two volt
-stat numbers" was wrong — those elements inherit `--bone`. Verify against source before asserting,
-including against your own eyes.
+**A screenshot read is not a source read.** Verify against source before asserting, including
+against your own eyes.
 
 ---
 
@@ -118,24 +135,25 @@ including against your own eyes.
 
 - **`NODE_OPTIONS` is poisoned in this environment.** Every bare `npm` command dies with
   `MODULE_NOT_FOUND` *before Karma starts*, which reads as a broken project and is not. Always:
-  `cd /Users/alessandrolomonaco/dev/boxhub/frontend && env -u NODE_OPTIONS npm test -- --watch=false --browsers=ChromeHeadless`
-  **Put that line in every executor brief.** It bit the impeccable helper script too, not just npm.
-- **Bash cwd persists between tool calls.** It bit four times across M23, twice producing a
-  confidently wrong grep and once making Playwright glob Karma specs. **Absolute paths, always.**
+  `env -u NODE_OPTIONS npm test -- --watch=false --browsers=ChromeHeadless`
+  **Put that line in every executor brief.** It bites `node` and `npx` too, not just `npm` —
+  `env -u NODE_OPTIONS npx ng build …`.
+- **Bash cwd persists between tool calls.** **Absolute paths, always.** It also silently resets
+  after some tool calls, so never rely on a `cd` from a previous call.
 - **A grep is only as good as the escaping in the file it searches.** `auth.spec.ts` and
   `onboarding.spec.ts` hid `/auth\/boxes/` from every dependents grep because it is written as an
   escaped regex. Only the full suite found them.
+- **A circular hue distance written wrong passes silently.** The palette search in the analytics
+  brief produced three near-identical reds on its first run, from a wrong modular-distance formula
+  *and* a greedy that gamed the adjacent-only pairlist. **Select a palette on `--pairs all`, then
+  order it for adjacency** — and look at the output, because both bugs validated green.
 - **`ng build` does not compile spec files.** Karma is what catches a spec that does not compile.
 - **`tsc` does not type-check Angular templates.** Only `npx ng build --configuration production`.
 - **Never pipe a gate for its exit status** — in zsh `$?` after a pipe is the pipe's.
 - **`JAVA_HOME=/opt/homebrew/opt/openjdk@21`** for every backend command; the system JDK is 26.
 - **`docker compose` lives at `docker/docker-compose.yml`**, not the repo root.
-- **Run the visual suite on a CLEAN stack.** Running it right after the full e2e suite fails on
-  login timeouts, because e2e mutates accounts. `down -v` first.
-- **A verify run immediately after `--update-snapshots` always passes and proves nothing.** If an
-  update rewrites baselines you did not expect, restore the originals and re-run — that is the only
-  way to learn which ones actually changed. Eleven were rewritten spuriously in M23 because the
-  update ran against a stale container.
+- **Run the visual suite on a CLEAN stack** (`down -v` first) — e2e mutates accounts.
+- **A verify run immediately after `--update-snapshots` always passes and proves nothing.**
 - **`e2e/visual.sh` runs in a Linux container**, never Playwright locally.
 - **CI runs on `push: main` and `pull_request` only.**
 
@@ -143,8 +161,8 @@ including against your own eyes.
 
 `DevDataSeeder.todaySession()` offsets both demo classes from `Instant.now()` with no clamp to the
 box's local day. Seeding within ~40 minutes of midnight pushes one class out of "today" and fails
-`programming`, `tracking` or `runner` depending on which side of midnight you are. **If those fail,
-check the clock before you check the diff.** Recorded in `docs/BACKLOG.md`.
+`programming`, `tracking` or `runner`. **If those fail, check the clock before you check the diff.**
+In `docs/BACKLOG.md`.
 
 ---
 
@@ -155,47 +173,41 @@ merges. It implements only genuinely delicate work and trivial glue. Executors a
 per plan task, each brief self-contained and carrying the `NODE_OPTIONS` line.
 
 **Weight executor pushback heavily.** Three M23 executors escalated instead of improvising and all
-three were right — one refused to stub around a red bundle, one found a plan-supplied spec that
-could not pass, one caught a bug the orchestrator had introduced.
+three were right.
 
-**Run the negative control on every test, and believe it.** One M23 control was decoration: it
-clicked a row to prove a guard, but that row renders as a `div` with no click handler, so deleting
-the guard left it green. **If you cannot name the mutation a test catches, say so.**
+**Verify, do not read a report.** Both analytics-brief subagents returned good work and both were
+spot-checked before anything they said was written down — twelve `path:line` citations re-read by
+hand. One path in a returned report was wrong (`SessionItemController` is in `programming/`, not
+`box/`). Reports are evidence, not conclusions.
 
-**Verify, do not read a report.** An executor reported eleven rewritten baselines as "expected" and
-"confirmed stable" — the confirmation was a verify run immediately after its own update, which is
-circular. Measuring independently showed 30 of 33 were unchanged.
+**Run the negative control on every test, and believe it.** If you cannot name the mutation a test
+catches, say so.
 
-**If a verification method is unavailable, stop and ask — do not run the weaker one and report its
-result.** Disclosing the limitation in a sentence does not undo the fact that the headline number
-gets used as if it were the real gate. All three M23 critiques ran source-only because the Chrome
-extension was not installed; each said so, and the milestone was still driven to a close on scores
-that had never seen a rendered pixel. Say what is missing, what the weaker option would and would
-not establish, and let the user choose.
+**If a verification method is unavailable, stop and ask** — do not run the weaker one and report
+its result as the gate.
 
-**Delete the branch as part of the merge.** Merge and delete are one step; `git branch -a` should
-normally show `main` alone.
+**Delete the branch as part of the merge.** `git branch -a` should normally show `main` alone.
 
 ---
 
-## Two rulings M23 closed, so they are not re-argued
+## Rulings that are closed, so they are not re-argued
 
-- **The box switcher's mark is the shell's one volt element.** It sits in all three shell headers on
-  every screen, so a screen rendered inside them **starts with its volt budget already spent** and
-  must not add its own unless it is on the hero list. `athlete/home.page.ts`'s CTA was demoted to
-  `--bone` for this. The **dock's active-tab icon is exempt** — wayfinding chrome, like a focus ring.
-- **`M38` scale readiness** was added to the roadmap, before `M28`. A brief, not a build: query-count
-  tests on the hot paths, one load scenario, slow-query logging, a written p95 budget. The schema is
-  in good shape (49 indexes, 25 covering `box_id`) — the gap is that nothing *measures* performance.
+- **The box switcher's mark is the shell's one volt element** (M23). A screen inside a shell starts
+  with its volt budget spent and must not add its own unless it is on the hero list. The **dock's
+  active-tab icon is exempt** — wayfinding chrome, like a focus ring.
+- **Charts get no volt, and the categorical palette is cool-only** (analytics brief §4). Not a
+  preference: `--danger` 23°, `--warn` 53°, `--volt` 119° and `--good` 159° own the warm and green
+  arcs, leaving 184–358°. The four existing hues **fail** the palette gate as a four-series set.
+- **`M38` scale readiness** was added to the roadmap, before `M28`. A brief, not a build.
 
 ---
 
-## After the analytics brief
+## After M29a
 
 **Phase A continues:** M29a → M29b → M14b → M14c-a → M14c-b → M17a → M17b → M17c → M15a → M15b →
 M16b → M16c → M16d → M18 → M30 → M32a → M32b → M24 → M25 → M26 → M33 → M27a → M27b → M27c →
 **M34–M37** (The Room).
-**Phase B:** M28 → M27d → M19 → M20 → **v1.0 → pilot**.
+**Phase B:** M38 → M28 → M27d → M19 → M20 → **v1.0 → pilot**.
 
 **M19 (the landing page) starts from nothing.** `oc/m19-landing` was an experiment with a cheaper
 model and was deleted on purpose — build it fresh when the milestone arrives.

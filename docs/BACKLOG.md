@@ -752,6 +752,26 @@ not code), anything AI, per-gym website builder, per-gym theming.
 **Deferred with a trigger:** on-demand media library — reopens when rxed earns enough to upgrade the
 server (`docs/VPS-DEPLOYMENT.md` flags the storage limit). Custom report builder — v1.1.
 
+**Editing a class's programming DELETES every score logged against it (found by the analytics
+brief, 2026-08-27). Live and reachable — needs a decision, not a quiet fix.**
+`PUT /api/box/sessions/{sessionId}/items` calls `items.deleteBySessionId(sessionId)`
+(`programming/SessionItemController.java:94`) and recreates the items fresh, and
+`wod_score.session_item_id` is `on delete cascade` (`V7__class_model.sql:53`). There is **no guard
+on existing scores and no date guard** — it works on a class that finished last month. A coach
+reordering two pieces, or fixing a typo, after a class has been scored silently destroys every
+athlete's result for that class. `M33` names performance history as *the real switching cost for a
+CrossFit box*, which is what makes this expensive rather than annoying. Verified directly, not
+inferred. **Open question: fix now as a defect, or fold into `M14c-a`, which rebuilds the builder
+anyway?** Full context: `docs/superpowers/specs/2026-08-27-analytics-brief.md` §2 D-1.
+
+**`SlotRegenerationService.regenerateFrom` can delete sessions that nothing refills (latent).**
+Its delete is unbounded backwards (`findByScheduleSlotIdAndStartAtGreaterThanEqual`) while the
+recreate floors at today (`box/SessionGenerator.java:76,80`), so a past `from` deletes sessions
+between `from` and today and never refills them; its blocking check inspects only `bookings.status`,
+so a session carrying scores but no live booking is unprotected. **No controller calls it today** —
+grep finds only javadoc and two tests — so this is latent, not live. It becomes live the moment a
+schedule-edit flow wires it in, which is **`M14b`**. Read before planning M14b.
+
 **Dev seeder loses a class near midnight (found M23, pre-existing).**
 `DevDataSeeder.todaySession()` places the two demo classes at `Instant.now().minus(20m)` and
 `Instant.now().plus(40m)`, and its comment claims this holds "regardless of seed time". It does

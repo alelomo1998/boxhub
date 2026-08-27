@@ -33,6 +33,33 @@
      4.5:1 does not read as disabled. This is correct; do not "fix" it. */
   --disabled: #4a5249;
 
+  /* CATEGORICAL CHART SLOTS — series identity, and NOTHING else.
+     Ruled by docs/superpowers/specs/2026-08-27-analytics-brief.md §4. Not decorative, not status,
+     not a substitute for --volt. Assign in fixed order 1..6, NEVER cycled: colour follows the
+     entity, never its rank, so a filter that drops a series must not repaint the survivors.
+
+     Six is the CEILING, not a starting point. A seventh series folds into "Other", facets into
+     small multiples, or the chart is the wrong form — never a generated hue. Seven slots fails
+     the gate outright.
+
+     Why these hues and no others: --danger (23deg), --warn (53deg), --volt (119deg) and --good
+     (159deg) own the warm and green arcs, so the free arc is 184-358deg and the palette is
+     COOL-ONLY by construction. That is deliberate — a chart in these colours can never be
+     mistaken for a status. Chroma is capped at 0.19 so no series out-shouts --volt (C 0.196).
+
+     Computed and validated, not eyeballed. In OKLCH dark mode all six sit inside L 0.48-0.67,
+     clear the 0.10 chroma floor, clear 3:1 against --surface AND --ground, and pass both the
+     adjacent and the all-pairs CVD gates (worst all-pairs dE 8.3 deutan; normal-vision 15.8).
+     Two caveats that survived: --cat-2 and --cat-6 collapse under tritanopia (dE 3.5), so do not
+     stack them adjacent without direct labels; and --cat-2 sits near the chroma floor and is only
+     dE 10.8 from --faint, so it is a fill or a 2px line, never a 1px hairline beside axis text. */
+  --cat-1: #7550d1;  /* indigo    */
+  --cat-2: #1fa89c;  /* teal      */
+  --cat-3: #bc2b72;  /* rose      */
+  --cat-4: #3293fc;  /* azure     */
+  --cat-5: #07719f;  /* deep cyan */
+  --cat-6: #c962d3;  /* orchid    */
+
   --scrim: rgba(6, 9, 7, 0.62);
   --focus: var(--volt);       /* focus ring on any non-volt surface */
   --focus-inv: var(--ground); /* focus ring ON a volt surface — see spec §11.2 */
