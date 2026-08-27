@@ -257,7 +257,7 @@ then overwrite, plus a hard `DELETE`. Irrelevant to revenue and attendance; a ga
 engagement reporting. **No action now** — recorded so `M29a` designs its own history rather than
 discovering this.
 
-### Two live defects found while auditing
+### Three live defects found while auditing
 
 Not analytics gaps. Found because the audit traced what destroys history, and destroying history is
 what they do.
@@ -273,8 +273,51 @@ A coach reordering two pieces or fixing a typo after a class has been scored sil
 athlete's result for that class. Verified by the orchestrator directly, not taken from a report.
 
 This is the single most expensive thing found by this brief, and it is not an analytics problem —
-`M33` names performance history as *the real switching cost for a CrossFit box*. **Filed to
-`docs/BACKLOG.md`; it wants a decision, not a quiet fix inside a screen milestone.**
+`M33` names performance history as *the real switching cost for a CrossFit box*.
+
+**The suite already knew.** `e2e/tests/programming.spec.ts:10-11` carries this comment:
+
+> build "Burn It", not the first class: today's first class is the WOD Class that
+> `tracking.spec` scores against (Fran), and **republishing it here would wipe that**.
+
+The behaviour was observed, understood well enough to be described accurately, and routed around
+rather than filed. That is the failure worth generalising: **a workaround written into a test is a
+defect report nobody filed.** When a comment explains why a test avoids a code path, the reason
+belongs in the backlog too.
+
+There is also **no test anywhere, backend or e2e, that logs a score and then edits the programming** —
+which is why four green tests over `replace()` never saw it.
+
+**Ruled 2026-08-27: fixed now, as a defect** (see "Decisions taken"). The root cause is on the wire,
+not in the method: `ItemInput` carries no item id, and `wod_id` cannot substitute for one because a
+session may legitimately hold the same WOD twice. Ids must also stay stable for
+`class_timers.session_item_id` (a soft pointer with no FK) and for `/athlete/board/:itemId`, which is
+a shareable URL.
+
+**D-3 — The admin dashboard's member count is the whole platform's, not the box's. Live.**
+
+`AdminStatsController.stats()` calls `memberships.findAll()` with **no box filter**
+(`box/AdminStatsController.java:39`), and `Membership` is **not** `@TenantId` —
+`MembershipRepository` says so in a comment: *"Membership is not @TenantId — derived query safe
+tenant-agnostically."* That comment is true of the methods it annotates, which all take a `boxId`.
+`findAll()` takes none.
+
+So `GET /api/box/admin-stats` returns `activeMembers` and `expiringPlans` counted **across every box
+on the platform**. Two consequences, and the second is the one that matters:
+
+1. A box admin learns the platform's aggregate size. An information leak, not a data breach — counts,
+   no PII.
+2. **The gym owner's single most-looked-at number is simply wrong**, and wrong in a direction that
+   flatters. It has read as plausible because the platform has had few boxes.
+
+This is the exact shape `docs/TENANCY.md` §1 warns about, with the twist that `@TenantId` was never
+there to save it: the entity is deliberately un-discriminated so the box switcher can read a person's
+memberships across boxes, and the safety therefore has to live in every query. `findAll()` has no
+safety at all.
+
+Found while auditing the only existing stats surface. **Fixed in `M39`** — it is a cross-tenant
+correctness bug on precisely the surface this brief is about, and leaving a known live one open while
+rewriting its neighbours would be indefensible.
 
 **D-2 — `SlotRegenerationService.regenerateFrom` can delete sessions nothing refills. Latent.**
 
@@ -511,12 +554,30 @@ The custom report builder (v1.1 per the pilot programme), accrual accounting, co
 and any predictive or AI-derived metric. Exports beyond what a screen shows are `M33`'s neighbour, not
 this brief's.
 
-## Open questions for the user
+## Decisions taken, 2026-08-27
 
-1. **D-1** — fix now as a defect, or schedule into `M14c-a` where the builder is rebuilt anyway?
-2. **Migration timing** — one migration milestone before `M29a`, or fold each into the milestone that
-   consumes it? Folding is later and riskier; a single early migration is cheaper and off-plan.
-3. **Multi-box athletes** — an athlete in three gyms has three memberships, so scores, PRs and
-   attendance are per-box. Is athlete analytics scoped to the current box (simple, and loses your PR
-   history when you move gym), or aggregated across the person? This is a real `M17c` product
-   decision and `M21` made it possible without deciding it.
+All three were put to the user and ruled the same day the brief was written. They are recorded here
+so they are not re-argued.
+
+1. **D-1 is fixed now, as a defect.** Not folded into `M14c-a`. The reasoning that decided it: a
+   guard is small, `M14c-a` is three milestones away (`M29a`, `M29b` and `M14b` come first), and
+   folding would leave a live data-loss path open across that whole interval — on the one kind of
+   data `M33` names as *the real switching cost for a CrossFit box*.
+2. **The six migrations land as ONE pass, now, before `M29a`.** The argument that decided it: two of
+   the six only ever capture data **going forward**. `membership_event` and `payment.settled_at`
+   cannot be backfilled — an event nobody recorded is unrecoverable — so every day they do not exist
+   is a day of LEG, churn and settlement history permanently lost. The other four gain nothing from
+   being early, but they cost one Flyway pass and one test sweep instead of four. This restores
+   Phase 1's own rule: *migrations are one-way, so they go first.*
+3. **Athlete analytics are scoped to the current box.** Not aggregated across the person. It matches
+   the data model exactly — `lift_entry` and `wod_score` hang off `membership`, which is box-scoped —
+   and it needs no cross-tenant read, which `docs/TENANCY.md` reserves for platform jobs via
+   `runAsRoot` and forbids on a thread serving a user.
+
+   **The cost is real and deferred, so it is recorded rather than implied:** change gym and your PR
+   history stops following you. **Re-open trigger** — a real athlete holds memberships in two gyms
+   at once, or `M33`'s import needs to attach history to a *person* rather than to a membership.
+   Until then, per-box is the answer and `M17c` should not re-litigate it.
+
+These three decisions create **`M39` — analytics foundations**, which is the implementation of this
+brief and is scheduled immediately after it, before `M29a`.

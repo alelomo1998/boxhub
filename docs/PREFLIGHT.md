@@ -23,6 +23,15 @@ stop rather than improvise.
 - [ ] Changing where an attribute lands (host vs inner element)? Grep the e2e helpers. *(`btn()` was `[data-testid=X] button` in three spec files and matched nothing once `testId` moved.)*
 - [ ] **Never assert an exact string, signature, line number or schema without opening the file.**
 - [ ] Have I committed **my own** work first? A subagent's `git add` can sweep it in.
+- [ ] **…and the reverse, which is the one that actually happened.** While ANY executor is live,
+      the orchestrator must stage **explicit paths** — never `git add -A`, never `git add .`. On
+      2026-08-27 two orchestrator doc commits silently swallowed two executors' in-flight diffs, so
+      the score-loss fix landed inside a commit message about a migration. Both executors were
+      mid-edit and neither had done anything wrong. **`git add -A` is a shared-tree hazard, not a
+      convenience.** The executor caught it; the orchestrator did not.
+- [ ] **Is the command I am about to put in a brief real?** `./mvnw` was written into an executor
+      brief and **there is no Maven wrapper in this repo** — the backend gate is plain `mvn`. Same
+      rule as never asserting a line number without opening the file: run it, or `ls` it, first.
 
 ## Moment 2 — before running any shell gate
 
@@ -44,6 +53,11 @@ stop rather than improvise.
 - [ ] Does it exercise the **wiring** or only the handler? *(Six specs called `submit()` directly; the form's submit binding was dead and 272 green specs never saw it.)*
 - [ ] Is it green only because a **mock is unfaithful**? *(A `Mailer` stub returned `origin + path` where the real `appLink()` is `origin + base + path`.)*
 - [ ] Run the **negative control**: break the implementation, watch it fail, revert.
+- [ ] **Am I writing a comment that explains why this test AVOIDS something?** Then file that
+      something before writing the comment. `programming.spec.ts` carried *"republishing it here
+      would wipe that"* for months: the data-loss defect was observed, described accurately, routed
+      around — and never filed. The analytics brief found it by auditing the schema, not the tests.
+      **A workaround written into a test is a defect report nobody filed.**
 
 ## Moment 4 — before claiming anything is done
 
