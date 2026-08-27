@@ -34,7 +34,7 @@ class SessionItemApiTest extends AbstractIntegrationTest {
     @Autowired ObjectMapper om;
 
     String coach, athlete, otherCoach;
-    UUID sessionId, wodA, wodB;
+    UUID sessionId, wodA, wodB, boxAId;
 
     @AfterEach
     void clear() { SecurityContextHolder.clearContext(); }
@@ -47,7 +47,8 @@ class SessionItemApiTest extends AbstractIntegrationTest {
         coach = boxToken("sic-" + n + "@t.io", a, "COACH");
         athlete = boxToken("sia-" + n + "@t.io", a, "ATHLETE");
         otherCoach = boxToken("sio-" + n + "@t.io", b, "COACH");
-        sessionId = newSession(a.getId());
+        boxAId = a.getId();
+        sessionId = newSession(boxAId);
         wodA = createWod("Warmup " + n, "WARMUP", "NONE");
         wodB = createWod("Metcon " + n, "FOR_TIME", "TIME");
     }
@@ -103,6 +104,46 @@ class SessionItemApiTest extends AbstractIntegrationTest {
         return sb.append("]}").toString();
     }
 
+    /** id == null means "new piece", matching ItemInput's nullable id contract. */
+    private record Item(UUID id, UUID wodId, boolean scoreable) {}
+
+    private String itemsWithIdsJson(Item... itemsArr) {
+        StringBuilder sb = new StringBuilder("{\"items\":[");
+        for (int i = 0; i < itemsArr.length; i++) {
+            if (i > 0) sb.append(',');
+            Item it = itemsArr[i];
+            sb.append('{');
+            if (it.id() != null) sb.append("\"id\":\"").append(it.id()).append("\",");
+            sb.append("\"wodId\":\"").append(it.wodId()).append("\",\"scoreable\":").append(it.scoreable());
+            sb.append('}');
+        }
+        return sb.append("]}").toString();
+    }
+
+    private UUID itemIdAt(String responseBody, int idx) throws Exception {
+        return UUID.fromString(om.readTree(responseBody).get(idx).get("id").asText());
+    }
+
+    /** An item is loggable only once its class instance's programming is PUBLISHED (ScoreService#loggableItem). */
+    private void publish(UUID targetSessionId) throws Exception {
+        mvc.perform(patch("/api/box/sessions/" + targetSessionId + "/programming").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content("{\"status\":\"PUBLISHED\"}"))
+                .andExpect(status().isOk());
+    }
+
+    private void logScore(UUID itemId) throws Exception {
+        mvc.perform(put("/api/box/sessions/items/" + itemId + "/score").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + athlete)
+                        .content("{\"rx\":true,\"timeSeconds\":600,\"finished\":true,\"isPrivate\":false}"))
+                .andExpect(status().isOk());
+    }
+
+    private void assertScoreStillLogged(UUID itemId) throws Exception {
+        mvc.perform(get("/api/box/sessions/items/" + itemId + "/score")
+                        .header("Authorization", "Bearer " + athlete))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void coachReplacesItemsAndPublishes() throws Exception {
         mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
@@ -156,5 +197,173 @@ class SessionItemApiTest extends AbstractIntegrationTest {
         mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + otherCoach).content("{\"items\":[]}"))
                 .andExpect(status().isNotFound());
+    }
+
+    // --- M39: reconcile-by-id regression coverage -------------------------------------------
+
+    @Test
+    void reorderPreservesScoresAndIds() throws Exception {
+        String body = mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA, wodB)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID idA = itemIdAt(body, 0);
+        UUID idB = itemIdAt(body, 1); // scoreable: itemsJson scores only the last piece
+
+        publish(sessionId);
+        logScore(idB);
+
+        // reorder: same two pieces, ids sent, order flipped
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(idB, wodB, true), new Item(idA, wodA, false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(idB.toString()))
+                .andExpect(jsonPath("$[0].sortOrder").value(0))
+                .andExpect(jsonPath("$[1].id").value(idA.toString()))
+                .andExpect(jsonPath("$[1].sortOrder").value(1));
+
+        // the score survived, and it still points at the same session_item id
+        assertScoreStillLogged(idB);
+    }
+
+    /**
+     * The ordinary edit. instance-builder's ensureWod() mints a BRAND-NEW wod whenever a piece's
+     * title, body or type changed, so "edit this piece's text and save" reaches the server as the
+     * same item id pointing at a different wodId. That must succeed and keep the row.
+     */
+    @Test
+    void editingAnUnscoredPieceRebindsItsWodAndKeepsTheRow() throws Exception {
+        String body = mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA, wodB)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID idA = itemIdAt(body, 0);
+        UUID idB = itemIdAt(body, 1);
+
+        UUID editedA = createWod("Warmup edited " + System.nanoTime(), "WARMUP", "NONE");
+
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(idA, editedA, false), new Item(idB, wodB, true))))
+                .andExpect(status().isOk())
+                // same row, now pointing at the edited wod
+                .andExpect(jsonPath("$[0].id").value(idA.toString()))
+                .andExpect(jsonPath("$[0].wodId").value(editedA.toString()));
+    }
+
+    /**
+     * The same edit, once results exist: those were logged against the OLD workout, so re-pointing
+     * the row would silently reattribute them. Reject rather than rewrite history.
+     */
+    @Test
+    void changingTheWodOfAScoredPieceIsRejectedWith409() throws Exception {
+        String body = mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA, wodB)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID idA = itemIdAt(body, 0);
+        UUID idB = itemIdAt(body, 1);
+
+        publish(sessionId);
+        logScore(idB);
+
+        UUID editedB = createWod("Metcon edited " + System.nanoTime(), "FOR_TIME", "TIME");
+
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(idA, wodA, false), new Item(idB, editedB, true))))
+                .andExpect(status().isConflict());
+
+        assertScoreStillLogged(idB);
+    }
+
+    @Test
+    void removingScoredPieceIsRejectedWith409() throws Exception {
+        String body = mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA, wodB)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID idA = itemIdAt(body, 0);
+        UUID idB = itemIdAt(body, 1);
+        publish(sessionId);
+        logScore(idB);
+
+        // drop idB (the scored piece) -> rejected, nothing changes
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(idA, wodA, false))))
+                .andExpect(status().isConflict());
+
+        assertScoreStillLogged(idB);
+        mvc.perform(get("/api/box/sessions/" + sessionId + "/items").header("Authorization", "Bearer " + coach))
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void removingUnscoredPieceSucceeds() throws Exception {
+        String body = mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA, wodB)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID idA = itemIdAt(body, 0);
+
+        // no score logged on either piece; drop idB
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(idA, wodA, false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(idA.toString()));
+    }
+
+    @Test
+    void addingNewPieceKeepsExistingIdsStable() throws Exception {
+        String body = mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID idA = itemIdAt(body, 0);
+
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(idA, wodA, false), new Item(null, wodB, true))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(idA.toString()))
+                .andExpect(jsonPath("$[1].id").value(org.hamcrest.Matchers.not(idA.toString())))
+                .andExpect(jsonPath("$[1].wodId").value(wodB.toString()));
+    }
+
+    @Test
+    void unknownItemIdIs400() throws Exception {
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA)))
+                .andExpect(status().isOk());
+
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(UUID.randomUUID(), wodA, false))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void itemIdFromAnotherSessionIs400() throws Exception {
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodA)))
+                .andExpect(status().isOk());
+
+        UUID otherSessionId = newSession(boxAId);
+        String otherBody = mvc.perform(put("/api/box/sessions/" + otherSessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content(itemsJson(wodB)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID idFromOtherSession = itemIdAt(otherBody, 0);
+
+        mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach)
+                        .content(itemsWithIdsJson(new Item(idFromOtherSession, wodA, false))))
+                .andExpect(status().isBadRequest());
     }
 }

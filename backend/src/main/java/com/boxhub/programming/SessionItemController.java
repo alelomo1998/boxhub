@@ -45,7 +45,7 @@ public class SessionItemController {
 
     public record ItemDto(UUID id, UUID wodId, WodController.WodDto wod, int sortOrder,
                           boolean scoreable, String scoreType, boolean myScoreLogged) {}
-    record ItemInput(@NotNull UUID wodId, boolean scoreable, String scoreType) {}
+    record ItemInput(UUID id, @NotNull UUID wodId, boolean scoreable, String scoreType) {}
     record ItemsRequest(@NotNull List<ItemInput> items) {}
     record ProgrammingRequest(@NotNull String status) {}
 
@@ -91,20 +91,86 @@ public class SessionItemController {
             if (in.scoreType() != null && !SCORE_TYPES.contains(in.scoreType()))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown score type");
         }
-        items.deleteBySessionId(sessionId);
+        // Reconcile against the existing rows instead of delete-all-recreate: wod_score.session_item_id
+        // is ON DELETE CASCADE, and class_timers/the athlete board URL also key off item id, so a
+        // surviving piece must keep its row.
+        List<SessionItem> existing = items.findBySessionIdOrderBySortOrderAsc(sessionId);
+        Map<UUID, SessionItem> existingById = existing.stream()
+                .collect(Collectors.toMap(SessionItem::getId, i -> i));
+
+        java.util.Set<UUID> submittedIds = new java.util.HashSet<>();
+        for (ItemInput in : req.items()) {
+            if (in.id() == null) continue;
+            if (!submittedIds.add(in.id()))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate item id");
+            if (!existingById.containsKey(in.id()))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown item id");
+        }
+
+        // Which existing rows carry results. ONE query serves both guards below.
+        java.util.Set<UUID> scored = existing.isEmpty() ? java.util.Set.of()
+                : new java.util.HashSet<>(scores.findScoredItemIds(existing.stream().map(SessionItem::getId).toList()));
+
+        List<SessionItem> removed = existing.stream()
+                .filter(i -> !submittedIds.contains(i.getId()))
+                .toList();
+        long removedScored = removed.stream().filter(i -> scored.contains(i.getId())).count();
+        if (removedScored > 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot remove a scored piece: " + removedScored + " piece(s) have results logged against them");
+
+        // 1. Park every surviving row at a negative sort_order first: (box_id, session_id, sort_order)
+        // is an immediate unique constraint, and assigning final positions directly collides on reorder.
+        int placeholder = -1;
+        for (SessionItem i : existing) {
+            if (submittedIds.contains(i.getId())) {
+                i.setSortOrder(placeholder--);
+                items.save(i);
+            }
+        }
         items.flush();
+
+        // 2. Delete only the pieces actually dropped (already confirmed unscored above).
+        if (!removed.isEmpty()) {
+            items.deleteAll(removed);
+            items.flush();
+        }
+
+        // 3. Walk the request in order: update survivors in place (keeping their id), create new pieces.
         int sort = 0;
         for (ItemInput in : req.items()) {
-            SessionItem i = new SessionItem();
-            i.setSessionId(sessionId);
-            i.setWodId(in.wodId());
-            i.setSortOrder(sort++);
-            i.setScoreable(in.scoreable());
             // score_type is NOT NULL (M14a): null on the wire still means "auto", but the derivation
             // now happens here, at write time, rather than on every read.
-            i.setScoreType(in.scoreType() != null ? in.scoreType() : wodByInputId.get(in.wodId()).getScoreType());
-            items.save(i);
+            String scoreType = in.scoreType() != null ? in.scoreType() : wodByInputId.get(in.wodId()).getScoreType();
+            if (in.id() != null) {
+                SessionItem i = existingById.get(in.id());
+                if (!i.getWodId().equals(in.wodId())) {
+                    // A changed wodId on an existing item is the ORDINARY edit, not an attempt to swap
+                    // workouts: instance-builder's ensureWod() mints a brand-new wod whenever a piece's
+                    // title, body or type changed, so "edit this piece's text and save" arrives here as
+                    // the same item id pointing at a new wod. Rebinding is therefore what the coach
+                    // means -- UNLESS the row already carries results, which were logged against the
+                    // OLD workout and would be silently reattributed to the new one.
+                    if (scored.contains(i.getId()))
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "Cannot change the workout of a scored piece: results are logged against the current one");
+                    i.setWodId(in.wodId());
+                }
+                i.setSortOrder(sort++);
+                i.setScoreable(in.scoreable());
+                i.setScoreType(scoreType);
+                items.save(i);
+            } else {
+                SessionItem i = new SessionItem();
+                i.setSessionId(sessionId);
+                i.setWodId(in.wodId());
+                i.setSortOrder(sort++);
+                i.setScoreable(in.scoreable());
+                i.setScoreType(scoreType);
+                items.save(i);
+            }
         }
+        items.flush();
         return toDtos(items.findBySessionIdOrderBySortOrderAsc(sessionId));
     }
 

@@ -12,6 +12,7 @@ import { HasUnsaved } from '../../core/unsaved.guard';
  * Each piece is filled from the library or written in place; publish makes it visible to athletes.
  */
 interface PieceDraft {
+  id: string | null;        // session_item id when loaded from an existing session; null for a new piece
   label: string;            // skeleton label or piece title
   wodType: string;
   typeLocked: boolean;      // skeleton/library pieces show a static type; "change" unlocks the select
@@ -262,7 +263,7 @@ export class InstanceBuilderPage implements OnInit, HasUnsaved {
         this.prog.skeleton(t.id).subscribe({
           next: sk => {
             this.pieces.set(sk.map(p => ({
-              label: p.label, wodType: p.wodType, typeLocked: true,
+              id: null, label: p.label, wodType: p.wodType, typeLocked: true,
               scoreable: this.scoredByDefault(p.wodType),
               scoreType: null, wodId: null, title: p.label, bodyText: '',
             })));
@@ -280,7 +281,7 @@ export class InstanceBuilderPage implements OnInit, HasUnsaved {
     // i.scoreType is the EFFECTIVE type; treat it as an override only when it differs from the type default
     const override = i.scoreType !== this.apiDefaultScore(i.wod.wodType) ? i.scoreType : null;
     return {
-      label: i.wod.title, wodType: i.wod.wodType, typeLocked: true, scoreable: i.scoreable,
+      id: i.id, label: i.wod.title, wodType: i.wod.wodType, typeLocked: true, scoreable: i.scoreable,
       scoreType: override, wodId: i.wodId, title: i.wod.title, bodyText: i.wod.bodyText ?? '',
     };
   }
@@ -304,12 +305,12 @@ export class InstanceBuilderPage implements OnInit, HasUnsaved {
   }
 
   addBlank() {
-    this.pieces.update(p => [...p, { label: '', wodType: 'FOR_TIME', typeLocked: false, scoreable: true,
+    this.pieces.update(p => [...p, { id: null, label: '', wodType: 'FOR_TIME', typeLocked: false, scoreable: true,
       scoreType: null, wodId: null, title: '', bodyText: '' }]);
   }
 
   addFromLibrary(w: Wod) {
-    this.pieces.update(p => [...p, { label: w.title, wodType: w.wodType, typeLocked: true,
+    this.pieces.update(p => [...p, { id: null, label: w.title, wodType: w.wodType, typeLocked: true,
       scoreable: this.scoredByDefault(w.wodType), scoreType: null, wodId: w.id,
       title: w.title, bodyText: w.bodyText ?? '' }]);
   }
@@ -360,7 +361,7 @@ export class InstanceBuilderPage implements OnInit, HasUnsaved {
     Promise.all(drafts.map(ensureWod))
       .then(wodIds => new Promise<void>((resolve, reject) =>
         this.prog.putItems(this.sessionId, drafts.map((p, i) => ({
-          wodId: wodIds[i], scoreable: p.scoreable, scoreType: p.scoreType ?? undefined,
+          id: p.id, wodId: wodIds[i], scoreable: p.scoreable, scoreType: p.scoreType ?? undefined,
         }))).subscribe({ next: () => resolve(), error: reject })))
       .then(() => publish
         ? new Promise<void>((resolve, reject) =>

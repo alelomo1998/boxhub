@@ -8,7 +8,9 @@ test('coach fills a class instance from the builder and publishes it', async ({ 
   await login(page, 'coach@demo.io');
   await page.goto('/app/coach/classes');
   // build "Burn It", not the first class: today's first class is the WOD Class that
-  // tracking.spec scores against (Fran), and republishing it here would wipe that.
+  // tracking.spec scores against (Fran). Republishing it here no longer wipes that score
+  // (M39 made session-item PUT reconcile by id instead of delete-all-recreate), but we still
+  // build a separate class for test isolation, so this spec's writes don't race tracking.spec's.
   const burnRow = page.locator('.row', { hasText: 'Burn It' }).first();
   await expect(burnRow).toBeVisible();
   await burnRow.getByTestId('build-link').click();

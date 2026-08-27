@@ -18,7 +18,7 @@ export interface SessionItem {
   id: string; wodId: string; wod: Wod; sortOrder: number;
   scoreable: boolean; scoreType: string; myScoreLogged: boolean;
 }
-export interface ItemInput { wodId: string; scoreable: boolean; scoreType?: string | null; }
+export interface ItemInput { id?: string | null; wodId: string; scoreable: boolean; scoreType?: string | null; }
 export interface SkeletonPiece { id?: string; sortOrder?: number; label: string; wodType: string; }
 export interface SessionRef {
   id: string; name: string; startAt: string; imagePath: string | null; programmingStatus: string;
