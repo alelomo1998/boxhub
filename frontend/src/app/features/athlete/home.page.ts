@@ -136,8 +136,13 @@ import { BookingService } from '../booking/booking.service';
     .next-sub { display: flex; gap: var(--sp-3); font-size: var(--fs-sm); color: var(--bone-dim); margin-top: 2px; }
     .pals { display: flex; gap: 4px; margin-top: var(--sp-3); }
 
+    /* --bone, not --volt. The box switcher put a permanent volt mark in the shell header, so this
+       screen carried two accents — and athlete home is not on the design law's hero list (WOD
+       board, leaderboard, PR page, live runner, TV), which caps plumbing at one. The switcher's
+       mark keeps the slot because it answers "which gym are you in now"; this stays primary by
+       size, weight and case instead of colour. */
     .empty-cta .cta-line { display: block; margin-top: var(--sp-2); font-family: var(--font-display);
-      font-weight: 700; font-size: var(--fs-h2); text-transform: uppercase; color: var(--volt); }
+      font-weight: 700; font-size: var(--fs-h2); text-transform: uppercase; color: var(--bone); }
 
     .teaser .pieces { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
     .piece { border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 5px 12px;

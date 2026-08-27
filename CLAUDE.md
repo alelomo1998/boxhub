@@ -27,6 +27,13 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 - **Tokens only.** No component or screen hardcodes a color / font / radius / spacing. Everything reads a CSS custom property. A raw hex outside `frontend/src/styles/_tokens.scss` is a bug (the one sanctioned exception is the HTML mail templates, which cannot read custom properties).
 - **Dark only** (`--ground: #0d110e`, chalkboard black, never warm, never pure black). No light theme, no `data-theme`, no `prefers-color-scheme`, no `ThemeService` — all deleted in M13b. Re-open trigger, recorded rather than implied: a pilot box asks for it, or an accessibility need surfaces.
 - **Volt (`--volt`) is the only accent, and means live / now / primary / winning — nothing else.** Never decorative, never a status fill, never a label. The rule is about *questions*: a plumbing screen gets exactly one volt element; a hero screen may mark one thing per distinct question it answers. Volt is also bounded by area — a row, chip, button, bar or badge, **never a card, panel, page background or sheet**.
+- **The box switcher's mark is the shell's one volt element (ruled 2026-08-27).** Since M23 it sits
+  in the header of all three shells, on every screen, meaning *the gym you are in now*. A screen
+  rendered inside those shells therefore **starts with its volt budget already spent** and must not
+  add its own unless it is on the hero list (WOD board, leaderboard, PR page, live class runner,
+  TV). `athlete/home.page.ts`'s "Book your next session" was demoted to `--bone` for exactly this —
+  it stays primary by size, weight and case. The **dock's active-tab icon is exempt**: it is
+  persistent wayfinding chrome, like a focus ring, not a screen's expressive choice.
 - **`--danger` may fill a button or a chip** (never a row/card/panel) — the control that *opens* a destructive flow is a danger-bordered ghost, the control that *executes* it is filled. `--on-danger` is dark, not white (white on `--danger` fails AA).
 - **No glow, no gradients, no shadows on flat surfaces, no fake textures, no skeuomorphism.** Shadows are permitted only on things that physically float (the dock, `bh-sheet`, dialogs). The focus ring is a solid 2px outline, and **inverts to `--focus-inv` on a volt surface** — a volt ring on the volt primary button is invisible.
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.
