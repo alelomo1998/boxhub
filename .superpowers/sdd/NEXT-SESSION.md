@@ -1,7 +1,7 @@
-# Next session — **M29a messaging. The analytics brief is closed.**
+# Next session — **M39 analytics foundations, tasks 2–6.**
 
-The analytics brief is **written and committed**. It was a document, not a build, so there is no
-branch and nothing to merge. Start from a clean `main`.
+The analytics brief is **closed**. **M39 is IN PROGRESS on `main`** — no branch, nothing to merge,
+tree clean. Three of its eight tasks are done and pushed; five remain.
 
 ```bash
 cd ~/dev/boxhub && git checkout main && git pull && git branch -a   # expect main, and only main
@@ -14,22 +14,39 @@ cd ~/dev/boxhub && git checkout main && git pull && git branch -a   # expect mai
 
 ---
 
-## THREE DECISIONS ARE OPEN AND THEY BLOCK PLANNING — ask before building anything
+## Where M39 stands
 
-The brief ends with these. They are the user's to rule on, not the orchestrator's to assume.
+Plan: `docs/superpowers/plans/2026-08-27-m39-analytics-foundations.md`. Read it before anything.
 
-1. **D-1: editing a class's programming deletes every score logged against it.** Live, reachable,
-   verified. `PUT /api/box/sessions/{sessionId}/items` →
-   `programming/SessionItemController.java:94` → `wod_score` cascades. No score guard, no date
-   guard. **Fix now as a defect, or fold into `M14c-a`**, which rebuilds the builder anyway?
-   Filed in `docs/BACKLOG.md`.
-2. **Migration timing.** The brief forces **six migrations** (see its §5). One migration milestone
-   before `M29a`, or fold each into the milestone that consumes it? Folding is later and riskier;
-   a single early pass is cheaper and is off the current plan.
-3. **Multi-box athlete analytics.** An athlete in three gyms holds three memberships, so scores,
-   PRs and attendance are per-box. Is `M17c` scoped to the current box (simple, and loses your PR
-   history when you change gym), or aggregated across the person? `M21` made this possible without
-   deciding it.
+| Task | State |
+|---|---|
+| 1 — `V29__analytics_foundations.sql` | ✅ done. Applied V1→V29 to a throwaway Postgres, every backfill asserted, negative control on the currency adoption |
+| 7 — D-3, `Membership` reads scoped to the caller's box | ✅ done, 4 call sites, negative control `expected:<2> but was:<9>` |
+| 8 — D-1, programming edits no longer delete scores | ✅ done, 8 tests, negative control on all of them |
+| **2 — M-1 `membership_event` entity + the four write sites** | **next** |
+| **3 — M-2/M-3 settlement + refunds (MONEY — tightest brief)** | todo |
+| **4 — M-4 `subscription.kind`** | todo |
+| **5 — M-5 `boxes.currency` + plan validation** | todo |
+| **6 — M-6 `ran_by_membership_id`** | todo |
+
+**The migration has already landed, so tasks 2–6 are Java over an existing schema.** Do not write
+another migration; V29 is applied.
+
+### The one rule that governs task 2, already derived — do not re-derive it
+
+Both membership-creation paths are **tenant-less**, and both already end in a `runAsBox` block
+(`InviteAcceptTx.accept` says so in its own javadoc; `BoxSignupService:109` does the same for the
+owner). A `@TenantId` row written in the tenant-less half is stamped with the all-zeros `NO_TENANT`
+sentinel and **dies on the foreign key** — `docs/TENANCY.md` failure mode 2. So:
+
+> **`membership_event` is `@TenantId`, and it is written wherever `Subscription` is written.**
+
+`MemberController.patch` is the exception that proves it: it serves `/api/box/**`, already holds a
+real box tenant, and writes its event **strictly inside its existing `@Transactional`**.
+
+**`LEFT` is in the check constraint and nothing emits it, deliberately.** The product has no
+departure flow — no LEFT status, no leave endpoint, no admin "remove member". M39 records the
+transitions that *exist*. Inventing a departure is **M15a's**.
 
 ---
 
@@ -39,7 +56,7 @@ The brief ends with these. They are the user's to rule on, not the orchestrator'
 2. **`docs/superpowers/specs/2026-08-27-analytics-brief.md`** — **new.** Read §5 before any backend
    work and §4 before any chart. It changes what M15a, M16d, M17c and M18 can promise.
 3. **`docs/ROADMAP-AT-A-GLANCE.md`** — execution order. Milestone numbers are labels, not a
-   sequence. **M29a is next.**
+   sequence. **M39, then M29a.**
 4. **`docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md`** — the pilot IS v1.0.
 5. **`docs/POSITIONING.md`** — before writing anything a gym owner reads. **Note: the brief
    corrects its §5** — `subscription`/`payment`/`entitlement_usage` do *not* hold everything LEG
@@ -76,18 +93,23 @@ The brief ends with these. They are the user's to rule on, not the orchestrator'
 
 | Gate | Value | Measured |
 |---|---|---|
+| Backend | **544 / 0 / 0 / 0** | ✅ this session, by the orchestrator, not read off a report |
 | Karma | **450 / 450** | ✅ this session |
-| Production build | **green** (`ng build --configuration production`) | ✅ this session |
+| Production build | **green** | ✅ this session |
 | Eight §8.1 greps | all **0 hits** | ✅ this session |
-| Backend | 535 / 0 / 0 / 0 | inherited from M23 — **not re-run**, no backend file changed |
-| e2e | 76 passed / 0 failed / 0 skipped | inherited from M23 — **not re-run** |
-| Visual | 33 / 33 | inherited from M23 — **not re-run** |
-| `AuthzConformanceTest` | untouched | — |
+| `runAsRoot` in controllers | **0** | ✅ this session |
+| `memberships.findAll()` in main | **0** — new standing gate, see D-3 | ✅ this session |
+| `AuthzConformanceTest` | **untouched** (0 lines changed vs `origin/main`) | ✅ this session |
+| e2e | 76 passed / 0 failed / 0 skipped | **inherited from M23 — NOT re-run. Owed before M39 closes.** |
+| Visual | 33 / 33 | **inherited from M23 — NOT re-run. Owed before M39 closes.** |
 
-**Say which numbers you measured.** The three inherited rows are honest to carry only because this
-session changed documentation plus six additive CSS custom properties that no screen consumes yet —
-nothing that e2e or a visual baseline can see. The first milestone that touches a screen re-measures
-all of them.
+Backend went 535 → 544: six tests from D-1, one from D-3, two from the orchestrator's correction.
+
+**e2e and the visual suite have NOT been run against M39.** D-1 changed a request body shape and a
+frontend page, so e2e genuinely needs to run on a rebuilt image and a `down -v` stack before this
+milestone can be called done. That is the largest outstanding risk in the milestone.
+
+**Say which numbers you measured.**
 
 ### Environment that is already set up — do not rediscover it
 
@@ -208,7 +230,7 @@ its result as the gate.
 
 ## After M29a
 
-**Phase A continues:** M29a → M29b → M14b → M14c-a → M14c-b → M17a → M17b → M17c → M15a → M15b →
+**Phase A continues:** M39 (finish) → M29a → M29b → M14b → M14c-a → M14c-b → M17a → M17b → M17c → M15a → M15b →
 M16b → M16c → M16d → M18 → M30 → M32a → M32b → M24 → M25 → M26 → M33 → M27a → M27b → M27c →
 **M34–M37** (The Room).
 **Phase B:** M38 → M28 → M27d → M19 → M20 → **v1.0 → pilot**.
