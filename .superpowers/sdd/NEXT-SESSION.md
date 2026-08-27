@@ -61,6 +61,18 @@ exactly zero margin and still carries P2s — treat it as a pass, not a comforta
 e2e count of 67 marked "inherited and unverified" — it was 67 only because three specs were failing
 and five never ran. Say which numbers you measured.
 
+### Environment that is already set up — do not rediscover it
+
+- **Claude in Chrome is installed and connecting.** If `tabs_context_mcp` says "not connected",
+  it is a dropped connection, not a missing install: check the extension is enabled and signed in
+  to the same account, and that the frontmost Chrome window is the `Default` profile.
+- **The dev stack runs from `docker/docker-compose.yml`**; the app is at `http://localhost/app/`.
+- **Multi-gym demo accounts exist**, all with password `boxhub-demo-2026` — `triple@demo.io`
+  (three gyms, a different role in each), `duo@demo.io` (two), `blocked@demo.io` (one active, one
+  PENDING, one SUSPENDED — the only way to see both unreachable states), `nobox@demo.io` (none).
+  They are documented in `README.md`. **Do not change `multi@demo.io`'s memberships** — a visual
+  baseline is recorded against them.
+
 ---
 
 ## The frontend routine (binding — full text in `CLAUDE.md`)
