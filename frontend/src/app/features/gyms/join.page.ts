@@ -26,27 +26,41 @@ import { RouterLink } from '@angular/router';
       </p>
       <p class="p" i18n="@@join.ask.mismatch">
         No link yet? Check your spam folder first — your gym may also simply not have sent it
-        yet. If it was sent to a different email address than the one you signed up with, change
-        your address and then ask your gym to send the invite again: fixing the address does not
+        yet.
+      </p>
+      <p class="p" i18n="@@join.ask.mismatch2">
+        If it was sent to a different email address than the one you signed up with, change your
+        address and then ask your gym to send the invite again — fixing the address does not
         revive the old link.
       </p>
-      <!-- The paragraph above names the one failure this screen can predict, so it owes the
-           reader the way to act on it. The address lives in the account area, which a boxless
-           session can already reach. Without this the named problem is a dead end. -->
+      <!-- The paragraphs above name the two failures this screen can predict, so it owes the
+           reader the way to act on the addressing one. The address lives in the account area,
+           which a boxless session can already reach. Without this the named problem is a dead end. -->
       <!-- Straight to change-email, not /account: the index guard sends desktop to Password, and
            the label has to match what the destination can actually do. That screen changes the
            address; it does not display the current one, so this cannot promise "check". -->
       <a class="p link" routerLink="/account/change-email" data-testid="join-check-email"
          i18n="@@join.ask.changeEmail">Change the email on your account</a>
+      <!-- Neither named cause covers everything a real gym-side mistake can produce (wrong
+           invite entirely, gym error). This closes the loop without inventing a mechanism this
+           screen cannot offer — there is still nothing to click, just who to ask. -->
+      <p class="p" i18n="@@join.ask.stillNothing">
+        Still nothing? Ask your gym to confirm they invited the right address.
+      </p>
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
-    .title { font-size: var(--fs-display); margin: 0 0 var(--sp-5); text-transform: uppercase;
-      letter-spacing: -0.02em; }
+    /* Shares the content column's cap and centring. Centring only the rows left the heading
+       pinned to the far left of a wide screen, detached from the content it names. */
+    .title { font-size: var(--fs-display); margin: 0 auto var(--sp-5); text-transform: uppercase;
+      letter-spacing: -0.02em; width: 100%; max-width: 480px; }
+    /* margin-block centres the panel vertically inside .content (a flex column, set in
+       hub-shell.page.ts) instead of top-anchoring with bare ground below on a short viewport. */
     .panel { border: 1px solid var(--hairline); border-radius: var(--r-card);
       background: var(--surface); padding: var(--sp-6) var(--sp-5);
-      display: flex; flex-direction: column; gap: var(--sp-3); max-width: 480px; }
+      display: flex; flex-direction: column; gap: var(--sp-3); max-width: 480px;
+      margin-block: auto; }
     .eh { margin: 0; text-transform: uppercase; letter-spacing: -0.01em; }
     .p { margin: 0; color: var(--bone-dim); font-size: var(--fs-sm); }
     .link { display: inline-flex; align-items: center; min-height: var(--tap);

@@ -36,8 +36,12 @@ import { AlertComponent } from '../../ui/alert.component';
            i18n="@@gyms.empty.cta">How to join</a>
       </div>
     } @else {
-      <div class="gyms">
+      <div class="gyms" role="list">
+        <!-- role="listitem" goes on a wrapper, never on the button: ARIA-in-HTML does not allow
+             listitem on button, so a conformant browser keeps the native button role and the list
+             framing silently disappears — the opposite of the fix. -->
         @for (m of auth.memberships(); track m.boxId) {
+          <div role="listitem" class="grow">
           @if (isReachable(m.boxStatus)) {
             <button class="gym" (click)="enter(m)"
                     [attr.aria-busy]="entering() === m.boxId"
@@ -64,25 +68,39 @@ import { AlertComponent } from '../../ui/alert.component';
               <span class="meta">
                 <span class="gname">{{ m.boxName }}</span>
                 <span class="grole">{{ label(m) }}</span>
+                <span class="ghint" i18n="@@gyms.off.hint">Contact your gym for help.</span>
               </span>
               <span class="chip off-chip">{{ statusLabel(m) }}</span>
             </div>
           }
+          </div>
         }
       </div>
     }
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
-    .title { font-size: var(--fs-display); margin: 0 0 var(--sp-5); text-transform: uppercase;
-      letter-spacing: -0.02em; }
-    .gyms { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 640px; }
+    /* Shares the content column's cap and centring. Centring only the rows left the heading
+       pinned to the far left of a wide screen, detached from the content it names. */
+    .title { font-size: var(--fs-display); margin: 0 auto var(--sp-5); text-transform: uppercase;
+      letter-spacing: -0.02em; width: 100%; max-width: 740px; }
+    /* Cap wide, not narrow: a bare row list left ~840px of dead space at 1500px. The cap keeps
+       rows readable; margin-inline centres the column instead of hugging the left edge. */
+    /* A real flex box, NOT display:contents — several engines drop a display:contents element
+       from the a11y tree, which would strip the very listitem role this wrapper exists to carry. */
+    .grow { display: flex; }
+    .gyms { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 740px;
+      margin-inline: auto; width: 100%; }
     .gym { display: flex; align-items: center; gap: var(--sp-3); width: 100%; text-align: left;
       background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       padding: var(--sp-3) var(--sp-4); cursor: pointer; font: inherit; color: inherit;
       transition: border-color .15s; }
     .gym:hover:not([aria-disabled]) { border-color: var(--bone-dim); }
-    .gym[aria-disabled] { opacity: .6; cursor: not-allowed; }
+    /* Not the busy row. aria-disabled goes on EVERY row while a switch runs, so dimming it
+       unconditionally also dims the one rendering "Opening…" — the status text this screen exists
+       to show — taking --bone-dim to roughly 3.4:1 at --fs-meta. Dim the inert rows only. */
+    .gym[aria-disabled]:not([aria-busy="true"]) { opacity: .6; cursor: not-allowed; }
+    .gym[aria-busy="true"] { cursor: progress; }
     .gym:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .gym.off { background: var(--surface); cursor: default; }
 
@@ -111,6 +129,11 @@ import { AlertComponent } from '../../ui/alert.component';
        an inactive CONTROL's own label; this row is deliberately a div and not a control, and the
        role it names is real information about the member. Matches .gname's choice one rule up. */
     .gym.off .grole { color: var(--faint); }
+    /* Same colour and surface as .grole above (--faint measures 4.70:1 on --surface, passes AA)
+       — this is prose, not a measured value, so it stays off mono rather than borrowing .grole's
+       voice. A dead end otherwise: the row explains what happened but not what to do about it. */
+    .ghint { display: block; font-family: var(--font-body); font-size: var(--fs-sm);
+      color: var(--faint); }
     .go { color: var(--faint); font-size: var(--fs-h2); flex-shrink: 0; }
 
     /* --bone-dim, not --faint, for the same reason .grole above carries it: the chip on a
@@ -122,9 +145,14 @@ import { AlertComponent } from '../../ui/alert.component';
       text-transform: uppercase; padding: 3px var(--sp-2); border-radius: var(--r-full);
       border: 1px solid var(--hairline); color: var(--bone-dim); flex-shrink: 0; white-space: nowrap; }
 
+    /* margin-inline centres the panel horizontally, same as .gyms above. margin-block centres
+       it vertically inside .content (a flex column, set in hub-shell.page.ts) instead of
+       top-anchoring with bare ground below — .gyms deliberately does NOT get margin-block, so
+       a populated list stays pinned to the top. */
     .empty { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-6) var(--sp-5); display: flex; flex-direction: column;
-      align-items: flex-start; gap: var(--sp-3); max-width: 480px; }
+      align-items: flex-start; gap: var(--sp-3); max-width: 480px; width: 100%;
+      margin-inline: auto; margin-block: auto; }
     .eh { margin: 0; text-transform: uppercase; letter-spacing: -0.01em; }
     .ep { margin: 0; color: var(--bone-dim); font-size: var(--fs-sm); }
     .cta { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-5);

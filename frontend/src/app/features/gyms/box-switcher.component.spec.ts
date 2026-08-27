@@ -40,6 +40,15 @@ describe('BoxSwitcherComponent', () => {
     expect(el.querySelector('[data-testid="switcher-all-gyms"]')).not.toBeNull();
   });
 
+  // The component renders for a single-gym member so All gyms stays reachable; without a line
+  // of framing the sheet opens on an unexplained empty gap where the list would be.
+  it('explains itself when there is no other gym to switch to', () => {
+    const { f, el } = setup([m()]);
+    el.querySelector<HTMLElement>('[data-testid="box-switcher"]')!.click();
+    f.detectChanges();
+    expect(el.textContent).toContain('This is your only gym.');
+  });
+
   it('lists the other gyms with the role held at each, never the enum', () => {
     const { f, el } = setup([m(), m({ boxId: 'b2', boxSlug: 'nb', boxName: 'Northside', role: 'BOX_ADMIN' })]);
     el.querySelector<HTMLElement>('[data-testid="box-switcher"]')!.click();

@@ -82,4 +82,23 @@ describe('GymsPage', () => {
     f.componentInstance.enter(m({ boxStatus: 'SUSPENDED' }));
     expect(auth.selectBox).not.toHaveBeenCalled();
   });
+
+  // An unreachable gym used to be a grey row and a chip and nothing else — no explanation, no
+  // next step. This is the one quiet line that closes that dead end.
+  it('gives an unreachable gym a next step instead of a dead end', () => {
+    const { el } = setup([m({ boxStatus: 'SUSPENDED' })]);
+    const row = el.querySelector('[data-testid="gym-cfo"]')!;
+    expect(row.textContent).toContain('Contact your gym for help.');
+  });
+
+  // The flex-laid-out row list is a <div>, not a <ul>/<li> — engines can strip list semantics
+  // from a flex list, so the roles are explicit instead.
+  it('exposes list semantics on the gym list and each row', () => {
+    const { el } = setup([
+      m({ boxId: 'b1', boxSlug: 'cfo' }),
+      m({ boxId: 'b2', boxSlug: 'nb', boxName: 'Northside' }),
+    ]);
+    expect(el.querySelector('.gyms')!.getAttribute('role')).toBe('list');
+    expect(el.querySelectorAll('.gyms > [role="listitem"]').length).toBe(2);
+  });
 });

@@ -77,6 +77,34 @@ describe('SheetComponent', () => {
     expect(fixture.componentInstance.closedCount).toBe(1);
   });
 
+  // The grab handle affords a swipe nothing implements, and Escape/backdrop are undiscoverable
+  // on a phone. Two critiques scored the missing exit a P1; plate 05 had drawn it all along.
+  it('offers a visible close control that shuts the sheet', () => {
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
+    const close: HTMLButtonElement = fixture.nativeElement.querySelector('[data-testid="sheet-close"]');
+    expect(close).not.toBeNull();
+    close.click();
+    dlg.dispatchEvent(new Event('close'));
+    fixture.detectChanges();
+    expect(dlg.open).toBeFalse();
+  });
+
+  // It must not be a back door around the unsaved-work prompt that Escape and the backdrop respect.
+  it('routes the close control through the discard prompt when closing is guarded', () => {
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.confirmClose.set(true);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
+    (fixture.nativeElement.querySelector('[data-testid="sheet-close"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(dlg.open).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.discard')).not.toBeNull();
+  });
+
   it('unguarded backdrop tap closes', () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.componentInstance.open.set(true);

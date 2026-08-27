@@ -4,6 +4,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { MembershipDto, redirectForRole } from '../../core/auth/auth.models';
 import { roleLabel, isReachable } from '../../core/auth/labels';
 import { SheetComponent } from '../../ui/sheet.component';
+import { IconComponent } from '../../ui/icon.component';
 import { AlertComponent } from '../../ui/alert.component';
 
 /**
@@ -23,16 +24,14 @@ import { AlertComponent } from '../../ui/alert.component';
 @Component({
   selector: 'bh-box-switcher',
   standalone: true,
-  imports: [SheetComponent, RouterLink, AlertComponent],
+  imports: [SheetComponent, RouterLink, AlertComponent, IconComponent],
   template: `
     <button type="button" class="switcher" (click)="openSheet()"
             data-testid="box-switcher"
             [attr.aria-label]="switchLabel()" aria-haspopup="dialog">
       <span class="mark" aria-hidden="true">{{ initial() }}</span>
       <span class="bn">{{ activeName() }}</span>
-      <!-- Literal glyph, not &#-notation: the numeric entity for this triangle is 9662, and
-           the raw-hex gate (design-system 8.1) reads that as a colour and goes red. -->
-      <span class="chev" aria-hidden="true">▾</span>
+      <bh-icon class="chev" name="chevron-down" [size]="16" aria-hidden="true" />
     </button>
 
     <bh-sheet [open]="open()" title="Switch gym" i18n-title="@@switcher.title"
@@ -40,6 +39,11 @@ import { AlertComponent } from '../../ui/alert.component';
       @if (open()) {
         @if (error()) {
           <bh-alert tone="danger" data-testid="switcher-error">{{ error() }}</bh-alert>
+        }
+        @if (others().length === 0) {
+          <!-- Renders for a single-gym member on purpose: All gyms is their only route to
+               /gyms/join. Without this line the sheet opens on an unexplained empty gap. -->
+          <p class="only" i18n="@@switcher.onlyGym">This is your only gym.</p>
         }
         <div class="rows">
           @for (m of others(); track m.boxId) {
@@ -55,7 +59,7 @@ import { AlertComponent } from '../../ui/alert.component';
               @if (entering() === m.boxId) {
                 <span class="chip" i18n="@@switcher.opening">Opening…</span>
               } @else {
-                <span class="go" aria-hidden="true">&rsaquo;</span>
+                <bh-icon class="go" name="chevron-right" [size]="16" aria-hidden="true" />
               }
             </button>
           }
@@ -63,7 +67,7 @@ import { AlertComponent } from '../../ui/alert.component';
         <a class="allgyms" routerLink="/gyms" (click)="open.set(false)"
            data-testid="switcher-all-gyms">
           <span i18n="@@switcher.allGyms">All gyms</span>
-          <span class="go" aria-hidden="true">&rsaquo;</span>
+          <bh-icon class="go" name="chevron-right" [size]="16" aria-hidden="true" />
         </a>
       }
     </bh-sheet>
@@ -84,16 +88,22 @@ import { AlertComponent } from '../../ui/alert.component';
     .bn { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body);
       text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; }
-    .chev { color: var(--faint); font-size: var(--fs-meta); flex-shrink: 0; }
+    /* bh-icon, not a text glyph: at --fs-meta the raw caret rendered as a near-invisible dot and
+       the gym name did not read as interactive. Every sibling chrome icon uses bh-icon. */
+    .chev { color: var(--bone-dim); flex-shrink: 0; display: inline-flex; }
 
+    .only { margin: 0 0 var(--sp-3); color: var(--bone-dim); font-size: var(--fs-sm); }
     .rows { display: flex; flex-direction: column; gap: var(--sp-2); }
     .row { display: flex; align-items: center; gap: var(--sp-3); width: 100%; text-align: left;
+      min-height: var(--tap);
       background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--edge);
       padding: var(--sp-3); cursor: pointer; font: inherit; color: inherit; }
     .row:hover:not([aria-disabled]) { border-color: var(--bone-dim); }
     /* While one switch is in flight the handler ignores taps on every other row. Saying so is
        the sibling hub screen's behaviour too; without it the rows stay silently inert. */
-    .row[aria-disabled] { opacity: .6; cursor: not-allowed; }
+    /* Same carve-out as the hub: the busy row must not be dimmed while it shows "Opening…". */
+    .row[aria-disabled]:not([aria-busy="true"]) { opacity: .6; cursor: not-allowed; }
+    .row[aria-busy="true"] { cursor: progress; }
     .row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .rmark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--surface);
       color: var(--bone-dim); border: 1px solid var(--hairline); display: grid; place-items: center;
@@ -103,7 +113,9 @@ import { AlertComponent } from '../../ui/alert.component';
       font-size: var(--fs-body); color: var(--bone); overflow-wrap: anywhere; }
     .rrole { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--bone-dim); }
-    .go { color: var(--faint); flex-shrink: 0; }
+    /* bh-icon like every other chrome glyph, not a text entity — the header chevron was fixed
+       for exactly this and these two were missed. */
+    .go { color: var(--bone-dim); flex-shrink: 0; display: inline-flex; }
     /* --bone-dim, not --faint: this chip sits on --surface-2 (the row background), where
        --faint measures 4.27:1 and fails AA — the same reasoning as gyms.page.ts's .chip. */
     .chip { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
