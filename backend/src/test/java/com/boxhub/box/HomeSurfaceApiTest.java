@@ -149,6 +149,33 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Regression for the AdminStatsController#stats() leak: activeMembers used to come from
+     * MembershipRepository#findAll(), which is not box-scoped (Membership carries no @TenantId
+     * discriminator). Two boxes with different, distinguishable ACTIVE counts (2 and 3) — a sum
+     * (5), the other box's count (3), or a max would all be wrong and visibly different from the
+     * right answer (2).
+     */
+    @Test
+    void adminStatsActiveMembersScopedToCallersBoxNotSummedAcrossBoxes() throws Exception {
+        long n = System.nanoTime();
+        Box boxX = newBox("Stat X " + n, "stat-x-" + n);
+        Box boxY = newBox("Stat Y " + n, "stat-y-" + n);
+
+        String adminX = member("stx-" + n + "@t.io", boxX, "BOX_ADMIN").token();
+        member("stx2-" + n + "@t.io", boxX, "ATHLETE");
+        // boxX: 2 ACTIVE memberships (adminX + one athlete)
+
+        member("sty-" + n + "@t.io", boxY, "BOX_ADMIN");
+        member("sty2-" + n + "@t.io", boxY, "ATHLETE");
+        member("sty3-" + n + "@t.io", boxY, "ATHLETE");
+        // boxY: 3 ACTIVE memberships
+
+        mvc.perform(get("/api/box/admin-stats").header("Authorization", "Bearer " + adminX))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeMembers").value(2));
+    }
+
+    /**
      * M10: planExpiringSoon/planDaysLeft/expiringPlans all now read the active Subscription's
      * currentPeriodEnd (nothing writes the old Membership.expiresAt column any more) — pin all
      * three surfaces against a real subscription end rather than the dead field.

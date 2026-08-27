@@ -1,6 +1,7 @@
 package com.boxhub.performance;
 
 import com.boxhub.identity.Membership;
+import com.boxhub.shared.TenantContext;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.programming.SessionItem;
 import com.boxhub.programming.SessionItemRepository;
@@ -45,7 +46,10 @@ public class LeaderboardController {
         String scoreType = item.getScoreType(); // explicit now (M14a) — no derivation left
         List<WodScore> ranked = Leaderboard.rank(scores.findBySessionItemId(itemId), scoreType);
 
-        Map<UUID, Who> who = memberships.findAll().stream()
+        // Membership carries no @TenantId discriminator (deliberately -- the box switcher reads one
+        // person's memberships across boxes), so every query on it must state its own box predicate.
+        // findAll() here pulled EVERY box's memberships into memory on each request.
+        Map<UUID, Who> who = memberships.findByBoxId(TenantContext.requireBoxId()).stream()
                 .collect(Collectors.toMap(Membership::getId,
                         m -> new Who(m.getUser().getName(), m.getAvatarPath()), (a, b) -> a));
 

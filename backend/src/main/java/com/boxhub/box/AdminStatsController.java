@@ -3,6 +3,7 @@ package com.boxhub.box;
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.shared.RoleGuard;
+import com.boxhub.shared.TenantContext;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,7 +39,11 @@ public class AdminStatsController {
     public AdminStatsDto stats() {
         RoleGuard.requireBoxAdmin();
 
-        List<Membership> all = memberships.findAll();
+        // Membership carries no @TenantId discriminator (deliberately — it lets the box switcher
+        // read one person's memberships across boxes), so this query must state its own box_id
+        // predicate explicitly. findAll() here previously leaked every box's memberships into a
+        // box admin's KPIs.
+        List<Membership> all = memberships.findByBoxId(TenantContext.requireBoxId());
         long active = all.stream().filter(m -> "ACTIVE".equals(m.getStatus())).count();
         // M10: sourced from each membership's active Subscription's currentPeriodEnd, not the dead
         // Membership.expiresAt column (nothing writes it any more). A grandfathered subscription

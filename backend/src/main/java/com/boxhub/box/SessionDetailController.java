@@ -1,6 +1,7 @@
 package com.boxhub.box;
 
 import com.boxhub.identity.Membership;
+import com.boxhub.shared.TenantContext;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
@@ -67,7 +68,10 @@ public class SessionDetailController {
             }
         }
 
-        Map<UUID, Membership> memberById = memberships.findAll().stream()
+        // Membership carries no @TenantId discriminator (deliberately -- the box switcher reads one
+        // person's memberships across boxes), so every query on it must state its own box predicate.
+        // findAll() here pulled EVERY box's memberships into memory on each request.
+        Map<UUID, Membership> memberById = memberships.findByBoxId(TenantContext.requireBoxId()).stream()
                 .collect(Collectors.toMap(Membership::getId, m -> m, (a, b) -> a));
 
         List<Booking> all = bookings.findBySessionId(id);

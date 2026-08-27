@@ -122,7 +122,10 @@ public class HomeController {
                 : slots.findById(s.getScheduleSlotId()).flatMap(sl -> types.findById(sl.getClassTypeId()))
                         .map(ClassType::getImagePath).orElse(null));
 
-        Map<UUID, Membership> memberById = memberships.findAll().stream()
+        // Membership carries no @TenantId discriminator (deliberately -- the box switcher reads one
+        // person's memberships across boxes), so every query on it must state its own box predicate.
+        // findAll() here pulled EVERY box's memberships into memory on each request.
+        Map<UUID, Membership> memberById = memberships.findByBoxId(TenantContext.requireBoxId()).stream()
                 .collect(Collectors.toMap(Membership::getId, m -> m, (a, b) -> a));
         List<Booking> active = bookings.findBySessionId(s.getId()).stream()
                 .filter(b -> "BOOKED".equals(b.getStatus()) || "CHECKED_IN".equals(b.getStatus())).toList();

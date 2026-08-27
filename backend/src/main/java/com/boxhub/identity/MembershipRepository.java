@@ -33,6 +33,10 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
     // Membership is not @TenantId — derived query safe tenant-agnostically.
     Optional<Membership> findFirstByBoxIdAndRole(UUID boxId, String role);
 
+    // Membership is not @TenantId — derived query safe tenant-agnostically. Used by
+    // AdminStatsController, which must state its own box predicate explicitly.
+    List<Membership> findByBoxId(UUID boxId);
+
     // Join-fetch so callers can read m.getUser() after this method's own transaction has closed
     // (open-in-view is false) — used by mail-sending code (PaymentReceipts, SubscriptionLapseJob)
     // that runs strictly after a DB commit, outside any request-scoped session.
