@@ -50,9 +50,10 @@
      Computed and validated, not eyeballed. In OKLCH dark mode all six sit inside L 0.48-0.67,
      clear the 0.10 chroma floor, clear 3:1 against --surface AND --ground, and pass both the
      adjacent and the all-pairs CVD gates (worst all-pairs dE 8.3 deutan; normal-vision 15.8).
-     Two caveats that survived: --cat-2 and --cat-6 collapse under tritanopia (dE 3.5), so do not
-     stack them adjacent without direct labels; and --cat-2 sits near the chroma floor and is only
-     dE 10.8 from --faint, so it is a fill or a 2px line, never a 1px hairline beside axis text. */
+     Two caveats that survived: --cat-2 (teal) and --cat-4 (azure) collapse under tritanopia
+     (dE 3.5, and --cat-1/--cat-5 are next at 7.8), so do not stack either pair adjacent without
+     direct labels; and --cat-2 sits near the chroma floor and is only dE 10.8 from --faint, so it
+     is a fill or a 2px line, never a 1px hairline beside axis text. */
   --cat-1: #7550d1;  /* indigo    */
   --cat-2: #1fa89c;  /* teal      */
   --cat-3: #bc2b72;  /* rose      */

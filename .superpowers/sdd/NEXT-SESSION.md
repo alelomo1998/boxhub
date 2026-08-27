@@ -147,6 +147,10 @@ against your own eyes.
   brief produced three near-identical reds on its first run, from a wrong modular-distance formula
   *and* a greedy that gamed the adjacent-only pairlist. **Select a palette on `--pairs all`, then
   order it for adjacency** — and look at the output, because both bugs validated green.
+- **`validate_palette.js` names the worst protan/deutan pair, then reports the minimum tritan
+  across ALL pairs — unnamed.** Attributing that tritan number to the named pair is wrong. The
+  analytics brief shipped that mistake and it was caught only by simulating the two colours and
+  seeing they looked nothing alike. **If a number and a picture disagree, re-run the arithmetic.**
 - **`ng build` does not compile spec files.** Karma is what catches a spec that does not compile.
 - **`tsc` does not type-check Angular templates.** Only `npx ng build --configuration production`.
 - **Never pipe a gate for its exit status** — in zsh `$?` after a pipe is the pipe's.

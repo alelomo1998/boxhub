@@ -453,8 +453,14 @@ as well as on a card.
 1. **Six is the ceiling, and it clears by a thin margin** — all-pairs CVD 8.3 against a target of 8.0,
    normal-vision 15.8 against a floor of 15. Seven slots fails outright. **A seventh series folds into
    "Other", facets into small multiples, or the chart is the wrong form.** Never generate a hue.
-2. **`--cat-2` and `--cat-6` collapse under tritanopia** (ΔE 3.5). Tritan is reported, not gated, and
-   it is rare — but do not put those two adjacent in a stacked bar without direct labels.
+2. **`--cat-2` (teal) and `--cat-4` (azure) collapse under tritanopia** (ΔE 3.5) — blue-versus-green
+   is exactly what tritanopia confuses. `--cat-1`/`--cat-5` are next at 7.8. Tritan is reported by
+   the validator, not gated, and it is rare — but do not put either pair adjacent in a stacked bar
+   without direct labels.
+
+   > Read the validator's output carefully: it **names** the worst protan/deutan pair and then
+   > reports the minimum tritan across *all* pairs **unnamed**. Attributing that tritan number to
+   > the named pair is wrong, and this brief did exactly that before the arithmetic was re-run.
 3. **`--cat-2` sits near the chroma floor** (C 0.11) and is only ΔE 10.8 from `--faint`, the muted
    text token. As a fill or a 2px line it is fine; as a 1px hairline beside axis labels it will read
    as grey. The gamut at 186° does not permit more chroma inside the lightness band.
