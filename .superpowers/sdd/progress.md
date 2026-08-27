@@ -2493,3 +2493,64 @@ seeding within ~40 minutes of midnight pushes a class out of "today". Measured o
 at 23:46 `Burn It` landed tomorrow and `programming.spec` failed; at 00:02 `WOD Class` landed
 yesterday and `tracking` + `runner` failed. Green outside the window. In `docs/BACKLOG.md`.
 **CI is time-of-day dependent until it is fixed.**
+
+---
+
+## M23 — the browser-verified critique round, 2026-08-27
+
+The first run of the routine as raised: **audit → critique, both with Claude in Chrome connected.**
+Every earlier M23 critique had been source-only, because the extension was not installed.
+
+### Scores
+
+| Screen | Audit /20 | Critique before | Critique after | P0/P1 open |
+|---|---|---|---|---|
+| Hub | 17 | 30/40 | **32/40** | none |
+| Join | 18 | 28/40 | **33/40** | none |
+| Switcher | 17 | 32/40 (P1 open) | **36/40** | none |
+
+All three clear ≥32/40 with no open P0/P1. **The hub clears by exactly zero margin** and carries
+open P2s — it is a pass, not a comfortable one.
+
+### What only the browser could find
+
+1. **`margin-block: auto` centred nothing.** In Angular the flex child of the shell's `.content` is
+   the component's **host element**, not any panel inside its template. Valid CSS, green build,
+   passing tests, zero effect. The host had to become the flex column.
+2. **Fixing that revealed two more, each visible only in the render:** centring the rows left the
+   heading pinned to the far left of a 1500px screen, and then centring the empty panel
+   independently put it 130px off from that heading. Three iterations, all by looking.
+3. **The scrim had silently drifted.** `bh-sheet`'s `::backdrop` literal fallback was
+   `rgba(10,7,4,0.55)` against a token of `rgba(6,9,7,0.62)` — and a comment claimed it mirrored the
+   token. Chrome cannot inherit `:root` vars into `::backdrop`, so **the fallback is what had been
+   rendering in every sheet in the app since it was written.**
+4. **`bh-sheet` had no visible close control.** Plate 05 of this milestone's own sketch drew one; it
+   was never built. The grab handle afforded a swipe nothing implements.
+5. **A transient AA failure no static check could catch.** `aria-disabled` was set on *every* row
+   during a switch, including the busy one, so the "Opening…" chip rendered at 0.6 opacity — about
+   3.4:1. The status text the screen exists to show was its least legible element.
+6. **The dock said `GYMS` in mono caps while the header said `Gyms` in Archivo** — same three links,
+   two type voices, visible only by viewing both breakpoints.
+
+### Two corrections worth keeping
+
+- **The rubric does not structurally cap a thin static screen.** The orchestrator proposed exempting
+  static screens from the ≥32 bar; the join reviewer refused, and proved it — heuristic 10 moved
+  **1/4 → 3/4 on one added sentence**, because for a screen whose job *is* documentation, "help" is
+  satisfied by the copy closing every loop it opens. Heuristic 7 stays at 1/4 and should. **Do not
+  exempt static screens.**
+- **A screenshot read is not a source read.** The orchestrator told a reviewer the athlete home
+  showed "two volt stat numbers"; the reviewer checked the source and found `.s-val` has no colour
+  rule and inherits `--bone`. The real second volt element is the CTA link. Verify before asserting,
+  including against your own eyes.
+
+### Left open, deliberately
+
+- **Volt budget on `athlete/home.page.ts`** — the switcher's mark plus that screen's own volt CTA is
+  two accents on a screen the design law does not list as hero. **Checked and NOT systemic:**
+  `book` and `membership` carry no volt of their own. Needs one adjudication: demote the CTA, or add
+  home to the hero enumeration. Leaving it undecided is how a third mark appears next milestone.
+- **"Contact your gym for help" is inert prose** with no channel, because a boxless session has no
+  admin contact to link to. Honest today; revisit when that data exists.
+- **740px column cap** was chosen to kill the P1, not from analysis. Worth a considered number when
+  an admin juggles five boxes.
