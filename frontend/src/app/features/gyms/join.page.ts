@@ -51,10 +51,14 @@ import { RouterLink } from '@angular/router';
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
+    /* The flex child of the shell's .content is THIS host element, not anything inside it, so a
+       margin-block:auto on an inner panel centred nothing. The host has to be the flex column. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0;
+      width: 100%; max-width: 740px; margin-inline: auto; }
     /* Shares the content column's cap and centring. Centring only the rows left the heading
        pinned to the far left of a wide screen, detached from the content it names. */
-    .title { font-size: var(--fs-display); margin: 0 auto var(--sp-5); text-transform: uppercase;
-      letter-spacing: -0.02em; width: 100%; max-width: 480px; }
+    .title { font-size: var(--fs-display); margin: 0 0 var(--sp-5); text-transform: uppercase;
+      letter-spacing: -0.02em; }
     /* margin-block centres the panel vertically inside .content (a flex column, set in
        hub-shell.page.ts) instead of top-anchoring with bare ground below on a short viewport. */
     .panel { border: 1px solid var(--hairline); border-radius: var(--r-card);

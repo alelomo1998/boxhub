@@ -80,10 +80,14 @@ import { AlertComponent } from '../../ui/alert.component';
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
+    /* The flex child of the shell's .content is THIS host element, not anything inside it, so a
+       margin-block:auto on an inner panel centred nothing. The host has to be the flex column. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0;
+      width: 100%; max-width: 740px; margin-inline: auto; }
     /* Shares the content column's cap and centring. Centring only the rows left the heading
        pinned to the far left of a wide screen, detached from the content it names. */
-    .title { font-size: var(--fs-display); margin: 0 auto var(--sp-5); text-transform: uppercase;
-      letter-spacing: -0.02em; width: 100%; max-width: 740px; }
+    .title { font-size: var(--fs-display); margin: 0 0 var(--sp-5); text-transform: uppercase;
+      letter-spacing: -0.02em; }
     /* Cap wide, not narrow: a bare row list left ~840px of dead space at 1500px. The cap keeps
        rows readable; margin-inline centres the column instead of hugging the left edge. */
     /* A real flex box, NOT display:contents — several engines drop a display:contents element
@@ -152,7 +156,7 @@ import { AlertComponent } from '../../ui/alert.component';
     .empty { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
       padding: var(--sp-6) var(--sp-5); display: flex; flex-direction: column;
       align-items: flex-start; gap: var(--sp-3); max-width: 480px; width: 100%;
-      margin-inline: auto; margin-block: auto; }
+      margin-inline: 0; margin-block: auto; }
     .eh { margin: 0; text-transform: uppercase; letter-spacing: -0.01em; }
     .ep { margin: 0; color: var(--bone-dim); font-size: var(--fs-sm); }
     .cta { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-5);
