@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MyThreadApiTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired BoxRepository boxes;
     @Autowired AuthService authService;
     @Autowired MembershipRepository memberships;
@@ -62,6 +63,34 @@ class MyThreadApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/me/thread").header("Authorization", "Bearer " + bToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messages.length()").value(0));
+    }
+
+    /**
+     * A GET MUST NOT WRITE. MessagingService.threadFor() saves, so a read path that calls it creates
+     * a row for every member who merely opens the Messages screen — and the staff shared inbox lists
+     * threads, so it would fill with empty conversations nobody ever started.
+     */
+    @Test
+    void readingAnEmptyThreadDoesNotCreateARow() throws Exception {
+        int before = countThreads();
+        mvc.perform(get("/api/box/me/thread").header("Authorization", "Bearer " + bToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.messages.length()").value(0));
+        org.assertj.core.api.Assertions.assertThat(countThreads()).isEqualTo(before);
+    }
+
+    /** Same reasoning as the GET: the frontend calls /read on screen open. */
+    @Test
+    void markingAnEmptyThreadReadDoesNotCreateARow() throws Exception {
+        int before = countThreads();
+        mvc.perform(post("/api/box/me/thread/read").header("Authorization", "Bearer " + bToken))
+                .andExpect(status().isOk());
+        org.assertj.core.api.Assertions.assertThat(countThreads()).isEqualTo(before);
+    }
+
+    private int countThreads() {
+        Integer n = jdbc.queryForObject("select count(*) from message_thread", Integer.class);
+        return n == null ? 0 : n;
     }
 
     /** AUTH-DENIED */

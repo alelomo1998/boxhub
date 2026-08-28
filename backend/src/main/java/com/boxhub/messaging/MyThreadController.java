@@ -22,12 +22,14 @@ import java.util.UUID;
 public class MyThreadController {
 
     private final MessagingService messaging;
+    private final MessageThreadRepository threads;
     private final MessageRepository messages;
     private final MembershipRepository memberships;
 
-    public MyThreadController(MessagingService messaging, MessageRepository messages,
-                              MembershipRepository memberships) {
+    public MyThreadController(MessagingService messaging, MessageThreadRepository threads,
+                              MessageRepository messages, MembershipRepository memberships) {
         this.messaging = messaging;
+        this.threads = threads;
         this.messages = messages;
         this.memberships = memberships;
     }
@@ -41,8 +43,14 @@ public class MyThreadController {
     @Transactional(readOnly = true)
     public ThreadDto get() {
         Membership me = messaging.callerMembership();
-        MessageThread t = messaging.threadFor(me.getId());
-        return new ThreadDto(t.getId(), render(t.getId()), t.getMemberLastReadAt());
+        // Resolve, never create. threadFor() saves, and a GET must not write: otherwise every member
+        // who merely opens the Messages screen gets a row, and the staff shared inbox — which lists
+        // threads — fills with empty conversations nobody started. This used to be "safe" only
+        // because readOnly=true suppresses the flush; deleting that flag silently started writing.
+        // Verified: readingAnEmptyThreadDoesNotCreateARow catches exactly that mutation.
+        return threads.findByMembershipId(me.getId())
+                .map(t -> new ThreadDto(t.getId(), render(t.getId()), t.getMemberLastReadAt()))
+                .orElseGet(() -> new ThreadDto(null, List.of(), null));
     }
 
     @PostMapping("/messages")

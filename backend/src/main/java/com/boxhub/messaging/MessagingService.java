@@ -58,11 +58,17 @@ public class MessagingService {
         return m;
     }
 
+    /**
+     * Marks an EXISTING thread read. Deliberately does not create one: no thread means nothing was
+     * ever said, so there is nothing unread to clear — and the frontend calls this on screen open,
+     * so creating here would fill the staff inbox with ghost threads.
+     */
     @Transactional
     public void markRead(UUID membershipId, boolean staffSide) {
-        MessageThread t = threadFor(membershipId);
-        if (staffSide) t.setStaffLastReadAt(Instant.now()); else t.setMemberLastReadAt(Instant.now());
-        threads.save(t);
+        threads.findByMembershipId(membershipId).ifPresent(t -> {
+            if (staffSide) t.setStaffLastReadAt(Instant.now()); else t.setMemberLastReadAt(Instant.now());
+            threads.save(t);
+        });
     }
 
     /** The caller's own membership in the box they are acting in. Never from a request param. */

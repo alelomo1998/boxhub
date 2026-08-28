@@ -453,6 +453,11 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("PUT /api/box/class-templates/{templateId}/skeleton", "COACH"),
             // --- schedule, booking, roster ---
             Map.entry("GET /api/box/home", "ATHLETE"),
+            // --- M29a messaging: the member's own thread. No path ids by design (spec §4), so the
+            // caller can only ever reach their OWN thread — the membership comes from the JWT.
+            Map.entry("GET /api/box/me/thread", "ATHLETE"),
+            Map.entry("POST /api/box/me/thread/messages", "ATHLETE"),
+            Map.entry("POST /api/box/me/thread/read", "ATHLETE"),
             Map.entry("GET /api/box/sessions", "ATHLETE"),
             Map.entry("PATCH /api/box/sessions/{id}", "COACH"),
             Map.entry("GET /api/box/sessions/{id}/detail", "ATHLETE"),
