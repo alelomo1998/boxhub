@@ -19,6 +19,23 @@ public class ClassSession {
     @Column(name = "duration_min", nullable = false) private int durationMin;
     @Column(nullable = false) private int capacity;
     @Column(name = "coach_id") private UUID coachId;
+    /**
+     * Who ACTUALLY ran this class, as opposed to {@code coachId}, who was assigned it when the
+     * session was generated from its slot. The coach who covered a sick colleague at 6am leaves no
+     * trace anywhere without this, and M16d's staff payroll calculator has no other input — paying
+     * people from the assignment column is a payroll error, not a reporting inaccuracy.
+     * <p>
+     * A MEMBERSHIP, where {@code coachId} is a USER. The asymmetry is deliberate and matches
+     * {@code payment.payee_membership_id}: "who is owed, in this box's context" is a different
+     * question from "which person is this", and M21 made one person able to hold several boxes.
+     * Do not "fix" it to match its sibling.
+     * <p>
+     * NOTHING writes this yet, and it is deliberately NOT backfilled from {@code coachId} — that
+     * would assert a fact nobody recorded. NULL means "nobody recorded it"; a reader coalescing to
+     * {@code coachId} must know that is what it is doing. The writer is M34 (The Room), where a
+     * class is actually run.
+     */
+    @Column(name = "ran_by_membership_id") private UUID ranByMembershipId;
     @Column(name = "room_id") private UUID roomId;
     @Column(nullable = false) private String status = "SCHEDULED";
     @Column(name = "programming_status", nullable = false) private String programmingStatus = "DRAFT";
@@ -36,6 +53,8 @@ public class ClassSession {
     public int getCapacity() { return capacity; }
     public void setCapacity(int capacity) { this.capacity = capacity; }
     public UUID getCoachId() { return coachId; }
+    public UUID getRanByMembershipId() { return ranByMembershipId; }
+    public void setRanByMembershipId(UUID v) { this.ranByMembershipId = v; }
     public void setCoachId(UUID coachId) { this.coachId = coachId; }
     public UUID getRoomId() { return roomId; }
     public void setRoomId(UUID roomId) { this.roomId = roomId; }

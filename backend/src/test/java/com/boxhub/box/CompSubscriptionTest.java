@@ -52,6 +52,7 @@ class CompSubscriptionTest extends AbstractIntegrationTest {
     @Autowired ObjectMapper om;
     @Autowired PlanRepository plans;
     @Autowired SubscriptionRepository subscriptions;
+    @Autowired SubscriptionService subscriptionService;
     @Autowired ClassSessionRepository sessions;
     @Autowired PlatformSettings settings;
     @MockitoBean com.boxhub.shared.Mailer mailer;
@@ -178,5 +179,59 @@ class CompSubscriptionTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/plans").header("Authorization", "Bearer " + boxToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].name", org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("Comped"))));
+    }
+
+    /** Sets up a self-serve box and returns (boxId, membershipId) for its comped owner. */
+    private UUID[] compedOwner(String tag) throws Exception {
+        long n = System.nanoTime();
+        String email = tag + "-" + n + "@t.io";
+        mvc.perform(post("/api/auth/signup-box").with(csrf()).contentType(APPLICATION_JSON).content("""
+                {"boxName":"Kind Box %s","name":"Owner","email":"%s","password":"correct-horse-battery"}
+                """.formatted(n, email)))
+                .andExpect(status().isCreated());
+        User owner = users.findByEmail(email).orElseThrow();
+        Membership m = memberships.findByUserIdWithBox(owner.getId()).get(0);
+        return new UUID[]{ m.getBox().getId(), m.getId() };
+    }
+
+    @Test
+    void aCompedSubscriptionIsMarkedCompedOnTheRowItself() throws Exception {
+        UUID[] ids = compedOwner("kind-comp");
+        actAsBox(ids[0]);
+        Subscription sub = subscriptions.findByMembershipIdAndStatus(ids[1], "ACTIVE").orElseThrow();
+        assertThat(sub.getKind()).isEqualTo("COMPED");
+    }
+
+    /**
+     * The regression M39 actually fixes. "Is this a comp?" used to be answered by asking whether the
+     * subscription's PLAN was named "Comped" — so renaming that per-box synthetic plan silently
+     * un-comped every member sitting on it, and recordPeriod would then refuse to replace the
+     * placeholder (SWITCH_REQUIRES_CANCEL) instead of taking the member's first real payment.
+     */
+    @Test
+    void renamingTheCompedPlanDoesNotUnCompAnyone() throws Exception {
+        UUID[] ids = compedOwner("kind-rename");
+        UUID boxId = ids[0], membershipId = ids[1];
+
+        actAsBox(boxId);
+        Plan comped = plans.findByBoxIdAndName(boxId, "Comped").orElseThrow();
+        comped.setName("Complimentary " + System.nanoTime());   // the box renames it
+        plans.save(comped);
+
+        // A real plan, and the member's first real payment recorded against it.
+        Plan real = new Plan();
+        real.setName("Monthly " + System.nanoTime());
+        real.setDurationDays(30);
+        real.setPriceCents(5000);
+        real.setCurrency("eur");
+        UUID realPlanId = plans.save(real).getId();
+
+        // Under the old plan-name test this threw SWITCH_REQUIRES_CANCEL, because the placeholder
+        // no longer looked like a comp. The row's own kind still says COMPED, so it is replaced.
+        Subscription paid = subscriptionService.recordPeriod(membershipId, realPlanId, 5000, null);
+
+        assertThat(paid.getKind()).isEqualTo("PAID");
+        assertThat(paid.getPlanId()).isEqualTo(realPlanId);
+        assertThat(paid.getStatus()).isEqualTo("ACTIVE");
     }
 }

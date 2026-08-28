@@ -81,9 +81,13 @@ public class SubscriptionService {
             sub.setMembershipId(membershipId);
             sub.setPlanId(planId);
             sub.setStatus("ACTIVE");
+            sub.setKind(PAID);
             base = now();
         }
 
+        // Renewing through recordPeriod IS the real-payment path, so the row is PAID from here on
+        // even if it began life as something else.
+        sub.setKind(PAID);
         sub.setPriceCents(priceCents);
         sub.setPriceNote(priceNote);
         // Both ends of the period move together: currentPeriodStart is what a receipt renders as
@@ -124,8 +128,15 @@ public class SubscriptionService {
     /** True when this subscription sits on the box's synthetic comp plan — i.e. it is a placeholder
      *  that recordPeriod may replace without asking the admin to cancel it first. */
     private boolean isComp(Subscription sub) {
-        return plans.findById(sub.getPlanId()).map(p -> COMPED_PLAN_NAME.equals(p.getName())).orElse(false);
+        // Reads the row's OWN kind since M39. It used to ask whether the subscription's plan was
+        // named "Comped", so renaming or recreating that per-box synthetic plan silently un-comped
+        // every member sitting on it. The plan is still minted by name below — that is just how the
+        // placeholder is found — but what a subscription MEANS is now a fact about the subscription.
+        return COMPED.equals(sub.getKind());
     }
+
+    public static final String PAID = "PAID";
+    public static final String COMPED = "COMPED";
 
     static final String COMPED_PLAN_NAME = "Comped";
 
@@ -146,6 +157,7 @@ public class SubscriptionService {
         sub.setMembershipId(membershipId);
         sub.setPlanId(comped.getId());
         sub.setStatus("ACTIVE");
+        sub.setKind(COMPED);
         sub.setPriceCents(0);
         sub.setCurrentPeriodEnd(null); // no expiry, same as a grandfathered row
         return subscriptions.save(sub);
