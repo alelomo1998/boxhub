@@ -1,53 +1,55 @@
 package com.boxhub.box;
 
 import com.boxhub.shared.RoleGuard;
-import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import org.springframework.http.ResponseEntity;
+import jakarta.validation.constraints.Size;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 
-/** One active box-wide message. Staff writes; every member reads. */
+/** Staff surface: send an announcement to a segment, and read the history (D-4, D-8). */
 @RestController
-@RequestMapping("/api/box/announcement")
+@RequestMapping("/api/box/announcements")
 public class AnnouncementController {
 
+    private final AnnouncementService service;
     private final AnnouncementRepository announcements;
+    private final AnnouncementRecipientRepository recipients;
 
-    public AnnouncementController(AnnouncementRepository announcements) {
+    public AnnouncementController(AnnouncementService service, AnnouncementRepository announcements,
+                                  AnnouncementRecipientRepository recipients) {
+        this.service = service;
         this.announcements = announcements;
+        this.recipients = recipients;
     }
 
-    public record AnnouncementDto(String body, Instant sentAt) {}
-    record PutRequest(@NotBlank String body) {}
+    public record AnnouncementRow(UUID id, String body, String segment, Instant sentAt,
+                                  long sentCount, long readCount) {}
+    record SendRequest(@NotBlank @Size(max = 2000) String body, @NotBlank String segment, UUID segmentRef) {}
+
+    /** Coaches may send, not just admins (D-8): a coach cancelling their class needs no admin. */
+    @PostMapping
+    @Transactional
+    public AnnouncementRow send(@Valid @RequestBody SendRequest req) {
+        RoleGuard.requireStaff();
+        Announcement a = service.send(req.body(), req.segment(), req.segmentRef());
+        return row(a);
+    }
 
     @GetMapping
-    public ResponseEntity<AnnouncementDto> get() {
-        return announcements.findAll().stream().findFirst()
-                .map(a -> ResponseEntity.ok(new AnnouncementDto(a.getBody(), a.getSentAt())))
-                .orElseGet(() -> ResponseEntity.noContent().build());
+    @Transactional(readOnly = true)
+    public List<AnnouncementRow> history() {
+        RoleGuard.requireStaff();
+        return announcements.findAllByOrderBySentAtDesc().stream().map(this::row).toList();
     }
 
-    @PutMapping
-    @Transactional
-    public AnnouncementDto put(@Valid @RequestBody PutRequest req) {
-        RoleGuard.requireStaff();
-        Announcement a = announcements.findAll().stream().findFirst().orElseGet(Announcement::new);
-        a.setBody(req.body().trim());
-        a.setSentBy(TenantContext.userId());
-        a.setSentAt(Instant.now());
-        announcements.save(a);
-        return new AnnouncementDto(a.getBody(), a.getSentAt());
-    }
-
-    @DeleteMapping
-    @Transactional
-    public ResponseEntity<Void> clear() {
-        RoleGuard.requireStaff();
-        announcements.findAll().stream().findFirst().ifPresent(announcements::delete);
-        return ResponseEntity.noContent().build();
+    private AnnouncementRow row(Announcement a) {
+        return new AnnouncementRow(a.getId(), a.getBody(), a.getSegment(), a.getSentAt(),
+                recipients.countByAnnouncementId(a.getId()),
+                recipients.countByAnnouncementIdAndReadAtIsNotNull(a.getId()));
     }
 }

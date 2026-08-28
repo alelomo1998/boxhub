@@ -1,0 +1,264 @@
+package com.boxhub.box;
+
+import com.boxhub.AbstractIntegrationTest;
+import com.boxhub.identity.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
+import java.util.UUID;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+/**
+ * Segmented announcements: audience resolution, frozen-at-send (D-2), history (D-4), and the
+ * confidentiality rules of spec §4. See spec §5.
+ */
+class AnnouncementSegmentTest extends AbstractIntegrationTest {
+
+    @Autowired MockMvc mvc;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired BoxRepository boxes;
+    @Autowired AuthService authService;
+    @Autowired MembershipRepository memberships;
+    @Autowired TokenService tokenService;
+    @Autowired ClassSessionRepository sessions;
+    @Autowired BookingRepository bookings;
+    @Autowired PlanRepository plans;
+    @Autowired SubscriptionService subscriptionService;
+
+    Box box;
+    String adminToken, coachToken, athleteToken, otherAthleteToken, foreignAthleteToken;
+    UUID athleteMembershipId, otherAthleteMembershipId;
+
+    @AfterEach void clearAuth() { SecurityContextHolder.clearContext(); }
+
+    @BeforeEach
+    void setup() {
+        long n = System.nanoTime();
+        box = newBox("Seg " + n, "seg-" + n);
+        Box foreign = newBox("ForeignSeg " + n, "fseg-" + n);
+
+        User admin = authService.register("sa-" + n + "@t.io", "correct-horse-battery", "Admin");
+        User coach = authService.register("sc-" + n + "@t.io", "correct-horse-battery", "Coach");
+        User athlete = authService.register("sx-" + n + "@t.io", "correct-horse-battery", "Ada");
+        User otherAthlete = authService.register("sy-" + n + "@t.io", "correct-horse-battery", "Bo");
+        User foreignAthlete = authService.register("sz-" + n + "@t.io", "correct-horse-battery", "Foreign");
+
+        adminToken = tokenService.boxToken(admin, member(admin, box, "BOX_ADMIN"));
+        coachToken = tokenService.boxToken(coach, member(coach, box, "COACH"));
+        Membership athleteMembership = member(athlete, box, "ATHLETE");
+        athleteToken = tokenService.boxToken(athlete, athleteMembership);
+        athleteMembershipId = athleteMembership.getId();
+        Membership otherAthleteMembership = member(otherAthlete, box, "ATHLETE");
+        otherAthleteToken = tokenService.boxToken(otherAthlete, otherAthleteMembership);
+        otherAthleteMembershipId = otherAthleteMembership.getId();
+        foreignAthleteToken = tokenService.boxToken(foreignAthlete, member(foreignAthlete, foreign, "ATHLETE"));
+    }
+
+    /** D-2, THE decision. Negative control: resolve at read time and this goes red. */
+    @Test
+    void audienceIsFrozenAtSendSoARenewalDoesNotUnsendIt() throws Exception {
+        givePlan(athleteMembershipId, 5); // expires in 5 days -> inside the 14-day EXPIRING window
+
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"body\":\"Renew before Friday\",\"segment\":\"EXPIRING\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sentCount").value(1))
+                .andExpect(jsonPath("$.segment").value("EXPIRING"));
+
+        renewAthleteForAnotherYear(); // no longer expiring within 14 days
+
+        mvc.perform(get("/api/box/me/announcements").header("Authorization", "Bearer " + athleteToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].body").value("Renew before Friday"));
+    }
+
+    /** D-7: waitlisted members are included; cancelled members are excluded. */
+    @Test
+    void classRosterIncludesWaitlistAndExcludesCancelled() throws Exception {
+        actAsBox(box.getId());
+        ClassSession session = newSession();
+        Booking booked = booking(session.getId(), athleteMembershipId, "BOOKED");
+        Booking waitlisted = booking(session.getId(), otherAthleteMembershipId, "WAITLIST");
+        // a third member, cancelled, must NOT be in the roster
+        Membership cancelledMembership = memberForNewUser("cancelled");
+        booking(session.getId(), cancelledMembership.getId(), "CANCELLED");
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"6am is cancelled\",\"segment\":\"CLASS_ROSTER\",\"segmentRef\":\""
+                                + session.getId() + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sentCount").value(2));
+
+        mvc.perform(get("/api/box/me/announcements").header("Authorization", "Bearer " + athleteToken))
+                .andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/box/me/announcements").header("Authorization", "Bearer " + otherAthleteToken))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    /** D-4: history is append-only, not a single overwritten row. */
+    @Test
+    void twoSendsLeaveTwoRowsInHistory() throws Exception {
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"body\":\"First\",\"segment\":\"EVERYONE\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"body\":\"Second\",\"segment\":\"EVERYONE\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/box/announcements").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].body").value("Second"))
+                .andExpect(jsonPath("$[1].body").value("First"));
+    }
+
+    /** D-8: coaches may send announcements, not only admins. */
+    @Test
+    void aCoachMaySend() throws Exception {
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"Coach sent this\",\"segment\":\"EVERYONE\"}"))
+                .andExpect(status().isOk());
+    }
+
+    /** AUTH-DENIED */
+    @Test
+    void anAthleteMayNotSend() throws Exception {
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + athleteToken)
+                        .content("{\"body\":\"hack\",\"segment\":\"EVERYONE\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * CROSS-MEMBER-DENIED. A CLASS_ROSTER send addresses athlete A only; athlete B (same box,
+     * ACTIVE, and a real recipient of nothing here) must get 404 trying to mark it read, and A's
+     * read_at must stay null. Negative control: drop the membershipId predicate from
+     * findByMembershipIdAndAnnouncementId and this must go red.
+     */
+    @Test
+    void memberCannotMarkAnotherMembersAnnouncementRead() throws Exception {
+        actAsBox(box.getId());
+        ClassSession session = newSession();
+        booking(session.getId(), athleteMembershipId, "BOOKED"); // A only
+        SecurityContextHolder.clearContext();
+
+        String body = mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"For A only\",\"segment\":\"CLASS_ROSTER\",\"segmentRef\":\""
+                                + session.getId() + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sentCount").value(1))
+                .andReturn().getResponse().getContentAsString();
+
+        UUID announcementId = UUID.fromString(
+                com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+                        .readTree(body).get("id").asText());
+
+        // B was never sent this announcement.
+        mvc.perform(post("/api/box/me/announcements/" + announcementId + "/read")
+                        .header("Authorization", "Bearer " + otherAthleteToken))
+                .andExpect(status().isNotFound());
+
+        // A's own read state must be unaffected (still unread) by B's failed attempt.
+        mvc.perform(get("/api/box/me/announcements").header("Authorization", "Bearer " + athleteToken))
+                .andExpect(jsonPath("$[0].read").value(false));
+    }
+
+    /** CROSS-TENANT-DENIED */
+    @Test
+    void foreignBoxSeesNoneOfOurAnnouncements() throws Exception {
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"body\":\"Marker-Only-For-Our-Box\",\"segment\":\"EVERYONE\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/box/me/announcements").header("Authorization", "Bearer " + foreignAthleteToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("Marker-Only-For-Our-Box"))));
+    }
+
+    // --- fixtures -----------------------------------------------------------------------------
+
+    private void givePlan(UUID membershipId, int durationDays) {
+        actAsBox(box.getId());
+        Plan p = new Plan();
+        p.setName("Plan " + durationDays);
+        p.setDurationDays(durationDays);
+        UUID planId = plans.save(p).getId();
+        subscriptionService.recordPeriod(membershipId, planId, 0, "test");
+        SecurityContextHolder.clearContext();
+    }
+
+    /** Pushes the athlete's current subscription well past the 14-day EXPIRING window. */
+    private void renewAthleteForAnotherYear() {
+        jdbc.update("update subscription set current_period_end = ? where membership_id = ? and status = 'ACTIVE'",
+                java.sql.Timestamp.from(Instant.now().plusSeconds(365L * 24 * 3600)), athleteMembershipId);
+    }
+
+    private ClassSession newSession() {
+        ClassSession s = new ClassSession();
+        s.setName("6am WOD");
+        s.setStartAt(Instant.now().plusSeconds(3600));
+        s.setDurationMin(60);
+        s.setCapacity(12);
+        return sessions.save(s);
+    }
+
+    private Booking booking(UUID sessionId, UUID membershipId, String status) {
+        Booking b = new Booking();
+        b.setSessionId(sessionId);
+        b.setMembershipId(membershipId);
+        b.setStatus(status);
+        return bookings.save(b);
+    }
+
+    private Membership memberForNewUser(String label) {
+        long n = System.nanoTime();
+        User u = authService.register(label + "-" + n + "@t.io", "correct-horse-battery", label);
+        return member(u, box, "ATHLETE");
+    }
+
+    private void actAsBox(UUID boxId) {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
+                .subject(UUID.randomUUID().toString())
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
+    }
+
+    private Box newBox(String name, String slug) {
+        Box b = new Box();
+        b.setName(name);
+        b.setSlug(slug);
+        b.setTimezone("Europe/Rome");
+        return boxes.save(b);
+    }
+
+    private Membership member(User u, Box box, String role) {
+        Membership m = new Membership();
+        m.setUser(u);
+        m.setBox(box);
+        m.setRole(role);
+        return memberships.save(m);
+    }
+}

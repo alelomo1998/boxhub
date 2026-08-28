@@ -25,7 +25,9 @@ public class MemberController {
 
     private static final Set<String> ROLES = Set.of("ATHLETE", "COACH", "BOX_ADMIN");
     private static final Set<String> STATUSES = Set.of("ACTIVE", "SUSPENDED");
-    static final int EXPIRING_SOON_DAYS = 14;
+    // Promoted to SegmentResolver (spec §5): the EXPIRING announcement segment must match the same
+    // "expiring soon" members staff already see flagged here. Name kept for existing callers.
+    static final int EXPIRING_SOON_DAYS = SegmentResolver.EXPIRING_SOON_DAYS;
 
     private final MembershipRepository memberships;
     private final PlanRepository plans;

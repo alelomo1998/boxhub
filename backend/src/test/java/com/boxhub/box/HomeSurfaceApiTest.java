@@ -90,26 +90,6 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void announcementLifecycle() throws Exception {
-        mvc.perform(get("/api/box/announcement").header("Authorization", "Bearer " + athlete))
-                .andExpect(status().isNoContent());
-        mvc.perform(put("/api/box/announcement").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach)
-                        .content("{\"body\":\"Box closes early Friday\"}"))
-                .andExpect(status().isOk());
-        mvc.perform(get("/api/box/announcement").header("Authorization", "Bearer " + athlete))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body").value("Box closes early Friday"));
-        // athletes cannot write
-        mvc.perform(put("/api/box/announcement").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + athlete).content("{\"body\":\"hack\"}"))
-                .andExpect(status().isForbidden());
-        // other box sees nothing (tenant isolation)
-        mvc.perform(get("/api/box/announcement").header("Authorization", "Bearer " + otherAthlete))
-                .andExpect(status().isNoContent());
-    }
-
-    @Test
     void homeAggregateShowsNextBookingAfterBooking() throws Exception {
         // empty home first
         mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athlete))
