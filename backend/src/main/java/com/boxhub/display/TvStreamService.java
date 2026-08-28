@@ -19,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class TvStreamService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(TvStreamService.class);
+
     private final TvStateService state;
     private final TvDeviceRepository devices;
     private final ObjectMapper json = new ObjectMapper()
@@ -86,6 +88,11 @@ public class TvStreamService {
             TvStateService.TvState snapshot = TenantContext.runAsBox(c.boxId(), () -> state.compose(c.boxId()));
             c.emitter().send(SseEmitter.event().name("state").data(json.writeValueAsString(snapshot)));
         } catch (Exception e) {
+            // A dropped TV used to vanish with no trace: the board silently stops updating and the
+            // only symptom is a stale screen in a gym. Logged at WARN because it is not normal —
+            // a genuine client disconnect arrives through onCompletion/onError, not through here.
+            // Device id and box id only, never the state payload.
+            log.warn("tv push failed for device {} in box {}; dropping the connection", deviceId, c.boxId(), e);
             connections.remove(deviceId);
             // a concurrent disconnect() may have completed this emitter already; a registry-cleanup
             // failure must never escape into the request thread that published the event

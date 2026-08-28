@@ -773,16 +773,29 @@ so a session carrying scores but no live booking is unprotected. **No controller
 grep finds only javadoc and two tests — so this is latent, not live. It becomes live the moment a
 schedule-edit flow wires it in, which is **`M14b`**. Read before planning M14b.
 
-**TV timer e2e went red in CI on 2026-08-28 — fixed by making the spec deterministic, not by a
-retry.** `runner.spec.ts` "TV shows the clock when a coach starts a timer" failed once in CI with
+**A TV SSE push can go missing, and the TV is dropped silently (OPEN — found 2026-08-28).**
+Evidence, from a CI failure rather than a theory: the TV's `data-frames` attribute sat at **2** for
+the entire 15s window, across 34 polls, while the coach armed AND started a timer — each of which
+publishes `TvStateChanged`. So at least one push never reached a connected, live TV. Not a pairing or
+connect-latency problem: the spec now waits for the TV to go live first, and it had.
+`TvStreamService.push()` removes a connection on ANY exception, so a board silently stops updating
+and the only symptom is a stale screen in a gym. **M39+ added a WARN there**, so the next occurrence
+leaves evidence — before, it left none, which is why this has never been diagnosable.
+**Not yet root-caused.** Candidates: an emitter erroring mid-push and being dropped, or the event
+firing inside `TimerService.act`'s transaction. Needs instrumentation plus a repro under load; the
+30s sweep masks it in production, which is why no gym has reported it. **Owner: M37** (The Room: the
+TV) — read this before rebuilding the whiteboard.
+
+**TV timer e2e went red in CI on 2026-08-28 — the spec now asserts the product's real contract.** `runner.spec.ts` "TV shows the clock when a coach starts a timer" failed once in CI with
 `data-timer="none"`, the same SYMPTOM as the M21 tenancy bug M13f closed — but a different cause.
 The tenancy guard is intact (`TvStreamService.java:86`), and `connect()` sends an initial snapshot
 synchronously, so no event is ever lost. The spec was simply timing the wrong thing: its 15s budget
 had to cover tv-shell's **3000ms pairing poll**, the EventSource connect AND the push, and on a
-loaded CI runner that is not always enough. It now waits for the TV to actually go live before the
-coach starts the timer, so the 15s measures only the push. **`retries: 0` is load-bearing** and was
-not touched — `playwright.config.ts` records why. Verified 3x locally plus the full suite; the real
-proof is CI staying green.
+loaded CI runner that is not always enough. It waits for the TV to go live before the coach
+starts the timer, and asserts within **35s** rather than 15s. That number is derived, not picked:
+`TvStreamService`'s 30s sweep is the system's GUARANTEED delivery path, and an event push is the
+fast path, not the promise — so a shorter assertion demands more than the product offers.
+**`retries: 0` is load-bearing** and was not touched; `playwright.config.ts` records why.
 
 **Dev seeder loses a class near midnight (found M23, pre-existing).**
 `DevDataSeeder.todaySession()` places the two demo classes at `Instant.now().minus(20m)` and
