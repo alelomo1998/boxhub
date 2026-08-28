@@ -467,10 +467,15 @@ public class DevDataSeeder implements CommandLineRunner {
         // Routed through the real send path so it fans out to announcement_recipient — Step 1
         // re-sources the athlete home card through recipient rows, so a hand-built row here (no
         // fan-out) would leave a freshly seeded demo box showing no announcement at all.
+        // coachUserId, NOT TenantContext.userId(): runAsBox installs a synthetic JWT whose subject
+        // is a random UUID, and announcement.sent_by references users(id) — so the three-argument
+        // send() would fail the foreign key here and the whole dev seed would abort. The suite
+        // cannot catch that (this class is @Profile("dev")); AnnouncementSegmentTest's
+        // sendingFromASystemContextDoesNotViolateTheSentByForeignKey covers the path instead.
         TenantContext.runAsBox(box.getId(), () ->
                 announcements.send(
                         "Saturday: Team WOD at 10:00 — bring a friend! The box closes early at 20:00 this Friday.",
-                        "EVERYONE", null));
+                        "EVERYONE", null, coachUserId));
     }
 
     private void todaySession(String name, Instant startAt, int durationMin, int capacity, UUID coachId) {

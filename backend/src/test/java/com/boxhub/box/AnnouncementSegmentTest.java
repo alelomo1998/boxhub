@@ -26,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AnnouncementSegmentTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
+    @Autowired AnnouncementService announcementService;
     @Autowired JdbcTemplate jdbc;
     @Autowired BoxRepository boxes;
     @Autowired AuthService authService;
@@ -261,4 +262,21 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
         m.setRole(role);
         return memberships.save(m);
     }
+    /**
+     * DevDataSeeder sends inside TenantContext.runAsBox, whose synthetic JWT carries a RANDOM UUID
+     * subject — not a real user. announcement.sent_by references users(id), so stamping the caller's
+     * "user id" there blows up on the foreign key and the dev stack fails to seed. The suite cannot
+     * see this on its own: DevDataSeeder is @Profile("dev") and never runs in tests.
+     *
+     * Negative control: make send() take sentBy from TenantContext.userId() again and this goes red.
+     */
+    @Test
+    void sendingFromASystemContextDoesNotViolateTheSentByForeignKey() {
+        UUID boxId = box.getId();
+        com.boxhub.box.Announcement a = com.boxhub.shared.TenantContext.runAsBox(boxId,
+                () -> announcementService.send("Seeded announcement", "EVERYONE", null, null));
+        org.assertj.core.api.Assertions.assertThat(a.getId()).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(a.getSentBy()).isNull();
+    }
+
 }

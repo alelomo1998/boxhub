@@ -24,13 +24,25 @@ public class AnnouncementService {
         this.segments = segments;
     }
 
+    /**
+     * For a real request thread, where the caller IS a user. Never call this from a system context:
+     * TenantContext.runAsBox installs a synthetic JWT whose subject is a RANDOM UUID, and
+     * announcement.sent_by references users(id), so that id blows up on the foreign key. Background
+     * and seed callers use the four-argument form and pass a real user id, or null for "no author".
+     */
     @Transactional
     public Announcement send(String body, String segment, UUID segmentRef) {
+        return send(body, segment, segmentRef, TenantContext.userId());
+    }
+
+    /** @param sentBy a REAL users(id), or null when nobody authored it (system/seed sends). */
+    @Transactional
+    public Announcement send(String body, String segment, UUID segmentRef, UUID sentBy) {
         Announcement a = new Announcement();
         a.setBody(body.trim());
         a.setSegment(segment);
         a.setSegmentRef(segmentRef);
-        a.setSentBy(TenantContext.userId());
+        a.setSentBy(sentBy);
         a.setSentAt(Instant.now());
         announcements.save(a);
 
