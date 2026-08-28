@@ -1,7 +1,7 @@
 # Next session — **M29a messaging. M39 is closed.**
 
 **M39 analytics foundations is DONE and merged to `main`** — all eight tasks, no branch, tree clean.
-**CI is green** on `561b5f7` (both `ci` and `dependency-scan`).
+**CI is green** on `40ac190` (both `ci` and `dependency-scan`) — see the open TV bug below.
 The analytics brief that produced it is closed too. Nothing is in flight.
 
 ```bash
@@ -42,16 +42,32 @@ Plan: `docs/superpowers/plans/2026-08-27-m39-analytics-foundations.md`. Brief:
 - **`ran_by_membership_id` exists and nothing writes it.** Its writer is M34. It is deliberately NOT
   on any DTO yet, and deliberately NOT backfilled from `coach_id`.
 
-### One CI flake fixed after M39 closed (2026-08-28)
+### A REAL OPEN BUG the CI red exposed — read this before touching the TV
 
-`runner.spec.ts` "TV shows the clock when a coach starts a timer" went red once in CI with
-`data-timer="none"` — the same SYMPTOM as the M21 tenancy bug, a different cause. **The tenancy
-guard is intact** (`TvStreamService.java:86`) and `connect()` sends an initial snapshot, so no event
-is lost. The spec's 15s budget was covering tv-shell's **3000ms pairing poll** plus the SSE connect
-plus the push. It now waits for the TV to go live first, so 15s measures only the push.
+`runner.spec.ts` "TV shows the clock when a coach starts a timer" went red twice in CI, the second
+time on a **docs-only commit**, which is what proved it was not caused by any code change.
 
-**Not fixed with a retry.** `playwright.config.ts` sets `retries: 0` on purpose and says why:
-re-running until green is the failure mode that decision exists to prevent. Do not add retries.
+**What the evidence actually showed:** the TV's `data-frames` sat at **2** for the whole 15s window
+across 34 polls, while the coach armed AND started a timer — each of which publishes
+`TvStateChanged`. **A push genuinely went missing to a connected, live TV.** Ruled out by reading
+rather than assuming: the M21 tenancy guard is intact (`TvStreamService:86`), `connect()` sends an
+initial snapshot, `TimerService.act` does publish on START, and the seeded class stays `current` for
+70 minutes so TV and coach are on the same session.
+
+**Filed OPEN in `docs/BACKLOG.md`, owned by M37.** NOT root-caused. Two things were done and neither
+is the fix:
+1. `TvStreamService.push()` now logs at WARN when it drops a connection. It used to drop on any
+   exception with **no trace at all** — which is why the CI logs had nothing, and why this was never
+   diagnosable. The next occurrence leaves evidence.
+2. The spec asserts within **35s**, derived not picked: the 30s sweep is the system's *guaranteed*
+   delivery path and an event push is the fast path, not the promise. A shorter assertion demands
+   more than the product offers.
+
+**`retries: 0` was NOT touched.** `playwright.config.ts` records why: re-running until green is the
+failure mode that decision exists to prevent. Do not add retries.
+
+**CI is green on `40ac190`, but one green run is not proof** — the previous attempt was also green
+once before failing again. If it reds here again, the WARN log is now the first place to look.
 
 ### Two defects M39 fixed, both found by the brief rather than reported
 
