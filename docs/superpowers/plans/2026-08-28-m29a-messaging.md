@@ -510,40 +510,28 @@ public interface AnnouncementRecipientRepository extends JpaRepository<Announcem
            """)
     List<AnnouncementRecipient> findMineRaw(@Param("mid") UUID membershipId);
 
-    /**
-     * The athlete home card: the newest announcement ADDRESSED TO ME (D-4). Entity join —
-     * Hibernate 6 supports `join Entity alias on …` without a mapped association. Both entities are
-     * @TenantId, so the box filter applies to both sides.
-     * Call with PageRequest.of(0, 1).
-     */
-    @Query("""
-           select a from Announcement a
-             join AnnouncementRecipient r on r.announcementId = a.id
-            where r.membershipId = :mid
-            order by a.sentAt desc
-           """)
-    List<Announcement> findLatestBodyForMember(@Param("mid") UUID membershipId, Pageable page);
+    // findLatestBodyForMember is DELIBERATELY NOT HERE. It orders by `a.sentAt`, and JPQL is
+    // validated at context startup against ENTITY PROPERTY names — the Announcement field is still
+    // called `updatedAt` until Task 5 renames it, so this query would fail the whole context to boot.
+    // Task 5 Step 0 adds it, immediately after the rename. Do not add it early.
 
     long countByAnnouncementId(UUID announcementId);
     long countByAnnouncementIdAndReadAtIsNotNull(UUID announcementId);
 }
 ```
 
-- [ ] **Step 4: Update `AnnouncementRepository.java`**
+- [ ] **Step 4: DO NOT touch `AnnouncementRepository.java` — deferred to Task 5**
 
-```java
-package com.boxhub.box;
+**This step is deliberately empty. Skip it.**
 
-import org.springframework.data.jpa.repository.JpaRepository;
+The original plan had you add `findAllByOrderBySentAtDesc()` here. **That would not boot.** Spring
+Data derives query methods from the ENTITY FIELD name, not the column name, and Task 1 deliberately
+left the field called `updatedAt` (mapped to the `sent_at` column) so the three existing callers keep
+compiling. `OrderBySentAtDesc` would look for a property `sentAt`, fail to find it, and blow up the
+whole application context at startup — the same class of failure that stopped Task 1.
 
-import java.util.List;
-import java.util.UUID;
-
-public interface AnnouncementRepository extends JpaRepository<Announcement, UUID> {
-    /** History, newest first. Box-filtered by @TenantId; staff-only surface. */
-    List<Announcement> findAllByOrderBySentAtDesc();
-}
-```
+Task 5 Step 0 renames the field to `sentAt`; the finder lands there, immediately after, where it
+resolves. `AnnouncementRepository` stays exactly as it is for now.
 
 - [ ] **Step 5: Write the failing scoping test**
 
@@ -1258,9 +1246,40 @@ Then fix **all three** call sites in the same commit — miss one and the build 
    Note this grep also matches unrelated entities that have their own `updatedAt`. Read each hit and
    only change the ones whose receiver is an `Announcement`.
 
+Now — and only now, because both reference the `sentAt` property that did not exist until this
+rename — add the two deferred repository members:
+
+In `AnnouncementRepository.java`:
+```java
+    /** History, newest first. Box-filtered by @TenantId; staff-only surface. */
+    List<Announcement> findAllByOrderBySentAtDesc();
+```
+
+In `AnnouncementRecipientRepository.java` (needs `org.springframework.data.domain.Pageable`,
+`org.springframework.data.jpa.repository.Query`, `org.springframework.data.repository.query.Param`):
+```java
+    /**
+     * The athlete home card: the newest announcement ADDRESSED TO ME (D-4). Entity join —
+     * Hibernate 6 supports `join Entity alias on …` without a mapped association. Both entities are
+     * @TenantId, so the box filter applies to both sides. Call with PageRequest.of(0, 1).
+     */
+    @Query("""
+           select a from Announcement a
+             join AnnouncementRecipient r on r.announcementId = a.id
+            where r.membershipId = :mid
+            order by a.sentAt desc
+           """)
+    List<Announcement> findLatestBodyForMember(@Param("mid") UUID membershipId, Pageable page);
+```
+
 Compile before going further:
 ```sh
 cd /Users/alessandrolomonaco/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn -q -DskipTests compile
+```
+
+Then boot a context, because a bad derived name or JPQL property fails at STARTUP, not at compile:
+```sh
+cd /Users/alessandrolomonaco/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn -q test -Dtest=MessagingMigrationTest
 ```
 
 - [ ] **Step 1: Promote `EXPIRING_SOON_DAYS`**
