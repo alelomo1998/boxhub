@@ -806,3 +806,22 @@ Measured 2026-08-26/27 — at 23:46 `Burn It` landed on tomorrow and `programmin
 at 00:02 `WOD Class`/Fran landed on yesterday and `tracking.spec.ts` + `runner.spec.ts` failed.
 Both are green outside the window. Fix: clamp both sessions to the box's local day (e.g. seed at
 fixed local hours) rather than offsetting from now. Until then CI is time-of-day dependent.
+
+**Write-path abuse limits are near-absent, and it is a class, not a bug (found M29a, mostly pre-existing).**
+`AuthRateLimitFilter.WRITE_PATTERNS` is an explicit four-path allowlist — `/api/box/invites`,
+`/api/box/media`, `/api/box/subscriptions/checkout`, `/api/box/sessions/*/book`. Everything else
+falls through to the global ceiling alone: **1200/min, and keyed on IP, never on the user**
+(`globalCounters.get(ip, ...)` — there is no per-membership dimension anywhere in the filter).
+Measured 2026-08-29: **47 POST endpoints, 4 rate-limited. 41 request records, 11 carrying `@Size`.**
+Two consequences, both real:
+- A logged-in member can create ~1200 rows/min on any write endpoint. `POST /api/box/lifts` is the
+  worst shape found — **ATHLETE**-reachable, unbounded rows, and a free-text `String notes` with **no
+  `@Size` cap at all**. It pre-dates M29a. `POST /api/box/me/thread/messages` (M29a) has the same
+  absent limit but does cap body at 4000.
+- Because the buckets are per-IP and **a whole gym sits behind one NAT address** (`application.yml`
+  says so verbatim), one member spamming burns the shared ceiling and can 429 their own coaches
+  mid-class — which that same comment calls "a product bug, not a save".
+**Do NOT fix by adding paths to `WRITE_PATTERNS`.** That bucket is per-IP and already holds
+`booking`; `application.yml` records that it has never been measured against a class-opening rush,
+so widening it makes a false 429 on booking *more* likely. The correct shape is a per-membership
+limit keyed on `TenantContext`, plus `@Size` on every free-text field. Owned by **M40**.
