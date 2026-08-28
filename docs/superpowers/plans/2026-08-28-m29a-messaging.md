@@ -1210,6 +1210,17 @@ git commit -m "feat(m29a): staff shared inbox, one read marker for the team"
 
 ## Task 5: Segments and the announcement API
 
+> **SPLIT during execution into 5a and 5b.** Step 0 (the `Announcement` accessor rename plus its
+> three call sites plus the two deferred repository members) is mechanical, touches five files, and
+> must leave the suite green on its own — that is **Task 5a**. Everything from Step 1 on is new
+> logic: **Task 5b**. A reviewer can reject either without the other.
+>
+> **Task 5b additionally OWNS deleting `HomeSurfaceApiTest.announcementLifecycle`**, which exercises
+> `PUT`/`DELETE /api/box/announcement` — endpoints 5b retires. The send path is covered by
+> `AnnouncementSegmentTest`; the "addressed to me" home assertion arrives in Task 6.
+> The matching `MIN_ROLE` and `bodies` entries for those three retired routes are the
+> **orchestrator's** to remove, not an executor's.
+
 **Files:**
 - Create: `backend/src/main/java/com/boxhub/box/SegmentResolver.java`, `AnnouncementService.java`, `MyAnnouncementsController.java`
 - Modify: `backend/src/main/java/com/boxhub/box/Announcement.java` (accessors renamed), `AnnouncementController.java` (rewritten), `MemberController.java` (constant promoted), `HomeController.java:79` and `shared/DevDataSeeder.java:471` (call sites, same commit)
@@ -1679,6 +1690,19 @@ AnnouncementView ann = recipients
 ```
 
 Add `AnnouncementRecipientRepository recipients` to the constructor; remove the now-unused `AnnouncementRepository` field if nothing else uses it.
+
+- [ ] **Step 1b: Make `DevDataSeeder` fan out recipient rows, or the demo home card goes blank**
+
+`DevDataSeeder` hand-builds an `Announcement` row and never writes `announcement_recipient`. The
+moment Step 1 re-sources the home card through recipient rows, a freshly seeded demo box shows **no
+announcement at all** — which the e2e and visual suites in Task 11 will see as a regression, and
+which would look like a bug in your diff rather than a gap in the seeder.
+
+Route the seeder's announcement through `AnnouncementService.send(body, "EVERYONE", null)` so the
+fan-out happens on the real path, or write the recipient rows explicitly. The seeder runs inside a
+`runAsBox` block already; confirm the ambient tenant is present before `send()` is called, because
+`announcement_recipient` is `@TenantId` and a tenant-less write stamps the all-zeros sentinel and
+dies on the foreign key.
 
 - [ ] **Step 2: Delete the two dead frontend methods**
 
