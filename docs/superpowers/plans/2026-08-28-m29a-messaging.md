@@ -21,7 +21,13 @@ Copied verbatim from the spec and CLAUDE.md. **Every task's requirements implici
 - **Bash cwd persists between tool calls AND sometimes resets. Absolute paths everywhere.**
 - **Stage explicit paths. Never `git add -A`** — it silently swallowed two executors' in-flight diffs.
 - **Do NOT create a git worktree.** `git worktree list` must show exactly one entry.
-- **Schema changes only via Flyway. Never edit an applied migration.** `V29` is applied; `V30` is this milestone's.
+- **Schema changes only via Flyway. Never edit an applied migration.** `V29` and `V30` are applied.
+- **`ddl-auto: validate` (`application.yml:12`) makes a schema change and its entity mapping ATOMIC.**
+  Hibernate validates every mapped entity when the context boots, so a renamed column with a stale
+  mapping fails EVERY `@SpringBootTest` at bootstrap and the cached-context failure threshold poisons
+  the whole run — not just the tests that touch that table. Learned in Task 1, the hard way.
+  Corollary: **an entity change and its call sites must land in ONE commit**, because the module has to
+  compile. Never split an accessor rename from its callers across tasks.
 - **Tenancy:** resolve tenant ONLY from the JWT via `TenantContext`, never from request params. No `runAsRoot` in a controller.
 - **`@TenantId` is box-scoping, NOT member-scoping** (spec §4). A finder that loses `AND membership_id = :me` leaks private correspondence past a green suite.
 - **Four tests per messaging endpoint:** happy + auth-denied + cross-tenant-denied + **cross-member-denied**.
@@ -272,7 +278,7 @@ git commit -m "feat(m29a): V30 — messaging tables, announcement history, audie
 **Files:**
 - Create: `backend/src/main/java/com/boxhub/messaging/MessageThread.java`, `Message.java`, `MessageThreadRepository.java`, `MessageRepository.java`
 - Create: `backend/src/main/java/com/boxhub/box/AnnouncementRecipient.java`, `AnnouncementRecipientRepository.java`
-- Modify: `backend/src/main/java/com/boxhub/box/Announcement.java`
+- **Do NOT modify:** `Announcement.java` — Task 1 took the mapping, Task 5 takes the accessors
 - Test: `backend/src/test/java/com/boxhub/messaging/ThreadScopingTest.java`
 
 **Interfaces:**
@@ -419,52 +425,17 @@ public class AnnouncementRecipient {
 }
 ```
 
-- [ ] **Step 2: Update `Announcement.java`**
+- [ ] **Step 2: DO NOT touch `Announcement.java` — Task 1 already did the part that was possible**
 
-Replace the body of `backend/src/main/java/com/boxhub/box/Announcement.java` with:
+**This step is deliberately empty. Skip it.**
 
-```java
-package com.boxhub.box;
+Task 1 had to bring `Announcement`'s `@Column` mapping forward (`sent_at`/`sent_by`) and add the
+`segment`/`segmentRef` fields, because `ddl-auto: validate` makes schema and mapping atomic — see
+Global Constraints. What remains is renaming the *accessors* (`getUpdatedAt` → `getSentAt`), and that
+CANNOT happen here: `AnnouncementController`, `HomeController` and `DevDataSeeder:471` all call them,
+so the rename and all three call sites must land in one commit. **Task 5 owns that.**
 
-import jakarta.persistence.*;
-import org.hibernate.annotations.TenantId;
-
-import java.time.Instant;
-import java.util.UUID;
-
-/** One announcement SEND. Append-only history since M29a — never updated in place (D-4). */
-@Entity
-@Table(name = "announcement")
-public class Announcement {
-    public static final String EVERYONE = "EVERYONE";
-    public static final String CLASS_ROSTER = "CLASS_ROSTER";
-    public static final String EXPIRING = "EXPIRING";
-
-    @Id @GeneratedValue private UUID id;
-    @TenantId
-    @Column(name = "box_id", nullable = false)
-    private UUID boxId;
-    @Column(nullable = false) private String body;
-    @Column(nullable = false) private String segment = EVERYONE;
-    /** class_sessions(id) when segment is CLASS_ROSTER, null otherwise — DB check enforces it. */
-    @Column(name = "segment_ref") private UUID segmentRef;
-    @Column(name = "sent_by") private UUID sentBy;
-    @Column(name = "sent_at", nullable = false) private Instant sentAt = Instant.now();
-
-    public UUID getId() { return id; }
-    public UUID getBoxId() { return boxId; }
-    public String getBody() { return body; }
-    public void setBody(String body) { this.body = body; }
-    public String getSegment() { return segment; }
-    public void setSegment(String segment) { this.segment = segment; }
-    public UUID getSegmentRef() { return segmentRef; }
-    public void setSegmentRef(UUID segmentRef) { this.segmentRef = segmentRef; }
-    public UUID getSentBy() { return sentBy; }
-    public void setSentBy(UUID sentBy) { this.sentBy = sentBy; }
-    public Instant getSentAt() { return sentAt; }
-    public void setSentAt(Instant sentAt) { this.sentAt = sentAt; }
-}
-```
+If you find yourself editing `Announcement.java` in this task, stop — you are about to break the build.
 
 - [ ] **Step 3: Write the repositories**
 
@@ -1253,7 +1224,7 @@ git commit -m "feat(m29a): staff shared inbox, one read marker for the team"
 
 **Files:**
 - Create: `backend/src/main/java/com/boxhub/box/SegmentResolver.java`, `AnnouncementService.java`, `MyAnnouncementsController.java`
-- Modify: `backend/src/main/java/com/boxhub/box/AnnouncementController.java` (rewritten), `MemberController.java` (constant promoted)
+- Modify: `backend/src/main/java/com/boxhub/box/Announcement.java` (accessors renamed), `AnnouncementController.java` (rewritten), `MemberController.java` (constant promoted), `HomeController.java:79` and `shared/DevDataSeeder.java:471` (call sites, same commit)
 - Test: `backend/src/test/java/com/boxhub/box/AnnouncementSegmentTest.java`
 
 **Interfaces:**
@@ -1262,6 +1233,35 @@ git commit -m "feat(m29a): staff shared inbox, one read marker for the team"
   - `SegmentResolver.resolve(String segment, UUID segmentRef) -> List<UUID>` (membership ids)
   - `AnnouncementService.send(String body, String segment, UUID segmentRef) -> Announcement`
   - `AnnouncementController.AnnouncementRow(UUID id, String body, String segment, Instant sentAt, long sentCount, long readCount)`
+
+- [ ] **Step 0: Rename `Announcement`'s accessors AND all three call sites, in ONE commit**
+
+Task 1 moved the `@Column` mapping to `sent_at`/`sent_by` but deliberately left the Java accessors
+named `getUpdatedAt`/`setUpdatedAt`/`getUpdatedBy`/`setUpdatedBy`, because three files call them and
+the module must compile. Rename them here, together:
+
+In `backend/src/main/java/com/boxhub/box/Announcement.java`: `updatedAt` → `sentAt`,
+`updatedBy` → `sentBy`, and the four accessors with them. Delete the bridge comment Task 1 left.
+
+Then fix **all three** call sites in the same commit — miss one and the build breaks:
+
+1. `AnnouncementController.java` — you are rewriting this file wholesale in Step 4 anyway.
+2. `HomeController.java:79` — `a.getUpdatedAt()` → `a.getSentAt()`. Step 1 of Task 6 rewrites this
+   line again; that is fine, it must compile in between.
+3. **`DevDataSeeder.java:471`** — `a.setUpdatedBy(coachUserId)` → `a.setSentBy(coachUserId)`.
+   **This caller was missing from the original plan.** Verify the full list yourself before you
+   start, because a fourth may have appeared since:
+   ```sh
+   grep -rn "getUpdatedAt()\|setUpdatedAt(\|getUpdatedBy()\|setUpdatedBy(" \
+        /Users/alessandrolomonaco/dev/boxhub/backend/src --include='*.java'
+   ```
+   Note this grep also matches unrelated entities that have their own `updatedAt`. Read each hit and
+   only change the ones whose receiver is an `Announcement`.
+
+Compile before going further:
+```sh
+cd /Users/alessandrolomonaco/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn -q -DskipTests compile
+```
 
 - [ ] **Step 1: Promote `EXPIRING_SOON_DAYS`**
 
