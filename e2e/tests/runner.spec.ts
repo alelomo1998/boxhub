@@ -63,6 +63,14 @@ test('TV shows the clock when a coach starts a timer', async ({ browser }) => {
   await admin.getByRole('button', { name: 'Pair' }).click();
   await expect(admin.locator('.row', { hasText: tvName })).toBeVisible();
 
+  // Wait for the TV to actually GO LIVE before touching the timer. Pairing is not instant from the
+  // TV's side: tv-shell polls every 3000ms, and only then opens the EventSource. Without this the
+  // 15s assertion below has to cover poll latency + SSE connect + the push, and on a loaded CI
+  // runner that is not always enough — which is exactly how this spec went red on 2026-08-28 while
+  // the product was working correctly. Now the wait below measures only the push.
+  await expect(tv.getByTestId('pair-code')).toBeHidden({ timeout: 20000 });
+  await expect(tv.getByTestId('tv-stream')).not.toHaveAttribute('data-frames', '0', { timeout: 10000 });
+
   await coach.goto('/app/coach/classes');
   await coach.locator('.list, .empty').first().waitFor();
   await coach.locator('[data-testid="run-link"]').first().click();

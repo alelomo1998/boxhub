@@ -773,6 +773,17 @@ so a session carrying scores but no live booking is unprotected. **No controller
 grep finds only javadoc and two tests — so this is latent, not live. It becomes live the moment a
 schedule-edit flow wires it in, which is **`M14b`**. Read before planning M14b.
 
+**TV timer e2e went red in CI on 2026-08-28 — fixed by making the spec deterministic, not by a
+retry.** `runner.spec.ts` "TV shows the clock when a coach starts a timer" failed once in CI with
+`data-timer="none"`, the same SYMPTOM as the M21 tenancy bug M13f closed — but a different cause.
+The tenancy guard is intact (`TvStreamService.java:86`), and `connect()` sends an initial snapshot
+synchronously, so no event is ever lost. The spec was simply timing the wrong thing: its 15s budget
+had to cover tv-shell's **3000ms pairing poll**, the EventSource connect AND the push, and on a
+loaded CI runner that is not always enough. It now waits for the TV to actually go live before the
+coach starts the timer, so the 15s measures only the push. **`retries: 0` is load-bearing** and was
+not touched — `playwright.config.ts` records why. Verified 3x locally plus the full suite; the real
+proof is CI staying green.
+
 **Dev seeder loses a class near midnight (found M23, pre-existing).**
 `DevDataSeeder.todaySession()` places the two demo classes at `Instant.now().minus(20m)` and
 `Instant.now().plus(40m)`, and its comment claims this holds "regardless of seed time". It does
