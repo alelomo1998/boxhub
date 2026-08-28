@@ -65,7 +65,11 @@ class SubscriptionLapseTest extends AbstractIntegrationTest {
 
     private NewMember newMembership(UUID boxId, String emailPrefix) {
         long n = System.nanoTime();
-        String email = emailPrefix + "-" + n + "-" + Math.random() + "@t.io";
+        // Lowercased at construction: registration stores the address lowercased, and Math.random()
+        // renders in scientific notation with an UPPERCASE E when the draw is < 1e-3 (~0.1% of runs),
+        // so the raw string stopped matching what the mailer was actually called with. A real flake,
+        // hit on 2026-08-28; pre-dates M29a (last touched in M16a).
+        String email = (emailPrefix + "-" + n + "-" + Math.random() + "@t.io").toLowerCase();
         User u = authService.register(email, "correct-horse-battery", "Lapsing Athlete");
         Box box = boxes.findById(boxId).orElseThrow();
         Membership m = new Membership();
