@@ -138,6 +138,8 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
     @Autowired MovementRepository movements;
     @Autowired TvDeviceRepository tvDevices;
     @Autowired BenchmarkTemplateRepository benchmarks;
+    @Autowired com.boxhub.box.AnnouncementRepository announcements;
+    @Autowired com.boxhub.box.AnnouncementRecipientRepository announcementRecipients;
     @Autowired LiftEntryRepository lifts;
     @Autowired BookingRepository bookings;
     @MockitoBean Mailer mailer;
@@ -147,6 +149,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
     private Box boxA;
 
     /** Path-variable name (or, for a bare {id}, the preceding path segment) -> REAL box-A id. */
+    private UUID boxAnnouncementId;
     private final Map<String, String> pathIds = new HashMap<>();
     /** Same, for {@code /api/admin/**} only — those probes must NOT touch box A, see {@link #concrete}. */
     private final Map<String, String> adminIds = new HashMap<>();
@@ -199,6 +202,24 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         foreignUserToken = tokenService.userToken(foreignAdmin);
 
         actAsBox(boxA.getId(), athlete.getId()); // InviteService stamps created_by from the JWT subject
+
+        // M29a. Created INSIDE the actAsBox block: Announcement and AnnouncementRecipient are both
+        // @TenantId, and a tenant-less write stamps the all-zeros sentinel and dies on the FK
+        // (docs/TENANCY.md failure mode 2). The body carries `mark`, so probe (d) can prove box B
+        // never sees it. Recipient rows for BOTH box-A members: the athlete because the collection
+        // GET must have something to leak if it is broken, and the owner-admin because the positive
+        // control re-issues denied probes with that token and requires a non-404.
+        com.boxhub.box.Announcement announcement = new com.boxhub.box.Announcement();
+        announcement.setBody("Announcement " + mark);
+        announcement.setSegment("EVERYONE");
+        announcement.setSentAt(Instant.now());
+        boxAnnouncementId = announcements.save(announcement).getId();
+        for (UUID mid : List.of(athleteMembership.getId(), ownerMembership.getId())) {
+            com.boxhub.box.AnnouncementRecipient rec = new com.boxhub.box.AnnouncementRecipient();
+            rec.setAnnouncementId(boxAnnouncementId);
+            rec.setMembershipId(mid);
+            announcementRecipients.save(rec);
+        }
 
         Plan plan = new Plan();
         plan.setName("Plan " + mark);
@@ -327,6 +348,11 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         pathIds.put("tv", tv.getId().toString());
         // BenchmarkTemplate is a GLOBAL catalog row, not a box-A resource — see SKIP_FOREIGN.
         pathIds.put("benchmarks", benchmarks.findAll().getFirst().getId().toString());
+        // M29a. {id} in /api/box/me/announcements/{id}/read resolves off the preceding segment.
+        // The recipient row is NOT optional: the positive control re-issues every denied probe with
+        // box A's OWN admin token and requires a non-404, and that handler resolves the row by
+        // (my membership, announcement) — with no row, the control would fail on a correct handler.
+        pathIds.put("announcements", boxAnnouncementId.toString());
 
         adminIds.clear();
         adminIds.put("boxes", boxC.getId().toString());
@@ -356,7 +382,9 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                 Map.entry("PUT /api/box/class-templates/{templateId}/skeleton", "{\"pieces\":[]}"),
                 Map.entry("POST /api/box/class-templates",
                         "{\"name\":\"T\",\"weekday\":1,\"startTime\":\"10:00\",\"durationMin\":60,\"capacity\":10}"),
-                Map.entry("PUT /api/box/announcement", "{\"body\":\"hi\"}"),
+                // Both fields are @NotBlank: without a valid body the probe 400s on validation
+                // before RoleGuard runs, which proves nothing about who may send.
+                Map.entry("POST /api/box/announcements", "{\"body\":\"probe\",\"segment\":\"EVERYONE\"}"),
                 // M29a. Without these the probe's `{}` is rejected by @NotBlank with a 400 BEFORE
                 // RoleGuard.requireStaff() runs, and the sweep reported exactly that: "400 means
                 // validation ran before authz". With a valid body the probe reaches the guard, so
@@ -449,9 +477,13 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("GET /api/box/invites", "BOX_ADMIN"),
             Map.entry("DELETE /api/box/invites/{id}", "BOX_ADMIN"),
             // --- announcements & class types ---
-            Map.entry("GET /api/box/announcement", "ATHLETE"),
-            Map.entry("PUT /api/box/announcement", "COACH"),
-            Map.entry("DELETE /api/box/announcement", "COACH"),
+            // M29a retired the singular /api/box/announcement (one overwritten row per box) in
+            // favour of append-only sends with a frozen audience. Staff send and read history;
+            // a member reads only what was addressed to them.
+            Map.entry("POST /api/box/announcements", "COACH"),
+            Map.entry("GET /api/box/announcements", "COACH"),
+            Map.entry("GET /api/box/me/announcements", "ATHLETE"),
+            Map.entry("POST /api/box/me/announcements/{id}/read", "ATHLETE"),
             Map.entry("GET /api/box/class-templates", "ATHLETE"),
             Map.entry("POST /api/box/class-templates", "COACH"),
             Map.entry("PATCH /api/box/class-templates/{id}", "COACH"),
