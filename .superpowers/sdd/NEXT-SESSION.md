@@ -1,7 +1,7 @@
-# Next session — **M39 analytics foundations, tasks 2–6.**
+# Next session — **M29a messaging. M39 is closed.**
 
-The analytics brief is **closed**. **M39 is IN PROGRESS on `main`** — no branch, nothing to merge,
-tree clean. Three of its eight tasks are done and pushed; five remain.
+**M39 analytics foundations is DONE and merged to `main`** — all eight tasks, no branch, tree clean.
+The analytics brief that produced it is closed too. Nothing is in flight.
 
 ```bash
 cd ~/dev/boxhub && git checkout main && git pull && git branch -a   # expect main, and only main
@@ -14,39 +14,40 @@ cd ~/dev/boxhub && git checkout main && git pull && git branch -a   # expect mai
 
 ---
 
-## Where M39 stands
+## What M39 changed that you will trip over if you do not know it
 
-Plan: `docs/superpowers/plans/2026-08-27-m39-analytics-foundations.md`. Read it before anything.
+Plan: `docs/superpowers/plans/2026-08-27-m39-analytics-foundations.md`. Brief:
+`docs/superpowers/specs/2026-08-27-analytics-brief.md`.
 
-| Task | State |
-|---|---|
-| 1 — `V29__analytics_foundations.sql` | ✅ done. Applied V1→V29 to a throwaway Postgres, every backfill asserted, negative control on the currency adoption |
-| 7 — D-3, `Membership` reads scoped to the caller's box | ✅ done, 4 call sites, negative control `expected:<2> but was:<9>` |
-| 8 — D-1, programming edits no longer delete scores | ✅ done, 8 tests, negative control on all of them |
-| **2 — M-1 `membership_event` entity + the four write sites** | **next** |
-| **3 — M-2/M-3 settlement + refunds (MONEY — tightest brief)** | todo |
-| **4 — M-4 `subscription.kind`** | todo |
-| **5 — M-5 `boxes.currency` + plan validation** | todo |
-| **6 — M-6 `ran_by_membership_id`** | todo |
+- **`V29` is applied.** Six schema changes plus `payment.stripe_payment_intent_id`. Do not write a
+  migration to "add" any of them.
+- **`membership_event` records JOINED / SUSPENDED / REACTIVATED.** It is `@TenantId` and is written
+  **wherever `Subscription` is written** — because both membership-creation paths are tenant-less and
+  both already end in a `runAsBox` block. A `@TenantId` row written in the tenant-less half stamps
+  the all-zeros sentinel and dies on the foreign key (TENANCY.md failure mode 2).
+  **`LEFT` exists and nothing emits it**: the product has no departure flow. Inventing one is M15a's.
+- **`subscription.kind`** (PAID/COMPED/TRIAL) replaced "is the plan named `Comped`?". Never infer
+  meaning from a plan's name again.
+- **A plan's currency IS the box's currency**, and a mismatch is a 400. Changing `boxes.currency`
+  once a plan exists in the old one is a 409.
+- **`payment.settled_at`** is what revenue filters on — NOT `created_at`, which is the checkout
+  attempt. **Refunds are rows in `refund`**, routed from `charge.refunded` by PaymentIntent.
+- **Three new standing gates**, all currently zero:
+  ```sh
+  grep -rn "memberships\.findAll()" backend/src/main/java          # D-3: Membership is NOT @TenantId
+  grep -rn "MembershipEvent.LEFT"    backend/src/main/java          # nothing may emit LEFT
+  grep -rn "runAsRoot" backend/src/main/java --include='*Controller.java'
+  ```
+- **`ran_by_membership_id` exists and nothing writes it.** Its writer is M34. It is deliberately NOT
+  on any DTO yet, and deliberately NOT backfilled from `coach_id`.
 
-**The migration has already landed, so tasks 2–6 are Java over an existing schema.** Do not write
-another migration; V29 is applied.
+### Two defects M39 fixed, both found by the brief rather than reported
 
-### The one rule that governs task 2, already derived — do not re-derive it
-
-Both membership-creation paths are **tenant-less**, and both already end in a `runAsBox` block
-(`InviteAcceptTx.accept` says so in its own javadoc; `BoxSignupService:109` does the same for the
-owner). A `@TenantId` row written in the tenant-less half is stamped with the all-zeros `NO_TENANT`
-sentinel and **dies on the foreign key** — `docs/TENANCY.md` failure mode 2. So:
-
-> **`membership_event` is `@TenantId`, and it is written wherever `Subscription` is written.**
-
-`MemberController.patch` is the exception that proves it: it serves `/api/box/**`, already holds a
-real box tenant, and writes its event **strictly inside its existing `@Transactional`**.
-
-**`LEFT` is in the check constraint and nothing emits it, deliberately.** The product has no
-departure flow — no LEFT status, no leave endpoint, no admin "remove member". M39 records the
-transitions that *exist*. Inventing a departure is **M15a's**.
+- **D-1**: editing a class's programming used to delete every score logged against it. `ItemInput`
+  now carries an item id and `replace()` reconciles instead of deleting. **`wod_id` is not a valid
+  matching key** — a session may legitimately hold the same WOD twice.
+- **D-3**: `AdminStatsController` counted every membership **on the platform** as the box's
+  `activeMembers`. Three more `findAll()` sites of the same shape were fixed with it.
 
 ---
 
@@ -56,7 +57,7 @@ transitions that *exist*. Inventing a departure is **M15a's**.
 2. **`docs/superpowers/specs/2026-08-27-analytics-brief.md`** — **new.** Read §5 before any backend
    work and §4 before any chart. It changes what M15a, M16d, M17c and M18 can promise.
 3. **`docs/ROADMAP-AT-A-GLANCE.md`** — execution order. Milestone numbers are labels, not a
-   sequence. **M39, then M29a.**
+   sequence. **M29a is next.**
 4. **`docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md`** — the pilot IS v1.0.
 5. **`docs/POSITIONING.md`** — before writing anything a gym owner reads. **Note: the brief
    corrects its §5** — `subscription`/`payment`/`entitlement_usage` do *not* hold everything LEG
@@ -93,21 +94,16 @@ transitions that *exist*. Inventing a departure is **M15a's**.
 
 | Gate | Value | Measured |
 |---|---|---|
-| Backend | **544 / 0 / 0 / 0** | ✅ this session, by the orchestrator, not read off a report |
-| Karma | **450 / 450** | ✅ this session |
-| Production build | **green** | ✅ this session |
-| Eight §8.1 greps | all **0 hits** | ✅ this session |
-| `runAsRoot` in controllers | **0** | ✅ this session |
-| `memberships.findAll()` in main | **0** — new standing gate, see D-3 | ✅ this session |
-| `AuthzConformanceTest` | **untouched** (0 lines changed vs `origin/main`) | ✅ this session |
-| e2e | 76 passed / 0 failed / 0 skipped | **inherited from M23 — NOT re-run. Owed before M39 closes.** |
-| Visual | 33 / 33 | **inherited from M23 — NOT re-run. Owed before M39 closes.** |
+| Backend | **567 / 0 / 0 / 0** | ✅ at M39 close |
+| Karma | **450 / 450** | ✅ at M39 close |
+| Production build | **green** | ✅ at M39 close |
+| e2e | **76 passed / 0 failed / 0 skipped** | ✅ at M39 close, on a rebuilt image |
+| Visual | **33 / 33** | ✅ at M39 close, on a `down -v` stack |
+| Eight §8.1 greps | all **0** | ✅ at M39 close |
+| Three tenancy/lifecycle greps | all **0** | ✅ at M39 close |
+| `AuthzConformanceTest` | **untouched**, 0 lines vs `origin/main` | ✅ at M39 close |
 
-Backend went 535 → 544: six tests from D-1, one from D-3, two from the orchestrator's correction.
-
-**e2e and the visual suite have NOT been run against M39.** D-1 changed a request body shape and a
-frontend page, so e2e genuinely needs to run on a rebuilt image and a `down -v` stack before this
-milestone can be called done. That is the largest outstanding risk in the milestone.
+**Every one of these was measured at close. None is inherited.** Backend went 535 → 567.
 
 **Say which numbers you measured.**
 
@@ -230,7 +226,7 @@ its result as the gate.
 
 ## After M29a
 
-**Phase A continues:** M39 (finish) → M29a → M29b → M14b → M14c-a → M14c-b → M17a → M17b → M17c → M15a → M15b →
+**Phase A continues:** M29a → M29b → M14b → M14c-a → M14c-b → M17a → M17b → M17c → M15a → M15b →
 M16b → M16c → M16d → M18 → M30 → M32a → M32b → M24 → M25 → M26 → M33 → M27a → M27b → M27c →
 **M34–M37** (The Room).
 **Phase B:** M38 → M28 → M27d → M19 → M20 → **v1.0 → pilot**.
