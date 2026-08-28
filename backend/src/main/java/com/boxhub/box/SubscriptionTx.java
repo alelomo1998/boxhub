@@ -40,6 +40,9 @@ class SubscriptionTx {
         p.setCurrency(plan.getCurrency());
         p.setMethod(method);
         p.setStatus("SUCCEEDED");
+        // An admin-recorded payment is SUCCEEDED the moment it is written -- the money already
+        // changed hands offline -- so creation IS settlement here. Exact, not a proxy.
+        p.setSettledAt(java.time.Instant.now());
         p.setRecordedBy(recordedByMembershipId);
         p.setReference(reference);
         p.setListPriceCents(plan.getPriceCents()); // snapshot — the receipt must never re-price this later

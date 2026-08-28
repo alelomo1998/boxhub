@@ -30,7 +30,35 @@ public class Payment {
     /** What the plan's list price was WHEN THIS PAYMENT WAS TAKEN. Null for rows created before
      *  M12b — the receipt omits the discount line rather than computing one against today's price. */
     @Column(name = "list_price_cents") private Integer listPriceCents;
+    /**
+     * When the money actually ARRIVED, as distinct from when checkout was attempted.
+     * <p>
+     * {@code createdAt} is {@code insertable=false, updatable=false} over a {@code default now()}
+     * column, so the webhook cannot touch it when a PENDING row settles. For a card that is a
+     * distinction without a difference; for the delayed-notification rails the webhook exists to
+     * handle (SEPA debit, bank transfer) settlement can land days later and in a DIFFERENT MONTH.
+     * A revenue figure keyed on {@code createdAt} books the money to the month the member clicked.
+     * <p>
+     * NULL means "not settled", which is exactly what a PENDING or FAILED row is. Revenue reads
+     * this; {@code createdAt} stays what it always was, the attempt time.
+     */
+    @Column(name = "settled_at") private Instant settledAt;
+    /**
+     * The Stripe PaymentIntent behind this payment, captured when the checkout session completes.
+     * <p>
+     * It exists so a refund can be routed here at all: a {@code charge.refunded} event's
+     * {@code data.object} is a CHARGE, whose id is {@code ch_...} and never matches a {@code cs_...}
+     * session id — but the charge carries {@code payment_intent}, and the completed session carries
+     * the same value. Stripe does NOT propagate a session's metadata onto the charge unless
+     * {@code payment_intent_data.metadata} is set at session-creation time, and it is not.
+     */
+    @Column(name = "stripe_payment_intent_id") private String stripePaymentIntentId;
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false) private Instant createdAt;
+
+    public Instant getSettledAt() { return settledAt; }
+    public void setSettledAt(Instant settledAt) { this.settledAt = settledAt; }
+    public String getStripePaymentIntentId() { return stripePaymentIntentId; }
+    public void setStripePaymentIntentId(String v) { this.stripePaymentIntentId = v; }
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }

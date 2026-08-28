@@ -56,6 +56,7 @@ class StripeWebhookTest extends AbstractIntegrationTest {
     @Autowired MembershipRepository memberships;
     @Autowired SubscriptionRepository subscriptions;
     @Autowired PaymentRepository payments;
+    @Autowired RefundRepository refunds;
     @Autowired BoxStripeRepository boxStripe;
     @Autowired AuthService authService;
     @Autowired CryptoService crypto;
@@ -179,6 +180,131 @@ class StripeWebhookTest extends AbstractIntegrationTest {
         mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         byte[] hash = mac.doFinal(signedPayload.getBytes(StandardCharsets.UTF_8));
         return "t=" + timestamp + ",v1=" + HexFormat.of().formatHex(hash);
+    }
+
+    /** A completed session that also carries the PaymentIntent, as a real one does. */
+    private String completedWithIntent(String sessionId, String intentId) {
+        return "{\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"" + sessionId + "\"," +
+                "\"payment_status\":\"paid\",\"payment_intent\":\"" + intentId + "\"}}}";
+    }
+
+    /**
+     * A charge.refunded event. Note what it does NOT contain: a checkout session id. Its data.object
+     * is a Charge (ch_...), which is exactly why routing needs the PaymentIntent.
+     */
+    private String chargeRefunded(String intentId, String refundId, int amount, String status) {
+        return "{\"type\":\"charge.refunded\",\"data\":{\"object\":{\"id\":\"ch_" + System.nanoTime() + "\"," +
+                "\"payment_intent\":\"" + intentId + "\",\"refunds\":{\"data\":[{" +
+                "\"id\":\"" + refundId + "\",\"status\":\"" + status + "\",\"amount\":" + amount + "," +
+                "\"currency\":\"eur\",\"reason\":\"requested_by_customer\"}]}}}}";
+    }
+
+    /** Named `send`, NOT `post`: a private post(...) here would shadow the statically-imported
+     *  MockMvcRequestBuilders.post every other test in this class uses. */
+    private void send(String payload) throws Exception {
+        mvc.perform(post("/api/stripe/webhook").contentType(APPLICATION_JSON)
+                        .header("Stripe-Signature", signatureHeader(payload, WEBHOOK_SECRET)).content(payload))
+                .andExpect(status().isOk());
+    }
+
+    /** Settles a fixture's payment and returns the PaymentIntent now stored against it. */
+    private String settle(Fixture f) throws Exception {
+        String intentId = "pi_test_" + System.nanoTime();
+        send(completedWithIntent(f.sessionId(), intentId));
+        return intentId;
+    }
+
+    @Test
+    void settlementStampsSettledAtAndStoresThePaymentIntent() throws Exception {
+        Fixture f = newFixture("settle-" + System.nanoTime());
+        String intentId = settle(f);
+
+        actAsBox(f.boxId());
+        Payment p = payments.findByStripeSessionId(f.sessionId()).orElseThrow();
+        assertThat(p.getStatus()).isEqualTo("SUCCEEDED");
+        // created_at is the checkout ATTEMPT; settled_at is when the money arrived. On a delayed
+        // rail these fall in different months, which is the whole reason the column exists.
+        assertThat(p.getSettledAt()).isNotNull();
+        assertThat(p.getStripePaymentIntentId()).isEqualTo(intentId);
+    }
+
+    @Test
+    void aPendingPaymentHasNoSettledAt() throws Exception {
+        Fixture f = newFixture("unsettled-" + System.nanoTime());
+        actAsBox(f.boxId());
+        // Nothing has settled it: PENDING means "not settled", and settled_at says so.
+        assertThat(payments.findByStripeSessionId(f.sessionId()).orElseThrow().getSettledAt()).isNull();
+    }
+
+    @Test
+    void chargeRefundedIsRoutedByPaymentIntentAndRecorded() throws Exception {
+        Fixture f = newFixture("refund-" + System.nanoTime());
+        String intentId = settle(f);
+        String refundId = "re_test_" + System.nanoTime();
+
+        send(chargeRefunded(intentId, refundId, 1500, "succeeded"));
+
+        actAsBox(f.boxId());
+        var rows = refunds.findByPaymentId(f.paymentId());
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).getAmountCents()).isEqualTo(1500);
+        assertThat(rows.get(0).getStripeRefundId()).isEqualTo(refundId);
+        assertThat(rows.get(0).getBoxId()).isEqualTo(f.boxId());
+        // The payment is untouched: a refund is an event, never an edit to what was paid.
+        assertThat(payments.findById(f.paymentId()).orElseThrow().getStatus()).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void replayedChargeRefundedRecordsItOnlyOnce() throws Exception {
+        Fixture f = newFixture("refund-replay-" + System.nanoTime());
+        String intentId = settle(f);
+        String refundId = "re_test_" + System.nanoTime();
+        String payload = chargeRefunded(intentId, refundId, 1500, "succeeded");
+
+        // A charge carries ALL its refunds, so every Stripe retry replays the whole list.
+        send(payload);
+        send(payload);
+
+        actAsBox(f.boxId());
+        assertThat(refunds.findByPaymentId(f.paymentId())).hasSize(1);
+    }
+
+    @Test
+    void aRefundExceedingTheAmountPaidIsNotRecorded() throws Exception {
+        Fixture f = newFixture("refund-over-" + System.nanoTime());
+        String intentId = settle(f);
+
+        // The fixture paid 5000. 6000 back means our record and Stripe's disagree; recording it
+        // would put the ledger into a state no revenue sum could interpret.
+        send(chargeRefunded(intentId, "re_over_" + System.nanoTime(), 6000, "succeeded"));
+
+        actAsBox(f.boxId());
+        assertThat(refunds.findByPaymentId(f.paymentId())).isEmpty();
+    }
+
+    @Test
+    void aRefundThatHasNotSucceededYetIsNotRecorded() throws Exception {
+        Fixture f = newFixture("refund-pending-" + System.nanoTime());
+        String intentId = settle(f);
+
+        // Not money back yet. Stripe sends another event when it becomes money back.
+        send(chargeRefunded(intentId, "re_pending_" + System.nanoTime(), 1500, "pending"));
+
+        actAsBox(f.boxId());
+        assertThat(refunds.findByPaymentId(f.paymentId())).isEmpty();
+    }
+
+    @Test
+    void chargeRefundedForAnUnknownPaymentIntentIs200AndWritesNothing() throws Exception {
+        Fixture f = newFixture("refund-unknown-" + System.nanoTime());
+        settle(f);
+
+        // Same 200 as any other unroutable event — the endpoint must not become an existence
+        // oracle over Stripe ids.
+        send(chargeRefunded("pi_never_seen_" + System.nanoTime(), "re_x_" + System.nanoTime(), 100, "succeeded"));
+
+        actAsBox(f.boxId());
+        assertThat(refunds.findByPaymentId(f.paymentId())).isEmpty();
     }
 
     @Test

@@ -66,9 +66,17 @@ public class StripeWebhookController {
     // subscribed until a booking fails. No payment_status gating needed here: this event type IS the
     // terminal outcome, independent of whatever payment_status the object carries.
     private static final String ASYNC_PAYMENT_FAILED = "checkout.session.async_payment_failed";
+    /**
+     * Money going back out. Its {@code data.object} is a CHARGE, not a checkout session, which is
+     * why routing had to gain a second key — see the lookup below. Recording only: refund MAIL and
+     * any admin-initiated refund flow are M16c's, so this adds no route.
+     */
+    private static final String CHARGE_REFUNDED = "charge.refunded";
     private static final String PAID = "paid";
+    private static final String SUCCEEDED = "succeeded";
 
     private final PaymentRepository payments;
+    private final RefundRepository refunds;
     private final SubscriptionRepository subscriptions;
     private final PlanRepository plans;
     private final BoxStripeRepository boxStripe;
@@ -78,11 +86,13 @@ public class StripeWebhookController {
     private final TransactionTemplate tx;
     private final ObjectMapper json = new ObjectMapper();
 
-    public StripeWebhookController(PaymentRepository payments, SubscriptionRepository subscriptions,
+    public StripeWebhookController(PaymentRepository payments, RefundRepository refunds,
+                                    SubscriptionRepository subscriptions,
                                     PlanRepository plans, BoxStripeRepository boxStripe,
                                     SubscriptionService subscriptionService, PaymentReceipts receipts,
                                     CryptoService crypto, PlatformTransactionManager txManager) {
         this.payments = payments;
+        this.refunds = refunds;
         this.subscriptions = subscriptions;
         this.plans = plans;
         this.boxStripe = boxStripe;
@@ -121,14 +131,26 @@ public class StripeWebhookController {
         // Used ONLY as an opaque DB lookup key at this point — not trusted for anything until the
         // signature check below passes.
         String sessionId = root.path("data").path("object").path("id").asText(null);
-        if (sessionId == null) {
+        // charge.refunded's data.object is a CHARGE: its id is ch_... and will never match a cs_...
+        // session id, so routing needs a second key. Both the charge and the completed session carry
+        // the PaymentIntent, and the success branch below stores it. Still an OPAQUE DB lookup key,
+        // exactly like sessionId — nothing here is trusted until the signature check, and the box is
+        // still resolved from OUR OWN row, never from the event payload.
+        String intentId = root.path("data").path("object").path("payment_intent").asText(null);
+        if (sessionId == null && intentId == null) {
             return ResponseEntity.ok().build(); // nothing we can route — no-op, don't leak
         }
 
-        Payment payment = payments.findByStripeSessionId(sessionId).orElse(null);
-        if (payment == null) {
-            return ResponseEntity.ok().build(); // unknown session id — no-op, don't leak
+        Payment routed = sessionId == null ? null : payments.findByStripeSessionId(sessionId).orElse(null);
+        if (routed == null && intentId != null) {
+            routed = payments.findByStripePaymentIntentId(intentId).orElse(null);
         }
+        if (routed == null) {
+            // Unknown to us — same 200 as every other unroutable event. Indistinguishable on purpose:
+            // a differing status would turn this endpoint into an existence oracle over Stripe ids.
+            return ResponseEntity.ok().build();
+        }
+        final Payment payment = routed;
         UUID boxId = payment.getBoxId();
 
         BoxStripe creds = boxStripe.findByBoxId(boxId).orElse(null);
@@ -176,6 +198,43 @@ public class StripeWebhookController {
             return ResponseEntity.ok().build();
         }
 
+        if (CHARGE_REFUNDED.equals(type)) {
+            final UUID paymentId = payment.getId();
+            final String fallbackCurrency = payment.getCurrency();
+            final int paidCents = payment.getAmountCents();
+            TenantContext.runAsBox(boxId, () -> tx.execute(status -> {
+                // A charge carries ALL its refunds, not just the new one, so every retry replays the
+                // whole list. stripe_refund_id is UNIQUE and checked here, which is what makes this
+                // idempotent — the same "idempotency is a property of the row" rule the branches
+                // above follow.
+                int already = refunds.findByPaymentId(paymentId).stream().mapToInt(Refund::getAmountCents).sum();
+                for (JsonNode r : root.path("data").path("object").path("refunds").path("data")) {
+                    String refundId = r.path("id").asText(null);
+                    if (refundId == null) continue;
+                    // Only settled money. A pending or failed refund is not money back yet, and
+                    // Stripe will send another event when it becomes one.
+                    if (!SUCCEEDED.equals(r.path("status").asText(null))) continue;
+                    if (refunds.findByStripeRefundId(refundId).isPresent()) continue;
+                    int amount = r.path("amount").asInt(0);
+                    if (amount <= 0) continue; // the DB check forbids it and it means nothing
+                    if (already + amount > paidCents) {
+                        // Refusing to record more than was ever paid keeps the ledger sane, and the
+                        // log is the only way an operator learns our record and Stripe's disagree.
+                        // Payment id only — never amounts tied to a person, never Stripe ids.
+                        log.warn("stripe refund for payment {} would exceed the amount paid; not recorded", paymentId);
+                        continue;
+                    }
+                    already += amount;
+                    refunds.save(new Refund(paymentId, amount,
+                            r.path("currency").asText(fallbackCurrency),
+                            r.path("reason").asText(null), refundId, null, null));
+                }
+                return null;
+            }));
+            // Deliberately no mail: refund messaging and the admin-facing refund flow are M16c's.
+            return ResponseEntity.ok().build();
+        }
+
         if (!CHECKOUT_COMPLETED.equals(type) && !ASYNC_PAYMENT_SUCCEEDED.equals(type)) {
             return ResponseEntity.ok().build();
         }
@@ -213,6 +272,11 @@ public class StripeWebhookController {
 
             p.setSubscriptionId(paid.getId());
             p.setStatus("SUCCEEDED");
+            // THIS is the settlement moment, and it is why settled_at exists: created_at was stamped
+            // when checkout began, which for a delayed rail can be days earlier and in another month.
+            p.setSettledAt(java.time.Instant.now());
+            // Store the PaymentIntent so a later charge.refunded can be routed back to this row.
+            if (intentId != null) p.setStripePaymentIntentId(intentId);
             payments.save(p);
 
             Plan plan = plans.findById(planId).orElse(null);
