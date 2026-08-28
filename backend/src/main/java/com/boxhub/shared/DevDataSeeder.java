@@ -468,7 +468,7 @@ public class DevDataSeeder implements CommandLineRunner {
         TenantContext.runAsBox(box.getId(), () -> {
             Announcement a = new Announcement();
             a.setBody("Saturday: Team WOD at 10:00 — bring a friend! The box closes early at 20:00 this Friday.");
-            a.setUpdatedBy(coachUserId);
+            a.setSentBy(coachUserId);
             announcements.save(a);
         });
     }

@@ -21,13 +21,13 @@ public class AnnouncementController {
         this.announcements = announcements;
     }
 
-    public record AnnouncementDto(String body, Instant updatedAt) {}
+    public record AnnouncementDto(String body, Instant sentAt) {}
     record PutRequest(@NotBlank String body) {}
 
     @GetMapping
     public ResponseEntity<AnnouncementDto> get() {
         return announcements.findAll().stream().findFirst()
-                .map(a -> ResponseEntity.ok(new AnnouncementDto(a.getBody(), a.getUpdatedAt())))
+                .map(a -> ResponseEntity.ok(new AnnouncementDto(a.getBody(), a.getSentAt())))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
@@ -37,10 +37,10 @@ public class AnnouncementController {
         RoleGuard.requireStaff();
         Announcement a = announcements.findAll().stream().findFirst().orElseGet(Announcement::new);
         a.setBody(req.body().trim());
-        a.setUpdatedBy(TenantContext.userId());
-        a.setUpdatedAt(Instant.now());
+        a.setSentBy(TenantContext.userId());
+        a.setSentAt(Instant.now());
         announcements.save(a);
-        return new AnnouncementDto(a.getBody(), a.getUpdatedAt());
+        return new AnnouncementDto(a.getBody(), a.getSentAt());
     }
 
     @DeleteMapping

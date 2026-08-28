@@ -21,10 +21,18 @@ public interface AnnouncementRecipientRepository extends JpaRepository<Announcem
            """)
     List<AnnouncementRecipient> findMineRaw(@Param("mid") UUID membershipId);
 
-    // findLatestBodyForMember is DELIBERATELY NOT HERE. It orders by `a.sentAt`, and JPQL is
-    // validated at context startup against ENTITY PROPERTY names — the Announcement field is still
-    // called `updatedAt` until Task 5 renames it, so this query would fail the whole context to boot.
-    // Task 5 Step 0 adds it, immediately after the rename. Do not add it early.
+    /**
+     * The athlete home card: the newest announcement ADDRESSED TO ME (D-4). Entity join —
+     * Hibernate 6 supports `join Entity alias on …` without a mapped association. Both entities are
+     * @TenantId, so the box filter applies to both sides. Call with PageRequest.of(0, 1).
+     */
+    @Query("""
+           select a from Announcement a
+             join AnnouncementRecipient r on r.announcementId = a.id
+            where r.membershipId = :mid
+            order by a.sentAt desc
+           """)
+    List<Announcement> findLatestBodyForMember(@Param("mid") UUID membershipId, Pageable page);
 
     long countByAnnouncementId(UUID announcementId);
     long countByAnnouncementIdAndReadAtIsNotNull(UUID announcementId);

@@ -76,7 +76,7 @@ public class HomeController {
 
         NextBooking next = nextBooking(me.getId());
         AnnouncementView ann = announcements.findAll().stream().findFirst()
-                .map(a -> new AnnouncementView(a.getBody(), a.getUpdatedAt())).orElse(null);
+                .map(a -> new AnnouncementView(a.getBody(), a.getSentAt())).orElse(null);
 
         ZoneId zone = ZoneId.systemDefault();
         Instant weekStart = LocalDate.now(zone).with(DayOfWeek.MONDAY).atStartOfDay(zone).toInstant();
