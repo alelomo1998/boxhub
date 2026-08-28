@@ -26,11 +26,12 @@ public class BoxSignupService {
     private final PasswordEncoder passwordEncoder;
     private final BoxSignupTx tx;
     private final SubscriptionService subscriptionService;
+    private final MembershipEventRepository membershipEvents;
 
     public BoxSignupService(AuthService authService, UserRepository users, BoxRepository boxes,
                             BoxWaitlistRepository waitlist, PlatformSettings settings,
                             PasswordPolicy passwordPolicy, PasswordEncoder passwordEncoder, BoxSignupTx tx,
-                            SubscriptionService subscriptionService) {
+                            SubscriptionService subscriptionService, MembershipEventRepository membershipEvents) {
         this.authService = authService;
         this.users = users;
         this.boxes = boxes;
@@ -40,6 +41,7 @@ public class BoxSignupService {
         this.passwordEncoder = passwordEncoder;
         this.tx = tx;
         this.subscriptionService = subscriptionService;
+        this.membershipEvents = membershipEvents;
     }
 
     public record SignupOutcome(boolean full) {}
@@ -106,7 +108,10 @@ public class BoxSignupService {
         // Subscription are @TenantId, and createOwnerAndBox's transaction (above) already committed
         // under the tenant-less signup request.
         BoxSignupTx.Result r = result;
-        TenantContext.runAsBox(r.boxId(), () -> subscriptionService.comp(r.membershipId()));
+        TenantContext.runAsBox(r.boxId(), () -> {
+            subscriptionService.comp(r.membershipId());
+            membershipEvents.save(new MembershipEvent(r.membershipId(), MembershipEvent.JOINED, null, null));
+        });
 
         authService.sendVerification(r.owner());
         return new SignupOutcome(false);

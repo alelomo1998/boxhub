@@ -66,6 +66,19 @@ member quietly ceasing to attend.
 
 Also add the `MigrationTest` case from Task 1.
 
+**`DevDataSeeder` is deliberately NOT a write site.** It creates its memberships (lines ~125-195)
+*outside* any `runAsBox` — the first one does not start until line ~222 — so a `@TenantId` event row
+written there is stamped `NO_TENANT` and dies on the foreign key. The executor escalated this rather
+than restructuring the seeder, which was right.
+
+**Consequence, recorded so M15a does not trip over it:** seeded demo boxes have **no lifecycle
+events at all**, so a LEG or churn screen built against demo data will render empty. Deliberately
+not fixed here — a blanket JOINED-for-every-seeded-membership would not give M15a what it actually
+needs (a churned member, a long-tenured one, a suspended-then-reactivated one), and the seeder is
+what the e2e suite depends on. **M15a designs its own lifecycle seed data**, and should use
+`memberships.findByBoxId(...)` inside a per-box `runAsBox` when it does — not `findAll()`, which is
+now a standing grep gate.
+
 ## Task 3 — M-2 and M-3, settlement and refunds (MONEY — tightest brief, orchestrator reviews hardest)
 
 - `Payment` gains `settledAt` and `stripePaymentIntentId`.

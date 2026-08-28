@@ -740,7 +740,8 @@ The Wodify feature-gap audit produced these; each now has a milestone in
 | Digital waivers, e-sign, versioning, re-sign on change | **M30** |
 | POS / retail / add-to-invoice, family groups & shared payments, payroll calculator | **M16** |
 | Lead management, conversion board, campaigns, automation rules engine, at-risk | **M32** |
-| Pre-built reports, insights dashboards, LEG / ARM | **Analytics brief** → M15 / M16 / M18 |
+| Pre-built reports, insights dashboards, LEG / ARM | **Analytics brief** (written 2026-08-27) → M15 / M16 / M18 |
+| **Lifecycle seed data** — `DevDataSeeder` emits no `membership_event` rows, so a LEG/churn screen renders empty against demo data. M39 left this deliberately: a blanket JOINED-for-all would not provide the shapes the screen needs (a churned member, a long-tenured one, a suspended-then-reactivated one). Design it with the screen. | **M15a** |
 | Weekly streaks | **M17** |
 | Sending mail from the gym's own domain | **M28** |
 | Custom branding — **logo and name only** | **M15** |

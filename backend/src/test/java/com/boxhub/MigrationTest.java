@@ -93,4 +93,22 @@ class MigrationTest extends AbstractIntegrationTest {
                 """, Integer.class);
         assertThat(uq).isEqualTo(1);
     }
+
+    @Test
+    void v29AnalyticsFoundations() {
+        Integer t = jdbc.queryForObject("""
+                select count(*) from information_schema.tables
+                where table_name in ('membership_event', 'refund')
+                """, Integer.class);
+        assertThat(t).isEqualTo(2);
+        Integer c = jdbc.queryForObject("""
+                select count(*) from information_schema.columns
+                where (table_name='payment' and column_name='settled_at')
+                   or (table_name='payment' and column_name='stripe_payment_intent_id')
+                   or (table_name='subscription' and column_name='kind')
+                   or (table_name='boxes' and column_name='currency')
+                   or (table_name='class_sessions' and column_name='ran_by_membership_id')
+                """, Integer.class);
+        assertThat(c).isEqualTo(5);
+    }
 }

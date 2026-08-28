@@ -16,15 +16,18 @@ public class InvitePublicController {
     private final BoxRepository boxes;
     private final PlanRepository plans;
     private final SubscriptionService subscriptionService;
+    private final MembershipEventRepository membershipEvents;
 
     public InvitePublicController(InviteService inviteService, InviteAcceptTx acceptTx,
                                   BoxRepository boxes, PlanRepository plans,
-                                  SubscriptionService subscriptionService) {
+                                  SubscriptionService subscriptionService,
+                                  MembershipEventRepository membershipEvents) {
         this.inviteService = inviteService;
         this.acceptTx = acceptTx;
         this.boxes = boxes;
         this.plans = plans;
         this.subscriptionService = subscriptionService;
+        this.membershipEvents = membershipEvents;
     }
 
     record PreviewResponse(String boxName, String boxSlug, String role, String email, String planName) {}
@@ -66,12 +69,16 @@ public class InvitePublicController {
                 // No Payment row — they haven't paid. ACTIVE with a concrete period end so the
                 // entitlement check lets them book immediately; the lapse job chases them later.
                 subscriptionService.recordPeriod(r.membership().getId(), plan.getId(), plan.getPriceCents(), null);
+                membershipEvents.save(new MembershipEvent(r.membership().getId(), MembershipEvent.JOINED, null, null));
             });
         } else {
             // A plan-less invite (planId null) means the box bills this member offline — but they
             // still need to be bookable, so comp them onto the per-box synthetic "Comped" plan
             // (M12b Task 2) instead of leaving them without any subscription at all.
-            TenantContext.runAsBox(r.box().getId(), () -> subscriptionService.comp(r.membership().getId()));
+            TenantContext.runAsBox(r.box().getId(), () -> {
+                subscriptionService.comp(r.membership().getId());
+                membershipEvents.save(new MembershipEvent(r.membership().getId(), MembershipEvent.JOINED, null, null));
+            });
         }
 
         Box box = r.box();

@@ -39,6 +39,7 @@ class BoxSignupRetryTest {
         PasswordEncoder encoder = mock(PasswordEncoder.class);
         BoxSignupTx tx = mock(BoxSignupTx.class);
         SubscriptionService subscriptionService = mock(SubscriptionService.class);
+        MembershipEventRepository membershipEvents = mock(MembershipEventRepository.class);
 
         when(settings.signupMode()).thenReturn("APPROVAL");
         when(settings.maxBoxes()).thenReturn(100);
@@ -51,7 +52,7 @@ class BoxSignupRetryTest {
         when(users.findByEmail(anyString())).thenReturn(Optional.empty());
 
         BoxSignupService service = new BoxSignupService(
-                authService, users, boxes, waitlist, settings, policy, encoder, tx, subscriptionService);
+                authService, users, boxes, waitlist, settings, policy, encoder, tx, subscriptionService, membershipEvents);
 
         assertThatThrownBy(() -> service.signup("Iron Temple", "Owner", "o@t.io", "correct-horse-battery", null))
                 .isInstanceOf(ResponseStatusException.class)
@@ -72,6 +73,7 @@ class BoxSignupRetryTest {
         PasswordEncoder encoder = mock(PasswordEncoder.class);
         BoxSignupTx tx = mock(BoxSignupTx.class);
         SubscriptionService subscriptionService = mock(SubscriptionService.class);
+        MembershipEventRepository membershipEvents = mock(MembershipEventRepository.class);
 
         when(settings.signupMode()).thenReturn("APPROVAL");
         when(settings.maxBoxes()).thenReturn(100);
@@ -84,7 +86,7 @@ class BoxSignupRetryTest {
         when(users.findByEmail("o@t.io")).thenReturn(Optional.of(owner));
 
         BoxSignupService service = new BoxSignupService(
-                authService, users, boxes, waitlist, settings, policy, encoder, tx, subscriptionService);
+                authService, users, boxes, waitlist, settings, policy, encoder, tx, subscriptionService, membershipEvents);
 
         var outcome = service.signup("Iron Temple", "Owner", "o@t.io", "correct-horse-battery", null);
 

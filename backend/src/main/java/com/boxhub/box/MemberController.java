@@ -30,11 +30,14 @@ public class MemberController {
     private final MembershipRepository memberships;
     private final PlanRepository plans;
     private final SubscriptionService subscriptions;
+    private final MembershipEventRepository membershipEvents;
 
-    public MemberController(MembershipRepository memberships, PlanRepository plans, SubscriptionService subscriptions) {
+    public MemberController(MembershipRepository memberships, PlanRepository plans, SubscriptionService subscriptions,
+                            MembershipEventRepository membershipEvents) {
         this.memberships = memberships;
         this.plans = plans;
         this.subscriptions = subscriptions;
+        this.membershipEvents = membershipEvents;
     }
 
     public record MemberDto(UUID membershipId, UUID userId, String name, String email,
@@ -74,6 +77,20 @@ public class MemberController {
                 && ((req.role() != null && !"BOX_ADMIN".equals(req.role()))
                  || (req.status() != null && !"ACTIVE".equals(req.status())));
         if (losesAdmin) RoleGuard.assertNotLastAdmin(memberships, boxId);
+
+        // Emit only on an ACTUAL transition — a no-op PATCH (status already what was requested)
+        // writes nothing. The two directions this endpoint can cause; JOINED/LEFT are never
+        // written from here (see MembershipEvent's javadoc).
+        String previousStatus = m.getStatus();
+        if (req.status() != null && !previousStatus.equals(req.status())) {
+            String kind = "SUSPENDED".equals(req.status()) ? MembershipEvent.SUSPENDED
+                    : "ACTIVE".equals(req.status()) ? MembershipEvent.REACTIVATED : null;
+            if (kind != null) {
+                UUID actorMembershipId = memberships.findByUserIdAndBoxId(TenantContext.userId(), boxId)
+                        .map(Membership::getId).orElse(null);
+                membershipEvents.save(new MembershipEvent(m.getId(), kind, actorMembershipId, null));
+            }
+        }
 
         if (req.role() != null) m.setRole(req.role());
         if (req.status() != null) m.setStatus(req.status());
