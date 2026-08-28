@@ -44,7 +44,7 @@ adoption. All six changes plus `payment.stripe_payment_intent_id`. See commit `9
 **Still owed:** a `v29AnalyticsFoundations` case in `backend/src/test/java/com/boxhub/MigrationTest.java`,
 which asserts per-migration schema facts for every other migration. Folded into Task 2.
 
-## Task 2 — M-1, membership lifecycle
+## Task 2 — M-1, membership lifecycle ✅ DONE
 
 New `MembershipEvent` entity + `MembershipEventRepository`. **Follow `SuperadminAudit` exactly** — it
 is the existing append-only, constructor-only, no-setters precedent, written in the same transaction
@@ -79,7 +79,7 @@ what the e2e suite depends on. **M15a designs its own lifecycle seed data**, and
 `memberships.findByBoxId(...)` inside a per-box `runAsBox` when it does — not `findAll()`, which is
 now a standing grep gate.
 
-## Task 3 — M-2 and M-3, settlement and refunds (MONEY — tightest brief, orchestrator reviews hardest)
+## Task 3 — M-2 and M-3, settlement and refunds ✅ DONE (orchestrator-written: money)
 
 - `Payment` gains `settledAt` and `stripePaymentIntentId`.
 - `SubscriptionTx.recordAdminPayment` sets `settledAt` at insert — those rows are `SUCCEEDED` on
@@ -102,7 +102,7 @@ now a standing grep gate.
 the schema and the Stripe path only, which is why no new route appears and `AuthzConformanceTest`
 stays untouched.
 
-## Task 4 — M-4, `subscription.kind`
+## Task 4 — M-4, `subscription.kind` ✅ DONE
 
 `Subscription` gains `kind`, defaulted `"PAID"` **via a Java field initializer** (the
 `Membership.status = "ACTIVE"` pattern) so the ~60 tests that construct entities directly keep
@@ -115,7 +115,7 @@ name; the *decision* about whether a subscription is comped now reads `kind`.
 `"Grandfathered"` stays `PAID` and V29 comments why. `TRIAL` is added now, unused, so **M32a** does
 not invent its own marker.
 
-## Task 5 — M-5, `boxes.currency`
+## Task 5 — M-5, `boxes.currency` ✅ DONE
 
 `Box` gains `currency`, Java field initializer `"eur"`. Exposed on the existing `GET /api/box/current`
 and settable on the existing `PATCH /api/box/settings` — **both already in `MIN_ROLE`, no new route**.
@@ -125,7 +125,7 @@ request body verbatim with no check of any kind.
 Frontend: `admin/plans.page.ts` currently offers an unconditional EUR/USD/GBP `<select>`. It must show
 the box's currency instead of letting a plan diverge from it.
 
-## Task 6 — M-6, `ran_by_membership_id`
+## Task 6 — M-6, `ran_by_membership_id` ✅ DONE (field only — see the deviation note)
 
 `ClassSession` gains the field. **Note the deliberate type asymmetry**: `coach_id` is a **User** id,
 `ran_by_membership_id` is a **Membership** id — "who is owed, in this box's context" is a different
@@ -145,7 +145,28 @@ not `@TenantId`, so a box admin's headline `activeMembers` counts every membersh
 
 Separate from the migrations; see the brief's §2 D-1 and "Decisions taken" #1.
 
-## Gates for the milestone
+## Deviation from this plan, taken deliberately
+
+**Task 6 does NOT expose `ran_by_membership_id` on the session DTOs**, though this plan said to.
+Nothing writes the column yet, so a DTO field that is always null would be a misleading API surface.
+It lands with its writer, **M34**.
+
+## Gates for the milestone — ALL MEASURED AT CLOSE
+
+| Gate | Result |
+|---|---|
+| Backend | **567 / 0 / 0 / 0** (was 535 at M23 close) |
+| Karma | **450 / 450** |
+| Production build | green |
+| e2e | **76 passed / 0 failed** on a rebuilt image |
+| Visual | **33 / 33** on a `down -v` stack |
+| `runAsRoot` in controllers | 0 |
+| `memberships.findAll()` in main | 0 (new standing gate) |
+| `MembershipEvent.LEFT` write sites | 0 |
+| `AuthzConformanceTest` | untouched, 0 lines vs `origin/main` |
+| Eight §8.1 greps | all 0 |
+
+## Original gate commands
 
 ```sh
 cd /Users/alessandrolomonaco/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # NOT ./mvnw — there is no wrapper in this repo
