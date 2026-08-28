@@ -1,6 +1,7 @@
 package com.boxhub.box;
 
 import com.boxhub.shared.RoleGuard;
+import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -18,9 +19,11 @@ import java.util.UUID;
 public class PlanController {
 
     private final PlanRepository plans;
+    private final BoxRepository boxes;
 
-    public PlanController(PlanRepository plans) {
+    public PlanController(PlanRepository plans, BoxRepository boxes) {
         this.plans = plans;
+        this.boxes = boxes;
     }
 
     /**
@@ -81,6 +84,22 @@ public class PlanController {
         return plans.findByArchivedFalse().stream().map(PlanDto::of).toList();
     }
 
+    /**
+     * A plan's currency is the BOX's currency. Before M39 this field was free text accepted verbatim
+     * with no pattern, enum or ISO-4217 check and nothing to check it against, so one box could hold
+     * a eur plan and a usd plan and a revenue SUM would add cents of euros to cents of dollars.
+     * <p>
+     * A mismatch is REJECTED rather than silently overwritten: a client sending the wrong currency
+     * has a bug, and quietly correcting it would hide that while looking like it worked.
+     */
+    private String boxCurrency(String requested) {
+        String boxCur = boxes.findById(TenantContext.requireBoxId()).orElseThrow().getCurrency();
+        if (requested != null && !requested.isBlank() && !requested.trim().equalsIgnoreCase(boxCur))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A plan must use the box's currency (" + boxCur + ")");
+        return boxCur;
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PlanDto create(@Valid @RequestBody CreatePlanRequest req) {
@@ -89,7 +108,7 @@ public class PlanController {
         p.setName(req.name().trim());
         p.setDurationDays(req.durationDays());
         p.setPriceCents(req.priceCents() != null ? req.priceCents() : 0);
-        p.setCurrency(req.currency() != null ? req.currency() : "eur");
+        p.setCurrency(boxCurrency(req.currency()));
         // "UNLIMITED" explicitly clears the weekly alias: plans.page.ts still posts a stale
         // weeklyClassLimit alongside entitlement='UNLIMITED' when the admin flips the select back.
         boolean explicitlyUnlimited = "UNLIMITED".equals(req.entitlement());
@@ -118,7 +137,7 @@ public class PlanController {
         if (req.durationDays() != null) p.setDurationDays(req.durationDays());
         if (req.archived() != null) p.setArchived(req.archived());
         if (req.priceCents() != null) p.setPriceCents(req.priceCents());
-        if (req.currency() != null) p.setCurrency(req.currency());
+        if (req.currency() != null) p.setCurrency(boxCurrency(req.currency()));
         // Same alias rule as create(): an explicit UNLIMITED clears every entry limit, which is what
         // the old `entitlement` select meant when an admin switched a limited plan back to unlimited.
         if ("UNLIMITED".equals(req.entitlement())) {

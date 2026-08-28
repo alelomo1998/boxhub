@@ -18,9 +18,11 @@ import java.util.UUID;
 public class BoxController {
 
     private final BoxRepository boxes;
+    private final PlanRepository plans;
 
-    public BoxController(BoxRepository boxes) {
+    public BoxController(BoxRepository boxes, PlanRepository plans) {
         this.boxes = boxes;
+        this.plans = plans;
     }
 
     // logoUrl is NOT routed through MediaSigner, and today that is a no-op rather than a carve-out:
@@ -31,12 +33,13 @@ public class BoxController {
     // (where there is no JWT), so it would have to stay unsigned — while avatarPath/imagePath,
     // which ARE uploads, stay signed and box-members-only.
     record CurrentBoxResponse(UUID id, String name, String slug, String timezone, String logoUrl,
-                              int cancelCutoffMin, int bookingHorizonWeeks, String locale, String role,
-                              boolean allowLateCancel, boolean lateCancelRefundsEntry,
+                              int cancelCutoffMin, int bookingHorizonWeeks, String locale, String currency,
+                              String role, boolean allowLateCancel, boolean lateCancelRefundsEntry,
                               boolean countWaitlistCancellations) {
         static CurrentBoxResponse of(Box b) {
             return new CurrentBoxResponse(b.getId(), b.getName(), b.getSlug(), b.getTimezone(), b.getLogoUrl(),
-                    b.getCancelCutoffMin(), b.getBookingHorizonWeeks(), b.getLocale(), TenantContext.role(),
+                    b.getCancelCutoffMin(), b.getBookingHorizonWeeks(), b.getLocale(), b.getCurrency(),
+                    TenantContext.role(),
                     b.isAllowLateCancel(), b.isLateCancelRefundsEntry(), b.isCountWaitlistCancellations());
         }
     }
@@ -48,7 +51,8 @@ public class BoxController {
 
     record PatchSettingsRequest(String name, String timezone, String logoUrl,
                                 @Min(0) Integer cancelCutoffMin, @Min(1) Integer bookingHorizonWeeks,
-                                String locale, Boolean allowLateCancel, Boolean lateCancelRefundsEntry,
+                                String locale, String currency,
+                                Boolean allowLateCancel, Boolean lateCancelRefundsEntry,
                                 Boolean countWaitlistCancellations) {}
 
     @PatchMapping("/api/box/settings")
@@ -68,6 +72,20 @@ public class BoxController {
         // M13a T8: the box's language, set once here — an invited member's users.locale defaults
         // to this at registration (AuthService.register / InviteService.boxLocaleForToken).
         if (req.locale() != null && !req.locale().isBlank()) b.setLocale(req.locale().trim());
+        // Currency is changeable, but only while it can still be made true of the whole box. Once a
+        // plan exists in the old currency, switching would leave that plan mismatched and put the
+        // box back into exactly the mixed state this column exists to prevent — so the box must fix
+        // its plans first. Old payments are in the old currency regardless; that is history, not a
+        // setting.
+        if (req.currency() != null && !req.currency().isBlank()) {
+            String cur = req.currency().trim().toLowerCase();
+            if (!cur.matches("[a-z]{3}"))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency must be a 3-letter ISO-4217 code");
+            if (!cur.equals(b.getCurrency()) && plans.existsByCurrencyNot(cur))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "CURRENCY_HAS_PLANS");
+            b.setCurrency(cur);
+        }
         // M16a cancellation policy. cancelCutoffMin above is "how late is late"; these three are what
         // happens then. Nullable so a PATCH that omits them leaves them alone, like every other field here.
         if (req.allowLateCancel() != null) b.setAllowLateCancel(req.allowLateCancel());

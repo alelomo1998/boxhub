@@ -198,4 +198,92 @@ class PlanApiTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.entriesPerWeek").value(3))
                 .andExpect(jsonPath("$.weeklyClassLimit").value(3));
     }
+
+    @Test
+    void aPlanInheritsTheBoxsCurrencyWhenNoneIsSent() throws Exception {
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Inherit " + System.nanoTime() + "\",\"durationDays\":30,\"priceCents\":5000}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currency").value("eur"));
+    }
+
+    /**
+     * Before M39 currency was free text accepted verbatim, so one box could hold a eur plan and a
+     * usd plan and a revenue SUM would add cents of euros to cents of dollars. A mismatch is
+     * REJECTED rather than silently corrected: a client sending the wrong currency has a bug, and
+     * quietly fixing it would hide that while looking like it worked.
+     */
+    @Test
+    void aPlanInADifferentCurrencyFromTheBoxIsRejected() throws Exception {
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Dollars " + System.nanoTime() + "\",\"durationDays\":30,"
+                                + "\"priceCents\":5000,\"currency\":\"usd\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patchingAPlanToAnotherCurrencyIsRejected() throws Exception {
+        String created = mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Patchme " + System.nanoTime() + "\",\"durationDays\":30,\"priceCents\":5000}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String planId = om.readTree(created).get("id").asText();
+
+        mvc.perform(patch("/api/box/plans/" + planId).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"currency\":\"gbp\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void theBoxsCurrencyIsOnTheCurrentBoxResponse() throws Exception {
+        mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currency").value("eur"));
+    }
+
+    /**
+     * Changing the box currency is allowed only while it can still be made true of the WHOLE box.
+     * Once a plan exists in the old currency, switching would leave that plan mismatched and put the
+     * box back into the mixed state boxes.currency exists to prevent.
+     */
+    @Test
+    void changingTheBoxCurrencyIsRefusedOnceAPlanExistsInTheOldOne() throws Exception {
+        mvc.perform(post("/api/box/plans").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Blocker " + System.nanoTime() + "\",\"durationDays\":30,\"priceCents\":5000}"))
+                .andExpect(status().isCreated());
+
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"currency\":\"gbp\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void aBoxWithNoPlansCanStillSetItsCurrency() throws Exception {
+        long n = System.nanoTime();
+        Box fresh = newBox("Currency Box " + n, "currency-box-" + n);
+        String token = boxToken("cur-" + n + "@t.io", fresh, "BOX_ADMIN");
+
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content("{\"currency\":\"GBP\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currency").value("gbp"));   // normalised, not stored as sent
+    }
+
+    @Test
+    void aNonsenseCurrencyIsRejected() throws Exception {
+        long n = System.nanoTime();
+        Box fresh = newBox("Bad Currency Box " + n, "bad-currency-" + n);
+        String token = boxToken("badcur-" + n + "@t.io", fresh, "BOX_ADMIN");
+
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content("{\"currency\":\"euros\"}"))
+                .andExpect(status().isBadRequest());
+    }
 }

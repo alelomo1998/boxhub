@@ -23,11 +23,6 @@ import { ButtonComponent } from '../../ui/button.component';
             <input class="bh-input dur" name="durationDays" type="number" min="1" [(ngModel)]="durationDays" data-testid="plan-duration" />
             <input class="bh-input price" name="price" type="number" min="0" step="0.01" placeholder="Price"
                    [(ngModel)]="priceInput" data-testid="plan-price" />
-            <select class="bh-select" name="currency" [(ngModel)]="currency" data-testid="plan-currency">
-              <option value="eur">EUR</option>
-              <option value="usd">USD</option>
-              <option value="gbp">GBP</option>
-            </select>
             <select class="bh-select" name="entitlement" [(ngModel)]="entitlement" data-testid="plan-entitlement">
               <option value="UNLIMITED">Unlimited</option>
               <option value="WEEKLY_LIMIT">Weekly limit</option>
@@ -76,7 +71,6 @@ export class PlansPage implements OnInit {
   name = '';
   durationDays = 30;
   priceInput: number | null = null;
-  currency = 'eur';
   entitlement: Entitlement = 'UNLIMITED';
   weeklyClassLimit: number | null = null;
   readonly state = signal<'loading' | 'error' | 'ready'>('loading');
@@ -99,7 +93,10 @@ export class PlansPage implements OnInit {
       name: this.name, durationDays: this.durationDays,
       weeklyClassLimit: this.entitlement === 'WEEKLY_LIMIT' ? (this.weeklyClassLimit ?? undefined) : undefined,
       priceCents: this.priceInput != null ? Math.round(this.priceInput * 100) : undefined,
-      currency: this.currency,
+      // No currency on the wire: a plan uses the BOX's currency, which the server supplies and now
+      // rejects a mismatch against (M39 / M-5). This select used to offer EUR/USD/GBP freely, so a
+      // single box could hold plans in three currencies and a revenue SUM would add cents of euros
+      // to cents of dollars. The plan list below renders each plan's actual currency.
       entitlement: this.entitlement,
     }).subscribe({
       next: () => {

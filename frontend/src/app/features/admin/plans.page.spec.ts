@@ -34,11 +34,13 @@ describe('PlansPage', () => {
     const cmp = fixture.componentInstance;
     cmp.name = 'Basic';
     cmp.priceInput = 25.5;
-    cmp.currency = 'eur';
     cmp.create();
     const req = http.expectOne('/api/box/plans');
     expect(req.request.method).toBe('POST');
     expect(req.request.body.priceCents).toBe(2550);
+    // A plan uses the BOX's currency (M39 / M-5): the client no longer chooses one, so it must not
+    // send one. Sending 'usd' from a eur box is now a 400.
+    expect(req.request.body.currency).toBeUndefined();
     req.flush({ id: 'p2', name: 'Basic', durationDays: 30, weeklyClassLimit: null, archived: false,
       priceCents: 2550, currency: 'eur', entitlement: 'UNLIMITED' });
     http.expectOne('/api/box/plans').flush([]);

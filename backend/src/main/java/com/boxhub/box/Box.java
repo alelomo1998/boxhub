@@ -22,6 +22,18 @@ public class Box {
     @Column(nullable = false) private String status = "ACTIVE";
     @Column(name = "created_at", insertable = false, updatable = false) private java.time.Instant createdAt;
     @Column(nullable = false) private String locale = "en";
+    /**
+     * The one currency this box trades in. Every plan must match it, which is what stops a box
+     * holding a eur plan and a usd plan and a revenue SUM adding cents of euros to cents of dollars.
+     * <p>
+     * plans.currency was free text accepted verbatim from the request body with no pattern, enum or
+     * ISO-4217 check, and there was no box-level value for it to be checked against. Reporting per
+     * currency is the correct general answer and the wrong one for a product whose pilot is a single
+     * European gym — so: one currency per box, recorded as a decision rather than assumed.
+     * <p>
+     * Defaulted in Java as well as the schema because tests construct Box directly.
+     */
+    @Column(nullable = false) private String currency = "eur";
     @Column(nullable = false) private boolean published = false;
     @Column private String description;
     @Column private String street;
@@ -54,6 +66,8 @@ public class Box {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public java.time.Instant getCreatedAt() { return createdAt; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
     public String getLocale() { return locale; }
     public void setLocale(String locale) { this.locale = locale; }
     public boolean isPublished() { return published; }

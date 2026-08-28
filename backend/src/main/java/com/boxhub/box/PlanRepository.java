@@ -12,4 +12,12 @@ public interface PlanRepository extends JpaRepository<Plan, UUID> {
     // one caller (SubscriptionService.comp) that must find-or-create the per-box synthetic plan
     // exactly once; see docs/TENANCY.md.
     Optional<Plan> findByBoxIdAndName(UUID boxId, String name);
+
+    /**
+     * Does this box hold any plan NOT in the given currency? Plan is @TenantId, so this is scoped to
+     * the caller's box automatically — no boxId parameter, and none wanted. Guards the box-currency
+     * change in BoxController: switching while a mismatched plan exists would recreate the
+     * mixed-currency state boxes.currency exists to prevent.
+     */
+    boolean existsByCurrencyNot(String currency);
 }
