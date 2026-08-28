@@ -1,6 +1,7 @@
 # Next session — **M29a messaging. M39 is closed.**
 
 **M39 analytics foundations is DONE and merged to `main`** — all eight tasks, no branch, tree clean.
+**CI is green** on `561b5f7` (both `ci` and `dependency-scan`).
 The analytics brief that produced it is closed too. Nothing is in flight.
 
 ```bash
@@ -40,6 +41,17 @@ Plan: `docs/superpowers/plans/2026-08-27-m39-analytics-foundations.md`. Brief:
   ```
 - **`ran_by_membership_id` exists and nothing writes it.** Its writer is M34. It is deliberately NOT
   on any DTO yet, and deliberately NOT backfilled from `coach_id`.
+
+### One CI flake fixed after M39 closed (2026-08-28)
+
+`runner.spec.ts` "TV shows the clock when a coach starts a timer" went red once in CI with
+`data-timer="none"` — the same SYMPTOM as the M21 tenancy bug, a different cause. **The tenancy
+guard is intact** (`TvStreamService.java:86`) and `connect()` sends an initial snapshot, so no event
+is lost. The spec's 15s budget was covering tv-shell's **3000ms pairing poll** plus the SSE connect
+plus the push. It now waits for the TV to go live first, so 15s measures only the push.
+
+**Not fixed with a retry.** `playwright.config.ts` sets `retries: 0` on purpose and says why:
+re-running until green is the failure mode that decision exists to prevent. Do not add retries.
 
 ### Two defects M39 fixed, both found by the brief rather than reported
 
@@ -97,7 +109,7 @@ Plan: `docs/superpowers/plans/2026-08-27-m39-analytics-foundations.md`. Brief:
 | Backend | **567 / 0 / 0 / 0** | ✅ at M39 close |
 | Karma | **450 / 450** | ✅ at M39 close |
 | Production build | **green** | ✅ at M39 close |
-| e2e | **76 passed / 0 failed / 0 skipped** | ✅ at M39 close, on a rebuilt image |
+| e2e | **76 passed / 0 failed / 0 skipped** | ✅ re-run 2026-08-28 after the flake fix; **CI green on `561b5f7`** |
 | Visual | **33 / 33** | ✅ at M39 close, on a `down -v` stack |
 | Eight §8.1 greps | all **0** | ✅ at M39 close |
 | Three tenancy/lifecycle greps | all **0** | ✅ at M39 close |
