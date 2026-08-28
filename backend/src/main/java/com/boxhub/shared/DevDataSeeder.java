@@ -1,7 +1,6 @@
 package com.boxhub.shared;
 
-import com.boxhub.box.Announcement;
-import com.boxhub.box.AnnouncementRepository;
+import com.boxhub.box.AnnouncementService;
 import com.boxhub.box.Booking;
 import com.boxhub.box.BookingRepository;
 import com.boxhub.box.Box;
@@ -53,7 +52,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private final MovementRepository movements;
     private final WodScoreRepository wodScores;
     private final LiftEntryRepository liftEntries;
-    private final AnnouncementRepository announcements;
+    private final AnnouncementService announcements;
     private final BookingRepository bookings;
     private final UserRepository userRepo;
     private final PlanRepository plans;
@@ -65,7 +64,7 @@ public class DevDataSeeder implements CommandLineRunner {
                          SessionGenerator sessionGenerator, TemplatePieceRepository skeletons,
                          SessionItemRepository items, WodRepository wods, MovementRepository movements,
                          WodScoreRepository wodScores, LiftEntryRepository liftEntries,
-                         AnnouncementRepository announcements, BookingRepository bookings, UserRepository userRepo,
+                         AnnouncementService announcements, BookingRepository bookings, UserRepository userRepo,
                          PlanRepository plans, SubscriptionRepository subscriptions, SubscriptionService subscriptionService) {
         this.boxes = boxes;
         this.memberships = memberships;
@@ -465,12 +464,13 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private void seedAnnouncement(Box box, UUID coachUserId) {
-        TenantContext.runAsBox(box.getId(), () -> {
-            Announcement a = new Announcement();
-            a.setBody("Saturday: Team WOD at 10:00 — bring a friend! The box closes early at 20:00 this Friday.");
-            a.setSentBy(coachUserId);
-            announcements.save(a);
-        });
+        // Routed through the real send path so it fans out to announcement_recipient — Step 1
+        // re-sources the athlete home card through recipient rows, so a hand-built row here (no
+        // fan-out) would leave a freshly seeded demo box showing no announcement at all.
+        TenantContext.runAsBox(box.getId(), () ->
+                announcements.send(
+                        "Saturday: Team WOD at 10:00 — bring a friend! The box closes early at 20:00 this Friday.",
+                        "EVERYONE", null));
     }
 
     private void todaySession(String name, Instant startAt, int durationMin, int capacity, UUID coachId) {

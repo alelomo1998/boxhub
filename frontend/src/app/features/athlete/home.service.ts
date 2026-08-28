@@ -28,8 +28,6 @@ export class HomeService {
   private http = inject(HttpClient);
 
   home(): Observable<Home> { return this.http.get<Home>('/api/box/home'); }
-  announcement(): Observable<Announcement | null> { return this.http.get<Announcement | null>('/api/box/announcement'); }
-  putAnnouncement(body: string): Observable<Announcement> { return this.http.put<Announcement>('/api/box/announcement', { body }); }
 
   profile(membershipId: string): Observable<Profile> {
     return this.http.get<Profile>(`/api/box/members/${membershipId}/profile`);

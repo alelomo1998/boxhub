@@ -30,6 +30,8 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
     @Autowired ClassSessionRepository sessions;
     @Autowired PlanRepository plans;
     @Autowired SubscriptionService subscriptionService;
+    @Autowired BookingRepository bookings;
+    @Autowired AnnouncementService announcementService;
     @Autowired ObjectMapper om;
 
     String admin, coach, athlete, otherAthlete;
@@ -71,6 +73,16 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
     private void actAsBox(UUID boxId) {
         Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
                 .subject(UUID.randomUUID().toString())
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
+    }
+
+    /** Like actAsBox, but with a real user id in the JWT subject — sent_by has a users FK. */
+    private void actAsUser(UUID userId, UUID boxId) {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
+                .subject(userId.toString())
                 .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
                 .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
         SecurityContextHolder.getContext()
@@ -194,5 +206,49 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/admin-stats").header("Authorization", "Bearer " + boxAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expiringPlans").value(1)); // only the 5-day plan counts
+    }
+
+    /**
+     * M29a (D-4): the home card now reads through announcement_recipient, so it is audience-scoped.
+     * Send an announcement to a CLASS_ROSTER containing athlete A (booked into the session) and not
+     * athlete B (never booked) — A sees it, B's $.announcement must not exist.
+     *
+     * Negative control (verified, not left in the suite): reverting HomeController's home() to
+     * `announcements.findAll().stream().findFirst()` makes this test fail:
+     * java.lang.AssertionError: Expected no value at JSON path "$.announcement" but found:
+     * {body=Roster only, updatedAt=...}
+     */
+    @Test
+    void homeShowsOnlyAnAnnouncementAddressedToMe() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("Ann " + n, "ann-" + n);
+        TokMem athleteA = member("anna-" + n + "@t.io", box, "ATHLETE");
+        TokMem athleteB = member("annb-" + n + "@t.io", box, "ATHLETE");
+        User sender = authService.register("annsend-" + n + "@t.io", "correct-horse-battery", "Sender");
+
+        actAsUser(sender.getId(), box.getId());
+        ClassSession s = new ClassSession();
+        s.setName("Roster Class");
+        s.setStartAt(Instant.now().plusSeconds(3600));
+        s.setDurationMin(60);
+        s.setCapacity(10);
+        sessions.save(s);
+
+        Booking booking = new Booking();
+        booking.setSessionId(s.getId());
+        booking.setMembershipId(athleteA.membershipId());
+        booking.setStatus("BOOKED");
+        bookings.save(booking);
+
+        announcementService.send("Roster only", "CLASS_ROSTER", s.getId());
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcement.body").value("Roster only"));
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteB.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcement").doesNotExist());
     }
 }

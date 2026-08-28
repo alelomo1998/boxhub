@@ -33,7 +33,7 @@ public class HomeController {
     private final ScheduleSlotRepository slots;
     private final ClassTypeRepository types;
     private final MembershipRepository memberships;
-    private final AnnouncementRepository announcements;
+    private final AnnouncementRecipientRepository recipients;
     private final PerformanceQueries queries;
     private final LiftEntryRepository lifts;
     private final MovementRepository movements;
@@ -42,7 +42,7 @@ public class HomeController {
 
     public HomeController(BookingRepository bookings, ClassSessionRepository sessions,
                           ScheduleSlotRepository slots, ClassTypeRepository types, MembershipRepository memberships,
-                          AnnouncementRepository announcements, PerformanceQueries queries,
+                          AnnouncementRecipientRepository recipients, PerformanceQueries queries,
                           LiftEntryRepository lifts, MovementRepository movements,
                           SubscriptionService subscriptions, MediaSigner mediaSigner) {
         this.bookings = bookings;
@@ -50,7 +50,7 @@ public class HomeController {
         this.slots = slots;
         this.types = types;
         this.memberships = memberships;
-        this.announcements = announcements;
+        this.recipients = recipients;
         this.queries = queries;
         this.lifts = lifts;
         this.movements = movements;
@@ -75,8 +75,13 @@ public class HomeController {
                 .orElseThrow(() -> new AccessDeniedException("Not a member of this box"));
 
         NextBooking next = nextBooking(me.getId());
-        AnnouncementView ann = announcements.findAll().stream().findFirst()
-                .map(a -> new AnnouncementView(a.getBody(), a.getSentAt())).orElse(null);
+        // M29a (D-4): the latest announcement ADDRESSED TO ME, not "the box's one row". A member outside
+        // a segment correctly sees nothing. The DTO shape is unchanged, so the screen does not move.
+        AnnouncementView ann = recipients
+                .findLatestBodyForMember(me.getId(), org.springframework.data.domain.PageRequest.of(0, 1))
+                .stream().findFirst()
+                .map(a -> new AnnouncementView(a.getBody(), a.getSentAt()))
+                .orElse(null);
 
         ZoneId zone = ZoneId.systemDefault();
         Instant weekStart = LocalDate.now(zone).with(DayOfWeek.MONDAY).atStartOfDay(zone).toInstant();
