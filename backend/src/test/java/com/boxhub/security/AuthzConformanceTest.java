@@ -357,6 +357,12 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                 Map.entry("POST /api/box/class-templates",
                         "{\"name\":\"T\",\"weekday\":1,\"startTime\":\"10:00\",\"durationMin\":60,\"capacity\":10}"),
                 Map.entry("PUT /api/box/announcement", "{\"body\":\"hi\"}"),
+                // M29a. Without these the probe's `{}` is rejected by @NotBlank with a 400 BEFORE
+                // RoleGuard.requireStaff() runs, and the sweep reported exactly that: "400 means
+                // validation ran before authz". With a valid body the probe reaches the guard, so
+                // the 403 it now asserts is real evidence the route is staff-only.
+                Map.entry("POST /api/box/threads/{membershipId}/messages", "{\"body\":\"probe\"}"),
+                Map.entry("POST /api/box/me/thread/messages", "{\"body\":\"probe\"}"),
                 Map.entry("POST /api/box/wods", "{\"title\":\"W\",\"wodType\":\"FOR_TIME\",\"scoreType\":\"TIME\"}"),
                 Map.entry("PUT /api/box/me/avatar", "{\"path\":\"media/x.png\"}"),
                 Map.entry("POST /api/box/subscriptions/checkout", "{\"planId\":\"" + plan.getId() + "\"}"),
@@ -458,6 +464,13 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("GET /api/box/me/thread", "ATHLETE"),
             Map.entry("POST /api/box/me/thread/messages", "ATHLETE"),
             Map.entry("POST /api/box/me/thread/read", "ATHLETE"),
+            // The staff shared inbox. COACH, not BOX_ADMIN: coaches chat with members by design
+            // (D-1). Addressed by membershipId, so probe (c) firing an ATHLETE token at these is
+            // exactly the "I know someone's membership id" attack — it must 403.
+            Map.entry("GET /api/box/threads", "COACH"),
+            Map.entry("GET /api/box/threads/{membershipId}", "COACH"),
+            Map.entry("POST /api/box/threads/{membershipId}/messages", "COACH"),
+            Map.entry("POST /api/box/threads/{membershipId}/read", "COACH"),
             Map.entry("GET /api/box/sessions", "ATHLETE"),
             Map.entry("PATCH /api/box/sessions/{id}", "COACH"),
             Map.entry("GET /api/box/sessions/{id}/detail", "ATHLETE"),
