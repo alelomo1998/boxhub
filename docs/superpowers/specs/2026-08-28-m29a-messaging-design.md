@@ -501,3 +501,24 @@ are now *the same screen with a different contact list*.
 
 §5, D-2, D-4, D-7 and D-8 stand. Segments, the frozen audience and the announcement history do not
 touch threads. **Task 10 proceeds against the original spec.**
+
+## A1.7 Conversation UI refinements (user review, 2026-08-29)
+
+Ruled after reviewing the rebuilt screen in the browser. These override A1.5's row and bubble
+description.
+
+- **The "Needs reply" tag is REMOVED from the list.** The signal the user wants is *opened vs not
+  opened*: unread rows are bold and carry a count, and opening one returns the row to normal. A
+  separate derived "needs reply" label on top of that read a second, competing meaning into the same
+  row. `ConversationDto.needsReply` stays on the wire — the backend still derives it and the tests
+  still cover it — but no screen renders it. Removing the field would be a schema change for a
+  presentation decision that may yet return for the staff view.
+- **The role tag sits on the NAME line, right of the name** — not on the preview line.
+- **The composer is pinned to the bottom of the conversation pane** and **cannot be resized**
+  (`resize: none`). The thread scrolls above it.
+- **Each message carries the speaker's avatar**, on its own side, collapsed for consecutive messages
+  from the same speaker.
+- **A message's own meta is the HOUR only** (`HH:mm`). The date moves out of the message entirely
+  and becomes a **day separator** between groups: messages run under a small centred date, and when
+  the day changes a new separator is drawn. The sender's name is dropped from the meta — in a 1:1
+  conversation the avatar and the pane header already say who is speaking.

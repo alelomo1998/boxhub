@@ -7,6 +7,7 @@ import { DatePipe } from '@angular/common';
 import { Subject, catchError, of, switchMap } from 'rxjs';
 import { MessagingService } from './messaging.service';
 import { Contact, Conversation, ChatMessage } from './messaging.models';
+import { HomeService } from '../athlete/home.service';
 import { Role } from '../../core/auth/auth.models';
 import { roleLabel } from '../../core/auth/labels';
 import { ButtonComponent } from '../../ui/button.component';
@@ -71,22 +72,18 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                     <span class="row-body">
                       <span class="row-top">
                         <span class="name" [class.unread]="c.unreadCount > 0">{{ c.name }}</span>
-                        @if (c.unreadCount > 0) {
-                          <span class="badge" [attr.data-testid]="'conversation-unread-' + c.membershipId"
-                            [attr.aria-label]="unreadAriaLabel(c.unreadCount)">{{ cappedCount(c.unreadCount) }}</span>
-                        }
-                      </span>
-                      <span class="row-sub">
                         <span class="role">{{ roleLabel(c.role) }}</span>
-                        @if (c.lastMessagePreview) { <span class="preview">{{ c.lastMessagePreview }}</span> }
                       </span>
+                      @if (c.lastMessagePreview) {
+                        <span class="row-sub">
+                          <span class="preview">{{ c.lastMessagePreview }}</span>
+                        </span>
+                      }
                     </span>
                     <span class="row-side">
-                      @if (c.needsReply) {
-                        <span class="needs-reply" [attr.data-testid]="'conversation-needs-reply-' + c.membershipId">
-                          <span class="dot" aria-hidden="true"></span>
-                          <span class="nr-label" i18n="@@conversations.row.needsReply">Needs reply</span>
-                        </span>
+                      @if (c.unreadCount > 0) {
+                        <span class="badge" [attr.data-testid]="'conversation-unread-' + c.membershipId"
+                          [attr.aria-label]="unreadAriaLabel(c.unreadCount)">{{ cappedCount(c.unreadCount) }}</span>
                       }
                       @if (c.lastMessageAt) { <span class="time">{{ c.lastMessageAt | date:'d MMM, HH:mm' }}</span> }
                     </span>
@@ -102,8 +99,10 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                       (click)="selectContact(p)">
                       <bh-avatar [path]="p.avatarPath" [name]="p.name" size="sm" />
                       <span class="row-body">
-                        <span class="name">{{ p.name }}</span>
-                        <span class="role">{{ roleLabel(p.role) }}</span>
+                        <span class="row-top">
+                          <span class="name">{{ p.name }}</span>
+                          <span class="role">{{ roleLabel(p.role) }}</span>
+                        </span>
                       </span>
                     </button>
                   }
@@ -145,14 +144,25 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                     Nothing here yet — send the first message.
                   </p>
                 } @else {
-                  @for (m of messages(); track m.id) {
-                    <div class="msg" [class.mine]="m.mine" [attr.data-testid]="'message-' + m.id">
-                      <p class="bubble">{{ m.body }}</p>
-                      <span class="meta">
-                        @if (!m.mine) { <span class="sender">{{ m.senderName }}</span> }
-                        <span class="time">{{ m.createdAt | date:'d MMM, HH:mm' }}</span>
-                      </span>
+                  @for (g of dayGroups(); track g.dayKey) {
+                    <div class="day-sep" [attr.data-testid]="'day-' + g.dayKey" role="separator"
+                      [attr.aria-label]="g.rows[0].msg.createdAt | date:'d MMMM'">
+                      <span class="rule" aria-hidden="true"></span>
+                      <span class="day-label">{{ g.rows[0].msg.createdAt | date:'d MMMM' }}</span>
+                      <span class="rule" aria-hidden="true"></span>
                     </div>
+                    @for (row of g.rows; track row.msg.id) {
+                      <div class="msg" [class.mine]="row.msg.mine" [attr.data-testid]="'message-' + row.msg.id">
+                        <bh-avatar class="msg-avatar" [class.spacer]="!row.showAvatar"
+                          [attr.aria-hidden]="!row.showAvatar ? 'true' : null"
+                          [path]="row.msg.mine ? null : p.avatarPath"
+                          [name]="row.msg.mine ? myName() : p.name" size="sm" />
+                        <span class="msg-body">
+                          <p class="bubble">{{ row.msg.body }}</p>
+                          <span class="meta">{{ row.msg.createdAt | date:'HH:mm' }}</span>
+                        </span>
+                      </div>
+                    }
                   }
                 }
               </div>
@@ -179,7 +189,15 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
-    .msg-root { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: var(--sp-5);
+    /* Height chain for the pinned composer (M29a A1.7 #3): the host is otherwise a plain inline
+       custom element and sizes to its content, so .pane never has a bounded height to scroll
+       within and the composer just trails wherever the content ends. :host takes the full height
+       the shell's flex .content already hands this route, .msg-root fills it, and grid's default
+       stretch (or, on the sub-900px block layout, the explicit height below) hands that height to
+       .pane, whose own flex column (.thread flex:1 + min-height:0) is what makes the thread scroll
+       instead of the pane growing. */
+    :host { display: block; height: 100%; min-height: 0; }
+    .msg-root { height: 100%; display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: var(--sp-5);
       min-height: 0; }
     .stateline { color: var(--bone-dim); }
     .stateline.err { color: var(--danger); }
@@ -211,7 +229,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
     .name.unread { font-weight: 700; }
     .row-sub { display: flex; gap: var(--sp-2); min-width: 0; overflow: hidden; }
     .role { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
-      text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+      text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0; }
     .preview { font-family: var(--font-body); font-size: var(--fs-sm); color: var(--bone-dim);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
@@ -220,14 +238,13 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
       justify-content: center; border-radius: var(--r-full); background: var(--surface-2);
       border: 1px solid var(--hairline); color: var(--bone); font-family: var(--font-mono);
       font-size: var(--fs-meta); font-variant-numeric: tabular-nums; line-height: 1; }
-    .needs-reply { display: inline-flex; align-items: center; gap: 5px; }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bone); }
-    .nr-label { font-size: var(--fs-meta); color: var(--bone-dim); }
     .time { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
       font-variant-numeric: tabular-nums; white-space: nowrap; }
 
     /* --- conversation pane --- */
-    .pane { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; min-height: 0; }
+    /* height:100% here is what actually pins the composer on the sub-900px block layout below,
+       where .pane is a plain block child of .msg-root rather than a stretched grid item. */
+    .pane { height: 100%; display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; min-height: 0; }
     .pane-head { display: flex; align-items: center; gap: var(--sp-3); }
     .back { display: none; min-width: var(--tap); min-height: var(--tap); background: transparent;
       border: none; color: var(--bone); cursor: pointer; align-items: center; justify-content: center; }
@@ -240,23 +257,49 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
 
     .thread { display: flex; flex-direction: column; gap: var(--sp-3); flex: 1; min-height: 0; overflow-y: auto; }
     .thread-empty { color: var(--bone-dim); font-size: var(--fs-sm); }
-    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 78%; align-self: flex-start; }
-    .msg.mine { align-self: flex-end; align-items: flex-end; }
+
+    /* day separator — a divider, not a heading: quiet, centred, hairline either side. */
+    .day-sep { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; }
+    .day-sep .rule { flex: 1; border-top: 1px solid var(--hairline); }
+    .day-label { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--faint); white-space: nowrap; }
+
+    .msg { display: flex; align-items: flex-start; gap: var(--sp-2); max-width: 78%; align-self: flex-start; }
+    .msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-avatar { flex-shrink: 0; }
+    .msg-avatar.spacer { visibility: hidden; }
+    .msg-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .msg.mine .msg-body { align-items: flex-end; }
     .bubble { margin: 0; background: var(--surface); border: 1px solid var(--hairline);
       border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4); font-family: var(--font-body);
       font-size: var(--fs-body); color: var(--bone); overflow-wrap: anywhere; }
     .msg.mine .bubble { background: var(--surface-2); }
-    .meta { display: flex; gap: var(--sp-2); font-family: var(--font-mono); font-size: var(--fs-meta);
+    .meta { font-family: var(--font-mono); font-size: var(--fs-meta);
       color: var(--faint); font-variant-numeric: tabular-nums; }
 
     /* composer — layout and selector specificity are load-bearing, see the M29a brief. */
-    .composer { display: flex; flex-direction: column; gap: var(--sp-2); }
+    /* STICKY, not a flex child pinned to the bottom of a full-height pane. The height chain that
+       would allow the latter cannot resolve: the shells set .app to min-height 100dvh, which is
+       NOT a definite height, so height 100% on this route falls back to auto and .thread grows to
+       its content instead of scrolling inside a fixed box. Measured: pane 672px inside a .content
+       that had itself grown to 776px, document scrolling 98px past the viewport, and the composer
+       sitting at the document's end — underneath the fixed dock, which is exactly the bug this is
+       fixing. Sticky needs no definite ancestor height: the page scrolls, the composer stays put.
+       The bottom offset matches the shell's own dock reserve so it lands just above the dock, and
+       the opaque ground plus a hairline stop messages showing through as they scroll behind it. */
+    .composer { position: sticky; bottom: 0; z-index: 1; flex-shrink: 0;
+      display: flex; flex-direction: column; gap: var(--sp-2);
+      background: var(--ground); border-top: 1px solid var(--hairline);
+      padding-top: var(--sp-3); }
+    @media (max-width: 719px) {
+      .composer { bottom: calc(88px + env(safe-area-inset-bottom)); }
+    }
     .clabel { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--faint); }
     .composer-row { display: flex; align-items: end; gap: var(--sp-2); }
     textarea { flex: 1; min-width: 0; font-family: var(--font-body); font-size: var(--fs-body);
       color: var(--bone); background: var(--surface); border: 1px solid var(--hairline);
-      border-radius: var(--r-ctl); padding: var(--sp-3); min-height: var(--tap); resize: vertical; }
+      border-radius: var(--r-ctl); padding: var(--sp-3); min-height: var(--tap); resize: none; }
     textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .send-btn { flex-shrink: 0; }
     .send-btn ::ng-deep .btn.solid { width: var(--tap); min-width: var(--tap); padding: 0;
@@ -273,6 +316,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
 })
 export class ConversationsPage implements OnInit, OnDestroy {
   private messaging = inject(MessagingService);
+  private homeService = inject(HomeService);
 
   @ViewChild('composerInput') private composerInputRef?: ElementRef<HTMLTextAreaElement>;
 
@@ -288,6 +332,34 @@ export class ConversationsPage implements OnInit, OnDestroy {
   protected selected = signal<Person | null>(null);
   protected paneState = signal<'idle' | 'loading' | 'error' | 'ready'>('idle');
   protected messages = signal<ChatMessage[]>([]);
+
+  /** No avatar path for "me" exists on any messaging DTO (M29a A1.7 #4) — only the name, reused
+   *  from the same profile call the shell already makes. `bh-avatar` falls back to initials with
+   *  no `[path]`. */
+  protected myName = signal('');
+
+  /** Day-grouped, run-collapsed view of `messages()` — built here, not in the template, per the
+   *  M29a brief. A run resets at both a sender change AND a day boundary, so the first message of
+   *  a new day always shows its avatar even if the same person is still talking. `dayKey` is the
+   *  LOCAL calendar date (`Date` getters, not the ISO string's UTC slice) so a late-evening message
+   *  lands in the right day for the viewer. */
+  protected dayGroups = computed(() => {
+    const groups: { dayKey: string; rows: { msg: ChatMessage; showAvatar: boolean }[] }[] = [];
+    let prevSender: string | null = null;
+    for (const m of this.messages()) {
+      const d = new Date(m.createdAt);
+      const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      let group = groups[groups.length - 1];
+      if (!group || group.dayKey !== dayKey) {
+        group = { dayKey, rows: [] };
+        groups.push(group);
+        prevSender = null;
+      }
+      group.rows.push({ msg: m, showAvatar: m.senderMembershipId !== prevSender });
+      prevSender = m.senderMembershipId;
+    }
+    return groups;
+  });
 
   protected draft = signal('');
   protected sending = signal(false);
@@ -331,6 +403,10 @@ export class ConversationsPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
+    this.homeService.myProfile().subscribe({
+      next: p => this.myName.set(p.name),
+      error: () => {},
+    });
     document.addEventListener('visibilitychange', this.visHandler);
     this.startPoll();
   }
