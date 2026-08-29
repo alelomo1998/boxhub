@@ -117,6 +117,7 @@ export class AdminShellPage {
     { link: 'movements', label: 'Movements' },
     { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
+    { link: 'messages', label: 'Messages' },
   ];
   mobileTabs: DockTab[] = [
     { link: 'dashboard', label: 'Home', icon: 'house' },
@@ -131,6 +132,7 @@ export class AdminShellPage {
     { link: 'movements', label: 'Movements' },
     { link: 'tvs', label: 'TVs' },
     { link: 'settings', label: 'Settings' },
+    { link: 'messages', label: 'Messages' },
     { link: '/account', label: 'Security' },
   ];
 }

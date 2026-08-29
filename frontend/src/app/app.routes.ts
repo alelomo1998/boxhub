@@ -64,6 +64,7 @@ export const routes: Routes = [
       { path: 'wod', title: $localize`:@@route.athlete.wod:WOD`, loadComponent: () => import('./features/athlete/wod.page').then(m => m.WodPage) },
       { path: 'progress', title: $localize`:@@route.athlete.progress:Progress`, loadComponent: () => import('./features/athlete/progress.page').then(m => m.ProgressPage) },
       { path: 'membership', title: $localize`:@@route.athlete.membership:Membership`, loadComponent: () => import('./features/athlete/membership.page').then(m => m.MembershipPage) },
+      { path: 'messages', title: $localize`:@@route.athlete.messages:Messages`, loadComponent: () => import('./features/messaging/athlete-messages.page').then(m => m.AthleteMessagesPage) },
       { path: 'board/:itemId', title: $localize`:@@route.athlete.board:Leaderboard`, loadComponent: () => import('./features/performance/leaderboard.page').then(m => m.LeaderboardPage) },
       { path: 'class/:id', title: $localize`:@@route.athlete.class:Class`, loadComponent: () => import('./features/athlete/class-detail.page').then(m => m.ClassDetailPage) },
       { path: 'profile/:membershipId', title: $localize`:@@route.athlete.profile:Profile`, loadComponent: () => import('./features/athlete/athlete-profile.page').then(m => m.AthleteProfilePage) },
@@ -88,6 +89,7 @@ export const routes: Routes = [
       { path: 'wods/new', title: $localize`:@@route.coach.wodNew:New WOD`, loadComponent: () => import('./features/programming/wod-builder.page').then(m => m.WodBuilderPage) },
       { path: 'wods/:id', title: $localize`:@@route.coach.wodEdit:Edit WOD`, loadComponent: () => import('./features/programming/wod-builder.page').then(m => m.WodBuilderPage) },
       { path: 'benchmarks', title: $localize`:@@route.coach.benchmarks:Benchmarks`, loadComponent: () => import('./features/programming/benchmark-library.page').then(m => m.BenchmarkLibraryPage) },
+      { path: 'inbox', title: $localize`:@@route.coach.inbox:Inbox`, loadComponent: () => import('./features/messaging/staff-inbox.page').then(m => m.StaffInboxPage) },
       // legacy
       { path: 'sessions', redirectTo: 'classes' },
       { path: 'sessions/:id/roster', redirectTo: 'classes' },
@@ -109,6 +111,7 @@ export const routes: Routes = [
       { path: 'movements', title: $localize`:@@route.admin.movements:Movements`, loadComponent: () => import('./features/admin/movements.page').then(m => m.MovementsPage) },
       { path: 'tvs', title: $localize`:@@route.admin.tvs:TVs`, loadComponent: () => import('./features/admin/tvs.page').then(m => m.TvsPage) },
       { path: 'settings', title: $localize`:@@route.admin.settings:Settings`, loadComponent: () => import('./features/admin/settings.page').then(m => m.SettingsPage) },
+      { path: 'messages', title: $localize`:@@route.admin.messages:Messages`, loadComponent: () => import('./features/messaging/staff-inbox.page').then(m => m.StaffInboxPage) },
     ],
   },
   { path: 'tv', title: $localize`:@@route.tv.board:Board`, loadComponent: () => import('./features/tv/tv-shell.page').then(m => m.TvShellPage) },

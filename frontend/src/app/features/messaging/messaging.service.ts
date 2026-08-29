@@ -1,11 +1,28 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { Thread, ChatMessage, InboxRow, MyAnnouncement, AnnouncementRow, Segment } from './messaging.models';
 
 @Injectable({ providedIn: 'root' })
 export class MessagingService {
   private http = inject(HttpClient);
+
+  readonly unread = signal(0);
+
+  /** The envelope's badge. Two GETs because there is no count endpoint — both are small. */
+  refreshUnread(): void {
+    forkJoin({ thread: this.myThread(), anns: this.myAnnouncements() }).subscribe({
+      next: ({ thread, anns }) =>
+        this.unread.set(MessagingService.unreadIn(thread) + anns.filter(a => !a.read).length),
+      error: () => {},
+    });
+  }
+
+  /** Staff messages newer than the member's read marker. */
+  static unreadIn(t: Thread): number {
+    const seen = t.memberLastReadAt ? new Date(t.memberLastReadAt).getTime() : 0;
+    return t.messages.filter(m => m.senderSide === 'STAFF' && new Date(m.createdAt).getTime() > seen).length;
+  }
 
   // member
   myThread(): Observable<Thread> { return this.http.get<Thread>('/api/box/me/thread'); }

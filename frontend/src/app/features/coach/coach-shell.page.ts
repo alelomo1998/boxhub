@@ -63,6 +63,7 @@ export class CoachShellPage {
     { link: 'wods', label: 'Build', icon: 'clipboard-list' },
     { link: 'benchmarks', label: 'Bench', icon: 'dumbbell' },
     { link: 'types', label: 'Types', icon: 'layout-grid' },
+    { link: 'inbox', label: 'Inbox', icon: 'mail' },
   ];
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
