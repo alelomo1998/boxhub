@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { MessagingService } from './messaging.service';
+import { Conversation } from './messaging.models';
 
 describe('MessagingService', () => {
   let service: MessagingService;
@@ -14,27 +15,65 @@ describe('MessagingService', () => {
   });
   afterEach(() => http.verify());
 
-  it('myThread gets the member thread', () => {
-    service.myThread().subscribe();
-    const req = http.expectOne('/api/box/me/thread');
+  it('contacts gets addressable people with a search param', () => {
+    service.contacts('mar').subscribe();
+    const req = http.expectOne('/api/box/contacts?search=mar');
     expect(req.request.method).toBe('GET');
-    req.flush({ id: null, messages: [], memberLastReadAt: null });
+    req.flush([]);
   });
 
-  it('sendAsMember posts the body to the member thread', () => {
-    service.sendAsMember('Is the 6am on?').subscribe();
-    const req = http.expectOne('/api/box/me/thread/messages');
+  it('contacts defaults the search param to empty', () => {
+    service.contacts().subscribe();
+    const req = http.expectOne('/api/box/contacts?search=');
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
+  it('conversations gets the caller\'s conversation list', () => {
+    service.conversations().subscribe();
+    const req = http.expectOne('/api/box/conversations');
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
+  it('conversation gets one conversation by membershipId', () => {
+    service.conversation('mem1').subscribe();
+    const req = http.expectOne('/api/box/conversations/mem1');
+    expect(req.request.method).toBe('GET');
+    req.flush({ membershipId: 'mem1', name: 'Ada', role: 'COACH', avatarPath: null, messages: [] });
+  });
+
+  it('send posts the body to the conversation by membershipId', () => {
+    service.send('mem1', 'Is the 6am on?').subscribe();
+    const req = http.expectOne('/api/box/conversations/mem1/messages');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ body: 'Is the 6am on?' });
-    req.flush({ id: 'm1', body: 'Is the 6am on?', senderSide: 'MEMBER', senderName: 'Ada', createdAt: '2026-08-28T00:00:00Z' });
+    req.flush({
+      id: 'm1', body: 'Is the 6am on?', senderMembershipId: 'me', senderName: 'Ada',
+      createdAt: '2026-08-28T00:00:00Z', mine: true,
+    });
   });
 
-  it('markMyThreadRead posts an empty body to the member read endpoint', () => {
-    service.markMyThreadRead().subscribe();
-    const req = http.expectOne('/api/box/me/thread/read');
+  it('markRead posts an empty body to the conversation read endpoint by membershipId', () => {
+    service.markRead('mem1').subscribe();
+    const req = http.expectOne('/api/box/conversations/mem1/read');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({});
     req.flush(null);
+  });
+
+  it('refreshUnread sums unreadCount across the conversation list, one request', () => {
+    service.refreshUnread();
+    const req = http.expectOne('/api/box/conversations');
+    expect(req.request.method).toBe('GET');
+    const rows: Conversation[] = [
+      { membershipId: 'a', name: 'Ada', role: 'COACH', avatarPath: null,
+        lastMessagePreview: null, lastMessageAt: null, unreadCount: 2, needsReply: false },
+      { membershipId: 'b', name: 'Marco', role: 'BOX_ADMIN', avatarPath: null,
+        lastMessagePreview: null, lastMessageAt: null, unreadCount: 3, needsReply: true },
+    ];
+    req.flush(rows);
+    expect(service.unread()).toBe(5);
   });
 
   it('myAnnouncements gets the member announcement list', () => {
@@ -47,36 +86,6 @@ describe('MessagingService', () => {
   it('markAnnouncementRead posts to the announcement read endpoint by id', () => {
     service.markAnnouncementRead('a1').subscribe();
     const req = http.expectOne('/api/box/me/announcements/a1/read');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({});
-    req.flush(null);
-  });
-
-  it('inbox gets the staff shared inbox', () => {
-    service.inbox().subscribe();
-    const req = http.expectOne('/api/box/threads');
-    expect(req.request.method).toBe('GET');
-    req.flush([]);
-  });
-
-  it('thread gets a member thread by membershipId', () => {
-    service.thread('mem1').subscribe();
-    const req = http.expectOne('/api/box/threads/mem1');
-    expect(req.request.method).toBe('GET');
-    req.flush({ id: null, messages: [], memberLastReadAt: null });
-  });
-
-  it('sendAsStaff posts the body to the staff thread by membershipId', () => {
-    service.sendAsStaff('mem1', 'Yes, see you there.').subscribe();
-    const req = http.expectOne('/api/box/threads/mem1/messages');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ body: 'Yes, see you there.' });
-    req.flush({ id: 'm2', body: 'Yes, see you there.', senderSide: 'STAFF', senderName: 'Coach', createdAt: '2026-08-28T00:00:00Z' });
-  });
-
-  it('markThreadRead posts an empty body to the staff read endpoint by membershipId', () => {
-    service.markThreadRead('mem1').subscribe();
-    const req = http.expectOne('/api/box/threads/mem1/read');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({});
     req.flush(null);
