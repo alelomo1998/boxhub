@@ -386,3 +386,118 @@ does not touch the TV subsystem and does not use SSE (D-5). If `runner.spec.ts` 
 milestone, the WARN now logged by `TvStreamService.push()` on a dropped connection is the first
 place to look. **Do not "fix" it with retries** — `playwright.config.ts` sets `retries: 0`
 deliberately and records why.
+
+---
+
+# AMENDMENT A1 — per-person conversations replace the shared box thread
+
+**Ruled by the user 2026-08-29, mid-milestone, after seeing Task 8 rendered.** This amendment
+**supersedes D-1 and D-3** and rewrites §3, §4 and §6. Tasks 1–7 shipped the superseded model;
+`05219e3` is the checkpoint. Everything below is binding from here.
+
+## A1.1 What changed and why
+
+The shipped model gave each athlete **one thread, shared by all staff** — the athlete messaged "the
+box" and whichever coach was free replied. Rendered, that produced a screen that opens straight onto
+a text box, because there is only ever one conversation and so nothing to list.
+
+The user's ruling: **messaging is person-to-person.**
+
+- An **athlete** opens Messages and sees a list of people — **every coach, plus the box admin** —
+  each row opening its own 1:1 conversation.
+- **Staff** see coaches, the admin **and** athletes.
+- **Search** over that list is required, not optional.
+- The shared "message the box" thread is **replaced entirely**, not kept alongside (user's explicit
+  choice). The consequence was put to the user before the decision and accepted: a message to a
+  coach who is away now waits for that coach, where the shared inbox let anyone pick it up.
+- **An athlete may not message another athlete.** Confirmed explicitly; it is the boundary the
+  tests are written against.
+
+## A1.2 The security property that changes — read this before touching the controllers
+
+The superseded design's guarantee was **structural**: `MyThreadController` carried **no path ids at
+all**, so the wire had no way to name another member and "no member↔member" could not be violated
+even by a bug. Choosing a coach from a list requires naming a recipient, so **that guarantee is now
+a rule, not an impossibility.**
+
+It moves to exactly one place, `MessagingService.assertMayMessage(actor, target)`:
+
+- both memberships resolve **within `TenantContext.requireBoxId()`** — never from a request param;
+- `actor != target`;
+- if the actor's role is `ATHLETE`, the target's role **must be** `COACH` or `BOX_ADMIN`;
+- if the actor is staff, any membership in the box is permitted.
+
+Every conversation endpoint calls it. **`@TenantId` is box-scoping and cannot help here** — both
+sides of an athlete↔athlete leak sit in the same box, so the tenant filter passes it, and
+`AuthzConformanceTest`'s probe (d) is cross-box only. The **cross-member-denied test is therefore
+the only thing standing between this rule and a private-message leak**, and every endpoint owes one:
+an ATHLETE token addressing another ATHLETE's membershipId must get 403.
+
+## A1.3 Data model (`V31`)
+
+A thread is an unordered **pair** of memberships. Uniqueness is enforced by the database rather than
+by application care: the pair is stored in canonical order with a check constraint, so the plain
+unique constraint means "one thread per pair".
+
+```sql
+member_lo_id uuid not null,   -- always the numerically smaller uuid
+member_hi_id uuid not null,
+constraint message_thread_pair_order check (member_lo_id < member_hi_id),
+constraint uq_message_thread_pair  unique (box_id, member_lo_id, member_hi_id)
+```
+
+Read state is **per participant** — `lo_last_read_at` / `hi_last_read_at` — replacing D-3's single
+shared staff marker, which no longer means anything. `last_message_from_staff` is replaced by
+`last_sender_membership_id`: "needs reply" is now viewer-relative ("the last message is not mine")
+and stays **derived, never stored**.
+
+`message.sender_side` is **dropped**. Ownership is `sender_membership_id == viewer`, so the column
+would be a dead field — the same defect `MemberController` documents for `planId`.
+
+**`V31` drops and recreates `message_thread` and `message` rather than migrating them.** The old
+shape cannot be mapped onto pairs, because its staff side was *not a person*. This is only
+acceptable because **rxed has no production deployment** — `docs/VPS-DEPLOYMENT.md` records the OVH
+target as pre-production with open blockers, and `V30` was applied today, in dev, seeded data only.
+The migration says so in a comment. **Announcement tables are untouched.**
+
+## A1.4 API — replaces §6's thread endpoints
+
+`MyThreadController` and `StaffInboxController` **collapse into one** `ConversationController`.
+Athlete and staff now perform the same operations; the only difference is who they may address,
+which lives in `assertMayMessage`. Two controllers would duplicate that rule, and a duplicated
+security rule is one that drifts.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/box/contacts?search=` | People the caller may message. Athlete → staff only; staff → everyone in the box. Reuses `MembershipRepository.searchByBox`, which already exists and is what `/api/box/members` uses. |
+| `GET` | `/api/box/conversations` | The caller's threads, newest first, with counterpart, preview, `unreadCount` and derived `needsReply`. |
+| `GET` | `/api/box/conversations/{membershipId}` | One conversation. **Resolve, never create** — a GET must not write. |
+| `POST` | `/api/box/conversations/{membershipId}/messages` | Send; creates the thread lazily on first send. |
+| `POST` | `/api/box/conversations/{membershipId}/read` | Mark read; no-ops when no thread exists. |
+
+`{membershipId}` is always **the other person**. **RETIRED:** `/api/box/me/thread**` and
+`/api/box/threads**`, removed from `MIN_ROLE` along with their tests.
+
+`/api/box/contacts` is a **top-level path, deliberately not `/api/box/conversations/contacts`** —
+`AuthzConformanceTest` seeds a `{id}` from the preceding path segment, and a literal sibling of a
+path variable is exactly the shape that confuses it.
+
+## A1.5 Screens — replaces §8 rows 1 and 2
+
+Both messaging screens become **list → conversation**, and the athlete screen and the staff screen
+are now *the same screen with a different contact list*.
+
+- **No screen opens onto a composer.** The landing state is the conversation list; the composer
+  exists only inside an open conversation. The rejected build put an empty composer mid-screen with
+  the label "Message your gym" as the first thing an athlete saw.
+- Empty list state teaches the interface and offers the contact picker.
+- **Search** filters the list; the contact picker searches all addressable people.
+- Everything binding in §8 still holds: no volt, mono for counts and timestamps and never for prose,
+  tokens only, i18n on every string, the native-`(submit)` form contract, the handler-side guard,
+  the composer's row layout with the circular `variant="solid"` send button (**never `primary`,
+  which is volt-filled**), and the seven states.
+
+## A1.6 Announcements are unaffected
+
+§5, D-2, D-4, D-7 and D-8 stand. Segments, the frozen audience and the announcement history do not
+touch threads. **Task 10 proceeds against the original spec.**

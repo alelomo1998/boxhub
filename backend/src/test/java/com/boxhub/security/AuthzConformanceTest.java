@@ -389,8 +389,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                 // RoleGuard.requireStaff() runs, and the sweep reported exactly that: "400 means
                 // validation ran before authz". With a valid body the probe reaches the guard, so
                 // the 403 it now asserts is real evidence the route is staff-only.
-                Map.entry("POST /api/box/threads/{membershipId}/messages", "{\"body\":\"probe\"}"),
-                Map.entry("POST /api/box/me/thread/messages", "{\"body\":\"probe\"}"),
+                Map.entry("POST /api/box/conversations/{membershipId}/messages", "{\"body\":\"probe\"}"),
                 Map.entry("POST /api/box/wods", "{\"title\":\"W\",\"wodType\":\"FOR_TIME\",\"scoreType\":\"TIME\"}"),
                 Map.entry("PUT /api/box/me/avatar", "{\"path\":\"media/x.png\"}"),
                 Map.entry("POST /api/box/subscriptions/checkout", "{\"planId\":\"" + plan.getId() + "\"}"),
@@ -491,18 +490,29 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("PUT /api/box/class-templates/{templateId}/skeleton", "COACH"),
             // --- schedule, booking, roster ---
             Map.entry("GET /api/box/home", "ATHLETE"),
-            // --- M29a messaging: the member's own thread. No path ids by design (spec §4), so the
-            // caller can only ever reach their OWN thread — the membership comes from the JWT.
-            Map.entry("GET /api/box/me/thread", "ATHLETE"),
-            Map.entry("POST /api/box/me/thread/messages", "ATHLETE"),
-            Map.entry("POST /api/box/me/thread/read", "ATHLETE"),
-            // The staff shared inbox. COACH, not BOX_ADMIN: coaches chat with members by design
-            // (D-1). Addressed by membershipId, so probe (c) firing an ATHLETE token at these is
-            // exactly the "I know someone's membership id" attack — it must 403.
-            Map.entry("GET /api/box/threads", "COACH"),
-            Map.entry("GET /api/box/threads/{membershipId}", "COACH"),
-            Map.entry("POST /api/box/threads/{membershipId}/messages", "COACH"),
-            Map.entry("POST /api/box/threads/{membershipId}/read", "COACH"),
+            // --- M29a AMENDMENT A1: person-to-person conversations. These five REPLACE the seven
+            // retired /api/box/me/thread** and /api/box/threads** routes (shared box thread, D-1
+            // and D-3, superseded).
+            //
+            // All five are ATHLETE because the ROLE gate genuinely no longer distinguishes: an
+            // athlete may legitimately open a conversation with a coach, so the same route serves
+            // both. Who may address whom is not a role check — it is a per-PAIR rule, and it lives
+            // in MessagingService.assertMayMessage (athletes may address staff only; staff may
+            // address anyone in the box).
+            //
+            // Be aware what that costs this sweep, so nobody reads the ATHLETE below as slack:
+            // declaring a route ATHLETE means probe (c) — an ATHLETE token expecting 403 — does not
+            // run against it. That coverage did not vanish, it MOVED: ConversationApiTest carries a
+            // cross-member-denied test per endpoint, of which athleteCannotMessageAnotherAthlete is
+            // the load-bearing one. It was proved by negative control (disable the rule, watch it
+            // and two siblings go red). Probes (a) anonymous -> 401 and (b) foreign-tenant -> 403
+            // still run here, and (b) passes precisely because assertMayMessage resolves the target
+            // with findByIdAndBoxId rather than a bare findById.
+            Map.entry("GET /api/box/contacts", "ATHLETE"),
+            Map.entry("GET /api/box/conversations", "ATHLETE"),
+            Map.entry("GET /api/box/conversations/{membershipId}", "ATHLETE"),
+            Map.entry("POST /api/box/conversations/{membershipId}/messages", "ATHLETE"),
+            Map.entry("POST /api/box/conversations/{membershipId}/read", "ATHLETE"),
             Map.entry("GET /api/box/sessions", "ATHLETE"),
             Map.entry("PATCH /api/box/sessions/{id}", "COACH"),
             Map.entry("GET /api/box/sessions/{id}/detail", "ATHLETE"),

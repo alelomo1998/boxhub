@@ -18,9 +18,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The guarantee @TenantId does NOT give us (spec §4): two members of the SAME box must not see each
- * other's thread. Negative control: delete the membershipId predicate from
- * MessageThreadRepository.findByMembershipId and `memberBCannotSeeMemberAsThread` must go red.
+ * The guarantee @TenantId does NOT give us (A1.2): two members of the SAME box must not see a
+ * conversation they are not a party to. Negative control: delete the (memberLoId = :me or
+ * memberHiId = :me) predicate from MessageThreadRepository.findAllForMember and
+ * memberCNeverSeesAThreadBetweenAAndB must go red.
  */
 class ThreadScopingTest extends AbstractIntegrationTest {
 
@@ -33,7 +34,7 @@ class ThreadScopingTest extends AbstractIntegrationTest {
     void clearAuth() { SecurityContextHolder.clearContext(); }
 
     @Test
-    void memberBCannotSeeMemberAsThread() {
+    void memberCNeverSeesAThreadBetweenAAndB() {
         long n = System.nanoTime();
         Box box = new Box();
         box.setName("Scope Box " + n);
@@ -43,18 +44,53 @@ class ThreadScopingTest extends AbstractIntegrationTest {
 
         User ua = authService.register("sa-" + n + "@t.io", "correct-horse-battery", "A");
         User ub = authService.register("sb-" + n + "@t.io", "correct-horse-battery", "B");
+        User uc = authService.register("sc-" + n + "@t.io", "correct-horse-battery", "C");
+        Membership a = member(ua, box);
+        Membership b = member(ub, box);
+        Membership c = member(uc, box);
+
+        actAsBox(box.getId());
+        MessageThread t = new MessageThread();
+        UUID lo = a.getId().toString().compareTo(b.getId().toString()) < 0 ? a.getId() : b.getId();
+        UUID hi = a.getId().toString().compareTo(b.getId().toString()) < 0 ? b.getId() : a.getId();
+        t.setMemberLoId(lo);
+        t.setMemberHiId(hi);
+        threads.save(t);
+
+        // Same box, so the tenant filter passes for all three. Only the lo/hi predicate separates
+        // them — that is the whole point of this test.
+        assertThat(threads.findAllForMember(a.getId())).extracting(MessageThread::getId)
+                .containsExactly(t.getId());
+        assertThat(threads.findAllForMember(b.getId())).extracting(MessageThread::getId)
+                .containsExactly(t.getId());
+        assertThat(threads.findAllForMember(c.getId())).isEmpty();
+    }
+
+    @Test
+    void pairFinderIsOrderInsensitiveByCallerButRequiresCanonicalOrder() {
+        long n = System.nanoTime();
+        Box box = new Box();
+        box.setName("Scope Box 2 " + n);
+        box.setSlug("scope2-" + n);
+        box.setTimezone("Europe/Rome");
+        boxes.save(box);
+
+        User ua = authService.register("sd-" + n + "@t.io", "correct-horse-battery", "D");
+        User ub = authService.register("se-" + n + "@t.io", "correct-horse-battery", "E");
         Membership a = member(ua, box);
         Membership b = member(ub, box);
 
         actAsBox(box.getId());
+        UUID lo = a.getId().toString().compareTo(b.getId().toString()) < 0 ? a.getId() : b.getId();
+        UUID hi = a.getId().toString().compareTo(b.getId().toString()) < 0 ? b.getId() : a.getId();
         MessageThread t = new MessageThread();
-        t.setMembershipId(a.getId());
+        t.setMemberLoId(lo);
+        t.setMemberHiId(hi);
         threads.save(t);
 
-        // Same box, so the tenant filter passes for both. Only the membershipId predicate separates
-        // them — that is the whole point of this test.
-        assertThat(threads.findByMembershipId(a.getId())).isPresent();
-        assertThat(threads.findByMembershipId(b.getId())).isEmpty();
+        assertThat(threads.findByMemberLoIdAndMemberHiId(lo, hi)).isPresent();
+        // Reversed order does not match — callers must normalise first (MessagingService does).
+        assertThat(threads.findByMemberLoIdAndMemberHiId(hi, lo)).isEmpty();
     }
 
     private Membership member(User u, Box box) {

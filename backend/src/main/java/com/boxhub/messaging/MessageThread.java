@@ -7,12 +7,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One thread per member per box, shared by all staff (D-1). The staff side is "the box", not a
- * person: replies are attributed per message via Message.senderMembershipId.
+ * A1.3: a thread is an unordered PAIR of memberships, stored in canonical order (lo < hi) so the
+ * database's unique constraint genuinely means "one thread per pair" — see V31's check constraint.
  *
- * lastMessageAt / lastMessageFromStaff are DENORMALISED so the shared inbox list is one query with
- * no N+1. They are written only by MessagingService, in the same transaction as the message insert,
- * so they cannot drift. Do not set them anywhere else.
+ * lastMessageAt / lastSenderMembershipId are DENORMALISED so the conversation list is one query
+ * with no N+1. They are written only by MessagingService, in the same transaction as the message
+ * insert, so they cannot drift. Do not set them anywhere else.
  */
 @Entity
 @Table(name = "message_thread")
@@ -21,31 +21,42 @@ public class MessageThread {
     @TenantId
     @Column(name = "box_id", nullable = false)
     private UUID boxId;
-    @Column(name = "membership_id", nullable = false) private UUID membershipId;
+    @Column(name = "member_lo_id", nullable = false) private UUID memberLoId;
+    @Column(name = "member_hi_id", nullable = false) private UUID memberHiId;
     @Column(name = "created_at", nullable = false) private Instant createdAt = Instant.now();
     @Column(name = "last_message_at") private Instant lastMessageAt;
-    @Column(name = "last_message_from_staff", nullable = false) private boolean lastMessageFromStaff;
-    @Column(name = "member_last_read_at") private Instant memberLastReadAt;
-    /** ONE marker for the whole staff (D-3). Coach A reading clears the thread for the team. */
-    @Column(name = "staff_last_read_at") private Instant staffLastReadAt;
+    @Column(name = "last_sender_membership_id") private UUID lastSenderMembershipId;
+    @Column(name = "lo_last_read_at") private Instant loLastReadAt;
+    @Column(name = "hi_last_read_at") private Instant hiLastReadAt;
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
-    public UUID getMembershipId() { return membershipId; }
-    public void setMembershipId(UUID membershipId) { this.membershipId = membershipId; }
+    public UUID getMemberLoId() { return memberLoId; }
+    public void setMemberLoId(UUID memberLoId) { this.memberLoId = memberLoId; }
+    public UUID getMemberHiId() { return memberHiId; }
+    public void setMemberHiId(UUID memberHiId) { this.memberHiId = memberHiId; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getLastMessageAt() { return lastMessageAt; }
     public void setLastMessageAt(Instant lastMessageAt) { this.lastMessageAt = lastMessageAt; }
-    public boolean isLastMessageFromStaff() { return lastMessageFromStaff; }
-    public void setLastMessageFromStaff(boolean v) { this.lastMessageFromStaff = v; }
-    public Instant getMemberLastReadAt() { return memberLastReadAt; }
-    public void setMemberLastReadAt(Instant v) { this.memberLastReadAt = v; }
-    public Instant getStaffLastReadAt() { return staffLastReadAt; }
-    public void setStaffLastReadAt(Instant v) { this.staffLastReadAt = v; }
+    public UUID getLastSenderMembershipId() { return lastSenderMembershipId; }
+    public void setLastSenderMembershipId(UUID v) { this.lastSenderMembershipId = v; }
+    public Instant getLoLastReadAt() { return loLastReadAt; }
+    public void setLoLastReadAt(Instant v) { this.loLastReadAt = v; }
+    public Instant getHiLastReadAt() { return hiLastReadAt; }
+    public void setHiLastReadAt(Instant v) { this.hiLastReadAt = v; }
 
-    /** Derived, never stored (spec §3). No status column, nothing to leave in the wrong state. */
-    public boolean needsReply() {
-        return !lastMessageFromStaff && lastMessageAt != null
-                && (staffLastReadAt == null || lastMessageAt.isAfter(staffLastReadAt));
+    public boolean isLo(UUID me) { return me.equals(memberLoId); }
+
+    public UUID counterpart(UUID me) { return isLo(me) ? memberHiId : memberLoId; }
+
+    public Instant lastReadFor(UUID me) { return isLo(me) ? loLastReadAt : hiLastReadAt; }
+
+    public void setLastReadFor(UUID me, Instant t) {
+        if (isLo(me)) loLastReadAt = t; else hiLastReadAt = t;
+    }
+
+    /** Derived, never stored (A1.3). Viewer-relative: "the last message here isn't mine". */
+    public boolean needsReplyFor(UUID me) {
+        return lastSenderMembershipId != null && !lastSenderMembershipId.equals(me);
     }
 }
