@@ -1,6 +1,6 @@
 import {
   Component, ChangeDetectionStrategy, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild,
-  computed, inject, signal,
+  computed, effect, inject, signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
@@ -10,6 +10,7 @@ import { Contact, Conversation, ChatMessage } from './messaging.models';
 import { HomeService } from '../athlete/home.service';
 import { Role } from '../../core/auth/auth.models';
 import { roleLabel } from '../../core/auth/labels';
+import { ShellChromeService } from '../../core/shell-chrome.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { IconComponent } from '../../ui/icon.component';
@@ -291,8 +292,11 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
       display: flex; flex-direction: column; gap: var(--sp-2);
       background: var(--ground); border-top: 1px solid var(--hairline);
       padding-top: var(--sp-3); }
+    /* Below 719px the shell's dock is hidden by ShellChromeService.dockHidden while a
+       conversation is open (the Instagram DM behaviour), so this offset is the true viewport
+       bottom, not the dock reserve. */
     @media (max-width: 719px) {
-      .composer { bottom: calc(88px + env(safe-area-inset-bottom)); }
+      .composer { bottom: env(safe-area-inset-bottom); }
     }
     .clabel { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--faint); }
@@ -317,6 +321,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
 export class ConversationsPage implements OnInit, OnDestroy {
   private messaging = inject(MessagingService);
   private homeService = inject(HomeService);
+  private chrome = inject(ShellChromeService);
 
   @ViewChild('composerInput') private composerInputRef?: ElementRef<HTMLTextAreaElement>;
 
@@ -332,6 +337,13 @@ export class ConversationsPage implements OnInit, OnDestroy {
   protected selected = signal<Person | null>(null);
   protected paneState = signal<'idle' | 'loading' | 'error' | 'ready'>('idle');
   protected messages = signal<ChatMessage[]>([]);
+
+  /** The dock's own breakpoint (719px) — deliberately NOT the 900px pane breakpoint above, which
+   *  only governs which of the two panes shows. Below 719px, with a conversation open, the dock
+   *  is hidden and the composer anchors to the true viewport bottom (Instagram DM behaviour). */
+  protected narrow = signal(false);
+  private narrowQuery?: MediaQueryList;
+  private narrowHandler = (e: MediaQueryListEvent) => this.narrow.set(e.matches);
 
   /** No avatar path for "me" exists on any messaging DTO (M29a A1.7 #4) — only the name, reused
    *  from the same profile call the shell already makes. `bh-avatar` falls back to initials with
@@ -399,6 +411,11 @@ export class ConversationsPage implements OnInit, OnDestroy {
       switchMap(q => this.messaging.contacts(q).pipe(catchError(() => of([] as Contact[])))),
       takeUntilDestroyed(inject(DestroyRef)),
     ).subscribe(list => this.contactResults.set(list));
+
+    // Dock hidden ⇔ narrow AND a conversation is open — the Instagram DM behaviour. Driven by an
+    // effect rather than set at each call site so it can never go stale as selected()/narrow()
+    // change independently (search, back(), Escape, the media query listener).
+    effect(() => this.chrome.dockHidden.set(this.narrow() && !!this.selected()));
   }
 
   ngOnInit(): void {
@@ -409,11 +426,21 @@ export class ConversationsPage implements OnInit, OnDestroy {
     });
     document.addEventListener('visibilitychange', this.visHandler);
     this.startPoll();
+
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      this.narrowQuery = window.matchMedia('(max-width: 719px)');
+      this.narrow.set(this.narrowQuery.matches);
+      this.narrowQuery.addEventListener('change', this.narrowHandler);
+    }
   }
 
   ngOnDestroy(): void {
     this.stopPoll();
     document.removeEventListener('visibilitychange', this.visHandler);
+    this.narrowQuery?.removeEventListener('change', this.narrowHandler);
+    // Critical: reset unconditionally. Leaving this true after navigating away with a
+    // conversation open would remove the dock — and with it navigation — from every other screen.
+    this.chrome.dockHidden.set(false);
   }
 
   load(): void {

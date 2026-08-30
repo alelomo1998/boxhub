@@ -7,6 +7,7 @@ import { DockComponent, DockTab } from '../../ui/dock.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { IconComponent } from '../../ui/icon.component';
 import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
+import { ShellChromeService } from '../../core/shell-chrome.service';
 
 /** Admin: SaaS shell on desktop (side nav + top bar), bottom tabs + More sheet on mobile. */
 @Component({
@@ -34,7 +35,7 @@ import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
         }
       </nav>
 
-      <main class="content">
+      <main class="content" [class.no-dock]="chrome.dockHidden()">
         @if (auth.activeBoxStatus() === 'PENDING') {
           <div class="pending-banner" role="status" data-testid="pending-banner">
             <strong>Waiting for approval</strong> — set up your box now; invites and TVs unlock when it's approved.
@@ -43,12 +44,14 @@ import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
         <router-outlet />
       </main>
 
-      <bh-dock [tabs]="mobileTabs" label="Admin">
-        <button (click)="moreOpen.set(true)">
-          <bh-icon name="ellipsis" [size]="20" />
-          <span class="tlabel">More</span>
-        </button>
-      </bh-dock>
+      @if (!chrome.dockHidden()) {
+        <bh-dock [tabs]="mobileTabs" label="Admin">
+          <button (click)="moreOpen.set(true)">
+            <bh-icon name="ellipsis" [size]="20" />
+            <span class="tlabel">More</span>
+          </button>
+        </bh-dock>
+      }
     </div>
 
     <bh-sheet [open]="moreOpen()" title="More" label="More admin pages" (closed)="moreOpen.set(false)">
@@ -96,12 +99,14 @@ import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
       .admin { grid-template-columns: 1fr; grid-template-areas: "top" "content"; grid-template-rows: auto 1fr; }
       .side { display: none; }
       .content { padding: var(--sp-4) var(--sp-4) calc(88px + env(safe-area-inset-bottom)); }
+      .content.no-dock { padding-bottom: var(--sp-4); }
     }
   `],
 })
 export class AdminShellPage {
   auth = inject(AuthService);
   private router = inject(Router);
+  protected chrome = inject(ShellChromeService);
   moreOpen = signal(false);
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }

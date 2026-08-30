@@ -5,6 +5,21 @@ import { ConversationsPage } from './conversations.page';
 import { MessagingService } from './messaging.service';
 import { HomeService, Profile } from '../athlete/home.service';
 import { Contact, Conversation, ConversationDetail, ChatMessage } from './messaging.models';
+import { ShellChromeService } from '../../core/shell-chrome.service';
+
+/** Stubs `window.matchMedia('(max-width: 719px)')` so the narrow signal is controllable from a
+ *  test rather than depending on ChromeHeadless's real (uncontrolled) viewport. Returns a fake
+ *  `change` emitter the test can fire to simulate a resize. */
+function stubMatchMedia(initialMatches: boolean) {
+  const listeners: ((e: MediaQueryListEvent) => void)[] = [];
+  const mql = {
+    matches: initialMatches,
+    addEventListener: (_: string, cb: (e: MediaQueryListEvent) => void) => listeners.push(cb),
+    removeEventListener: jasmine.createSpy('removeEventListener'),
+  } as unknown as MediaQueryList;
+  spyOn(window, 'matchMedia').and.returnValue(mql);
+  return { fire: (matches: boolean) => listeners.forEach(cb => cb({ matches } as MediaQueryListEvent)) };
+}
 
 const MY_PROFILE: Profile = {
   membershipId: 'me', name: 'You', avatarPath: null, isPrivate: false, me: true,
@@ -337,4 +352,78 @@ describe('ConversationsPage', () => {
 
     fixture.destroy();
   }));
+
+  // Catches: dockHidden never set on open, or set from the wrong signal (e.g. the 900px pane
+  // breakpoint instead of narrow's 719px).
+  it('opening a conversation while narrow hides the shell dock', () => {
+    setup();
+    stubMatchMedia(true);
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_ADA));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const chrome = TestBed.inject(ShellChromeService);
+    expect(chrome.dockHidden()).toBeFalse();
+
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(chrome.dockHidden()).toBeTrue();
+  });
+
+  // Catches: back() clearing selected() but leaving the dock hidden — the user would be stuck
+  // with no navigation on the list pane.
+  it('going back to the list restores the shell dock', () => {
+    setup();
+    stubMatchMedia(true);
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_ADA));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const chrome = TestBed.inject(ShellChromeService);
+    expect(chrome.dockHidden()).toBeTrue();
+
+    (el.querySelector('.back') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(chrome.dockHidden()).toBeFalse();
+  });
+
+  // Catches: the one that matters — a leak here removes the dock, and with it navigation, from
+  // every other screen in the app once the user leaves the messages route with a conversation
+  // still open.
+  it('destroying the page resets the shell dock, even mid-conversation', () => {
+    setup();
+    stubMatchMedia(true);
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_ADA));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const chrome = TestBed.inject(ShellChromeService);
+    expect(chrome.dockHidden()).toBeTrue();
+
+    fixture.destroy();
+    expect(chrome.dockHidden()).toBeFalse();
+  });
+
+  // Catches: dockHidden driven off selected() alone, hiding the dock on a wide viewport where
+  // both panes already show side by side and the dock is still needed for navigation.
+  it('opening a conversation while wide leaves the shell dock alone', () => {
+    setup();
+    stubMatchMedia(false);
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_ADA));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const chrome = TestBed.inject(ShellChromeService);
+    expect(chrome.dockHidden()).toBeFalse();
+  });
 });

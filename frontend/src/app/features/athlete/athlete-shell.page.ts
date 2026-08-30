@@ -10,6 +10,7 @@ import { ProfileSheetComponent } from './profile-sheet.component';
 import { HomeService } from './home.service';
 import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 import { MessagingService } from '../messaging/messaging.service';
+import { ShellChromeService } from '../../core/shell-chrome.service';
 
 /** Athlete shell: header nav on desktop, floating pill dock on mobile. */
 @Component({
@@ -40,9 +41,9 @@ import { MessagingService } from '../messaging/messaging.service';
         </button>
       </bh-shell-header>
 
-      <main class="content"><router-outlet /></main>
+      <main class="content" [class.no-dock]="chrome.dockHidden()"><router-outlet /></main>
 
-      <bh-dock [tabs]="tabs" label="Athlete" />
+      @if (!chrome.dockHidden()) { <bh-dock [tabs]="tabs" label="Athlete" /> }
     </div>
 
     <bh-sheet [open]="profileOpen()" title="Profile" label="Your profile" (closed)="profileOpen.set(false)">
@@ -75,6 +76,7 @@ import { MessagingService } from '../messaging/messaging.service';
     @media (max-width: 719px) {
       .hnav { display: none; }
       .content { padding: var(--sp-4) var(--sp-4) calc(88px + env(safe-area-inset-bottom)); }
+      .content.no-dock { padding-bottom: var(--sp-4); }
     }
   `],
 })
@@ -82,6 +84,7 @@ export class AthleteShellPage implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private homeSvc = inject(HomeService);
   protected messaging = inject(MessagingService);
+  protected chrome = inject(ShellChromeService);
 
   profileOpen = signal(false);
   avatarPath = signal<string | null>(null);
