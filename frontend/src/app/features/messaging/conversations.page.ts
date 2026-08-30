@@ -1,6 +1,6 @@
 import {
-  Component, ChangeDetectionStrategy, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild,
-  computed, effect, inject, signal,
+  Component, ChangeDetectionStrategy, DestroyRef, ElementRef, Injector, OnDestroy, OnInit,
+  ViewChild, afterNextRender, computed, effect, inject, signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
@@ -139,7 +139,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                 </span>
               </header>
 
-              <div class="thread" aria-live="polite">
+              <div class="thread" #threadEl aria-live="polite">
                 @if (messages().length === 0) {
                   <p class="thread-empty" data-testid="conversation-thread-empty" i18n="@@conversations.thread.empty">
                     Nothing here yet — send the first message.
@@ -210,7 +210,8 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
       text-transform: uppercase; color: var(--faint); }
 
     /* --- list pane --- */
-    .list-pane { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; min-height: 0; }
+    .list-pane { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; min-height: 0;
+      overflow-y: auto; }
     .list-head { display: flex; flex-direction: column; gap: var(--sp-3); }
     .rows { display: flex; flex-direction: column; overflow-y: auto; }
     .group-k { padding: var(--sp-3) 0 var(--sp-1); }
@@ -279,25 +280,14 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
       color: var(--faint); font-variant-numeric: tabular-nums; }
 
     /* composer — layout and selector specificity are load-bearing, see the M29a brief. */
-    /* STICKY, not a flex child pinned to the bottom of a full-height pane. The height chain that
-       would allow the latter cannot resolve: the shells set .app to min-height 100dvh, which is
-       NOT a definite height, so height 100% on this route falls back to auto and .thread grows to
-       its content instead of scrolling inside a fixed box. Measured: pane 672px inside a .content
-       that had itself grown to 776px, document scrolling 98px past the viewport, and the composer
-       sitting at the document's end — underneath the fixed dock, which is exactly the bug this is
-       fixing. Sticky needs no definite ancestor height: the page scrolls, the composer stays put.
-       The bottom offset matches the shell's own dock reserve so it lands just above the dock, and
-       the opaque ground plus a hairline stop messages showing through as they scroll behind it. */
-    .composer { position: sticky; bottom: 0; z-index: 1; flex-shrink: 0;
-      display: flex; flex-direction: column; gap: var(--sp-2);
+    /* Static, not sticky. The shell locks to the viewport (ShellChromeService.viewportLocked)
+       while this screen is mounted, so the document never scrolls — .thread does, internally.
+       The composer is therefore an ordinary flex child at the end of .pane and physically cannot
+       drift; no position or offset needed. Ground background, hairline top border and top padding
+       stay so it still reads as separated from the messages scrolling above it. */
+    .composer { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--sp-2);
       background: var(--ground); border-top: 1px solid var(--hairline);
       padding-top: var(--sp-3); }
-    /* Below 719px the shell's dock is hidden by ShellChromeService.dockHidden while a
-       conversation is open (the Instagram DM behaviour), so this offset is the true viewport
-       bottom, not the dock reserve. */
-    @media (max-width: 719px) {
-      .composer { bottom: env(safe-area-inset-bottom); }
-    }
     .clabel { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--faint); }
     .composer-row { display: flex; align-items: end; gap: var(--sp-2); }
@@ -322,8 +312,10 @@ export class ConversationsPage implements OnInit, OnDestroy {
   private messaging = inject(MessagingService);
   private homeService = inject(HomeService);
   private chrome = inject(ShellChromeService);
+  private injector = inject(Injector);
 
   @ViewChild('composerInput') private composerInputRef?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('threadEl') private threadRef?: ElementRef<HTMLDivElement>;
 
   protected readonly roleLabel = roleLabel;
 
@@ -419,6 +411,9 @@ export class ConversationsPage implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Locks the shell to the viewport for as long as this screen is mounted — see ngOnDestroy for
+    // the matching, unconditional reset.
+    this.chrome.viewportLocked.set(true);
     this.load();
     this.homeService.myProfile().subscribe({
       next: p => this.myName.set(p.name),
@@ -441,6 +436,9 @@ export class ConversationsPage implements OnInit, OnDestroy {
     // Critical: reset unconditionally. Leaving this true after navigating away with a
     // conversation open would remove the dock — and with it navigation — from every other screen.
     this.chrome.dockHidden.set(false);
+    // Same reasoning, same criticality: leaving this true after navigating away would leave the
+    // WHOLE app unable to scroll on every other screen.
+    this.chrome.viewportLocked.set(false);
   }
 
   load(): void {
@@ -481,9 +479,27 @@ export class ConversationsPage implements OnInit, OnDestroy {
         this.paneState.set('ready');
         this.messaging.markRead(person.membershipId).subscribe({ error: () => {} });
         this.zeroUnreadLocally(person.membershipId);
+        this.scrollThreadToBottom();
       },
       error: () => this.paneState.set('error'),
     });
+  }
+
+  /** The thread is an internally scrolling box now (M29a Amendment A2), so it must be pushed to
+   *  its newest message after the DOM has the rows in it — otherwise an opened conversation shows
+   *  its oldest messages first. Guarded: the pane, and so `threadEl`, is absent before a selection
+   *  and briefly while `paneState` is 'loading'. */
+  private scrollThreadToBottom(): void {
+    // afterNextRender, not queueMicrotask and not setTimeout. Both were tried against the running
+    // stack and both left scrollTop at 0 with 21 messages rendered (scrollHeight 2295, clientHeight
+    // 475), so a conversation opened on its OLDEST message. Neither is ordered against rendering:
+    // change detection is scheduled by the framework, so a microtask runs before the rows exist and
+    // even a macrotask can beat the render, leaving threadRef unresolved. afterNextRender is the
+    // hook that is defined to run after it, which is what this needs.
+    afterNextRender(() => {
+      const el = this.threadRef?.nativeElement;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, { injector: this.injector });
   }
 
   protected reload(): void {
@@ -530,6 +546,7 @@ export class ConversationsPage implements OnInit, OnDestroy {
         this.draft.set('');
         this.insertOrBumpConversation(person, msg);
         queueMicrotask(() => this.composerInputRef?.nativeElement.focus());
+        this.scrollThreadToBottom();
       },
       error: () => {
         this.sending.set(false);

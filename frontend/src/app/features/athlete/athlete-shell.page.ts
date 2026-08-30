@@ -21,7 +21,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     ShellHeaderComponent, DockComponent, ProfileSheetComponent, BoxSwitcherComponent,
   ],
   template: `
-    <div class="app">
+    <div class="app" [class.locked]="chrome.viewportLocked()">
       <bh-shell-header [customBrand]="true">
         <bh-box-switcher brand />
         <nav nav class="hnav" aria-label="Athlete">
@@ -53,6 +53,8 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .app { display: flex; flex-direction: column; min-height: 100dvh; }
+    .app.locked { height: 100dvh; overflow: hidden; }
+    .app.locked .content { min-height: 0; overflow: hidden; }
     .hnav { display: flex; gap: var(--sp-1); flex: 1; justify-content: center; }
     .hitem { display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--sp-4);
       border-radius: var(--r-full); color: var(--bone-dim); font-weight: 600; font-size: 14px;

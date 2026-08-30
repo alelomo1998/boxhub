@@ -68,6 +68,15 @@ const DETAIL_TWO_DAY: ConversationDetail = {
 const CONTACT_ADA_DUP: Contact = { membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null };
 const CONTACT_MARCO: Contact = { membershipId: 'staff1', name: 'Marco', role: 'COACH', avatarPath: null };
 
+/** Lets the fire-and-forget scroll-to-bottom call run. It schedules via setTimeout, NOT
+ *  queueMicrotask: a microtask runs before change detection has written the messages into the DOM,
+ *  so scrollHeight is still the old height and the assignment is a silent no-op. That shipped once
+ *  and a conversation opened on its oldest message; awaiting a macrotask here is what keeps the
+ *  test honest about the ordering the runtime actually needs. */
+async function flushScroll(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve));
+}
+
 describe('ConversationsPage', () => {
   let svc: jasmine.SpyObj<MessagingService>;
   let homeSvc: jasmine.SpyObj<HomeService>;
@@ -425,5 +434,56 @@ describe('ConversationsPage', () => {
     fixture.detectChanges();
     const chrome = TestBed.inject(ShellChromeService);
     expect(chrome.dockHidden()).toBeFalse();
+  });
+
+  // Catches: the shell staying scrollable (drifting composer) because the screen never asked for
+  // the viewport lock in the first place.
+  it('locks the shell viewport while the screen is mounted', () => {
+    setup();
+    svc.conversations.and.returnValue(of([]));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    const chrome = TestBed.inject(ShellChromeService);
+    expect(chrome.viewportLocked()).toBeFalse();
+    fixture.detectChanges();
+    expect(chrome.viewportLocked()).toBeTrue();
+  });
+
+  // Catches: the one that matters most here — a leak leaves the WHOLE app unable to scroll on
+  // every other screen after navigating away from messages. Mirrors the equivalent dockHidden spec.
+  it('destroying the page resets the shell viewport lock', () => {
+    setup();
+    svc.conversations.and.returnValue(of([]));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const chrome = TestBed.inject(ShellChromeService);
+    expect(chrome.viewportLocked()).toBeTrue();
+
+    fixture.destroy();
+    expect(chrome.viewportLocked()).toBeFalse();
+  });
+
+  // Catches: the thread left at its scroll-into-view default (the top / oldest messages) instead
+  // of being pushed to the newest message once the conversation's rows are in the DOM.
+  it('scrolls the thread to the bottom after a conversation loads', async () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_ADA));
+    // A real element's native scrollTop setter clamps to the real (here: zero, since the fixture
+    // has no genuine overflowing layout) scroll range, so stubbing scrollHeight alone still reads
+    // back 0. Spy on both accessors at the prototype level instead and assert on what was actually
+    // WRITTEN, not what a clamped read reports back — the thing the component code controls.
+    spyOnProperty(Element.prototype, 'scrollHeight', 'get').and.returnValue(1200);
+    let scrollTopWritten: number | undefined;
+    spyOnProperty(Element.prototype, 'scrollTop', 'set').and.callFake(function (this: Element, v: number) {
+      scrollTopWritten = v;
+    });
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await flushScroll();
+
+    expect(scrollTopWritten).toBe(1200);
   });
 });

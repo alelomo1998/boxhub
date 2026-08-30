@@ -18,7 +18,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent, BoxSwitcherComponent,
   ],
   template: `
-    <div class="admin">
+    <div class="admin" [class.locked]="chrome.viewportLocked()">
       <bh-shell-header class="top" [customBrand]="true" area="Admin">
         <bh-box-switcher brand />
         <a actions routerLink="/account" aria-label="Security" title="Security" data-testid="admin-security-link">
@@ -67,6 +67,8 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
   styles: [`
     .admin { display: grid; grid-template-columns: 210px 1fr; grid-template-rows: auto 1fr;
       grid-template-areas: "top top" "side content"; min-height: 100dvh; }
+    .admin.locked { height: 100dvh; overflow: hidden; }
+    .admin.locked .content { min-height: 0; overflow: hidden; }
     /* bh-shell-header is the direct grid child here (admin is the one shell that's a grid, not a
        flex column), so IT — not its inner <header> — needs the area assignment or CSS Grid
        auto-places it into a single 210px-wide cell instead of spanning the full top row. */
