@@ -8,6 +8,7 @@ import { AuthService, SILENT_401 } from './auth.service';
 const UNAUTHORIZED = { status: 401, statusText: 'Unauthorized' };
 const NO_CONTENT = { status: 204, statusText: 'No Content' };
 const STALE = { status: 409, statusText: 'Conflict' };
+const FORBIDDEN = { status: 403, statusText: 'Forbidden' };
 const membership = { boxId: '1', boxName: 'Demo', boxSlug: 'demo', role: 'ATHLETE' as const, boxStatus: 'ACTIVE' };
 
 describe('authInterceptor', () => {
@@ -199,6 +200,65 @@ describe('authInterceptor', () => {
     httpMock.expectOne('/api/box/something').flush({ detail: 'STALE_BOX' }, STALE);
 
     expect(error).toBeTruthy();
+  });
+
+  // The bug this guards: an expired box token answers 403, not 401, because bh_at is still valid
+  // so the caller is authenticated but unscoped. The refresh-and-re-mint path is keyed on 401 and
+  // never fired, so every /api/box/** call failed permanently 15 minutes after picking a gym and
+  // every screen showed "Couldn't load". Reproduced live: /api/me 200 while
+  // /api/box/conversations 403, and /api/auth/refresh returned 200 without fixing it.
+  // Mutation caught: deleting the 403 branch in the interceptor.
+  it('re-mints and retries once when a box-scoped call 403s with a box active — an expired box token is a 403, not a 401', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [membership] });
+    auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
+
+    let result: unknown;
+    http.get('/api/box/conversations').subscribe(r => (result = r));
+
+    httpMock.expectOne('/api/box/conversations').flush(null, FORBIDDEN);
+
+    const remint = httpMock.expectOne('/api/auth/box-token');
+    expect(remint.request.body).toEqual({ boxId: '1' });
+    remint.flush(null, NO_CONTENT);
+
+    httpMock.expectOne('/api/box/conversations').flush({ ok: true });
+    expect(result).toEqual({ ok: true });
+    // No refresh: the user session was never in doubt, only the box scope.
+    httpMock.expectNone('/api/auth/refresh');
+  });
+
+  // Mutation caught: retrying more than once, or re-entering the interceptor on the retry.
+  it('surfaces a genuine 403 after one re-mint instead of looping', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [membership] });
+    auth.activeBox.set({ boxId: '1', boxName: 'Demo', role: 'ATHLETE' });
+
+    let error: unknown;
+    // An athlete addressing another athlete: forbidden by the rule, not by a stale token.
+    http.get('/api/box/conversations/other-athlete').subscribe({ error: e => (error = e) });
+
+    httpMock.expectOne('/api/box/conversations/other-athlete').flush(null, FORBIDDEN);
+    httpMock.expectOne('/api/auth/box-token').flush(null, NO_CONTENT);
+    httpMock.expectOne('/api/box/conversations/other-athlete').flush(null, FORBIDDEN);
+
+    expect(error).toBeTruthy();
+  });
+
+  // Mutation caught: dropping the boxScoped/activeBox guards and re-minting on every 403.
+  it('leaves a 403 outside /api/box/** alone, and one with no active box', () => {
+    auth.session.set({ id: 'u1', email: 'a@b.io', name: 'Ann', superadmin: false, memberships: [membership] });
+
+    let error: unknown;
+    http.get('/api/me/something').subscribe({ error: e => (error = e) });
+    httpMock.expectOne('/api/me/something').flush(null, FORBIDDEN);
+    httpMock.expectNone('/api/auth/box-token');
+    expect(error).toBeTruthy();
+
+    // box-scoped, but no box has been selected — there is nothing to re-mint.
+    let error2: unknown;
+    http.get('/api/box/something').subscribe({ error: e => (error2 = e) });
+    httpMock.expectOne('/api/box/something').flush(null, FORBIDDEN);
+    httpMock.expectNone('/api/auth/box-token');
+    expect(error2).toBeTruthy();
   });
 
   it('leaves an unrelated 409 alone', () => {
