@@ -18,9 +18,12 @@ export interface Conversation {
   lastMessagePreview: string | null; lastMessageAt: string | null;
   unreadCount: number; needsReply: boolean;
 }
+/** `counterpartLastReadAt` is the OTHER participant's read marker — null when they haven't read
+ *  anything yet (M29a A1.8 #2). Compare with `new Date(x).getTime()`, never as strings: Java
+ *  serializes `Instant` with a variable number of fractional-second digits. */
 export interface ConversationDetail {
   membershipId: string; name: string; role: Role; avatarPath: string | null;
-  messages: ChatMessage[];
+  messages: ChatMessage[]; counterpartLastReadAt: string | null;
 }
 
 export interface MyAnnouncement { id: string; body: string; sentAt: string; read: boolean; }

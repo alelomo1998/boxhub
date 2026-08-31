@@ -8,6 +8,7 @@ import { Subject, catchError, of, switchMap } from 'rxjs';
 import { MessagingService } from './messaging.service';
 import { Contact, Conversation, ChatMessage } from './messaging.models';
 import { HomeService } from '../athlete/home.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { Role } from '../../core/auth/auth.models';
 import { roleLabel } from '../../core/auth/labels';
 import { ShellChromeService } from '../../core/shell-chrome.service';
@@ -109,6 +110,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                   }
                 }
               </div>
+              <p class="reach-note" data-testid="reach-note">{{ reachNote() }}</p>
             }
           }
         }
@@ -163,6 +165,9 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                         </div>
                         @if (row.showTime) {
                           <span class="meta">{{ row.msg.createdAt | date:'HH:mm' }}</span>
+                        }
+                        @if (row.msg.mine && row.msg.id === lastMessageId()) {
+                          <span class="status" data-testid="message-status">{{ messageStatus(row.msg) }}</span>
                         }
                       </div>
                     }
@@ -289,6 +294,14 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
     .msg.mine .bubble { background: var(--surface-2); }
     .meta { font-family: var(--font-mono); font-size: var(--fs-meta);
       color: var(--faint); font-variant-numeric: tabular-nums; }
+    /* Read/Sent (M29a A1.8 #2) — a quiet annotation under the LAST mine-message only, same meta
+       voice as the timestamp above it, never a badge or a colour. */
+    .status { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint); }
+
+    /* Reach boundary note (M29a A1.8 #3) — prose, not meta: Archivo, never mono, sitting below
+       the rows as a footnote. The list-pane's own flex gap already separates it from .rows. */
+    .reach-note { font-family: var(--font-body); font-size: var(--fs-sm); color: var(--faint);
+      margin: 0; flex-shrink: 0; }
 
     /* composer — layout and selector specificity are load-bearing, see the M29a brief. */
     /* Static, not sticky. The shell locks to the viewport (ShellChromeService.viewportLocked)
@@ -324,6 +337,7 @@ export class ConversationsPage implements OnInit, OnDestroy {
   private homeService = inject(HomeService);
   private chrome = inject(ShellChromeService);
   private injector = inject(Injector);
+  private auth = inject(AuthService);
 
   @ViewChild('composerInput') private composerInputRef?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('threadEl') private threadRef?: ElementRef<HTMLDivElement>;
@@ -340,6 +354,11 @@ export class ConversationsPage implements OnInit, OnDestroy {
   protected selected = signal<Person | null>(null);
   protected paneState = signal<'idle' | 'loading' | 'error' | 'ready'>('idle');
   protected messages = signal<ChatMessage[]>([]);
+
+  /** The OTHER participant's read marker (M29a A1.8 #2) — null until they've read anything. Set
+   *  on every conversation load and refreshed on each poll of the open conversation, same as
+   *  `messages`. */
+  protected counterpartLastReadAt = signal<string | null>(null);
 
   /** The dock's own breakpoint (719px) — deliberately NOT the 900px pane breakpoint above, which
    *  only governs which of the two panes shows. Below 719px, with a conversation open, the dock
@@ -391,6 +410,32 @@ export class ConversationsPage implements OnInit, OnDestroy {
     return groups;
   });
 
+  /** The newest message in the open thread — `messages()` is append-ordered (initial load is
+   *  chronological, `send()` appends). Drives the Read/Sent line: it renders under this one
+   *  message only, and only when it's mine (M29a A1.8 #2). */
+  protected lastMessageId = computed(() => {
+    const msgs = this.messages();
+    return msgs.length ? msgs[msgs.length - 1].id : null;
+  });
+
+  /** Read when the counterpart's read marker is at or after this message's createdAt, Sent
+   *  otherwise. Millisecond comparison, never string comparison — Java's Instant serializes with
+   *  a variable number of fractional-second digits, so lexicographic order is wrong. */
+  protected messageStatus(msg: ChatMessage): string {
+    const readAt = this.counterpartLastReadAt();
+    if (readAt !== null && new Date(readAt).getTime() >= new Date(msg.createdAt).getTime()) {
+      return this.readStatusLabel;
+    }
+    return this.sentStatusLabel;
+  }
+
+  /** The reach boundary made visible (M29a A1.8 #3): copy, not authorization — who may actually
+   *  be addressed still lives server-side in `assertMayMessage`; this only picks a sentence from
+   *  the caller's own role. */
+  protected reachNote = computed(() => {
+    return this.auth.activeBox()?.role === 'ATHLETE' ? this.reachNoteAthlete : this.reachNoteStaff;
+  });
+
   protected draft = signal('');
   protected sending = signal(false);
   protected sendError = signal<string | null>(null);
@@ -432,6 +477,10 @@ export class ConversationsPage implements OnInit, OnDestroy {
   protected readonly pickMessage = $localize`:@@conversations.pane.pick.message:Select someone from the list to see your messages.`;
   protected readonly backLabel = $localize`:@@conversations.back:Back to messages`;
   protected readonly sendLabel = $localize`:@@conversations.compose.send:Send`;
+  private readonly readStatusLabel = $localize`:@@conversations.message.read:Read`;
+  private readonly sentStatusLabel = $localize`:@@conversations.message.sent:Sent`;
+  private readonly reachNoteAthlete = $localize`:@@conversations.reach.athlete:You can message your coaches and the box admin.`;
+  private readonly reachNoteStaff = $localize`:@@conversations.reach.staff:You can message anyone in your gym.`;
   private readonly emptyDraftError = $localize`:@@conversations.compose.error.empty:Write a message before sending.`;
   private readonly tooLongError = $localize`:@@conversations.compose.error.tooLong:Message is too long (max 4000 characters).`;
   private readonly sendFailedError = $localize`:@@conversations.compose.error.failed:Couldn't send. Try again.`;
@@ -513,11 +562,13 @@ export class ConversationsPage implements OnInit, OnDestroy {
     this.selected.set(person);
     this.paneState.set('loading');
     this.messages.set([]);
+    this.counterpartLastReadAt.set(null);
     this.draft.set(this.drafts.get(person.membershipId) ?? '');
     this.sendError.set(null);
     this.messaging.conversation(person.membershipId).subscribe({
       next: detail => {
         this.messages.set(detail.messages);
+        this.counterpartLastReadAt.set(detail.counterpartLastReadAt);
         this.paneState.set('ready');
         this.messaging.markRead(person.membershipId).subscribe({ error: () => {} });
         this.zeroUnreadLocally(person.membershipId);
@@ -639,7 +690,10 @@ export class ConversationsPage implements OnInit, OnDestroy {
     const person = this.selected();
     if (person) {
       this.messaging.conversation(person.membershipId).subscribe({
-        next: detail => this.messages.set(detail.messages),
+        next: detail => {
+          this.messages.set(detail.messages);
+          this.counterpartLastReadAt.set(detail.counterpartLastReadAt);
+        },
         error: () => {},
       });
     }

@@ -1,11 +1,14 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, throwError, Subject } from 'rxjs';
 import { ConversationsPage } from './conversations.page';
 import { MessagingService } from './messaging.service';
 import { HomeService, Profile } from '../athlete/home.service';
 import { Contact, Conversation, ConversationDetail, ChatMessage } from './messaging.models';
 import { ShellChromeService } from '../../core/shell-chrome.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 /** Stubs `window.matchMedia('(max-width: 719px)')` so the narrow signal is controllable from a
  *  test rather than depending on ChromeHeadless's real (uncontrolled) viewport. Returns a fake
@@ -46,9 +49,31 @@ const MSG_SENT: ChatMessage = {
 };
 const DETAIL_ADA: ConversationDetail = {
   membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null, messages: [MSG_1],
+  counterpartLastReadAt: null,
 };
 const DETAIL_SARA: ConversationDetail = {
   membershipId: 'staff2', name: 'Sara', role: 'BOX_ADMIN', avatarPath: null, messages: [],
+  counterpartLastReadAt: null,
+};
+// Read/Sent fixtures (M29a A1.8 #2) — MSG_1 (Ada, not mine) then MSG_SENT (mine, 09:05:00Z) as
+// the newest message, so the status line's target is always MSG_SENT.
+const DETAIL_LAST_MINE_READ: ConversationDetail = {
+  membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
+  messages: [MSG_1, MSG_SENT], counterpartLastReadAt: '2026-08-28T09:05:00Z',
+};
+const DETAIL_LAST_MINE_SENT_NULL: ConversationDetail = {
+  membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
+  messages: [MSG_1, MSG_SENT], counterpartLastReadAt: null,
+};
+const DETAIL_LAST_MINE_SENT_OLDER: ConversationDetail = {
+  membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
+  messages: [MSG_1, MSG_SENT], counterpartLastReadAt: '2026-08-28T09:00:00Z',
+};
+// Newest message is the OTHER person's (MSG_1 only, mine: false) — no status should render at
+// all, even though a read marker exists.
+const DETAIL_LAST_OTHER: ConversationDetail = {
+  membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
+  messages: [MSG_1], counterpartLastReadAt: '2026-08-29T00:00:00Z',
 };
 // Two consecutive messages from Ada on day 1 (avatar should collapse on the second), then one
 // from "me" on day 2 (a day boundary resets the run even though nothing else changed).
@@ -66,7 +91,7 @@ const MSG_DAY2_A: ChatMessage = {
 };
 const DETAIL_TWO_DAY: ConversationDetail = {
   membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
-  messages: [MSG_DAY1_A, MSG_DAY1_B, MSG_DAY2_A],
+  messages: [MSG_DAY1_A, MSG_DAY1_B, MSG_DAY2_A], counterpartLastReadAt: null,
 };
 // Three same-sender messages inside one minute (seconds differ, minute doesn't) — the timestamp
 // should collapse onto only the last of the run.
@@ -84,7 +109,7 @@ const MSG_MIN_C: ChatMessage = {
 };
 const DETAIL_SAME_MINUTE: ConversationDetail = {
   membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
-  messages: [MSG_MIN_A, MSG_MIN_B, MSG_MIN_C],
+  messages: [MSG_MIN_A, MSG_MIN_B, MSG_MIN_C], counterpartLastReadAt: null,
 };
 // Two messages in the same minute but from different senders — each keeps its own timestamp.
 const MSG_DIFF_SENDER_A: ChatMessage = {
@@ -97,7 +122,7 @@ const MSG_DIFF_SENDER_B: ChatMessage = {
 };
 const DETAIL_DIFF_SENDER_SAME_MINUTE: ConversationDetail = {
   membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
-  messages: [MSG_DIFF_SENDER_A, MSG_DIFF_SENDER_B],
+  messages: [MSG_DIFF_SENDER_A, MSG_DIFF_SENDER_B], counterpartLastReadAt: null,
 };
 // Two messages from the same sender a minute apart — each keeps its own timestamp.
 const MSG_DIFF_MIN_A: ChatMessage = {
@@ -110,7 +135,7 @@ const MSG_DIFF_MIN_B: ChatMessage = {
 };
 const DETAIL_DIFF_MINUTE_SAME_SENDER: ConversationDetail = {
   membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
-  messages: [MSG_DIFF_MIN_A, MSG_DIFF_MIN_B],
+  messages: [MSG_DIFF_MIN_A, MSG_DIFF_MIN_B], counterpartLastReadAt: null,
 };
 const CONTACT_ADA_DUP: Contact = { membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null };
 const CONTACT_MARCO: Contact = { membershipId: 'staff1', name: 'Marco', role: 'COACH', avatarPath: null };
@@ -128,7 +153,7 @@ describe('ConversationsPage', () => {
   let svc: jasmine.SpyObj<MessagingService>;
   let homeSvc: jasmine.SpyObj<HomeService>;
 
-  function setup() {
+  function setup(role: 'ATHLETE' | 'COACH' | 'BOX_ADMIN' = 'ATHLETE') {
     svc = jasmine.createSpyObj<MessagingService>('MessagingService',
       ['contacts', 'conversations', 'conversation', 'send', 'markRead', 'refreshUnread']);
     svc.contacts.and.returnValue(of([]));
@@ -142,10 +167,14 @@ describe('ConversationsPage', () => {
     TestBed.configureTestingModule({
       imports: [ConversationsPage],
       providers: [
+        // Real AuthService (M29a A1.8 #3, the reach note) — it needs a real HttpClient injector
+        // even though its methods are never called from these specs.
+        provideHttpClient(withXhr()), provideHttpClientTesting(),
         { provide: MessagingService, useValue: svc },
         { provide: HomeService, useValue: homeSvc },
       ],
     });
+    TestBed.inject(AuthService).activeBox.set({ boxId: 'box1', boxName: 'Demo Box', role });
   }
 
   afterEach(() => {
@@ -672,5 +701,75 @@ describe('ConversationsPage', () => {
     await flushScroll();
 
     expect(scrollTopWritten).toBe(1200);
+  });
+
+  // Catches: the status computed with string comparison instead of Date.getTime() — Java's
+  // Instant serializes with a variable number of fractional-second digits, so a naive string
+  // compare would get this backwards on some payloads even when the instants are equal.
+  it('shows Read under the last message when counterpartLastReadAt is at or after its createdAt', () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_LAST_MINE_READ));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const status = el.querySelector('[data-testid="message-status"]');
+    expect(status?.textContent?.trim()).toBe('Read');
+  });
+
+  // Catches: Sent shown when the marker is actually current (inverted comparison), and the null
+  // marker (nobody has read anything yet) not defaulting to Sent.
+  it('shows Sent under the last message when counterpartLastReadAt is null, and when it is older', () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_LAST_MINE_SENT_NULL));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="message-status"]')?.textContent?.trim()).toBe('Sent');
+
+    svc.conversation.and.returnValue(of(DETAIL_LAST_MINE_SENT_OLDER));
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="message-status"]')?.textContent?.trim()).toBe('Sent');
+  });
+
+  // Catches: the status rendered under any last message regardless of sender — it must render
+  // ONLY when the newest message is mine; the other person replying already proves they saw it.
+  it('renders no status at all when the last message is the other person\'s', () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_LAST_OTHER));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="message-status"]')).toBeNull();
+  });
+
+  // Catches: the reach note missing entirely, or reading the wrong signal for role (M29a A1.8
+  // #3) — copy only, the actual boundary stays server-side in assertMayMessage.
+  it('renders the athlete wording for an ATHLETE', () => {
+    setup('ATHLETE');
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="reach-note"]')?.textContent).toContain('coaches');
+  });
+
+  it('renders the staff wording for a COACH', () => {
+    setup('COACH');
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="reach-note"]')?.textContent).toContain('anyone in your gym');
   });
 });
