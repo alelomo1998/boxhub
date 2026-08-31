@@ -47,6 +47,9 @@ const MSG_SENT: ChatMessage = {
 const DETAIL_ADA: ConversationDetail = {
   membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null, messages: [MSG_1],
 };
+const DETAIL_SARA: ConversationDetail = {
+  membershipId: 'staff2', name: 'Sara', role: 'BOX_ADMIN', avatarPath: null, messages: [],
+};
 // Two consecutive messages from Ada on day 1 (avatar should collapse on the second), then one
 // from "me" on day 2 (a day boundary resets the run even though nothing else changed).
 const MSG_DAY1_A: ChatMessage = {
@@ -336,6 +339,98 @@ describe('ConversationsPage', () => {
 
     expect(el.querySelector('[data-testid="composer-error"]')).not.toBeNull();
     expect((el.querySelector('[data-testid="message-composer"]') as HTMLTextAreaElement).value).toBe('Still there?');
+  });
+
+  describe('per-conversation draft stash (P1 fix)', () => {
+    function setupTwoConversations() {
+      setup();
+      svc.conversations.and.returnValue(of([CONV_ADA, CONV_SARA]));
+      svc.conversation.and.callFake((id: string) => of(id === 'ath1' ? DETAIL_ADA : DETAIL_SARA));
+    }
+
+    function openRow(el: HTMLElement, testid: string) {
+      (el.querySelector(`[data-testid="${testid}"]`) as HTMLButtonElement).click();
+    }
+
+    function typeDraft(el: HTMLElement, text: string) {
+      const textarea = el.querySelector('[data-testid="message-composer"]') as HTMLTextAreaElement;
+      textarea.value = text;
+      textarea.dispatchEvent(new Event('input'));
+    }
+
+    function draftValue(el: HTMLElement): string {
+      return (el.querySelector('[data-testid="message-composer"]') as HTMLTextAreaElement).value;
+    }
+
+    // Catches: openConversation() unconditionally clearing draft() instead of stashing it first —
+    // a typed-but-unsent message would be silently destroyed by tapping a different row.
+    it('restores a typed draft after switching to another conversation and back', () => {
+      setupTwoConversations();
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      openRow(el, 'conversation-row-ath1');
+      fixture.detectChanges();
+      typeDraft(el, 'Draft for Ada');
+      fixture.detectChanges();
+
+      openRow(el, 'conversation-row-staff2');
+      fixture.detectChanges();
+      openRow(el, 'conversation-row-ath1');
+      fixture.detectChanges();
+
+      expect(draftValue(el)).toBe('Draft for Ada');
+    });
+
+    // Catches: the map read with the wrong key — a draft stashed for one conversation leaking into
+    // a DIFFERENT conversation that never had anything typed.
+    it('shows an empty draft box for a conversation with no stashed draft', () => {
+      setupTwoConversations();
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      openRow(el, 'conversation-row-ath1');
+      fixture.detectChanges();
+      typeDraft(el, 'Draft for Ada');
+      fixture.detectChanges();
+
+      openRow(el, 'conversation-row-staff2');
+      fixture.detectChanges();
+
+      expect(draftValue(el)).toBe('');
+    });
+
+    // Catches: a successful send leaving the stashed copy behind, so reopening the conversation
+    // later would resurrect an already-sent message back into the composer.
+    it('clears the stashed draft on a successful send', () => {
+      setupTwoConversations();
+      svc.send.and.returnValue(of(MSG_SENT));
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      openRow(el, 'conversation-row-ath1');
+      fixture.detectChanges();
+      typeDraft(el, 'first draft');
+      fixture.detectChanges();
+      openRow(el, 'conversation-row-staff2');
+      fixture.detectChanges();
+      openRow(el, 'conversation-row-ath1');
+      fixture.detectChanges();
+      expect(draftValue(el)).toBe('first draft');
+
+      (el.querySelector('form.composer') as HTMLFormElement).dispatchEvent(new Event('submit', { cancelable: true }));
+      fixture.detectChanges();
+
+      openRow(el, 'conversation-row-staff2');
+      fixture.detectChanges();
+      openRow(el, 'conversation-row-ath1');
+      fixture.detectChanges();
+
+      expect(draftValue(el)).toBe('');
+    });
   });
 
   // Catches: grouping by a UTC slice of the ISO string instead of the local calendar day (which

@@ -395,6 +395,21 @@ export class ConversationsPage implements OnInit, OnDestroy {
   protected sending = signal(false);
   protected sendError = signal<string | null>(null);
 
+  /** Per-conversation draft stash (P1 fix): a typed-but-unsent message must survive switching
+   *  away and back, keyed by membershipId. Every call site that clears or reassigns `selected()`
+   *  routes through `stashDraft()` first so none can forget to save what's in the box. The raw
+   *  text is kept untrimmed; an empty draft deletes its entry instead of storing '', so the map
+   *  doesn't grow forever across a session of idle taps. */
+  private drafts = new Map<string, string>();
+
+  private stashDraft(): void {
+    const prev = this.selected();
+    if (!prev) return;
+    const text = this.draft();
+    if (text) this.drafts.set(prev.membershipId, text);
+    else this.drafts.delete(prev.membershipId);
+  }
+
   protected hasQuery = computed(() => this.query().trim().length > 0);
   protected filteredConversations = computed(() => {
     const q = this.query().trim().toLowerCase();
@@ -408,7 +423,7 @@ export class ConversationsPage implements OnInit, OnDestroy {
   });
 
   protected readonly searchLabel = $localize`:@@conversations.search.label:Search people`;
-  protected readonly searchPlaceholder = $localize`:@@conversations.search.placeholder:Search…`;
+  protected readonly searchPlaceholder = $localize`:@@conversations.search.placeholder.people:Search people…`;
   protected readonly emptyTitle = $localize`:@@conversations.empty.title:No messages yet`;
   protected readonly emptyMessage = $localize`:@@conversations.empty.message:Message your coaches or the box admin — search for a name above to start.`;
   protected readonly searchEmptyTitle = $localize`:@@conversations.searchEmpty.title:No match`;
@@ -494,10 +509,11 @@ export class ConversationsPage implements OnInit, OnDestroy {
   protected selectContact(p: Contact): void { this.openConversation(p); }
 
   private openConversation(person: Person): void {
+    this.stashDraft();
     this.selected.set(person);
     this.paneState.set('loading');
     this.messages.set([]);
-    this.draft.set('');
+    this.draft.set(this.drafts.get(person.membershipId) ?? '');
     this.sendError.set(null);
     this.messaging.conversation(person.membershipId).subscribe({
       next: detail => {
@@ -540,6 +556,7 @@ export class ConversationsPage implements OnInit, OnDestroy {
 
   protected back(): void {
     const id = this.selected()?.membershipId;
+    this.stashDraft();
     this.selected.set(null);
     this.paneState.set('idle');
     if (id) {
@@ -570,6 +587,7 @@ export class ConversationsPage implements OnInit, OnDestroy {
         this.messages.update(list => [...list, msg]);
         this.sending.set(false);
         this.draft.set('');
+        this.drafts.delete(person.membershipId);
         this.insertOrBumpConversation(person, msg);
         queueMicrotask(() => this.composerInputRef?.nativeElement.focus());
         this.scrollThreadToBottom();
