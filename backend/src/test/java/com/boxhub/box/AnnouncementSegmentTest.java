@@ -38,8 +38,8 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
     @Autowired SubscriptionService subscriptionService;
 
     Box box;
-    String adminToken, coachToken, athleteToken, otherAthleteToken, foreignAthleteToken;
-    UUID athleteMembershipId, otherAthleteMembershipId;
+    String adminToken, coachToken, athleteToken, otherAthleteToken, foreignAthleteToken, foreignCoachToken;
+    UUID athleteMembershipId, otherAthleteMembershipId, coachUserId, otherCoachUserId;
 
     @AfterEach void clearAuth() { SecurityContextHolder.clearContext(); }
 
@@ -51,12 +51,17 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
 
         User admin = authService.register("sa-" + n + "@t.io", "correct-horse-battery", "Admin");
         User coach = authService.register("sc-" + n + "@t.io", "correct-horse-battery", "Coach");
+        User otherCoach = authService.register("sc2-" + n + "@t.io", "correct-horse-battery", "Coach2");
         User athlete = authService.register("sx-" + n + "@t.io", "correct-horse-battery", "Ada");
         User otherAthlete = authService.register("sy-" + n + "@t.io", "correct-horse-battery", "Bo");
         User foreignAthlete = authService.register("sz-" + n + "@t.io", "correct-horse-battery", "Foreign");
+        User foreignCoach = authService.register("sfc-" + n + "@t.io", "correct-horse-battery", "ForeignCoach");
 
         adminToken = tokenService.boxToken(admin, member(admin, box, "BOX_ADMIN"));
         coachToken = tokenService.boxToken(coach, member(coach, box, "COACH"));
+        coachUserId = coach.getId();
+        otherCoachUserId = otherCoach.getId();
+        member(otherCoach, box, "COACH");
         Membership athleteMembership = member(athlete, box, "ATHLETE");
         athleteToken = tokenService.boxToken(athlete, athleteMembership);
         athleteMembershipId = athleteMembership.getId();
@@ -64,6 +69,7 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
         otherAthleteToken = tokenService.boxToken(otherAthlete, otherAthleteMembership);
         otherAthleteMembershipId = otherAthleteMembership.getId();
         foreignAthleteToken = tokenService.boxToken(foreignAthlete, member(foreignAthlete, foreign, "ATHLETE"));
+        foreignCoachToken = tokenService.boxToken(foreignCoach, member(foreignCoach, foreign, "COACH"));
     }
 
     /** D-2, THE decision. Negative control: resolve at read time and this goes red. */
@@ -90,7 +96,7 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
     @Test
     void classRosterIncludesWaitlistAndExcludesCancelled() throws Exception {
         actAsBox(box.getId());
-        ClassSession session = newSession();
+        ClassSession session = newSession(coachUserId);
         Booking booked = booking(session.getId(), athleteMembershipId, "BOOKED");
         Booking waitlisted = booking(session.getId(), otherAthleteMembershipId, "WAITLIST");
         // a third member, cancelled, must NOT be in the roster
@@ -130,13 +136,105 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$[1].body").value("First"));
     }
 
-    /** D-8: coaches may send announcements, not only admins. */
+    /** D-8, narrowed: coaches may send announcements, not only admins — but only to their own class. */
     @Test
     void aCoachMaySend() throws Exception {
+        actAsBox(box.getId());
+        ClassSession session = newSession(coachUserId);
+        SecurityContextHolder.clearContext();
+
         mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + coachToken)
-                        .content("{\"body\":\"Coach sent this\",\"segment\":\"EVERYONE\"}"))
+                        .content("{\"body\":\"Coach sent this\",\"segment\":\"CLASS_ROSTER\",\"segmentRef\":\""
+                                + session.getId() + "\"}"))
                 .andExpect(status().isOk());
+    }
+
+    /** D-8, narrowed: the exact case D-8 was written for still works. */
+    @Test
+    void coachCanAnnounceToTheirOwnClassRoster() throws Exception {
+        actAsBox(box.getId());
+        ClassSession session = newSession(coachUserId);
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"6am moved to 7am\",\"segment\":\"CLASS_ROSTER\",\"segmentRef\":\""
+                                + session.getId() + "\"}"))
+                .andExpect(status().isOk());
+    }
+
+    /** D-8, narrowed: a coach cannot broadcast to the whole gym. */
+    @Test
+    void coachCannotAnnounceToEveryone() throws Exception {
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"Gym-wide\",\"segment\":\"EVERYONE\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /** D-8, narrowed: a coach cannot dun expiring members. */
+    @Test
+    void coachCannotAnnounceToExpiring() throws Exception {
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"Renew now\",\"segment\":\"EXPIRING\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * D-8, narrowed. THE LOAD-BEARING CASE: a coach must not be able to announce to a class assigned
+     * to a different coach. Negative control: remove the coach-owns-the-session comparison from
+     * assertMaySendToSegment and this goes red while coachCanAnnounceToTheirOwnClassRoster stays green.
+     */
+    @Test
+    void coachCannotAnnounceToAnotherCoachsClass() throws Exception {
+        actAsBox(box.getId());
+        ClassSession session = newSession(otherCoachUserId);
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"Not my class\",\"segment\":\"CLASS_ROSTER\",\"segmentRef\":\""
+                                + session.getId() + "\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /** D-8, narrowed: an unassigned session (null coachId) belongs to no coach; only an admin may reach it. */
+    @Test
+    void coachCannotAnnounceToAnUnassignedSession() throws Exception {
+        actAsBox(box.getId());
+        ClassSession session = newSession(); // coachId null
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"body\":\"Unassigned\",\"segment\":\"CLASS_ROSTER\",\"segmentRef\":\""
+                                + session.getId() + "\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /** D-8, narrowed: admins remain unrestricted after the coach narrowing. */
+    @Test
+    void adminCanStillAnnounceToEveryone() throws Exception {
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"body\":\"From admin\",\"segment\":\"EVERYONE\"}"))
+                .andExpect(status().isOk());
+    }
+
+    /** CROSS-TENANT-DENIED: a coach from box B naming a box A session must not resolve it. */
+    @Test
+    void foreignCoachCannotAnnounceToOurClassRoster() throws Exception {
+        actAsBox(box.getId());
+        ClassSession session = newSession(coachUserId);
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(post("/api/box/announcements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + foreignCoachToken)
+                        .content("{\"body\":\"Cross-tenant\",\"segment\":\"CLASS_ROSTER\",\"segmentRef\":\""
+                                + session.getId() + "\"}"))
+                .andExpect(status().isForbidden());
     }
 
     /** AUTH-DENIED */
@@ -157,7 +255,7 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
     @Test
     void memberCannotMarkAnotherMembersAnnouncementRead() throws Exception {
         actAsBox(box.getId());
-        ClassSession session = newSession();
+        ClassSession session = newSession(coachUserId);
         booking(session.getId(), athleteMembershipId, "BOOKED"); // A only
         SecurityContextHolder.clearContext();
 
@@ -215,12 +313,18 @@ class AnnouncementSegmentTest extends AbstractIntegrationTest {
                 java.sql.Timestamp.from(Instant.now().plusSeconds(365L * 24 * 3600)), athleteMembershipId);
     }
 
+    /** Unassigned session: no coach, so only an admin may announce to it. */
     private ClassSession newSession() {
+        return newSession(null);
+    }
+
+    private ClassSession newSession(UUID coachId) {
         ClassSession s = new ClassSession();
         s.setName("6am WOD");
         s.setStartAt(Instant.now().plusSeconds(3600));
         s.setDurationMin(60);
         s.setCapacity(12);
+        s.setCoachId(coachId);
         return sessions.save(s);
     }
 
