@@ -65,6 +65,50 @@ const DETAIL_TWO_DAY: ConversationDetail = {
   membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
   messages: [MSG_DAY1_A, MSG_DAY1_B, MSG_DAY2_A],
 };
+// Three same-sender messages inside one minute (seconds differ, minute doesn't) — the timestamp
+// should collapse onto only the last of the run.
+const MSG_MIN_A: ChatMessage = {
+  id: 'min-a', body: 'One', senderMembershipId: 'ath1', senderName: 'Ada',
+  createdAt: '2026-08-28T09:01:05Z', mine: false,
+};
+const MSG_MIN_B: ChatMessage = {
+  id: 'min-b', body: 'Two', senderMembershipId: 'ath1', senderName: 'Ada',
+  createdAt: '2026-08-28T09:01:30Z', mine: false,
+};
+const MSG_MIN_C: ChatMessage = {
+  id: 'min-c', body: 'Three', senderMembershipId: 'ath1', senderName: 'Ada',
+  createdAt: '2026-08-28T09:01:50Z', mine: false,
+};
+const DETAIL_SAME_MINUTE: ConversationDetail = {
+  membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
+  messages: [MSG_MIN_A, MSG_MIN_B, MSG_MIN_C],
+};
+// Two messages in the same minute but from different senders — each keeps its own timestamp.
+const MSG_DIFF_SENDER_A: ChatMessage = {
+  id: 'ds-a', body: 'Hi', senderMembershipId: 'ath1', senderName: 'Ada',
+  createdAt: '2026-08-28T09:02:05Z', mine: false,
+};
+const MSG_DIFF_SENDER_B: ChatMessage = {
+  id: 'ds-b', body: 'Hey', senderMembershipId: 'me', senderName: 'You',
+  createdAt: '2026-08-28T09:02:40Z', mine: true,
+};
+const DETAIL_DIFF_SENDER_SAME_MINUTE: ConversationDetail = {
+  membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
+  messages: [MSG_DIFF_SENDER_A, MSG_DIFF_SENDER_B],
+};
+// Two messages from the same sender a minute apart — each keeps its own timestamp.
+const MSG_DIFF_MIN_A: ChatMessage = {
+  id: 'dm-a', body: 'Hi', senderMembershipId: 'ath1', senderName: 'Ada',
+  createdAt: '2026-08-28T09:03:05Z', mine: false,
+};
+const MSG_DIFF_MIN_B: ChatMessage = {
+  id: 'dm-b', body: 'Hey', senderMembershipId: 'ath1', senderName: 'Ada',
+  createdAt: '2026-08-28T09:04:05Z', mine: false,
+};
+const DETAIL_DIFF_MINUTE_SAME_SENDER: ConversationDetail = {
+  membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null,
+  messages: [MSG_DIFF_MIN_A, MSG_DIFF_MIN_B],
+};
 const CONTACT_ADA_DUP: Contact = { membershipId: 'ath1', name: 'Ada', role: 'ATHLETE', avatarPath: null };
 const CONTACT_MARCO: Contact = { membershipId: 'staff1', name: 'Marco', role: 'COACH', avatarPath: null };
 
@@ -339,6 +383,54 @@ describe('ConversationsPage', () => {
     expect(firstAvatar?.classList.contains('spacer')).toBeFalse();
     expect(secondAvatar?.classList.contains('spacer')).toBeTrue();
     expect(nextDayAvatar?.classList.contains('spacer')).toBeFalse();
+  });
+
+  // Catches: showTime computed wrong — every message keeping its own stamp (no collapsing), or the
+  // stamp landing on the wrong row of the run instead of the last one.
+  it('collapses same-sender same-minute messages to one timestamp on the last of the run', () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_SAME_MINUTE));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="message-min-a"] .meta')).toBeNull();
+    expect(el.querySelector('[data-testid="message-min-b"] .meta')).toBeNull();
+    expect(el.querySelector('[data-testid="message-min-c"] .meta')).not.toBeNull();
+  });
+
+  // Catches: showTime keyed off the minute alone, collapsing across a sender change it shouldn't.
+  it('keeps its own timestamp on each message when different senders share a minute', () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_DIFF_SENDER_SAME_MINUTE));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="message-ds-a"] .meta')).not.toBeNull();
+    expect(el.querySelector('[data-testid="message-ds-b"] .meta')).not.toBeNull();
+  });
+
+  // Catches: showTime keyed off the sender alone, collapsing across a minute change it shouldn't —
+  // and a UTC-string-slice minute compare, which would misgroup near a local-timezone offset.
+  it('keeps its own timestamp on each message when the same sender spans different minutes', () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_DIFF_MINUTE_SAME_SENDER));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="message-dm-a"] .meta')).not.toBeNull();
+    expect(el.querySelector('[data-testid="message-dm-b"] .meta')).not.toBeNull();
   });
 
   // Catches: the poll left running while the tab is hidden, or never resumed on return.

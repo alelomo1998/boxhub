@@ -154,14 +154,16 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                     </div>
                     @for (row of g.rows; track row.msg.id) {
                       <div class="msg" [class.mine]="row.msg.mine" [attr.data-testid]="'message-' + row.msg.id">
+                        <div class="msg-line">
                         <bh-avatar class="msg-avatar" [class.spacer]="!row.showAvatar"
                           [attr.aria-hidden]="!row.showAvatar ? 'true' : null"
                           [path]="row.msg.mine ? null : p.avatarPath"
-                          [name]="row.msg.mine ? myName() : p.name" size="sm" />
-                        <span class="msg-body">
-                          <p class="bubble">{{ row.msg.body }}</p>
+                          [name]="row.msg.mine ? myName() : p.name" size="md" />
+                        <p class="bubble">{{ row.msg.body }}</p>
+                        </div>
+                        @if (row.showTime) {
                           <span class="meta">{{ row.msg.createdAt | date:'HH:mm' }}</span>
-                        </span>
+                        }
                       </div>
                     }
                   }
@@ -266,12 +268,16 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
     .day-label { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--faint); white-space: nowrap; }
 
-    .msg { display: flex; align-items: flex-start; gap: var(--sp-2); max-width: 78%; align-self: flex-start; }
-    .msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+    /* Two rows: the avatar is centred against the BUBBLE only, never against bubble-plus-time.
+       Centring the avatar against the whole body sat it 10px low on any message that shows a
+       timestamp (measured), because the meta line counted toward the centre. The timestamp is an
+       annotation under the message, so it lives outside the centred row. */
+    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 78%; align-self: flex-start; }
+    .msg.mine { align-self: flex-end; align-items: flex-end; }
+    .msg-line { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+    .msg.mine .msg-line { flex-direction: row-reverse; }
     .msg-avatar { flex-shrink: 0; }
     .msg-avatar.spacer { visibility: hidden; }
-    .msg-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .msg.mine .msg-body { align-items: flex-end; }
     .bubble { margin: 0; background: var(--surface); border: 1px solid var(--hairline);
       border-radius: var(--r-card); padding: var(--sp-3) var(--sp-4); font-family: var(--font-body);
       font-size: var(--fs-body); color: var(--bone); overflow-wrap: anywhere; }
@@ -348,7 +354,7 @@ export class ConversationsPage implements OnInit, OnDestroy {
    *  LOCAL calendar date (`Date` getters, not the ISO string's UTC slice) so a late-evening message
    *  lands in the right day for the viewer. */
   protected dayGroups = computed(() => {
-    const groups: { dayKey: string; rows: { msg: ChatMessage; showAvatar: boolean }[] }[] = [];
+    const groups: { dayKey: string; rows: { msg: ChatMessage; showAvatar: boolean; showTime: boolean }[] }[] = [];
     let prevSender: string | null = null;
     for (const m of this.messages()) {
       const d = new Date(m.createdAt);
@@ -359,8 +365,23 @@ export class ConversationsPage implements OnInit, OnDestroy {
         groups.push(group);
         prevSender = null;
       }
-      group.rows.push({ msg: m, showAvatar: m.senderMembershipId !== prevSender });
+      group.rows.push({ msg: m, showAvatar: m.senderMembershipId !== prevSender, showTime: true });
       prevSender = m.senderMembershipId;
+    }
+    // Second pass: showTime collapses to the last message of a same-sender, same-minute run — the
+    // avatar marks the start of a run, the timestamp marks the end of it. The minute compare uses
+    // LOCAL getHours/getMinutes, never a slice of the ISO string (UTC), matching dayKey above.
+    for (const group of groups) {
+      for (let i = 0; i < group.rows.length - 1; i++) {
+        const cur = group.rows[i];
+        const next = group.rows[i + 1];
+        const curDate = new Date(cur.msg.createdAt);
+        const nextDate = new Date(next.msg.createdAt);
+        const sameSender = cur.msg.senderMembershipId === next.msg.senderMembershipId;
+        const sameMinute = curDate.getHours() === nextDate.getHours()
+          && curDate.getMinutes() === nextDate.getMinutes();
+        cur.showTime = !(sameSender && sameMinute);
+      }
     }
     return groups;
   });
