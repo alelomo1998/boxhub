@@ -142,12 +142,10 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
               </header>
 
               <div class="thread" #threadEl aria-live="polite">
-                @if (messages().length === 0) {
-                  <p class="thread-empty" data-testid="conversation-thread-empty" i18n="@@conversations.thread.empty">
-                    Nothing here yet — send the first message.
-                  </p>
-                } @else {
-                  @for (g of dayGroups(); track g.dayKey) {
+                <!-- No placeholder for an empty conversation: an empty thread is simply empty.
+                     A line announcing that nothing has been said yet states the obvious and puts
+                     furniture where the first message will go. -->
+                @for (g of dayGroups(); track g.dayKey) {
                     <div class="day-sep" [attr.data-testid]="'day-' + g.dayKey" role="separator"
                       [attr.aria-label]="g.rows[0].msg.createdAt | date:'d MMMM'">
                       <span class="rule" aria-hidden="true"></span>
@@ -171,7 +169,6 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                         }
                       </div>
                     }
-                  }
                 }
               </div>
 
@@ -270,7 +267,6 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
       text-transform: uppercase; letter-spacing: 0.05em; }
 
     .thread { display: flex; flex-direction: column; gap: var(--sp-3); flex: 1; min-height: 0; overflow-y: auto; }
-    .thread-empty { color: var(--bone-dim); font-size: var(--fs-sm); }
 
     /* day separator — a divider, not a heading: quiet, centred, hairline either side. */
     .day-sep { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; }
