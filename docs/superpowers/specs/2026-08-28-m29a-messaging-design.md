@@ -546,3 +546,26 @@ Three questions were put to the user after the design critique. Answers, and wha
    authorization** — A1's rule that this screen never branches on role governs who may be addressed,
    which stays server-side in `assertMayMessage`. Reading the caller's own role to choose a sentence
    does not weaken it.
+
+## A1.9 Correction: the list shows conversations, discovery is by search
+
+**A1.1's sentence above ("an athlete opens Messages and sees a list of people — every coach, plus
+the box admin") describes the user's ORIGINAL request and was never amended when the decision
+changed. It is stale, and the shipped behaviour is correct.** Recorded here because a design
+critique re-derived the contradiction from the spec and filed it as a P1 defect against the code —
+the next reader would do the same.
+
+When asked how an athlete starts a conversation with someone they have never messaged, the user was
+given three options — search surfaces everyone; a + button opening a contact picker; or every
+addressable person always listed — and chose **search**. The trade-off was stated at the time: for
+staff, "always listed" means every athlete in the gym, potentially hundreds of rows.
+
+So the list shows **conversations**, and typing surfaces addressable people under **Start a chat**.
+The empty state names the same path in words.
+
+**The critique's underlying UX argument still stands and is not dismissed by this correction:** an
+athlete's addressable set is tiny and bounded (a few coaches and one admin), so requiring recall to
+reach it is a real cost on the highest-stakes path — a first message to a coach about an injury. If
+that is revisited, the sharp version is to default **Start a chat** to the full addressable list
+only when the query is empty AND the caller is an athlete, leaving staff search-first. That was put
+back to the user rather than changed unilaterally.

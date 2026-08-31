@@ -59,7 +59,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
             </p>
           }
           @default {
-            @if (!hasQuery() && conversations().length === 0) {
+            @if (!hasQuery() && conversations().length === 0 && startAChatContacts().length === 0) {
               <bh-empty data-testid="conversations-empty" icon="mail" [title]="emptyTitle" [message]="emptyMessage" />
             } @else if (hasQuery() && filteredConversations().length === 0 && startAChatContacts().length === 0) {
               <bh-empty data-testid="search-empty" icon="search" [title]="searchEmptyTitle" [message]="searchEmptyMessage" />
@@ -349,6 +349,12 @@ export class ConversationsPage implements OnInit, OnDestroy {
 
   protected query = signal('');
   protected contactResults = signal<Contact[]>([]);
+  /** Every addressable person, fetched once on load() (and again on retry) — ATHLETE only. An
+   *  athlete's addressable set is a handful of coaches plus the box admin, so the whole list is
+   *  shown by default instead of making them search to find it. Staff stay search-driven: their
+   *  set is the whole roster, and fetching it unconditionally would pull hundreds of rows for a
+   *  list nobody asked to see. */
+  protected allContacts = signal<Contact[]>([]);
   private searchSubject = new Subject<string>();
 
   protected selected = signal<Person | null>(null);
@@ -462,15 +468,18 @@ export class ConversationsPage implements OnInit, OnDestroy {
     return this.conversations().filter(c => c.name.toLowerCase().includes(q));
   });
   protected startAChatContacts = computed(() => {
-    if (!this.hasQuery()) return [];
     const existing = new Set(this.conversations().map(c => c.membershipId));
-    return this.contactResults().filter(c => !existing.has(c.membershipId));
+    if (this.hasQuery()) return this.contactResults().filter(c => !existing.has(c.membershipId));
+    if (this.auth.activeBox()?.role === 'ATHLETE') {
+      return this.allContacts().filter(c => !existing.has(c.membershipId));
+    }
+    return [];
   });
 
   protected readonly searchLabel = $localize`:@@conversations.search.label:Search people`;
   protected readonly searchPlaceholder = $localize`:@@conversations.search.placeholder.people:Search people…`;
   protected readonly emptyTitle = $localize`:@@conversations.empty.title:No messages yet`;
-  protected readonly emptyMessage = $localize`:@@conversations.empty.message:Message your coaches or the box admin — search for a name above to start.`;
+  protected readonly emptyMessage = $localize`:@@conversations.empty.nobody.message:There's no one in your box to message yet.`;
   protected readonly searchEmptyTitle = $localize`:@@conversations.searchEmpty.title:No match`;
   protected readonly searchEmptyMessage = $localize`:@@conversations.searchEmpty.message:Nobody in this box matches that search.`;
   protected readonly pickTitle = $localize`:@@conversations.pane.pick.title:Pick a conversation`;
@@ -537,6 +546,13 @@ export class ConversationsPage implements OnInit, OnDestroy {
       next: rows => { this.conversations.set(rows); this.state.set('ready'); },
       error: () => this.state.set('error'),
     });
+    // Re-fetched on every call, including retry — never for staff, see allContacts above.
+    if (this.auth.activeBox()?.role === 'ATHLETE') {
+      this.messaging.contacts('').subscribe({
+        next: list => this.allContacts.set(list),
+        error: () => this.allContacts.set([]),
+      });
+    }
   }
 
   protected onSearch(q: string): void {

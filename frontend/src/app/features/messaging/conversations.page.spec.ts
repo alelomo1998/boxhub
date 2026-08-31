@@ -772,4 +772,98 @@ describe('ConversationsPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[data-testid="reach-note"]')?.textContent).toContain('anyone in your gym');
   });
+
+  describe('athlete default contact list', () => {
+    // Catches: the list not fetched/rendered by default for an athlete — the whole point of the
+    // product decision (their addressable set is tiny, so show it instead of making them search).
+    it('an ATHLETE with an empty query sees every addressable contact under Start a chat', () => {
+      setup('ATHLETE');
+      svc.conversations.and.returnValue(of([]));
+      svc.contacts.and.returnValue(of([CONTACT_ADA_DUP, CONTACT_MARCO]));
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(svc.contacts).toHaveBeenCalledWith('');
+      expect(el.querySelector('[data-testid="contact-row-ath1"]')).not.toBeNull();
+      expect(el.querySelector('[data-testid="contact-row-staff1"]')).not.toBeNull();
+    });
+
+    // Catches: fetching and listing the whole roster for staff instead of staying search-first.
+    it('a COACH with an empty query sees none, and the roster is never fetched', () => {
+      setup('COACH');
+      svc.conversations.and.returnValue(of([]));
+      svc.contacts.and.returnValue(of([CONTACT_ADA_DUP, CONTACT_MARCO]));
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(svc.contacts).not.toHaveBeenCalled();
+      expect(el.querySelector('[data-testid="contact-row-ath1"]')).toBeNull();
+      expect(el.querySelector('[data-testid="contact-row-staff1"]')).toBeNull();
+    });
+
+    // Catches: no de-dup between the default list and existing conversations — someone already
+    // messaged would appear twice, once as a conversation row and again under Start a chat.
+    it('someone already in the conversation list appears once, not under Start a chat', () => {
+      setup('ATHLETE');
+      svc.conversations.and.returnValue(of([CONV_ADA]));
+      svc.contacts.and.returnValue(of([CONTACT_ADA_DUP, CONTACT_MARCO]));
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelectorAll('[data-testid="conversation-row-ath1"]').length).toBe(1);
+      expect(el.querySelector('[data-testid="contact-row-ath1"]')).toBeNull();
+      expect(el.querySelector('[data-testid="contact-row-staff1"]')).not.toBeNull();
+    });
+
+    // Catches: the empty state short-circuiting before the rows — an athlete with zero
+    // conversations must still see their coaches/admin under Start a chat, plus the reach note.
+    it('an athlete with zero conversations sees the contact list, not the bare empty card', () => {
+      setup('ATHLETE');
+      svc.conversations.and.returnValue(of([]));
+      svc.contacts.and.returnValue(of([CONTACT_MARCO]));
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="conversations-empty"]')).toBeNull();
+      expect(el.querySelector('[data-testid="contact-row-staff1"]')).not.toBeNull();
+      expect(el.querySelector('[data-testid="reach-note"]')).not.toBeNull();
+    });
+
+    // Catches: the genuinely-empty case (no conversations, no addressable contacts at all)
+    // regressing — the bare empty card must still show, without the old "search above" copy.
+    it('shows the bare empty card when an athlete has no conversations and no contacts at all', () => {
+      setup('ATHLETE');
+      svc.conversations.and.returnValue(of([]));
+      svc.contacts.and.returnValue(of([]));
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="conversations-empty"]')).not.toBeNull();
+      expect(el.querySelector('[data-testid="reach-note"]')).toBeNull();
+    });
+
+    // Catches: search regressing for either role once the default-list branch was added.
+    it('searching still filters and surfaces contacts for a COACH', fakeAsync(() => {
+      setup('COACH');
+      svc.conversations.and.returnValue(of([CONV_ADA]));
+      svc.contacts.and.returnValue(of([CONTACT_MARCO]));
+      const fixture = TestBed.createComponent(ConversationsPage);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      const input = el.querySelector('[data-testid="messages-search"]') as HTMLInputElement;
+      input.value = 'marco';
+      input.dispatchEvent(new Event('input'));
+      tick(300);
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="contact-row-staff1"]')).not.toBeNull();
+      fixture.destroy();
+    }));
+  });
 });
