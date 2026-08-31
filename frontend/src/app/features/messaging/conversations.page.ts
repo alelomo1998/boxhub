@@ -39,7 +39,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
     <div class="msg-root" [class.has-selection]="!!selected()">
       <section class="list-pane" aria-label="Conversations" i18n-aria-label="@@conversations.list.ariaLabel">
         <div class="list-head">
-          <span class="k" i18n="@@conversations.heading">Messages</span>
+          <h1 class="k" i18n="@@conversations.heading">Messages</h1>
           <bh-search-bar
             [(value)]="query"
             (search)="onSearch($event)"
@@ -134,7 +134,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                 </button>
                 <bh-avatar [path]="p.avatarPath" [name]="p.name" size="sm" />
                 <span class="pane-who">
-                  <span class="pane-name">{{ p.name }}</span>
+                  <h2 class="pane-name">{{ p.name }}</h2>
                   <span class="pane-role">{{ roleLabel(p.role) }}</span>
                 </span>
               </header>
@@ -224,6 +224,11 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
     .rows > .row:first-of-type { border-top: none; }
     .row:hover { background: var(--surface); }
     .row.selected, .row[aria-current="true"] { background: var(--surface-2); }
+    /* --faint is 5.07:1 on --ground but only 4.27:1 on --surface-2, under AA's 4.5 floor —
+       measured on the selected row, and the same number search-bar.component.ts already records
+       for its placeholder. --bone-dim clears it at 7.18:1 and still reads as secondary. */
+    .row.selected .role, .row.selected .time,
+    .row[aria-current="true"] .role, .row[aria-current="true"] .time { color: var(--bone-dim); }
     .row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
     .row-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
@@ -254,7 +259,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
       border: none; color: var(--bone); cursor: pointer; align-items: center; justify-content: center; }
     .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .pane-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .pane-name { font-family: var(--font-body); font-weight: 700; font-size: var(--fs-body); color: var(--bone);
+    .pane-name { margin: 0; font-family: var(--font-body); font-weight: 700; font-size: var(--fs-body); color: var(--bone);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pane-role { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
       text-transform: uppercase; letter-spacing: 0.05em; }
