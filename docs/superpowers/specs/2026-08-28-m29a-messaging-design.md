@@ -522,3 +522,27 @@ description.
   and becomes a **day separator** between groups: messages run under a small centred date, and when
   the day changes a new separator is drawn. The sender's name is dropped from the meta — in a 1:1
   conversation the avatar and the pane header already say who is speaking.
+
+## A1.8 Read state, and the reach boundary made visible (user review, 2026-08-31)
+
+Three questions were put to the user after the design critique. Answers, and what they change:
+
+1. **Push notification for a time-sensitive message.** *"there would be when we render the web app
+   mobile with capacitor"* — push arrives with the Capacitor mobile wrapper, not here. **No work in
+   M29a.** Recorded so the gap is a known deferral rather than an oversight: until that ships, a
+   message to a coach is seen when the coach next opens rxed.
+2. **No read or delivery signal.** *"lets make it"* — build it. The data already exists:
+   `message_thread` carries a read marker **per participant** (`lo_last_read_at` /
+   `hi_last_read_at`), so whether the counterpart has read a message is a comparison, not a new
+   concept. `ConversationDetailDto` gains `counterpartLastReadAt`; the screen marks the sender's own
+   latest message Read or Sent. This is what Design Principle 4, "state is never silent", requires
+   of the waiting, not just of the sending.
+3. **The athlete-to-staff boundary is invisible.** A search for a training partner returns an empty
+   result indistinguishable from a typo. *"lets write it maybe in the top or bottom of chat list"* —
+   a quiet line on the conversation list saying who you can reach. Placed at the **bottom**: it is an
+   explanation, not an action, and the top belongs to the conversations themselves.
+
+   The wording differs by role (an athlete reaches staff; staff reach everyone). **That is copy, not
+   authorization** — A1's rule that this screen never branches on role governs who may be addressed,
+   which stays server-side in `assertMayMessage`. Reading the caller's own role to choose a sentence
+   does not weaken it.

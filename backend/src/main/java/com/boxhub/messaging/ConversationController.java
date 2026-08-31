@@ -43,7 +43,8 @@ public class ConversationController {
                                   String lastMessagePreview, Instant lastMessageAt,
                                   long unreadCount, boolean needsReply) {}
     public record ConversationDetailDto(UUID membershipId, String name, String role,
-                                        String avatarPath, List<MessageDto> messages) {}
+                                        String avatarPath, List<MessageDto> messages,
+                                        Instant counterpartLastReadAt) {}
     record SendRequest(@NotBlank @Size(max = 4000) String body) {}
 
     /** People the caller may message. Athlete -> staff only; staff -> everyone in the box. */
@@ -77,11 +78,11 @@ public class ConversationController {
     public ConversationDetailDto get(@PathVariable UUID membershipId) {
         Membership me = messaging.callerMembership();
         Membership target = messaging.assertMayMessage(me, membershipId);
-        List<MessageDto> body = messaging.findThread(me.getId(), target.getId())
-                .map(t -> render(t.getId(), me.getId()))
-                .orElseGet(List::of);
+        var thread = messaging.findThread(me.getId(), target.getId());
+        List<MessageDto> body = thread.map(t -> render(t.getId(), me.getId())).orElseGet(List::of);
+        Instant counterpartLastReadAt = thread.map(t -> t.lastReadForCounterpartOf(me.getId())).orElse(null);
         return new ConversationDetailDto(target.getId(), target.getUser().getName(),
-                target.getRole(), target.getAvatarPath(), body);
+                target.getRole(), target.getAvatarPath(), body, counterpartLastReadAt);
     }
 
     @PostMapping("/api/box/conversations/{membershipId}/messages")

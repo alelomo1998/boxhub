@@ -51,6 +51,9 @@ public class MessageThread {
 
     public Instant lastReadFor(UUID me) { return isLo(me) ? loLastReadAt : hiLastReadAt; }
 
+    /** A1.8: the read marker belonging to the OTHER participant — "has my counterpart read?". */
+    public Instant lastReadForCounterpartOf(UUID me) { return lastReadFor(counterpart(me)); }
+
     public void setLastReadFor(UUID me, Instant t) {
         if (isLo(me)) loLastReadAt = t; else hiLastReadAt = t;
     }

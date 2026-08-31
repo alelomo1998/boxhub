@@ -4,6 +4,8 @@ import com.boxhub.AbstractIntegrationTest;
 import com.boxhub.box.Box;
 import com.boxhub.box.BoxRepository;
 import com.boxhub.identity.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -29,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ConversationApiTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
+    @Autowired ObjectMapper om;
     @Autowired JdbcTemplate jdbc;
     @Autowired BoxRepository boxes;
     @Autowired AuthService authService;
@@ -242,6 +247,62 @@ class ConversationApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messages[0].mine").value(false));
     }
+
+    /**
+     * A1.8: counterpartLastReadAt is the OTHER participant's marker, not the caller's own — the
+     * obvious way to get this backwards is to return the caller's marker, which would make every
+     * message look read to its own sender. Negative control (see brief report): swapping
+     * lastReadForCounterpartOf(me) for lastReadFor(me) in the controller turns this red.
+     */
+    @Test
+    void counterpartLastReadAtReflectsTheOtherPersonsMarker() throws Exception {
+        String sendResponse = mvc.perform(post("/api/box/conversations/" + coach.getId() + "/messages")
+                        .contentType(APPLICATION_JSON).header("Authorization", "Bearer " + athleteAToken)
+                        .content("{\"body\":\"hi coach\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Instant sentAt = Instant.parse(om.readTree(sendResponse).get("createdAt").asText());
+
+        mvc.perform(post("/api/box/conversations/" + athleteA.getId() + "/read")
+                        .header("Authorization", "Bearer " + coachToken))
+                .andExpect(status().isOk());
+
+        String detail = mvc.perform(get("/api/box/conversations/" + coach.getId())
+                        .header("Authorization", "Bearer " + athleteAToken))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode counterpartLastReadAt = om.readTree(detail).get("counterpartLastReadAt");
+
+        assertThat(counterpartLastReadAt.isNull()).isFalse();
+        // Strict: the coach's read happens as a later, separate HTTP call, always measurably after
+        // the send. isAfterOrEqualTo would let the caller's-own-marker bug slip through here, since
+        // A's own marker is set in the same method call as the message and can land in the same
+        // instant as its createdAt — see test 2 and the brief report for the negative control.
+        assertThat(Instant.parse(counterpartLastReadAt.asText())).isAfter(sentAt);
+    }
+
+    /**
+     * A1.8: before the coach ever opens the thread, A sending a message sets A's OWN marker (the
+     * sender has, by definition, read their own message) but not the coach's — so from A's side,
+     * counterpartLastReadAt must stay null. This is the sharpest negative control for the same bug
+     * as above: the caller's-own-marker mistake would make this field non-null here too.
+     */
+    @Test
+    void counterpartLastReadAtIsNullBeforeAnyoneReads() throws Exception {
+        mvc.perform(post("/api/box/conversations/" + coach.getId() + "/messages")
+                        .contentType(APPLICATION_JSON).header("Authorization", "Bearer " + athleteAToken)
+                        .content("{\"body\":\"hi coach\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/box/conversations/" + coach.getId())
+                        .header("Authorization", "Bearer " + athleteAToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.counterpartLastReadAt").doesNotExist());
+    }
+
+    // readingAConversationDoesNotCreateAThread (above, "GET must not write") already covers
+    // A1.8's third required test: reading must not create a thread. Still passes with the new
+    // counterpartLastReadAt field wired in — confirmed, not duplicated here.
 
     @Test
     void getConversationAnonymousIsRejected() throws Exception {
