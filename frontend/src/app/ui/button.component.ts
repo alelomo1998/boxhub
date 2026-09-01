@@ -48,6 +48,9 @@ import { NgTemplateOutlet } from '@angular/common';
     a.btn { text-decoration: none; }
     .btn.sm { padding: 0 13px; }
     .btn.md { padding: 0 17px; }
+    /* lg is the screen's primary action on a phone, not a bigger md. It is taller than the
+       accessible minimum on purpose and usually pairs with the full class. */
+    .btn.lg { padding: 0 var(--sp-5); min-height: var(--tap-lg); font-weight: 700; }
     .btn.primary { background: var(--volt); color: var(--on-volt); }
     .btn.ghost { background: transparent; color: var(--bone); border: 1px solid var(--hairline); }
     /* Neutral filled — reads as pressable without spending the volt budget (zero-volt rule
@@ -107,7 +110,7 @@ import { NgTemplateOutlet } from '@angular/common';
 })
 export class ButtonComponent {
   variant = input<'primary' | 'ghost' | 'ghost-danger' | 'danger' | 'icon' | 'solid'>('primary');
-  size = input<'md' | 'sm'>('md');
+  size = input<'md' | 'sm' | 'lg'>('md');
   type = input<'button' | 'submit'>('button');
   disabled = input(false);
   loading = input(false);

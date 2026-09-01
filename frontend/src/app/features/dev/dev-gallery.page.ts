@@ -252,10 +252,21 @@ export interface StateEntry {
             <span class="stlabel" i18n="@@dev.gallery.button.size.smGhost">sm ghost</span>
             <bh-button variant="ghost" size="sm" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.lg">lg</span>
+            <bh-button variant="solid" size="lg" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell wide">
+            <span class="stlabel" i18n="@@dev.gallery.button.size.lgFull">lg + full</span>
+            <bh-button class="full" variant="solid" size="lg" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
         </div>
         <p class="note" i18n="@@dev.gallery.button.note.size">
-          Both sizes keep the same min-height (--tap): sm narrows the horizontal padding only, so a
-          small button is never a small tap target. 52 call sites use sm.
+          md and sm keep the same min-height (--tap): sm narrows the horizontal padding only, so a
+          small button is never a small tap target. 52 call sites use sm. lg is the exception and
+          the only size that changes height (--tap-lg, 56px): it is a screen's single primary action
+          on a phone, where 44px is the accessible minimum rather than the right size. It normally
+          pairs with the full class, which makes the host fill its container's width.
         </p>
 
         <p class="gsub" i18n="@@dev.gallery.button.link.heading">As a link</p>
@@ -831,6 +842,8 @@ export interface StateEntry {
       font-size: var(--fs-sm); color: var(--bone-dim); }
     .row { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-start; }
     .cell { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+    /* full stretches to its container, so it needs a container with a width to show anything. */
+    .cell.wide { flex: 1 1 260px; align-items: stretch; }
     .stlabel { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.06em;
       text-transform: uppercase; color: var(--faint); }
     /* The state ledger: a uniform, machine-checkable declaration of all seven states per

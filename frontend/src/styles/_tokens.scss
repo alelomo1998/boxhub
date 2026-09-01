@@ -94,6 +94,9 @@
   --fs-meta: 0.6875rem;   /* 11 */
 
   --tap: 44px;
+  /* The primary action on a mobile screen. 44 is the accessible MINIMUM for any target, which is
+     the wrong size for the one control a screen exists to reach — MOBILE FIRST, binding. */
+  --tap-lg: 56px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur: 200ms;
   /* Separate from --dur: that's a UI-transition duration, this is a continuous linear spin — reusing it would make the spinner a frantic 200ms stutter. */
