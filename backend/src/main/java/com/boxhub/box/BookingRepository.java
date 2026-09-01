@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,6 +13,10 @@ import java.util.UUID;
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Booking> findBySessionId(UUID sessionId);
     List<Booking> findByMembershipId(UUID membershipId);
+
+    // Batch form of findBySessionId, for a caller that needs bookings for N sessions in one query
+    // (AnnouncementController#targets). @TenantId on Booking keeps this box-filtered automatically.
+    List<Booking> findBySessionIdIn(Collection<UUID> sessionIds);
 
     /**
      * GET /api/me/export is served to a BOXLESS session (a user token carries no box_id), so the

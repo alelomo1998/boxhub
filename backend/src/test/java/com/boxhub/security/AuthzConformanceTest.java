@@ -213,6 +213,10 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         announcement.setBody("Announcement " + mark);
         announcement.setSegment("EVERYONE");
         announcement.setSentAt(Instant.now());
+        // Sent BY the owner-admin, because GET /api/box/announcements/{id}/recipients is readable
+        // only by whoever sent it. Left unset, the positive control re-issues that probe with the
+        // owner token and gets a legitimate 403, which the sweep cannot tell from a broken route.
+        announcement.setSentBy(owner.getId());
         boxAnnouncementId = announcements.save(announcement).getId();
         for (UUID mid : List.of(athleteMembership.getId(), ownerMembership.getId())) {
             com.boxhub.box.AnnouncementRecipient rec = new com.boxhub.box.AnnouncementRecipient();
@@ -370,7 +374,11 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         query = Map.of(
                 "GET /api/box/sessions", "?from=2020-01-01T00:00:00Z&to=2030-01-01T00:00:00Z",
                 "GET /api/box/my-bookings", "?from=2020-01-01T00:00:00Z",
-                "GET /api/box/lifts", "?movementId=" + movement.getId());
+                "GET /api/box/lifts", "?movementId=" + movement.getId(),
+                // EVERYONE needs no seeded id. Without this entry the athlete probe 400s on the
+                // missing param before RoleGuard.requireStaff() runs, so the route would be swept
+                // without its role check ever being exercised.
+                "GET /api/box/announcements/preview", "?segment=EVERYONE");
 
         bodies = Map.ofEntries(
                 Map.entry("PUT /api/box/stripe", "{\"restrictedKey\":\"rk_test_x\",\"webhookSecret\":\"whsec_x\"}"),
@@ -481,6 +489,9 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             // a member reads only what was addressed to them.
             Map.entry("POST /api/box/announcements", "COACH"),
             Map.entry("GET /api/box/announcements", "COACH"),
+            Map.entry("GET /api/box/announcements/targets", "COACH"),
+            Map.entry("GET /api/box/announcements/preview", "COACH"),
+            Map.entry("GET /api/box/announcements/{id}/recipients", "COACH"),
             Map.entry("GET /api/box/me/announcements", "ATHLETE"),
             Map.entry("POST /api/box/me/announcements/{id}/read", "ATHLETE"),
             Map.entry("GET /api/box/class-templates", "ATHLETE"),

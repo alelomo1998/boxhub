@@ -36,4 +36,10 @@ public interface AnnouncementRecipientRepository extends JpaRepository<Announcem
 
     long countByAnnouncementId(UUID announcementId);
     long countByAnnouncementIdAndReadAtIsNotNull(UUID announcementId);
+
+    /** The home card's badge: how many announcements addressed to me are still unread. Member-scoped. */
+    long countByMembershipIdAndReadAtIsNull(UUID membershipId);
+
+    /** Every recipient row for one announcement — the sender-only recipients view. Box-filtered. */
+    List<AnnouncementRecipient> findByAnnouncementId(UUID announcementId);
 }

@@ -10,4 +10,11 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, UUID
 
     /** History, newest first. Box-filtered by @TenantId; staff-only surface. */
     List<Announcement> findAllByOrderBySentAtDesc();
+
+    /**
+     * A caller's OWN outbox, newest first. Box-filtered by @TenantId. A null sentBy (system/seed
+     * sends, V30's backfill) never matches any real UUID, so those rows appear in nobody's history —
+     * deliberate, not a bug.
+     */
+    List<Announcement> findBySentByOrderBySentAtDesc(UUID sentBy);
 }

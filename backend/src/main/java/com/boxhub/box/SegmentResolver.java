@@ -28,8 +28,13 @@ public class SegmentResolver {
      */
     public static final int EXPIRING_SOON_DAYS = 14;
 
-    /** D-7: waitlisted members are included — a cancellation is exactly what they need to hear. */
-    private static final Set<String> ROSTER_STATUSES = Set.of("BOOKED", "CHECKED_IN", "WAITLIST");
+    /**
+     * D-7: waitlisted members are included — a cancellation is exactly what they need to hear.
+     * Package-private (not private): AnnouncementController#targets computes recipientCount off
+     * this SAME constant, not a re-typed copy, so the card's number and the preview's number
+     * cannot drift apart by someone editing one and forgetting the other.
+     */
+    static final Set<String> ROSTER_STATUSES = Set.of("BOOKED", "CHECKED_IN", "WAITLIST");
 
     private final MembershipRepository memberships;
     private final BookingRepository bookings;
