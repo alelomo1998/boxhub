@@ -90,6 +90,7 @@ export const routes: Routes = [
       { path: 'wods/:id', title: $localize`:@@route.coach.wodEdit:Edit WOD`, loadComponent: () => import('./features/programming/wod-builder.page').then(m => m.WodBuilderPage) },
       { path: 'benchmarks', title: $localize`:@@route.coach.benchmarks:Benchmarks`, loadComponent: () => import('./features/programming/benchmark-library.page').then(m => m.BenchmarkLibraryPage) },
       { path: 'inbox', title: $localize`:@@route.coach.inbox:Inbox`, loadComponent: () => import('./features/messaging/conversations.page').then(m => m.ConversationsPage) },
+      { path: 'announcements', title: $localize`:@@route.coach.announcements:Announcements`, loadComponent: () => import('./features/messaging/announcements.page').then(m => m.AnnouncementsPage) },
       // legacy
       { path: 'sessions', redirectTo: 'classes' },
       { path: 'sessions/:id/roster', redirectTo: 'classes' },
@@ -112,6 +113,7 @@ export const routes: Routes = [
       { path: 'tvs', title: $localize`:@@route.admin.tvs:TVs`, loadComponent: () => import('./features/admin/tvs.page').then(m => m.TvsPage) },
       { path: 'settings', title: $localize`:@@route.admin.settings:Settings`, loadComponent: () => import('./features/admin/settings.page').then(m => m.SettingsPage) },
       { path: 'messages', title: $localize`:@@route.admin.messages:Messages`, loadComponent: () => import('./features/messaging/conversations.page').then(m => m.ConversationsPage) },
+      { path: 'announcements', title: $localize`:@@route.admin.announcements:Announcements`, loadComponent: () => import('./features/messaging/announcements.page').then(m => m.AnnouncementsPage) },
     ],
   },
   { path: 'tv', title: $localize`:@@route.tv.board:Board`, loadComponent: () => import('./features/tv/tv-shell.page').then(m => m.TvShellPage) },

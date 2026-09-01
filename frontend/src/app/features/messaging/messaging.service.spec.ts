@@ -60,6 +60,25 @@ describe('MessagingService', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({});
     req.flush(null);
+
+    // markRead triggers its own refreshUnread — the regression test for the badge staying stale
+    // after a message is read until the page is reloaded.
+    const refreshReq = http.expectOne('/api/box/conversations');
+    expect(refreshReq.request.method).toBe('GET');
+    refreshReq.flush([]);
+  });
+
+  it('markRead refreshes the unread badge from the server total, not a local decrement', () => {
+    service.unread.set(5);
+    service.markRead('mem1').subscribe();
+    http.expectOne('/api/box/conversations/mem1/read').flush(null);
+
+    const refreshReq = http.expectOne('/api/box/conversations');
+    refreshReq.flush([
+      { membershipId: 'a', name: 'Ada', role: 'COACH', avatarPath: null,
+        lastMessagePreview: null, lastMessageAt: null, unreadCount: 2, needsReply: false },
+    ]);
+    expect(service.unread()).toBe(2);
   });
 
   it('refreshUnread sums unreadCount across the conversation list, one request', () => {

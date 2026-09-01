@@ -12,8 +12,11 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
   template: `
     <section class="cls">
       <header class="head">
-        <span class="eyebrow">This week</span>
-        <h1 class="title">Classes</h1>
+        <div class="head-text">
+          <span class="eyebrow">This week</span>
+          <h1 class="title">Classes</h1>
+        </div>
+        <a class="act" routerLink="/coach/announcements" data-testid="announce-link" i18n="@@coach.classes.announce">Announce</a>
       </header>
 
       <bh-day-pager [(offset)]="dayOffset" [max]="13" />
@@ -58,7 +61,7 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
     .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
-    .head { margin-bottom: var(--sp-4); }
+    .head { margin-bottom: var(--sp-4); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);

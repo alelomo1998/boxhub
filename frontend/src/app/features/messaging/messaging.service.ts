@@ -1,8 +1,9 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, tap } from 'rxjs';
 import {
-  Contact, Conversation, ConversationDetail, ChatMessage, MyAnnouncement, AnnouncementRow, Segment,
+  Contact, Conversation, ConversationDetail, ChatMessage, MyAnnouncement, AnnouncementRow,
+  AnnouncementTarget, AnnouncementDetail, Segment,
 } from './messaging.models';
 
 @Injectable({ providedIn: 'root' })
@@ -33,8 +34,13 @@ export class MessagingService {
   send(membershipId: string, body: string): Observable<ChatMessage> {
     return this.http.post<ChatMessage>(`/api/box/conversations/${membershipId}/messages`, { body });
   }
+  /** The header envelope's badge only reflects reality on its next 60s poll unless this refreshes
+   *  it right away — the service owns the unread signal, so the refresh lives here rather than in
+   *  every caller (a caller that forgets is exactly how the badge went stale after reading a
+   *  message and staying stuck until reload). */
   markRead(membershipId: string): Observable<void> {
-    return this.http.post<void>(`/api/box/conversations/${membershipId}/read`, {});
+    return this.http.post<void>(`/api/box/conversations/${membershipId}/read`, {})
+      .pipe(tap(() => this.refreshUnread()));
   }
 
   // announcements — unaffected by A1 (A1.6)
@@ -49,5 +55,16 @@ export class MessagingService {
   }
   sendAnnouncement(body: string, segment: Segment, segmentRef?: string): Observable<AnnouncementRow> {
     return this.http.post<AnnouncementRow>('/api/box/announcements', { body, segment, segmentRef: segmentRef ?? null });
+  }
+  announcementTargets(): Observable<AnnouncementTarget[]> {
+    return this.http.get<AnnouncementTarget[]>('/api/box/announcements/targets');
+  }
+  announcementPreview(segment: Segment, segmentRef?: string): Observable<{ count: number }> {
+    let params = new HttpParams().set('segment', segment);
+    if (segmentRef) params = params.set('segmentRef', segmentRef);
+    return this.http.get<{ count: number }>('/api/box/announcements/preview', { params });
+  }
+  announcementDetail(id: string): Observable<AnnouncementDetail> {
+    return this.http.get<AnnouncementDetail>(`/api/box/announcements/${id}/recipients`);
   }
 }

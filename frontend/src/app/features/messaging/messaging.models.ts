@@ -26,8 +26,42 @@ export interface ConversationDetail {
   messages: ChatMessage[]; counterpartLastReadAt: string | null;
 }
 
-export interface MyAnnouncement { id: string; body: string; sentAt: string; read: boolean; }
+/** `sentByName` is null for a system/seed send (no author) — the caller renders its own neutral
+ *  fallback, never "null" and never a blank line. */
+export interface MyAnnouncement {
+  id: string; body: string; sentAt: string; read: boolean; sentByName: string | null;
+}
 export interface AnnouncementRow {
   id: string; body: string; segment: Segment; sentAt: string;
   sentCount: number; readCount: number;
+}
+
+/** One row of the recipient list on the announcement detail sheet. `readAt` is null when the
+ *  person has not read it yet; the list arrives from the server already sorted (read-first
+ *  alphabetical, then unread alphabetical) and must be rendered in that order, never re-sorted
+ *  client-side. */
+export interface AnnouncementRecipient {
+  membershipId: string; name: string; avatarPath: string | null; readAt: string | null;
+}
+/** The class an announcement targeted — present only when `segment` is `CLASS_ROSTER`. */
+export interface AnnouncementClassBrief {
+  id: string; name: string; startAt: string; imagePath: string | null; coachName: string | null;
+}
+/** `GET /api/box/announcements/{id}/recipients` — the detail sheet opened from a history row. */
+export interface AnnouncementDetail {
+  id: string; body: string; segment: Segment; sentAt: string;
+  sentCount: number; readCount: number;
+  clazz: AnnouncementClassBrief | null;
+  recipients: AnnouncementRecipient[];
+}
+
+/** A class the caller may announce to. Server-filtered: an admin gets every upcoming session, a
+ *  coach only the ones they coach, so the picker can never offer something the send would reject.
+ *  `recipientCount` is computed server-side to agree exactly with the confirm dialog's count —
+ *  never recompute it in the browser as `bookedCount + waitlistCount`, which double-counts anyone
+ *  holding both a booked row and a waitlist row. */
+export interface AnnouncementTarget {
+  id: string; name: string; startAt: string;
+  imagePath: string | null; coachName: string | null;
+  bookedCount: number; waitlistCount: number; recipientCount: number;
 }
