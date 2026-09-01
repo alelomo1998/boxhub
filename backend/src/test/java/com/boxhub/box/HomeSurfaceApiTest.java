@@ -251,4 +251,145 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.announcement").doesNotExist());
     }
+
+    /**
+     * The user's complaint made concrete for the home card: it must name the actual sender, not
+     * "your box" — a coach's CLASS_ROSTER send names the coach.
+     */
+    @Test
+    void homeAnnouncementCarriesTheSenderName() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("AnnSender " + n, "ann-sender-" + n);
+        TokMem athleteA = member("anns-" + n + "@t.io", box, "ATHLETE");
+        User sender = authService.register("annsends-" + n + "@t.io", "correct-horse-battery", "Coach Sender");
+
+        actAsUser(sender.getId(), box.getId());
+        ClassSession s = new ClassSession();
+        s.setName("Roster Class");
+        s.setStartAt(Instant.now().plusSeconds(3600));
+        s.setDurationMin(60);
+        s.setCapacity(10);
+        sessions.save(s);
+
+        Booking booking = new Booking();
+        booking.setSessionId(s.getId());
+        booking.setMembershipId(athleteA.membershipId());
+        booking.setStatus("BOOKED");
+        bookings.save(booking);
+
+        announcementService.send("Roster only", "CLASS_ROSTER", s.getId());
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcement.sentByName").value("Coach Sender"));
+    }
+
+    /**
+     * A system/seed send (no author) must carry a JSON null sentByName on the home card too — never
+     * the box name or a placeholder. Parsed directly: JsonNode.get() on a genuinely missing key
+     * returns null (which would NPE on isNull()), so this proves the key is present-and-null.
+     */
+    @Test
+    void homeAnnouncementWithNoAuthorHasNullSenderName() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("AnnNoAuthor " + n, "ann-noauthor-" + n);
+        TokMem athleteA = member("annna-" + n + "@t.io", box, "ATHLETE");
+
+        com.boxhub.shared.TenantContext.runAsBox(box.getId(),
+                () -> announcementService.send("No author", "EVERYONE", null, null));
+
+        String body = mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.JsonNode node = om.readTree(body);
+        org.assertj.core.api.Assertions.assertThat(node.get("announcement").get("sentByName").isNull()).isTrue();
+    }
+
+    /**
+     * The home card's unread badge (this change): two announcements sent to the member, one marked
+     * read via the existing mark-read endpoint — the aggregate must report exactly 1 unread, not 2.
+     *
+     * Negative control (verified, not left in the suite): changing HomeController's finder call
+     * from countByMembershipIdAndReadAtIsNull to countByMembershipId (counting every row regardless
+     * of readAt) made homeCarriesTheUnreadAnnouncementCount go RED:
+     * java.lang.AssertionError: JSON path "$.announcementUnread" expected:<1> but was:<2>
+     */
+    @Test
+    void homeCarriesTheUnreadAnnouncementCount() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("Unread " + n, "unread-" + n);
+        TokMem athleteA = member("unra-" + n + "@t.io", box, "ATHLETE");
+
+        com.boxhub.shared.TenantContext.runAsBox(box.getId(),
+                () -> announcementService.send("First", "EVERYONE", null, null));
+        UUID secondId = com.boxhub.shared.TenantContext.runAsBox(box.getId(),
+                () -> announcementService.send("Second", "EVERYONE", null, null)).getId();
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcementUnread").value(2));
+
+        mvc.perform(post("/api/box/me/announcements/" + secondId + "/read")
+                        .header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcementUnread").value(1));
+    }
+
+    @Test
+    void homeUnreadCountIsZeroWhenAllRead() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("UnreadZero " + n, "unread-zero-" + n);
+        TokMem athleteA = member("unrz-" + n + "@t.io", box, "ATHLETE");
+
+        UUID firstId = com.boxhub.shared.TenantContext.runAsBox(box.getId(),
+                () -> announcementService.send("First", "EVERYONE", null, null)).getId();
+        UUID secondId = com.boxhub.shared.TenantContext.runAsBox(box.getId(),
+                () -> announcementService.send("Second", "EVERYONE", null, null)).getId();
+
+        mvc.perform(post("/api/box/me/announcements/" + firstId + "/read")
+                        .header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/box/me/announcements/" + secondId + "/read")
+                        .header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcementUnread").value(0));
+    }
+
+    @Test
+    void homeUnreadCountIsZeroWithNoAnnouncements() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("UnreadNone " + n, "unread-none-" + n);
+        TokMem athleteA = member("unrn-" + n + "@t.io", box, "ATHLETE");
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcementUnread").value(0));
+    }
+
+    /**
+     * Confidentiality (spec §4): another member's unread announcements must never raise my count —
+     * exactly the defect a finder that lost its membership predicate (e.g. counting by announcement
+     * or by box) would introduce.
+     */
+    @Test
+    void homeUnreadCountIsNotRaisedByAnotherMembersUnreadAnnouncements() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("UnreadCross " + n, "unread-cross-" + n);
+        TokMem athleteA = member("unrca-" + n + "@t.io", box, "ATHLETE");
+        member("unrcb-" + n + "@t.io", box, "ATHLETE"); // athlete B — never reads its own copy
+
+        com.boxhub.shared.TenantContext.runAsBox(box.getId(),
+                () -> announcementService.send("Broadcast", "EVERYONE", null, null));
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athleteA.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.announcementUnread").value(1));
+    }
 }

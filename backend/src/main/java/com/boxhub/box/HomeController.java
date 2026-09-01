@@ -2,6 +2,8 @@ package com.boxhub.box;
 
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.identity.User;
+import com.boxhub.identity.UserRepository;
 import com.boxhub.performance.LiftEntry;
 import com.boxhub.performance.LiftEntryRepository;
 import com.boxhub.performance.PerformanceQueries;
@@ -39,12 +41,13 @@ public class HomeController {
     private final MovementRepository movements;
     private final SubscriptionService subscriptions;
     private final MediaSigner mediaSigner;
+    private final UserRepository users;
 
     public HomeController(BookingRepository bookings, ClassSessionRepository sessions,
                           ScheduleSlotRepository slots, ClassTypeRepository types, MembershipRepository memberships,
                           AnnouncementRecipientRepository recipients, PerformanceQueries queries,
                           LiftEntryRepository lifts, MovementRepository movements,
-                          SubscriptionService subscriptions, MediaSigner mediaSigner) {
+                          SubscriptionService subscriptions, MediaSigner mediaSigner, UserRepository users) {
         this.bookings = bookings;
         this.sessions = sessions;
         this.slots = slots;
@@ -56,6 +59,7 @@ public class HomeController {
         this.movements = movements;
         this.subscriptions = subscriptions;
         this.mediaSigner = mediaSigner;
+        this.users = users;
     }
 
     public record Participant(String name, String avatarPath) {}
@@ -64,9 +68,10 @@ public class HomeController {
                               int bookedCount, int capacity) {}
     public record LastPr(String movementName, java.math.BigDecimal load, LocalDate performedOn) {}
     public record Stats(long checkinsThisWeek, int streakWeeks, Long planDaysLeft, LastPr lastPr) {}
-    public record AnnouncementView(String body, Instant updatedAt) {}
+    /** sentByName is null for a system/seed send (sentBy null) — never the box name or a placeholder. */
+    public record AnnouncementView(String body, Instant updatedAt, String sentByName) {}
     public record HomeDto(NextBooking nextBooking, AnnouncementView announcement, Stats stats,
-                          boolean planExpiringSoon) {}
+                          boolean planExpiringSoon, long announcementUnread) {}
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -80,7 +85,7 @@ public class HomeController {
         AnnouncementView ann = recipients
                 .findLatestBodyForMember(me.getId(), org.springframework.data.domain.PageRequest.of(0, 1))
                 .stream().findFirst()
-                .map(a -> new AnnouncementView(a.getBody(), a.getSentAt()))
+                .map(a -> new AnnouncementView(a.getBody(), a.getSentAt(), senderName(a.getSentBy())))
                 .orElse(null);
 
         ZoneId zone = ZoneId.systemDefault();
@@ -103,7 +108,13 @@ public class HomeController {
 
         Stats stats = new Stats(checkins, queries.streakWeeks(me.getId()), planDaysLeft, lastPr);
         boolean expiring = planDaysLeft != null && planDaysLeft >= 0 && planDaysLeft <= 7;
-        return new HomeDto(next, ann, stats, expiring);
+        long unread = recipients.countByMembershipIdAndReadAtIsNull(me.getId());
+        return new HomeDto(next, ann, stats, expiring, unread);
+    }
+
+    /** Null sentBy (system/seed sends) skips the lookup entirely rather than calling findById(null). */
+    private String senderName(UUID sentBy) {
+        return sentBy == null ? null : users.findById(sentBy).map(User::getName).orElse(null);
     }
 
     private String movementName(UUID movementId) {
