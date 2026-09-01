@@ -8,6 +8,7 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 - **Milestone plans:** `docs/superpowers/plans/` — the active plan governs current work.
 - **Backlog:** `docs/BACKLOG.md` — deferred items; out-of-scope ideas go here, one line.
 - **VPS/deployment context:** `docs/VPS-DEPLOYMENT.md` — agreed OVH target, storage/backup limits and pre-production blockers.
+- **Notification registry:** `docs/NOTIFICATIONS.md` — every notification the product should fire, with its trigger, audience, channel and owning milestone. Read before designing the in-app feed (M29b), a push payload (M27c) or an automation rule (M32b), and **before writing any code that fires a notification** — §5's rules are binding on new events.
 - **Positioning:** `docs/POSITIONING.md` — who rxed is for and who it competes with. **CrossFit-only, on purpose; the competitor is Wodify, not PushPress.** Read before arguing milestone order and before writing anything a gym owner reads. §4's five switch triggers are the ranking product decisions should be argued against.
 - **v1.0 programme:** `docs/superpowers/specs/2026-08-22-v1-0-pilot-program.md` — **the pilot IS v1.0**: complete, not a slice. Features may be *built but idle* (Stripe ships and works; no money flows because the pilot is free), never absent. One tier, everything, €99/month. Supersedes the ORDER in the v3 roadmap doc.
 - **Roadmap at a glance:** `docs/ROADMAP-AT-A-GLANCE.md` — all 18 milestones in **execution order**, one line each. Milestone numbers are allocation labels, NOT a sequence (M14a is followed by M21; M13f opens Phase 2). Never infer order from a number.
@@ -72,6 +73,21 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   exists to avoid. So the obligation moved onto the rewrite: **a screen is not done unless its
   strings are marked and its dates/money go through locale-aware formatting.** No new hardcoded
   user-facing string, ever. No new hand-written `€`.
+- **MOBILE FIRST IS BINDING (user-ruled 2026-08-31).** rxed ships to the App Store through
+  Capacitor, and an interface that is merely "responsive" gets rejected as not native-quality. Every
+  screen is designed at **360px first** and allowed to grow, never a desktop layout that survives a
+  media query. Concretely:
+  - **A native `<select>` with more than a handful of trivial options is banned.** On iOS it collapses
+    to a wheel picker showing one truncated line, so a class's name, time, coach and audience size all
+    become `Fri 5 Sep · 06:0…`. Anything richer than a plain short label picks from a **`bh-sheet`**
+    with real rows. This is what got the first Task 10 build rejected.
+  - **Choosing from a list of domain objects means tappable rows or cards**, not `<option>`s — full
+    width, `--tap` minimum, showing the fields needed to choose confidently.
+  - **A primary action is full-width and tall on mobile**, not a small right-aligned button.
+  - Bottom-of-viewport space belongs to the dock; a second sticky bar below the fold stacks against it.
+  - `docs/design-ref/` holds the user's own references and **is the arbiter of what "app-like" means
+    here** — `screens/booking-screen-example.webp` is the class-card reference (full-bleed image with
+    the text on a scrim over it, not a thumbnail beside text). Look before designing a new surface.
 - **Design law v2 (M5, binding):** type scale/`--tap`/`--scrim` tokens only; every fetch has loading/error/empty and every save pending+inline-error with input preserved; WCAG AA (4.5:1, focus rings, labels, reduced-motion); bottom-tab app shells for athlete/coach + SaaS shell for admin; overlays via `bh-sheet`, avatars via `bh-avatar`; **every FE feature ships through the impeccable routine below**.
 
 ## The impeccable routine (binding, raised 2026-08-27)

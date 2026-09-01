@@ -569,3 +569,253 @@ reach it is a real cost on the highest-stakes path — a first message to a coac
 that is revisited, the sharp version is to default **Start a chat** to the full addressable list
 only when the query is empty AND the caller is an athlete, leaving staff search-first. That was put
 back to the user rather than changed unilaterally.
+
+# AMENDMENT A1.10 — how staff reach announcements, and two endpoints the screen needs
+
+**Ruled by the user 2026-08-31, before Task 10 was built.** A1.6 said "announcements are unaffected,
+Task 10 proceeds against the original spec". That is still true of §5's segments, D-2's frozen
+audience and D-4's history. It was **not** true of the screen's reachability, which §8 row 3 left as
+two route names and nothing else. This amendment fills that gap and adds the two endpoints the
+screen cannot be built without.
+
+## A1.10.1 The coach's way in is a link on `/coach/classes`, not an action on the class row
+
+D-8 gives a coach the right to announce; **`a147d88` narrowed it to CLASS_ROSTER for a session they
+coach**. The obvious-looking design — an "Announce" action on each session row, the class implied by
+where you tapped — was put to the user and **rejected in favour of a separate screen**.
+
+Three facts decided it:
+
+1. **`/coach/classes` lists every session in the box, not the coach's own.** `listSessions(from, to)`
+   does not filter by coach, so an Announce action on every row would offer a control that 403s on
+   most of them.
+2. **The frontend cannot tell whose class is whose.** `MembershipDto` and `ActiveBox` carry
+   `boxId`, `boxName` and `role` — **no user id** — and `ClassSession.coachId` is a **user** id, not
+   a membership id (the same asymmetry `a147d88` had to get right on the server). So "is this mine?"
+   is unanswerable client-side, and answering it would mean shipping a second copy of the permission
+   rule into the browser.
+3. The row already carries three actions and wraps to a second line below 560px.
+
+**Decision:** `/coach/announcements` is a full screen, the same component `/admin/announcements`
+renders, and a coach reaches it from a **header link on `/coach/classes`**. The session rows keep
+their three actions. The user's stated reason for the separate screen: *"is better to have it as a
+separate announcement… in the future we will have a coach home, but that is for a future
+milestone."* **The header link is explicitly an interim entry point** — the coach shell's navigation
+is revisited when coach home is built, and this link is the first thing that milestone should
+reconsider. It is recorded here so the next reader knows it was a placement decision, not an
+oversight.
+
+## A1.10.2 `GET /api/box/announcements/targets` — "which classes may I announce to?"
+
+The exact analogue of `/api/box/contacts` ("who may I message"), and it exists for the same reason:
+**the permission is the server's to know.** Returns the upcoming sessions (now → +14 days, the
+window `/coach/classes` already uses, `CANCELLED` excluded) that the caller may address — every one
+for a `BOX_ADMIN`, only those where `coach_id = TenantContext.userId()` for a `COACH`. A null
+`coach_id` is an unassigned session and is admin-only, mirroring `assertMaySendToSegment`.
+
+The picker therefore **cannot offer a class the send would refuse**. The alternative — exposing the
+viewer's user id and filtering in the browser — was rejected: it duplicates a security rule into a
+place where it can drift, which is the defect §4 is written to prevent.
+
+## A1.10.3 `GET /api/box/announcements/preview` — the count in the confirm dialog
+
+Task 10 requires the confirm to **name the recipient count**, and nothing on the wire could answer
+it. Deriving it client-side (roster from `bookedCount + waitlistCount`, EVERYONE from the members
+list) would be a **second implementation of §5's segment rules**, free to disagree with what the
+send actually writes.
+
+So the count comes from `SegmentResolver` — the same resolver the send uses — and
+`previewCountMatchesWhatTheSendWrites` is the test that keeps the dialog honest. The endpoint calls
+**the existing `assertMaySendToSegment` before resolving**: without it a coach could read the roster
+size of a class they do not coach, and the preview would leak precisely what the send refuses.
+
+Both routes are `requireStaff()`, both registered `COACH` in `MIN_ROLE`. Neither takes a path
+variable, so neither needs a `pathIds` seed — and both are literal segments with no `{id}` sibling
+at their level, which is why they are safe where A1.4 had to make `/api/box/contacts` top-level.
+
+## A1.10.4 The class picker is a `bh-select`
+
+Chosen by the user over a radio list of session rows and over a day-grouped select. One dropdown,
+options read `Fri 5 Sep · 06:00 · Metcon`, fed by `/targets`. Same control for admin and coach; only
+the data behind it differs, and that difference is the server's.
+
+## A1.10.5 What Task 10 does NOT do
+
+- **The confirm is not a `--danger` flow.** Sending an announcement is irreversible, not
+  destructive; `--danger` fills the control that executes a destructive action, and this is not one.
+- **No new component in `frontend/src/app/ui/`.** The screen composes `bh-button`, `bh-select`,
+  `bh-sheet`, `bh-alert` and `bh-empty`. A new shared component would owe a dev-gallery section
+  rendering seven states plus visual baselines, for a screen that needs none of it.
+- **The admin dock stays at three tabs.** Announcements joins the admin sidebar `nav` and the
+  overflow `moreLinks`, never `mobileTabs`.
+
+# AMENDMENT A1.11 — the composer is rebuilt mobile-first; A1.10.4 is overturned
+
+**Ruled by the user 2026-08-31, after seeing the Task 10 screen rendered.** The screen was built to
+A1.10, reviewed in the browser, and **the composer was rejected**. This amendment records why, what
+replaced it, and the standing rule the rejection created.
+
+## A1.11.1 The rule this created — mobile first, because of App Review
+
+The user's words: *"lets remember from now on that we need to be VERY MOBILE FRIENDLY, lets remember
+that we will need the appstore to accept the app, if we dont have those mobile feature they will
+reject us, for me an ng select like this is not mobile friendly."*
+
+This is **not** scoped to M29a. It is now in CLAUDE.md's design rules as binding, and the short
+version is:
+
+- Every screen is designed at **360px first** and allowed to grow — never a desktop layout rescued
+  by a media query. Nothing may scroll horizontally at **320px**.
+- **A native `<select>` is banned for anything richer than a short plain label.** On iOS it collapses
+  to a wheel picker showing one truncated line, so a class's name, time, coach and audience size
+  become `Fri 5 Sep · 06:0…`. Choosing among domain objects means tappable rows or cards in a
+  `bh-sheet`.
+- A primary action is **full-width** on mobile, not a small right-aligned button.
+- `docs/design-ref/` holds the user's own references and is the arbiter of what "app-like" means
+  here. It had been sitting unread since 2026-08-19.
+
+rxed ships to the App Store through Capacitor. "Responsive" is not the bar; App Review rejects
+interfaces that merely reflow.
+
+## A1.11.2 **A1.10.4 is overturned.** The class picker is a sheet, not a `bh-select`
+
+A1.10.4 recorded a `bh-select` of upcoming sessions, chosen from three options a day earlier. Seeing
+it rendered reversed the decision. Replaced by:
+
+- a **full-width trigger button** showing the chosen class or "Choose a class";
+- opening a **`bh-sheet`** containing **`bh-day-pager`** (the control the coach already knows from
+  `/coach/classes`, `max=13`, matching `/targets`' 14-day window) and the classes for that day as
+  **cards**.
+
+**Card structure comes from `docs/design-ref/screens/booking-screen-example.webp`** — a full-bleed
+image with the text laid over the bottom on a `--scrim`, **not** a thumbnail beside a text column,
+which is what the first sketch proposed and is not what the reference shows. Each card carries the
+class name, `by <coach>`, `HH:mm`, `N booked · N waiting`, and **"N people would get it"**.
+
+**`/coach/classes` is explicitly NOT the model** — the user called it "shit" as an example to
+follow. It is a pre-rework screen and its own redesign belongs to the future coach-home milestone
+that A1.10.1 already anticipates.
+
+## A1.11.3 The "To" control is tappable rows, not a select either
+
+Three full-width rows, each with a title and a one-line explanation a `<option>` cannot carry
+("every active member" / "everyone booked, waitlist included" / "lapsing within 14 days"), with a
+checkmark on the selection. Built from **real `<input type="radio">` inside `<label>` cards**, the
+input visually clipped rather than `display:none` — which would drop it out of the a11y tree — so
+native arrow-key navigation, grouping and semantics come for free instead of being hand-rolled.
+
+**A coach sees no chooser at all**, only a line saying the message goes to the class they pick: they
+may send to exactly one segment (A1.10.1), and a one-option chooser is a control that asks a
+question with a single answer.
+
+## A1.11.4 The Send button is full-width
+
+Via `class="full"` on `bh-button`, which `button.component.ts` already supports. **A new `lg` size
+was deliberately NOT added to `bh-button`** — a shared `ui/` component change owes a dev-gallery
+section rendering seven states plus new visual baselines, and whether the control also needs to be
+*taller* is a question for the user looking at the full-width version, not a guess made in advance.
+
+## A1.11.5 `/targets` grew to carry a card
+
+`TargetSession` becomes `(id, name, startAt, imagePath, coachName, bookedCount, waitlistCount,
+recipientCount)`. `imagePath` follows `SessionDetailController.detail()`: `ScheduleSlot -> ClassType
+-> getImagePath()`, signed through `MediaSigner`, and **null is the common case in dev data** — a
+card with no image is a plain `--surface-2` card, not a broken `<img>`.
+
+**`recipientCount` is not `bookedCount + waitlistCount`.** It is computed with `SegmentResolver`'s
+own rule — statuses `BOOKED`, `CHECKED_IN`, `WAITLIST`, **distinct by `membershipId`** — because the
+card promises a number and the confirm dialog promises a number, and if they can disagree one of
+them is lying. `targetRecipientCountMatchesPreviewForTheSameSession` is the test holding that
+equality, and it is the reason the field exists at all rather than being summed in the browser.
+
+# AMENDMENT A1.12 — the outbox, the recipients sheet, and two badge bugs
+
+**Ruled by the user 2026-09-01, reviewing the rebuilt screen.** Four items: one scope correction, one
+new surface, two real bugs.
+
+## A1.12.1 The history is an OUTBOX — `GET /api/box/announcements` is mine-only
+
+The user, seeing another staff member's send in their history: *"why i can see an announce that i
+dont send by myself?"* The endpoint returned `findAllByOrderBySentAtDesc()` — every announcement in
+the box.
+
+**It now filters to `sentBy = TenantContext.userId()`, for coaches and admins alike.** The user was
+offered an admin-sees-all variant and an admin toggle, and chose neither: the screen is *my outbox*,
+in both shells. A coach may only announce to a class they coach (A1.10.1), so there is little for an
+admin to oversee, and D-4's read counts stay per-send either way.
+
+**Consequence, deliberate:** `V30`'s backfilled announcements and any seeded send carry a null
+`sentBy`, so they belong to nobody's outbox and appear in no history. That is correct — a test pins
+it so the next reader does not "fix" it.
+
+## A1.12.2 New surface: the recipients sheet
+
+D-4 gave the history a read *count*. The user wants the *names*: *"i wish i could open the detail and
+see who viewed the announce"*.
+
+**Shape (user-chosen, after being offered a full route and an inline accordion): a `bh-sheet`, the
+same shape as the class picker** — *"sheet like the selector of the class, let's add the image and
+some detail of the class also"*. So a CLASS_ROSTER announcement's sheet is headed by that class's
+image and details, reusing the picker card's own treatment; EVERYONE and EXPIRING have no class and
+are headed by the segment and the sent time.
+
+**The recipient list is ONE list with a mark per row** (not two grouped sections), ordered **read
+first, then unread, alphabetical within each** — the user's words: *"first read, then not read, all
+alphabetical"*. A read row shows a tick and the time; an unread row shows a dash. **A search box**
+sits above it: an EVERYONE send in a full box is hundreds of rows, and "did Marco see it?" should
+not require scrolling.
+
+**The list gets the class picker's fixed-height treatment.** A `bh-sheet` is height-capped, so a
+long list must scroll inside its own fixed-height region with the header pinned above it — the same
+fix A1.11 needed after paging days made cards slide under the user's finger.
+
+**Authorization: only the sender may read it.** Not "any staff", which would reintroduce exactly
+what A1.12.1 removed. A null `sentBy` matches nobody — the null-equality slip is called out because
+it silently grants everyone access to authorless rows.
+
+`GET /api/box/announcements/{id}/recipients` returns the announcement, an optional `ClassBrief`, and
+the recipient rows in one call — the sheet is one request, and `AnnouncementRow` carries no
+`segmentRef`, so the class could not otherwise be resolved client-side.
+
+**Sweep fixture note:** `AuthzConformanceTest` seeded its announcement with **no sender**, so once
+this rule existed the positive control would have taken a legitimate 403 and failed —
+indistinguishable from a broken route. The seeded row is now sent by the owner-admin. That is a
+fixture seed, the sanctioned category of edit to that file, and the orchestrator made it.
+
+## A1.12.3 Bug: coaches and admins had NO unread indicator at all
+
+`grep -n "messaging\|unread"` over `coach-shell.page.ts` and `admin-shell.page.ts` returned nothing.
+The envelope, the count and the 60s poll were built only into `athlete-shell.page.ts` — D-6 was
+implemented for one shell out of three. A coach received a message and nothing anywhere said so.
+
+**Fixed by giving all three shells the same header envelope.** The user was offered a dock-tab badge
+for the coach (Inbox is already one of their five tabs) and rejected it: *"only on the header! why he
+have to has it in the dock? let mantain the identity."* The reasoning holds — a badge on the dock
+tab and an envelope in the header would put the same count in two different places across shells,
+and the count and its destination would disagree on screen. The envelope means one thing and lives
+in one place. **The coach's Inbox dock tab keeps no badge.**
+
+The shared envelope is extracted once rather than copied three times: the badge, the aria-label
+branch, the poll and the pause-on-hidden are one implementation. It does **not** go in
+`frontend/src/app/ui/` — a component there owes a dev-gallery section rendering seven states plus
+visual baselines, which this does not need.
+
+## A1.12.4 Bug: the badge did not clear when a conversation was read
+
+*"when i receive a message and im an athlete and i open the message the notification badge on the
+message dont go down, it will go down when i reload the page."*
+
+`refreshUnread()` had exactly two callers, both in the athlete shell: once on init, once per 60s
+interval. `ConversationsPage` called `markRead(membershipId)` on the server and nothing told the
+shell to re-read the count, so the badge cleared on reload or after up to a minute.
+
+**The refresh moves into `MessagingService.markRead` itself.** The service owns the `unread` signal,
+and a caller that forgets to refresh it is precisely how this shipped. A client-side optimistic
+decrement was rejected: it is a second, unverified copy of arithmetic the server already performs,
+free to drift from the truth.
+
+## A1.12.5 Visual baselines
+
+Adding an envelope to the coach and admin headers **changes the rendered chrome of two shells** and
+invalidates their recorded visual baselines. Expected, and regenerated in Task 11 — not a surprise
+to debug.
