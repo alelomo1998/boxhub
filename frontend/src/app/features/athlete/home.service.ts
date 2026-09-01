@@ -10,10 +10,12 @@ export interface NextBooking {
 }
 export interface LastPr { movementName: string; load: number; performedOn: string; }
 export interface HomeStats { checkinsThisWeek: number; streakWeeks: number; planDaysLeft: number | null; lastPr: LastPr | null; }
-export interface Announcement { body: string; updatedAt: string; }
+/** `sentByName` is null for a system/seed send (no author) — the caller renders its own neutral
+ *  fallback, never "null" and never a blank line. */
+export interface Announcement { body: string; updatedAt: string; sentByName: string | null; }
 export interface Home {
   nextBooking: NextBooking | null; announcement: Announcement | null;
-  stats: HomeStats; planExpiringSoon: boolean;
+  stats: HomeStats; planExpiringSoon: boolean; announcementUnread: number;
 }
 
 export interface Profile {

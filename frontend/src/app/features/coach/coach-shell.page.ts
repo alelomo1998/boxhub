@@ -6,6 +6,7 @@ import { DockComponent, DockTab } from '../../ui/dock.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { IconComponent } from '../../ui/icon.component';
 import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
+import { MessagesEnvelopeComponent } from '../messaging/messages-envelope.component';
 import { ShellChromeService } from '../../core/shell-chrome.service';
 
 /** Coach shell: header nav on desktop, floating pill dock on mobile. */
@@ -15,6 +16,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive,
     ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent, BoxSwitcherComponent,
+    MessagesEnvelopeComponent,
   ],
   template: `
     <div class="app" [class.locked]="chrome.viewportLocked()">
@@ -25,6 +27,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
           }
         </nav>
+        <bh-messages-envelope actions route="/coach/inbox" testId="coach-messages-link" />
         <a actions routerLink="/account" aria-label="Security" title="Security" data-testid="coach-security-link">
           <bh-icon name="settings" />
         </a>
@@ -63,12 +66,15 @@ export class CoachShellPage {
   private router = inject(Router);
   protected chrome = inject(ShellChromeService);
 
+  // Four, not five: Inbox left the dock when the header envelope arrived in every shell (M29a
+  // A1.12.3). The envelope is where unread messages are signalled, so a dock tab to the same place
+  // put one meaning in two spots and only the header one carried the count. The /coach/inbox route
+  // stays — the envelope is what points at it.
   tabs: DockTab[] = [
     { link: 'classes', label: 'Classes', icon: 'calendar' },
     { link: 'wods', label: 'Build', icon: 'clipboard-list' },
     { link: 'benchmarks', label: 'Bench', icon: 'dumbbell' },
     { link: 'types', label: 'Types', icon: 'layout-grid' },
-    { link: 'inbox', label: 'Inbox', icon: 'mail' },
   ];
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
