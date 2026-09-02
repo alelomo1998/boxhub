@@ -196,6 +196,33 @@ describe('AnnouncementsPage', () => {
     expect(svc.announcementPreview).not.toHaveBeenCalled();
   });
 
+  it('clears the validation error as soon as the body is typed, not on the next Send', () => {
+    setup();
+    const fixture = create();
+    const page = fixture.componentInstance as unknown as Record<string, any>;
+    const event = { preventDefault: jasmine.createSpy('preventDefault') } as unknown as Event;
+    page['submit'](event);
+    expect(page['formError']()).toBeTruthy();
+    // Typing the fix must retire the message. Left standing it reads as "your correction did not
+    // register", and a screen reader that already announced the alert says nothing when it stops
+    // being true.
+    page['onBodyInput']('now it has a body');
+    expect(page['formError']()).toBeNull();
+  });
+
+  it('clears the missing-class error when a class is picked', () => {
+    setup();
+    const fixture = create();
+    const page = fixture.componentInstance as unknown as Record<string, any>;
+    page['body'].set('hello');
+    page['segment'].set('CLASS_ROSTER');
+    page['submit']({ preventDefault: () => {} } as unknown as Event);
+    expect(page['formError']()).toBeTruthy();
+    page['selectTarget']({ id: 't1', name: 'Metcon', startAt: new Date().toISOString(),
+      imagePath: null, coachName: null, bookedCount: 1, waitlistCount: 0, recipientCount: 1 });
+    expect(page['formError']()).toBeNull();
+  });
+
   it('blocks CLASS_ROSTER with no class chosen, in the handler', () => {
     setup();
     const fixture = create();

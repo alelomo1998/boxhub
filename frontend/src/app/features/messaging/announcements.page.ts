@@ -94,7 +94,7 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
         <div class="field">
           <label for="announcementBody" class="clabel" i18n="@@announcements.body.label">Message</label>
           <textarea #bodyInput id="announcementBody" data-testid="announcement-body" rows="4" maxlength="2000"
-            [value]="body()" (input)="body.set($any($event.target).value)"></textarea>
+            [value]="body()" (input)="onBodyInput($any($event.target).value)"></textarea>
         </div>
 
         @if (formError()) {
@@ -653,8 +653,20 @@ export class AnnouncementsPage implements OnInit {
     if (el) el.scrollTop = 0;
   }
 
+  /**
+   * A validation message has to die when the thing it complains about is fixed, not when the user
+   * presses the button again. Left standing while they type, it reads as "your correction did not
+   * register" — and a screen reader, having announced the alert once, says nothing at all when it
+   * stops being true. Both handlers below clear it the moment the input becomes valid.
+   */
+  protected onBodyInput(value: string): void {
+    this.body.set(value);
+    if (this.formError() && value.trim()) this.formError.set(null);
+  }
+
   protected selectTarget(t: AnnouncementTarget): void {
     this.segmentRef.set(t.id);
+    if (this.formError()) this.formError.set(null);
     this.pickerOpen.set(false);
     afterNextRender(() => {
       document.querySelector<HTMLElement>('[data-testid="announcement-session-picker"]')?.focus();

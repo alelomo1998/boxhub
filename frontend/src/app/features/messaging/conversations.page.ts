@@ -176,7 +176,7 @@ type Person = { membershipId: string; name: string; role: Role; avatarPath: stri
                 <label for="composerInput" class="clabel" i18n="@@conversations.compose.label">Message</label>
                 <div class="composer-row">
                   <textarea #composerInput id="composerInput" rows="2" data-testid="message-composer"
-                    [value]="draft()" (input)="draft.set($any($event.target).value)"></textarea>
+                    [value]="draft()" (input)="onDraftInput($any($event.target).value)"></textarea>
                   <bh-button class="send-btn" variant="solid" type="submit"
                     [loading]="sending()" [label]="sendLabel">
                     @if (!sending()) { <bh-icon name="arrow-right" [size]="18" /> }
@@ -633,6 +633,18 @@ export class ConversationsPage implements OnInit, OnDestroy {
 
   protected onConversationEscape(): void {
     if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 899px)').matches) this.back();
+  }
+
+  /**
+   * A validation message must die when the thing it complains about is fixed, not when the user
+   * presses Send again. Left standing while they type it reads as "your correction did not
+   * register", and a screen reader that already announced the alert says nothing when it stops
+   * being true. Found by the M29a announcements critique and fixed on both composers.
+   */
+  protected onDraftInput(value: string): void {
+    this.draft.set(value);
+    const body = value.trim();
+    if (this.sendError() && body && body.length <= 4000) this.sendError.set(null);
   }
 
   protected send(event: Event): void {

@@ -302,6 +302,30 @@ describe('ConversationsPage', () => {
     fixture.destroy();
   }));
 
+  // Catches the stale-validation-error bug the M29a announcements critique found on the sibling
+  // composer: the message is set on a blocked send and must retire when the body is typed, not on
+  // the next Send press. A screen reader that already announced the alert says nothing when it
+  // silently stops being true.
+  it('clears the empty-draft error as soon as the athlete types, not on the next send', () => {
+    setup();
+    svc.conversations.and.returnValue(of([CONV_ADA]));
+    svc.conversation.and.returnValue(of(DETAIL_ADA));
+    const fixture = TestBed.createComponent(ConversationsPage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-testid="conversation-row-ath1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const page = fixture.componentInstance as unknown as Record<string, any>;
+    page['send']({ preventDefault: () => {} } as unknown as Event);
+    expect(page['sendError']()).toBeTruthy();
+    expect(svc.send).not.toHaveBeenCalled();
+
+    page['onDraftInput']('there it is');
+    expect(page['sendError']()).toBeNull();
+    fixture.destroy();
+  });
+
   // Catches: send() called with the wrong id/body, or the draft left behind after a successful send.
   it('sending calls send with the selected membershipId and the typed body, and clears the draft', () => {
     setup();
