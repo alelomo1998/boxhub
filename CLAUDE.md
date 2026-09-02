@@ -35,6 +35,17 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   TV). `athlete/home.page.ts`'s "Book your next session" was demoted to `--bone` for exactly this —
   it stays primary by size, weight and case. The **dock's active-tab icon is exempt**: it is
   persistent wayfinding chrome, like a focus ring, not a screen's expressive choice.
+- **A screen's ONE primary action is `bh-button variant="strong"` when it has no volt to spend.**
+  Volt means live / now / winning, so a plumbing screen's save never gets it — but `solid` is the
+  wrong answer for a lone primary action: it is `--surface-2` on a `--surface` card, one token step
+  apart with a hairline between, and measured **1.1:1** against its own container on the
+  announcements composer, where it read as an empty box until you found the label (critique P2,
+  twice). `strong` is a `--bone` fill with `--on-bone` ink — **15.9:1 against the card, and still
+  not volt**. Rules: **at most one per screen** (a second is two primary actions, the same mistake
+  in a different colour); it pairs with `size="lg"` and `class="full"` on mobile; and its focus ring
+  inverts to `--focus-inv` inside the button, because `--focus` IS volt and volt on a near-white
+  fill is invisible — the same trap `primary` already documents. `solid` remains correct for screens
+  with several **co-equal** actions, e.g. account's section saves.
 - **`--danger` may fill a button or a chip** (never a row/card/panel) — the control that *opens* a destructive flow is a danger-bordered ghost, the control that *executes* it is filled. `--on-danger` is dark, not white (white on `--danger` fails AA).
 - **No glow, no gradients, no shadows on flat surfaces, no fake textures, no skeuomorphism.** Shadows are permitted only on things that physically float (the dock, `bh-sheet`, dialogs). The focus ring is a solid 2px outline, and **inverts to `--focus-inv` on a volt surface** — a volt ring on the volt primary button is invisible.
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.

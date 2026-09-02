@@ -13,6 +13,10 @@
   --hairline: #2a322c;
 
   --bone: #f2f4ef;      /* 17.2:1 on --ground */
+  /* Text on a filled --bone control (bh-button variant="strong"). Dark, not white, and the same
+     ink as --on-volt / --on-danger: a light fill needs dark ink for the same reason they do.
+     17.2:1, and identically 17.2:1 inverted, so the inversion is contrast-neutral. */
+  --on-bone: #0d110e;
   --bone-dim: #a7b0a6;  /*  8.4:1 */
   --faint: #7c8779;     /*  5.1:1 */
 

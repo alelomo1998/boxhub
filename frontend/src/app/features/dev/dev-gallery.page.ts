@@ -200,6 +200,35 @@ export interface StateEntry {
           co-equal section saves) — reads as pressable without spending the zero-volt budget.
         </p>
 
+        <p class="gsub" i18n="@@dev.gallery.button.variant.strong">Strong</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-button variant="strong" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-button variant="strong" [disabled]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
+            <bh-button variant="strong" [loading]="true" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+          <div class="cell wide">
+            <span class="stlabel" i18n="@@dev.gallery.button.strong.full">strong + lg + full</span>
+            <bh-button class="full" variant="strong" size="lg" i18n="@@dev.gallery.button.sampleLabel">Save</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.strong">
+          Strong: a --bone fill with --on-bone ink, for THE one primary action on a screen that has
+          no volt to spend. Volt means live / now / winning, and a plumbing screen's save is none of
+          those — but solid is too quiet for a lone primary action: it sits one token step from the
+          card behind it with only a hairline between, and read as an empty box on the announcements
+          composer. At most one per screen; a second strong button is two primary actions. Hover and
+          focus are checkable by hand only. The focus ring inverts to --focus-inv and sits inside the
+          button, because --focus IS volt and volt on a near-white fill is barely there.
+        </p>
+
         <p class="gsub" i18n="@@dev.gallery.button.variant.danger">Danger</p>
         <div class="row">
           <div class="cell">

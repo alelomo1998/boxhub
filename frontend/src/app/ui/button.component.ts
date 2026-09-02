@@ -57,6 +57,17 @@ import { NgTemplateOutlet } from '@angular/common';
        stands). For screens with no single "the" primary action, e.g. account's four co-equal
        section saves, where a transparent ghost button reads as an empty/disabled box. */
     .btn.solid { background: var(--surface-2); color: var(--bone); border: 1px solid var(--hairline); }
+    /* strong is THE one primary action on a screen that has no volt to spend — volt means live /
+       now / winning, and a plumbing screen's save is none of those. solid is the wrong answer
+       there: it sits one token step from the card behind it (--surface-2 #1d231e on --surface
+       #151a16) with only a hairline between, so on the announcements composer it read as an empty
+       box until you found the label. That was a critique P2, twice.
+       Use it at most ONCE per screen. A second strong button is two primary actions, which is the
+       same mistake in a different colour. */
+    .btn.strong { background: var(--bone); color: var(--on-bone); border: 1px solid var(--bone);
+      font-weight: 700; }
+    .btn.strong:hover:not(:disabled) { background: var(--bone-dim); border-color: var(--bone-dim); }
+    .btn.strong:disabled { background: var(--disabled); border-color: var(--disabled); color: var(--surface); }
     /* ghost-danger is a variant rather than a ghost + boolean pair: the flag was only ever valid
        on one variant, so four of ten variant x flag combinations emitted a class with no matching
        rule. A variant that renders nothing looks like a layout bug, not a component bug. */
@@ -94,6 +105,10 @@ import { NgTemplateOutlet } from '@angular/common';
        button instead of out onto --ground (identical to --focus-inv, which made the positive
        offset invisible too). */
     .btn.primary:focus-visible { outline-color: var(--focus-inv); outline-offset: -2px; }
+    /* strong needs the same inversion for the same reason: --focus IS --volt, and volt on a
+       near-white --bone fill is barely there. Both are light surfaces; the ring goes dark and
+       sits inside. */
+    .btn.strong:focus-visible { outline-color: var(--focus-inv); outline-offset: -2px; }
 
     /* No gradient (law §2.4): the spinner is a ring with one transparent side. */
     .spin { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
@@ -109,7 +124,7 @@ import { NgTemplateOutlet } from '@angular/common';
   `],
 })
 export class ButtonComponent {
-  variant = input<'primary' | 'ghost' | 'ghost-danger' | 'danger' | 'icon' | 'solid'>('primary');
+  variant = input<'primary' | 'ghost' | 'ghost-danger' | 'danger' | 'icon' | 'solid' | 'strong'>('primary');
   size = input<'md' | 'sm' | 'lg'>('md');
   type = input<'button' | 'submit'>('button');
   disabled = input(false);

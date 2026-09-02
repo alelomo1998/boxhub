@@ -101,7 +101,7 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
           <p class="err" role="alert" data-testid="announcement-error">{{ formError() }}</p>
         }
 
-        <bh-button class="full" variant="solid" size="lg" type="submit" [loading]="previewPending()" testId="announcement-send">
+        <bh-button class="full" variant="strong" size="lg" type="submit" [loading]="previewPending()" testId="announcement-send">
           @if (!previewPending()) { <span i18n="@@announcements.send.default">Send</span> }
         </bh-button>
       </form>
@@ -168,7 +168,7 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
             <bh-button variant="ghost" (click)="cancelConfirm()" testId="announcement-cancel-send">
               <span i18n="@@announcements.confirm.cancel">Cancel</span>
             </bh-button>
-            <bh-button variant="solid" [loading]="sendPending()" (click)="confirmSend()" testId="announcement-confirm-send">
+            <bh-button variant="strong" [loading]="sendPending()" (click)="confirmSend()" testId="announcement-confirm-send">
               @if (!sendPending()) { <span i18n="@@announcements.confirm.send">Send</span> }
             </bh-button>
           </div>
