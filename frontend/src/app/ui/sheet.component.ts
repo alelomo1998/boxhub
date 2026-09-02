@@ -43,6 +43,12 @@ import { IconComponent } from './icon.component';
     </dialog>
   `,
   styles: [`
+    /* The host must not be a box. A closed dialog is display:none, but the bh-sheet element around
+       it still counted as a flex/grid item, so a parent with a gap paid that gap for a sheet that
+       renders nothing: three sheets in one column put 72px of dead space on the announcements
+       screen between the composer and the history. display:contents removes the host box; the
+       dialog inside is positioned by the top layer and does not care what its parent's display is. */
+    :host { display: contents; }
     .sheet { border: 1px solid var(--hairline); border-radius: var(--r-lg) var(--r-lg) 0 0;
       background: var(--surface); color: var(--bone);
       padding: var(--sp-3) var(--sp-5) calc(var(--sp-6) + env(safe-area-inset-bottom));

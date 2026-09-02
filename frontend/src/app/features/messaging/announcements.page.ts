@@ -347,6 +347,9 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
        still on the arrow, and you selected a class you never looked at. The height must not
        depend on what is inside it. */
     .picker-body { height: 55vh; max-height: 460px; overflow-y: auto; overscroll-behavior: contain; }
+    /* A day with no classes is one short line in a 460px box. Left at the top it reads as a screen
+       that failed to load rather than a day that is empty, so centre it in the space it has. */
+    .picker-body:has(> .stateline:only-child) { display: grid; place-items: center; text-align: center; }
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
     .tcard { position: relative; display: flex; align-items: flex-end; width: 100%; min-height: 160px;
       min-width: 0; border: 1px solid var(--hairline); border-radius: var(--r-card); overflow: hidden;
@@ -357,8 +360,10 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
     .tc-body { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 2px;
       padding: var(--sp-3) var(--sp-4); }
     /* The scrim, not an invented gradient — a flat overlay under the text so it stays legible on
-       any photo. Cards with no image skip it: they are already a plain --surface-2 card. */
-    .tc-body.scrim { background: var(--scrim); }
+       any photo. Cards with no image skip it: they are already a plain --surface-2 card.
+       --scrim-text, not --scrim: the backdrop weight leaves --bone-dim at 2.57:1 over a bright
+       photo, which fails AA. The seeded images are dark enough to hide that. A gym's own are not. */
+    .tc-body.scrim { background: var(--scrim-text); }
     .tc-name { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2);
       text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tc-coach { font-size: var(--fs-sm); color: var(--bone-dim); overflow: hidden;
@@ -372,7 +377,11 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
     /* detail sheet — the class header reuses .tcard/.tc-* above rather than a second visual
        language. .dclass only turns off the picker card's own pointer/press affordances, since
        this one is a static header, not a button. */
-    .detail { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+    /* Capped to the sheet body's own ceiling so the sheet never gets a second scrollbar. Without
+       this the header, body and search pushed the fixed-height list past the sheet, and BOTH the
+       sheet and the list scrolled — a drag near the edge moved whichever one the pointer happened
+       to be over. The list is the only thing that scrolls now. */
+    .detail { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; max-height: 70vh; }
     .tcard.dclass { cursor: default; min-height: 140px; }
     .dseg { padding: var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--r-card);
       background: var(--surface-2); }
@@ -382,10 +391,13 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
       margin: 0; overflow-wrap: anywhere; }
     .dmeta { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); }
-    /* Fixed height, same reasoning as .picker-body: an EVERYONE announcement in a full box can be
-       hundreds of rows, and a content-sized list would grow under the search box as you typed. */
-    .rlist { height: 45vh; max-height: 400px; overflow-y: auto; overscroll-behavior: contain;
-      display: flex; flex-direction: column; gap: var(--sp-1); }
+    /* Same reasoning as .picker-body: an EVERYONE announcement in a full box can be hundreds of
+       rows, and a content-sized list would grow under the search box as you typed. It takes the
+       space .detail's cap leaves it rather than a fixed 45vh, so a long announcement body shortens
+       the list instead of pushing it out of the sheet. min-height:0 is what lets a flex item
+       shrink below its content and actually scroll. */
+    .rlist { flex: 1 1 auto; min-height: 96px; max-height: 400px; overflow-y: auto;
+      overscroll-behavior: contain; display: flex; flex-direction: column; gap: var(--sp-1); }
     .rrow { display: flex; align-items: center; gap: var(--sp-3); min-width: 0;
       padding: var(--sp-2) 0; min-height: var(--tap); }
     .rname { flex: 1; min-width: 0; font-family: var(--font-body); font-size: var(--fs-body);

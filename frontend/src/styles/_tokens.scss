@@ -62,6 +62,11 @@
   --cat-6: #c962d3;  /* orchid    */
 
   --scrim: rgba(6, 9, 7, 0.62);
+  /* For text laid over an arbitrary photo, where --scrim is not enough. A gym uploads its own class
+     images, so the worst case is a bright one: under --scrim, --bone-dim over a white pixel
+     measures 2.57:1 and fails AA. At 0.82 the same worst case is 5.59:1. Measured, not guessed —
+     dev-seeded images are dark enough to hide this, which is exactly why it needs a token. */
+  --scrim-text: rgba(6, 9, 7, 0.82);
   --focus: var(--volt);       /* focus ring on any non-volt surface */
   --focus-inv: var(--ground); /* focus ring ON a volt surface — see spec §11.2 */
 
