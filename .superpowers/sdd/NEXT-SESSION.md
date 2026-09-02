@@ -1,8 +1,7 @@
-# Next session — **M29a. All screens built and USER-APPROVED. Audit + critique + Task 11 remain.**
+# Next session — **M29a is COMPLETE. Merge it, then start M29b.**
 
-**Not a fresh milestone, and not a design session.** Every screen M29a owns is built, reviewed in the
-browser by the user, and signed off — *"all the screens are good"* (2026-09-01). What is left is the
-**scoring** the impeccable routine requires, and the **e2e/visual sweep**.
+Every task is done, every gate is green and measured, both screens are user-approved and past
+`audit` and `critique`. There is **nothing left to build in M29a**.
 
 ```bash
 cd ~/dev/boxhub && git checkout main && git pull && git log --oneline -1
@@ -11,194 +10,140 @@ cd ~/dev/boxhub && git checkout main && git pull && git log --oneline -1
 > **Start from `~/dev/boxhub`.** Do NOT create a git worktree and do NOT run `EnterWorktree`.
 > `git worktree list` must show exactly one entry.
 
-**Spec:** `docs/superpowers/specs/2026-08-28-m29a-messaging-design.md` — read D-1..D-8, then
-**AMENDMENTS A1, A1.7–A1.12 at the end, which supersede large parts of everything above them.**
-A1.10, A1.11 and A1.12 are all from 2026-08-31/09-01 and are the most recent law.
-**Plan:** `docs/superpowers/plans/2026-08-28-m29a-messaging.md` — Tasks 8/9 obsolete, Task 10 **done**,
-**Task 11 is what remains.**
-
 ---
 
-## Gates, measured at the end of this session — none inherited
+## Gates at close — all measured by the orchestrator, none inherited from an executor's report
 
 | Gate | Value |
 |---|---|
 | Backend | **656 / 0 / 0 / 0** |
-| Karma | **553 / 553** |
+| Karma | **556 / 556** |
 | Production build | green, **zero warnings** |
+| e2e `messaging.spec.ts` | **4 / 4**, green on two consecutive runs at `retries: 0` |
+| Visual suite | **green**, 26 baselines regenerated and every change explained in `3469472` |
 | Four standing greps | all **0** |
 | §8.1 `ui/` greps | all **0** |
-| `AuthzConformanceTest` | 3 `MIN_ROLE` entries + 1 `query` entry + 1 fixture seed — **orchestrator-audited, no assertion touched** |
-| e2e / visual | **NOT RUN** — Task 11 owns them |
-| audit / critique | **NOT RUN** — see below |
-
-**All three re-measured by the orchestrator at session end, not inherited from an executor's report.**
-Re-run them anyway before building on top — it costs minutes and the whole point of this file is that
-nothing is taken on trust:
-
-```sh
-cd ~/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test > /tmp/be.log 2>&1; echo $?; grep -E "Tests run:" /tmp/be.log | tail -1
-cd ~/dev/boxhub/frontend && env -u NODE_OPTIONS npm test -- --watch=false --browsers=ChromeHeadless > /tmp/k.log 2>&1; echo $?; grep TOTAL /tmp/k.log
-cd ~/dev/boxhub/frontend && env -u NODE_OPTIONS npx ng build --configuration production > /tmp/b.log 2>&1; echo $?
-```
+| `AuthzConformanceTest` | registrations + request-shaping + one fixture seed. **No assertion weakened, no allowlist, no probe removed.** |
+| Announcements screen | `audit` **19/20**, `critique` **36/40**, **no open P0/P1** |
 
 ---
 
-## WHAT IS LEFT — two things
+## The one thing waiting on the user
 
-### 1. `audit` (≥16/20) then `critique` (≥32/40), per screen
-
-**Deferred purely for time, not because anything is unresolved.** The user hit a usage limit and said
-*"the audit and critique we will do them another time"*.
-
-Screens to score — **`audit` BEFORE `critique`** (audit is deterministic and cheap, and its findings
-should inform the review, not the reverse):
-
-- `/admin/announcements` and `/coach/announcements` (one component, two routes)
-- the athlete home announcements card + sheet (`athlete/home.page.ts`)
-
-**Both passes need Claude in Chrome connected.** A source-only pass is provisional — `critique`
-scores Nielsen heuristics, ~36 of its 40 points earnable without seeing a pixel. If the browser is
-unavailable, **stop and ask; do not score anyway.**
-
-**YOU MAY LOG IN.** The user ruled this on 2026-09-01, reversing the old "assistant does not log in
-on the user's behalf" line: log into `http://localhost/app/` with the seeded demo accounts yourself.
-Password is in `docs/HANDOFF.md:433`. Do not paste it into chat. This covers the LOCAL dev stack
-only. **Do not change `multi@demo.io`'s memberships** — a visual baseline is recorded against them.
-
-**Never adjust a score by hand.** Re-running a gate means re-running it — this was caught being
-faked once already.
-
-### 2. Task 11 — e2e round-trip and the full sweep
-
-- Write `e2e/tests/messaging.spec.ts`: member sends → staff sees → staff replies → member sees.
-  Plus a segmented announcement reaching its roster and not a non-member of it.
-- **Add an e2e guard that a conversation opens at its NEWEST message.** Three implementations
-  shipped looking correct; the unit spec passes regardless because it stubs the element and asserts
-  the value *written*, not where the thread lands. Only a browser catches it.
-- **Add an e2e guard that the class picker's day pager does not move.** Assert the pager button's
-  bounding box is *identical* before and after paging days. A unit test cannot see this; the user
-  found the bug by hand (cards slid under their finger and selected a class by mistake).
-- **Two things remain UNKNOWN, not passing** — Chrome will not size its window below ~500px, so
-  neither has ever been seen: **rendering at 320px**, and the **narrow-viewport dock behaviour**.
-  Playwright sets its own viewport and is where both finally get answered.
-- **Rebuild both images and run on a `down -v` stack.** `retries: 0` stays.
-- Then the full sweep, and add spec §10's deferred items to `docs/BACKLOG.md`.
-
-**Visual baselines — smaller than it looks.** `visual.spec.ts` captures auth + account screens and
-components rendered **standalone in the dev gallery**. **No baseline captures a real shell or athlete
-home**, so the new header envelope, the coach's four-tab dock and the home card break nothing. What
-**does** need regenerating is **`button-{phone,tablet,desktop}.png`** — the gallery gained `lg` and
-`lg + full` cells. Regenerate deliberately; a verify run straight after `--update-snapshots` always
-passes and proves nothing.
+**`bh-button`'s `solid` variant reads as barely a button** when it is a screen's single primary
+action — measured `#1d231e` on a `#151a16` card, separated by a 1px hairline. The critique raised it
+twice (P2) and it was **deliberately not fixed**: the remedy is a new shared treatment
+(`--bone`-filled, dark text, still not volt) that every zero-volt screen inherits, so it owes a
+dev-gallery section and new visual baselines, and it is a product call. Full write-up in
+`docs/BACKLOG.md` under "Found during M29a, not owned by it". **Ask before building it.**
 
 ---
 
-## What this session built (all user-approved)
+## What is actually left
 
-**Task 10 is DONE.** The announcements screen exists and the feature is reachable — before this,
-`sendAnnouncement()` and `announcements()` had no callers and only the seeder could create one.
-
-### The composer was REJECTED once and rebuilt — read A1.11 before touching it
-The first build used native `<select>`s. The user rejected it and the reason is now **binding
-project law** (CLAUDE.md, "MOBILE FIRST IS BINDING"): rxed ships to the App Store via Capacitor, and
-on iOS a `<select>` collapses to a one-line wheel, so a class's name, time, coach and audience all
-become `Fri 5 Sep · 06:0…`. **Design at 360px first; nothing scrolls horizontally at 320px; a
-native select is banned for anything richer than a short plain label; primary actions are
-full-width.** `docs/design-ref/` is the arbiter of "app-like" and had gone unread since 2026-08-19.
-
-Rebuilt as: **To** = tappable radio-label rows; **class picker** = a `bh-sheet` with `bh-day-pager`
-and **full-bleed image cards** (structure taken from `docs/design-ref/screens/booking-screen-example.webp`
-— text over a `--scrim` on the image, *not* a thumbnail beside text); **Send** = `class="full"
-size="lg"`.
-
-### The picker's fixed height is a BUG FIX, do not "simplify" it
-Days hold different numbers of classes, so a content-sized list made the sheet grow and shrink as
-you paged — and a rapid tap on the arrow selected a class that slid under the finger. `.picker-body`
-is `height: 55vh; max-height: 460px; overflow-y: auto`. **The height must not depend on its
-contents.** Same treatment on the detail sheet's recipient list and the athlete list.
-
-### Announcements are an OUTBOX, and read counts finally mean something
-- `GET /api/box/announcements` is **mine-only** (`sentBy = userId()`), coach and admin alike (A1.12.1).
-  Backfilled/seeded rows have a null `sentBy` and belong to nobody's outbox — **correct, tested,
-  do not "fix"**.
-- `GET /api/box/announcements/{id}/recipients` returns the announcement + an optional `ClassBrief` +
-  recipients, **sender-only**. A null `sentBy` matches nobody.
-- **The athlete side had NEVER marked anything read.** `GET /api/box/me/announcements` and
-  `POST .../read` had zero frontend callers, so every `readCount` staff saw was 0 and always would
-  be. The athlete card + sheet is what makes the whole read-count feature real.
-
-### Two badge bugs fixed
-- Coach and admin had **no unread indicator at all** — the envelope was only ever built into the
-  athlete shell. Now one shared `bh-messages-envelope` in all three headers. **User ruling: header
-  only, never the dock** — *"let mantain the identity"*. The coach's Inbox dock tab was removed
-  (dock is now four); `/coach/inbox` lives on behind the envelope.
-- The badge did not clear on read. `refreshUnread()` now lives inside `MessagingService.markRead`,
-  so no caller can forget it.
-
-### Shared-component changes (both owe the gallery, both done)
-- `--tap-lg: 56px` in `_tokens.scss`; `bh-button` gained `size="lg"`; dev gallery gained `lg` and
-  `lg + full` cells **and its stale note was corrected** — it claimed "both sizes keep the same
-  min-height", no longer true.
-- Style budget raised **6/8 kB → 12/20 kB** (`angular.json`). The old cap predated screens with
-  sheets in them and was 1.1 kB from failing the build.
+1. **Push** — 30+ commits sit unpushed on `main`. The user has not asked for a push; ask first.
+2. **Close the milestone** and move to **M29b** (notifications), execution position 8. Read
+   `docs/NOTIFICATIONS.md` first — it is the registry M29b exists to consume, and **§4.2.1 records
+   exactly what M29a left ready for `NEW_ANNOUNCEMENT`**, including the one rule that matters:
+   **M29b must share `announcement_recipient.read_at`, not invent a second read state.** Two read
+   states for one announcement disagree the first time someone reads it from the feed.
 
 ---
 
-## Traps hit THIS session — all cost real time
+## What M29a ended up being
 
-1. **I rebuilt the image before an executor finished, then told the user to look.** They saw a stale
-   bundle and reported the feature missing. **After any frontend change, rebuild AND verify the
+Started as "messaging". Became messaging **plus** a rebuilt announcements system, because the
+feature was unreachable: `sendAnnouncement()` and `announcements()` had no callers and only the dev
+seeder could create an announcement.
+
+**Messaging was rewritten mid-milestone** (amendment A1): person-to-person conversations replaced
+the shared box thread. The security property changed with it — "no athlete↔athlete" used to be
+structural (no path ids on the wire) and is now a **rule in one place**,
+`MessagingService.assertMayMessage`, held up by cross-member-denied tests. `@TenantId` cannot help:
+both sides of such a leak sit in the same box.
+
+**Announcements** gained segments, a frozen audience, an outbox, a recipients view, and the athlete
+side that makes read counts mean anything — before this, nothing in the app had ever called the
+mark-read endpoint, so every `12/14 read` a coach saw would have been `0` forever.
+
+**Mobile-first became binding project law** after the user rejected the first composer: rxed ships
+to the App Store through Capacitor, and a native `<select>` collapses on iOS to a one-line wheel.
+See CLAUDE.md and amendment A1.11. `docs/design-ref/` is the arbiter of "app-like" — it had gone
+unread since 2026-08-19.
+
+---
+
+## Traps from this session — every one cost real time
+
+1. **I rebuilt the image before an executor finished and told the user to look.** They saw a stale
+   bundle and reported the feature missing. After any frontend change, rebuild **and verify the
    testid is in the served bundle**, not just the source:
    `docker compose -f docker/docker-compose.yml exec -T frontend sh -c "grep -rl '<testid>' /usr/share/nginx/html/*.js"`
-2. **I piped a gate and read `$?`** and reported a false result. That is the pipe's status. Redirect
-   to a file, `echo $?`, then grep the file. It is in the rules and I still did it.
-3. **An executor's assertion was `count >= 0`** — passes for any number including zero, so it would
-   have stayed green under the exact bug it existed to catch. Read every assertion an executor
-   writes; a loose one is worse than none.
-4. **The authz sweep 400s before `RoleGuard` runs** when a route has a required `@RequestParam`, so
-   the role check is never exercised. The fix is the file's own `query` map (line ~374), which its
-   failure message names. That is a sanctioned edit; **the orchestrator makes it, never an executor.**
-5. **The sweep's seeded announcement had no `sentBy`.** Once "only the sender may read recipients"
-   existed, the positive control took a legitimate 403 — indistinguishable from a broken route.
-   Fixture now seeds the owner-admin as sender.
-6. **`GET /api/box/me/announcements` had an N+1** that had never run because the endpoint had no
-   caller. It was about to go live as 30 round trips. Fixed to one `findAllById`.
-7. **A sort test that passes under the wrong rule tests nothing.** "Alphabetical" and "read-first
-   then alphabetical" both pass a naive fixture; the test needs an unread name that sorts *before* a
-   read one.
-8. **I decided a screen's shape without asking** and the user caught it (*"no shape for the detail?
-   are you confident to do it yourself?"*). A new surface gets 3–4 real options. Asking what it
-   *shows* is not asking what it *is*.
+2. **I piped a gate and read `$?`** and reported a false zero — after writing that exact rule into a
+   brief. Redirect to a file, `echo $?`, grep the file.
+3. **A false PASS and a false POSITIVE in the same audit.** First I measured card text against the
+   scrim's own colour (8.96:1) instead of the scrim **composited over the photo** (2.57:1 — a real
+   AA failure). Then my corrected sweep flagged a 4.27:1 label that turned out to be
+   screen-reader-only and visually hidden; "fixing" it would have changed correct code. Exclude
+   `clip-path: inset(50%)`, 1×1 and zero-opacity nodes before believing a contrast sweep.
+4. **A data-dependent WCAG failure is invisible in dev.** The seeded class images happen to be dark,
+   so the card contrast passed at 6.13:1. Against a bright photo — which a real gym will upload — it
+   was 2.57:1. Test the worst case, not the fixture.
+5. **An executor asserted `count >= 0`**, which passes for any number including zero and would have
+   stayed green under the exact bug it existed to catch. Read every assertion an executor writes.
+6. **A sort test that passes under the wrong rule tests nothing.** "Alphabetical" and "read-first
+   then alphabetical" both pass a naive fixture; it needs an unread name sorting *before* a read one.
+7. **The authz sweep 400s before `RoleGuard` runs** when a route has a required `@RequestParam`, so
+   the role check is never exercised. The remedy is the file's own `query` map, which its failure
+   message names. **The orchestrator makes that edit, never an executor.**
+8. **The sweep's seeded announcement had no `sentBy`**, so once "only the sender may read
+   recipients" existed the positive control took a legitimate 403 — indistinguishable from a broken
+   route. Fixture now seeds the owner-admin.
+9. **An N+1 that had never run.** `GET /api/box/me/announcements` did one `findById` per row and had
+   no caller until this session; it was about to go live as 30 round trips.
+10. **A 1px text shift looks structural.** 17 visual baselines changed with a 255 channel delta over
+    124 rows, which reads like a regression until you compare the images and find the content
+    identical, one pixel lower, because the page above got taller.
+11. **The visual suite was already red before this session** — `mail` entered the icon set in
+    `05219e3` and the baseline was never regenerated, because Task 11 is what runs the suite and it
+    had not been reached. A gate nobody runs is a gate that is already failing.
+12. **`npx playwright` from the repo root resolves the wrong Playwright.** There is no root
+    `package.json`. Run `cd e2e && env -u NODE_OPTIONS node_modules/.bin/playwright test ...`.
 
 ---
 
-## Working agreement (unchanged, reinforced)
+## Working agreement (unchanged)
 
 - **ALWAYS subagent.** The orchestrator dispatches, reviews every diff, runs the gates, commits.
-  Spot-checks caught real defects in several executors again this session.
-- **Verify in the browser, not only in Karma**, and **verify the served bundle, not the source**.
+  Spot-checks caught real defects in executors again this session.
+- **Critiques run inline on Sonnet** and must be forbidden from fanning out — two prior fan-outs
+  died on session limits and returned nothing. Hand the agent every measurement already taken.
 - **A new screen gets 3–4 real layout options**; a repeat of an agreed shape is the orchestrator's.
-- **The user reviews the rendering BEFORE audit/critique.** Give a click path, never a screenshot.
-- **Do not adjust scores by hand.**
-- **The user's answers reverse the spec** — amend the spec in the same commit. A1.10.4 was
-  overturned by A1.11 within a day.
+  Asking what a surface *shows* is not asking what it *is* — the user caught that omission here.
+- **Do not adjust scores by hand.** Re-running a gate means re-running it.
+- **You may log in** to the local dev stack yourself (user ruling, 2026-09-01). Password in
+  `docs/HANDOFF.md:433`; don't paste it into chat. **Do not change `multi@demo.io`'s memberships.**
+- **The user's answers reverse the spec** — amend it in the same commit. A1.10.4 was overturned by
+  A1.11 within a day.
 
 ## Environment — do not rediscover
 
-- **`NODE_OPTIONS` is poisoned.** Always `env -u NODE_OPTIONS …`. Put it in every executor brief.
+- **`NODE_OPTIONS` is poisoned.** Always `env -u NODE_OPTIONS …`, including for the impeccable
+  plugin's own scripts. Put it in every executor brief.
 - **There is NO `./mvnw`.** `cd ~/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`
-- **Never pipe a gate and read `$?`** (trap 2).
-- `docker compose -f docker/docker-compose.yml`, app at `http://localhost/app/`.
-- **Chrome will not size its window below ~500px** — 320px is Playwright's job.
+- **Never pipe a gate and read `$?`.**
+- `docker compose -f docker/docker-compose.yml`, app at `http://localhost/app/`. Compose commands
+  must run from the repo root, not from `frontend/`.
+- **Chrome will not size its window below ~500px** — 320px is Playwright's job, and remains
+  **unverified**, which is why the audit's responsive dimension is held at 3 rather than scored as a
+  pass.
+- Visual regression runs **only** through `./e2e/visual.sh` (Linux container). A verify run straight
+  after `--update-snapshots` always passes and proves nothing; review the image diff instead.
 - The seeder is time-of-day dependent: seeding before 00:20 or after 23:20 local puts a class on the
-  wrong local day and fails `programming`/`tracking`/`runner`. **Check the clock before blaming a diff.**
+  wrong local day. **Check the clock before blaming a diff.** `messaging.spec.ts`'s empty-day leg
+  depends on today's classes having already started — recorded in its own commit message.
 
 ## Not yours
 
 - **The TV SSE lost-push bug** — OPEN in `docs/BACKLOG.md`, owned by **M37**. If `runner.spec.ts`
   reds, read `TvStreamService.push()`'s WARN. **Do not add retries.**
-- **The bell and the notifications page are M29b** (execution position 8, the next milestone).
-  `docs/NOTIFICATIONS.md` is the new registry — §4.2.1 records exactly what M29a left ready for
-  `NEW_ANNOUNCEMENT`, including that M29b must **share `announcement_recipient.read_at`, not invent
-  a second read state**.

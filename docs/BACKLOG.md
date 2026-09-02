@@ -825,3 +825,44 @@ Two consequences, both real:
 `booking`; `application.yml` records that it has never been measured against a class-opening rush,
 so widening it makes a false 429 on booking *more* likely. The correct shape is a per-membership
 limit keyed on `TenantContext`, plus `@Size` on every free-text field. Owned by **M40**.
+
+## M29a §10 — deferred out of messaging, closed 2026-09-02
+
+Recorded at milestone close so the next reader knows these were decided, not missed.
+
+- **Notification events, the global in-app inbox, the shell bell** — **M29b**, execution position 8,
+  the next milestone. `docs/NOTIFICATIONS.md` is the registry; its §4.2.1 records exactly what M29a
+  left ready for `NEW_ANNOUNCEMENT`, including that M29b must **share
+  `announcement_recipient.read_at` rather than invent a second read state**.
+- **Push delivery** — **M27c**. Until it ships, a message to a coach is seen when the coach next
+  opens rxed; an announcement reaches nobody who does not open the app. Known deferral (A1.8 #1),
+  not an oversight.
+- **SMS, automation rules, campaign builder** — **M32b**.
+- **Member ↔ member messaging** — **permanently out**, not deferred. It would mean moderation,
+  blocking and abuse reporting for a community that already lives in WhatsApp.
+- Attachments and images, message search, message edit/delete, scheduled sends, typing indicators.
+- **Per-thread rate limiting** — the abuse surface is a member spamming their own conversations.
+  Folded into the M40 item above; note `POST /api/box/conversations/{membershipId}/messages`
+  replaced the `me/thread` route named there and caps its body at 4000.
+- **Unifying `HomeController`'s 7-day athlete expiry banner with `EXPIRING_SOON_DAYS = 14`.**
+  Deliberately left alone: it answers a different question ("is *my* plan about to lapse") for a
+  different reader. **Resolve it before `SUBSCRIPTION_EXPIRING` ships**, or the notification badge
+  and the home banner will disagree on screen about who is expiring.
+
+### Found during M29a, not owned by it
+
+- **`bh-button`'s `solid` variant reads as barely a button** when it is a screen's single primary
+  action: measured `--surface-2` (#1d231e) on a `--surface` (#151a16) card, separated only by a 1px
+  hairline. Not a design-law violation — volt would be wrong on a plumbing screen and `solid` is the
+  documented alternative — but `solid` was shaped for screens with several co-equal actions, so a
+  lone primary action inherits the wrong emphasis. Raised by the announcements critique (P2, twice)
+  and **put to the product owner rather than changed**: the fix is a new shared treatment
+  (`--bone`-filled, dark text, still not volt) that every zero-volt screen would inherit, so it owes
+  a dev-gallery section and new visual baselines. Compounds at the confirm dialog, where the
+  point-of-no-return button carries the same low-contrast treatment.
+- **The confirm sheet does not restate the message body**, only the recipient count and audience —
+  it relies on the composer being visible behind the sheet, which is not guaranteed for a long
+  message (the body allows 2000 characters). Recognition-rather-than-recall gap, P3.
+- **No way to duplicate or resend a past announcement**, though the outbox sits directly above the
+  composer showing exactly that need. Possibly deliberate friction (every send stays a conscious
+  act); a product question, not a defect.
