@@ -100,7 +100,7 @@ test('a conversation opens scrolled to its newest message, not its oldest', asyn
   expect(metrics.scrollTop + metrics.clientHeight).toBeGreaterThanOrEqual(metrics.scrollHeight - 4);
 });
 
-test("the class picker's day pager arrow does not move when paging, across both a day with classes and a day without", async ({ page }) => {
+test("the class picker's height and pager arrow do not move when paging, whatever a day holds", async ({ page }) => {
   test.setTimeout(45000);
   await login(page, 'admin@demo.io');
   await page.goto('/app/admin/announcements');
@@ -113,13 +113,26 @@ test("the class picker's day pager arrow does not move when paging, across both 
   const emptyMarker = page.getByTestId('announcement-day-empty');
   const cardsMarker = page.locator('.tcard');
 
+  const pickerBody = page.locator('.picker-body');
+
   const seenEmptyAt: number[] = [];
   const seenPopulatedAt: number[] = [];
+  const cardCounts: number[] = [];
+  const bodyHeights: number[] = [];
   const measured: { day: number; before: { x: number; y: number }; after: { x: number; y: number } }[] = [];
 
   for (let day = 0; day < 13; day++) {
     if (await emptyMarker.isVisible().catch(() => false)) seenEmptyAt.push(day);
     else if (await cardsMarker.first().isVisible().catch(() => false)) seenPopulatedAt.push(day);
+    cardCounts.push(await cardsMarker.count());
+
+    // The invariant the fix installed: the list box is a FIXED height, so it is the same size on
+    // every day no matter how many classes that day holds. Asserting this rather than "some day in
+    // the window happens to be empty" is what makes the test deterministic — whether an empty day
+    // exists depends on the seeder and the clock, but the height must never depend on content.
+    const bodyBox = await pickerBody.boundingBox();
+    expect(bodyBox, `picker body must be present at day offset ${day}`).not.toBeNull();
+    bodyHeights.push(Math.round(bodyBox!.height));
 
     const before = await nextBtn.boundingBox();
     expect(before, `arrow must be present at day offset ${day}`).not.toBeNull();
@@ -138,13 +151,21 @@ test("the class picker's day pager arrow does not move when paging, across both 
   }
 
   console.log('day-pager arrow boxes per transition:', JSON.stringify(measured));
+  console.log('picker body heights per day:', JSON.stringify(bodyHeights));
+  console.log('card counts per day:', JSON.stringify(cardCounts));
   console.log('empty-day offsets seen:', seenEmptyAt, '— populated-day offsets seen:', seenPopulatedAt);
-  // Time-of-day dependent (same root cause as the seeder trap documented for this suite): only
-  // TODAY's offset can ever be empty, and only once every class scheduled on it has already
-  // started. Every later offset in the 14-day window is guaranteed populated by the seeded daily
-  // slots. Both were observed live before this spec was written; if this ever fails here on a run
-  // where today's classes haven't started yet, that is environment timing, not the pager.
-  expect(seenEmptyAt.length, 'expected at least one empty day in the pageable window').toBeGreaterThan(0);
+
+  // Every day rendered the list box at exactly the same height. Under the old content-sized list
+  // these values differed day to day, which is what slid the cards under a finger still resting on
+  // the arrow.
+  expect(new Set(bodyHeights).size, `picker body height varied across days: ${bodyHeights}`).toBe(1);
+
+  // Deliberately NOT asserted: that the window contains an empty day. It did locally and did not in
+  // CI, because only TODAY's offset can ever be empty and only once its classes have started — the
+  // seeder's documented time-of-day dependence. That made the first version of this test fail on CI
+  // for a reason that had nothing to do with the pager, which is how a suite trains people to
+  // ignore red. The height invariant above covers the empty day when one occurs and holds when one
+  // does not.
   expect(seenPopulatedAt.length, 'expected at least one populated day in the pageable window').toBeGreaterThan(0);
 });
 
