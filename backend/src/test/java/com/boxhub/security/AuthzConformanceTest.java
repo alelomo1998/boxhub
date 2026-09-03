@@ -424,6 +424,12 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                 Map.entry("POST /api/box/conversations/{membershipId}/messages", "{\"body\":\"probe\"}"),
                 Map.entry("POST /api/box/wods", "{\"title\":\"W\",\"wodType\":\"FOR_TIME\",\"scoreType\":\"TIME\"}"),
                 Map.entry("PUT /api/box/me/avatar", "{\"path\":\"media/x.png\"}"),
+                // M29b. The body takes a LIST; without one the probe 400s on deserialization
+                // before RoleGuard runs, and a 400 proves nothing about who may send. CLASS_CANCELLED
+                // is deliberately a non-mandatory type — a mandatory one is refused 409 by the
+                // handler itself, which would mask the authz result the same way.
+                Map.entry("PUT /api/box/me/notification-prefs",
+                        "[{\"type\":\"CLASS_CANCELLED\",\"channel\":\"IN_APP\",\"enabled\":false}]"),
                 Map.entry("POST /api/box/subscriptions/checkout", "{\"planId\":\"" + plan.getId() + "\"}"),
                 Map.entry("POST /api/box/lifts", "{\"movementId\":\"" + movement.getId() + "\",\"load\":100}"),
                 // The one non-box route that names a tenant: box A's id, so a caller with no box-A
@@ -549,6 +555,8 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("GET /api/box/notifications/unread-count", "ATHLETE"),
             Map.entry("POST /api/box/notifications/{id}/read", "ATHLETE"),
             Map.entry("POST /api/box/notifications/read-all", "ATHLETE"),
+            Map.entry("GET /api/box/me/notification-prefs", "ATHLETE"),
+            Map.entry("PUT /api/box/me/notification-prefs", "ATHLETE"),
             Map.entry("GET /api/box/conversations", "ATHLETE"),
             Map.entry("GET /api/box/conversations/{membershipId}", "ATHLETE"),
             Map.entry("POST /api/box/conversations/{membershipId}/messages", "ATHLETE"),
