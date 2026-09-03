@@ -7,6 +7,8 @@ import com.boxhub.shared.TenantContext;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import static com.boxhub.box.SegmentResolver.EXPIRING_SOON_DAYS;
+
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -52,7 +54,11 @@ public class AdminStatsController {
                 .map(m -> subscriptions.activeFor(m.getId()).map(Subscription::getCurrentPeriodEnd).orElse(null))
                 .filter(end -> end != null)
                 .map(end -> end.atZone(ZoneId.systemDefault()).toLocalDate())
-                .filter(end -> !end.isBefore(LocalDate.now()) && end.isBefore(LocalDate.now().plusDays(15)))
+                // Behaviour-preserving: isBefore(+15) and !isAfter(+14) select the same days, 0..14.
+                // The bare 15 was EXPIRING_SOON_DAYS + 1 by coincidence of a strict bound, and would
+                // have silently diverged the moment anyone changed the constant (M29b D-12).
+                .filter(end -> !end.isBefore(LocalDate.now())
+                        && !end.isAfter(LocalDate.now().plusDays(EXPIRING_SOON_DAYS)))
                 .count();
 
         ZoneId zone = ZoneId.systemDefault();
