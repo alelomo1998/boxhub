@@ -14,6 +14,14 @@
 
 Every task's requirements implicitly include this section.
 
+- **There are no shared test fixtures.** `AbstractIntegrationTest` supplies only the Postgres
+  Testcontainer and the test properties — **no seeding helpers whatsoever**. Every integration test
+  class builds its own: `HomeSurfaceApiTest` and `SessionApiTest` each define their own `newBox`,
+  `member`, `actAsBox` and a `record TokMem(String token, UUID membershipId)`. Where a task below
+  writes `seedSomething()`, that is a **placeholder for a fixture you must write yourself** —
+  copy `HomeSurfaceApiTest`'s pattern rather than inventing a new one, and never assume a helper
+  exists because a test snippet in this plan calls it.
+
 - **Build backend with** `cd ~/dev/boxhub/backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test`. **There is no `./mvnw`.** The system JDK is 26 and too new.
 - **`NODE_OPTIONS` is poisoned.** Every frontend and Playwright command runs under `env -u NODE_OPTIONS`, including the impeccable plugin's own scripts.
 - **Never pipe a gate and read `$?`.** Redirect to a file, `echo $?`, then grep the file. A piped gate has already reported a false zero in this project.
