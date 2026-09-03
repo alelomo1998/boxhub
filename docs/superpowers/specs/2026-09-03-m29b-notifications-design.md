@@ -16,7 +16,7 @@ Four things, one subsystem:
    every event's icon, params, channels and defaults.
 2. **The in-app feed** — a routed page in all three shells, day-grouped, with a bell and badge in
    the shell header beside the messages envelope.
-3. **Fifteen declared events**, thirteen of which write a feed row.
+3. **Fourteen declared events**, twelve of which write a feed row.
 4. **Per-type, per-channel preferences** on their own page.
 
 ### Boundary
@@ -25,7 +25,7 @@ Four things, one subsystem:
 |---|---|
 | `notification`, `notification_pref`, the `NotificationType` enum | Push transport, FCM/APNs, permission prompts — **M27c** |
 | The bell, the badge, the feed page, the preferences page | SMS, automation rules, campaigns — **M32b** |
-| Emission at 15 sites, inside the causing transaction | Email. The 11 existing sends (registry §3) are untouched |
+| Emission at 13 sites, inside the causing transaction | Email. The 11 existing sends (registry §3) are untouched |
 | The scheduler for `CLASS_STARTING_SOON` | Its delivery — the rows are written, nothing renders them until M27c |
 | Reconciling `HomeController`'s 7-day banner with `EXPIRING_SOON_DAYS` | Any other change to home |
 
@@ -41,7 +41,7 @@ Each was put as an explicit fork and chosen. Recorded so they are not re-argued.
 
 | # | Decision | Rationale |
 |---|---|---|
-| **D-1** | **One `notification` table, one row per recipient**, `params` frozen at emit. | Registry §5.2: the audience is resolved once, never recomputed. 10 of the 15 events have exactly one recipient, so an event/recipient split would be two tables and a join to save nothing — and would still need D-3's special case. |
+| **D-1** | **One `notification` table, one row per recipient**, `params` frozen at emit. | Registry §5.2: the audience is resolved once, never recomputed. 9 of the 14 events have exactly one recipient, so an event/recipient split would be two tables and a join to save nothing — and would still need D-3's special case. |
 | **D-2** | **The feed excludes messages; the envelope keeps them.** A bell sits beside the envelope in the header. | `message_thread` already holds a read marker and the envelope already renders a badge. A message row in the feed would mean two badges counting one message and two read states disagreeing — the announcement bug, in a second place. One badge per thing. |
 | **D-3** | **`NEW_ANNOUNCEMENT` rows delegate read state to `announcement_recipient.read_at`** and leave `notification.read_at` NULL forever. | The hard rule this milestone must not break. There is exactly one marker per announcement; the feed derives its flag from it and mark-read routes to it. Reading from the feed drops home's badge and vice versa, because they are the same column. |
 | **D-4** | **A feed row is written INSIDE the causing transaction.** | Amends registry §5.1 — see §3. A feed row is persistence, like an audit row; a *send* is delivery. Written after commit it can be lost in the gap, and every emitter would need a signature change to carry the payload out (`BookingService.cancel()` would have to start returning who it promoted). |
@@ -149,7 +149,7 @@ M27c resolve a push tap through the same router, and it is why D-9 chose a route
 shape, `showsInFeed`, default state, and whether it is mandatory (no toggle), opt-out (on, switchable)
 or opt-in (off, switchable).
 
-### 5.1 Writes a feed row (13)
+### 5.1 Writes a feed row (12)
 
 | Type | Icon | Emit site | Recipients | `params` | Default |
 |---|---|---|---|---|---|
@@ -165,7 +165,6 @@ or opt-in (off, switchable).
 | `MEMBERSHIP_BLOCKED` | `lock` | `MemberController`, status → SUSPENDED | the member | — | on, **mandatory** |
 | `INVITE_ACCEPTED` | `user` | `InvitePublicController` accept path | box admins | `inviteeName` | on, opt-out |
 | `NEW_MEMBER_JOINED` | `users` | non-invite `MembershipEvent.JOINED` writes only (D-14) | box admins | `memberName` | on, opt-out |
-| `PR_CONGRATULATED` | `trending-up` | `PostLike` insert | the post's author | `likerName, postId` | **off, opt-in** |
 
 **`PAYMENT_FAILED`'s site is a correction, not a preference.** `StripeWebhookController:180` opens
 `runAsBox(boxId, () -> tx.execute(…))` and saves the payment at `:190`;
@@ -186,6 +185,13 @@ and renders as "Your gym", the same fallback the athlete announcements list alre
 
 ### 5.3 Considered and not built
 
+- **`PR_CONGRATULATED`** — **deferred to M25 (social), 2026-09-03.** The registry's §4.4 says
+  *"PostLike exists already"*, and the entity and repository do — but **nothing in the codebase ever
+  creates one.** `grep -rn "postLikes.save\|new PostLike" backend/src/main/java` returns nothing;
+  the only references are in `PerformanceQueries`' GDPR export. There is no endpoint to like a post,
+  so the event has no trigger. M25 owns the feed, the composer and **likes**, and it is the
+  milestone that can wire this in one line once a like can happen. Building a like endpoint here
+  would break milestone lock to serve a notification nobody can yet cause.
 - **`BOOKING_CONFIRMED`** — D-13.
 - **Waitlist position changed** ("you are now #2") — the only position that matters already has an
   event, and the rest is noise.
@@ -367,7 +373,7 @@ greps, the `ui/` §8.1 greps, axe, visual baselines, i18n marking):
 | `runAsRoot` in the no-show sweep silently writes sentinel `box_id`s | §7. Orchestrator-implemented, with a two-box tenancy test that would fail if it regressed. |
 | A third badge crowds the header at 360px | Responsive pass at 360 on all three shells before the audit. Chrome will not size below ~500px — 320 is Playwright's job (M29a environment note). |
 | The per-minute reminder sweep is a new recurring cost across every box | It selects on an indexed one-minute `startAt` window per box, not a full scan. Measured before merge. |
-| 15 events is a large surface for one milestone | Planned in phases (§14) so review lands in reviewable batches, not as one diff. |
+| 14 events is a large surface for one milestone | Planned in phases (§14) so review lands in reviewable batches, not as one diff. |
 | `params` shapes drift from what `notification-copy.ts` renders | The enum declares the shape and a Karma spec asserts every `NotificationType` has a copy entry — an unrendered type is a blank row otherwise. |
 
 ---
