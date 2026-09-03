@@ -210,7 +210,11 @@ public class BookingService {
         return saved;
     }
 
-    /** Nightly sweep target: flips unmarked BOOKED -> NO_SHOW for sessions that already started. */
+    /**
+     * Nightly sweep target: flips unmarked BOOKED -> NO_SHOW for sessions that already started.
+     * Runs under ONE box's tenant per call (see BookingMaintenance) — never runAsRoot, because the
+     * notification below is a @TenantId insert and under root it would take the sentinel box_id.
+     */
     @Transactional
     public int sweepNoShows(Instant before) {
         int flipped = 0;
@@ -219,6 +223,10 @@ public class BookingService {
                 if ("BOOKED".equals(b.getStatus())) {
                     b.setStatus("NO_SHOW");
                     bookings.save(b);
+                    notifications.emit(NotificationType.NO_SHOW_RECORDED, b.getMembershipId(),
+                            Map.of(NotificationType.SESSION_ID, s.getId().toString(),
+                                   NotificationType.CLASS_NAME, s.getName(),
+                                   NotificationType.START_AT, s.getStartAt().toString()));
                     flipped++;
                 }
             }
