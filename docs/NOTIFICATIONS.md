@@ -144,10 +144,11 @@ manual path should be re-examined, not kept by default, once this event exists.
 
 ### 5.1 It fires strictly AFTER commit
 
-CLAUDE.md, binding: **mail fires strictly after commit; an audit row is written strictly inside the
-transaction.** Notifications follow the mail half. A notification sent inside a transaction that
-then rolls back is a lie told to a real person — "you got a spot" for a promotion that never
-happened. The same reasoning gives every channel the same rule.
+An **in-app notification row is persistence** and is written **inside** the transaction that caused
+it, exactly like an audit row: a rolled-back promotion must erase its own notification, and a row
+written after commit can be lost if the process dies in the gap. An **outbound send is delivery** —
+email, push (M27c), SMS (M32b) — and fires **strictly after commit**, because it cannot be
+retracted.
 
 ### 5.2 The audience is frozen, not recomputed
 
