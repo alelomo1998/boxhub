@@ -2,6 +2,8 @@ package com.boxhub.box;
 
 import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.notify.NotificationService;
+import com.boxhub.notify.NotificationType;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
 import org.springframework.data.domain.Page;
@@ -14,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
@@ -33,13 +36,15 @@ public class MemberController {
     private final PlanRepository plans;
     private final SubscriptionService subscriptions;
     private final MembershipEventRepository membershipEvents;
+    private final NotificationService notifications;
 
     public MemberController(MembershipRepository memberships, PlanRepository plans, SubscriptionService subscriptions,
-                            MembershipEventRepository membershipEvents) {
+                            MembershipEventRepository membershipEvents, NotificationService notifications) {
         this.memberships = memberships;
         this.plans = plans;
         this.subscriptions = subscriptions;
         this.membershipEvents = membershipEvents;
+        this.notifications = notifications;
     }
 
     public record MemberDto(UUID membershipId, UUID userId, String name, String email,
@@ -91,6 +96,12 @@ public class MemberController {
                 UUID actorMembershipId = memberships.findByUserIdAndBoxId(TenantContext.userId(), boxId)
                         .map(Membership::getId).orElse(null);
                 membershipEvents.save(new MembershipEvent(m.getId(), kind, actorMembershipId, null));
+
+                // Only the blocking direction. Reactivation is good news the member finds out by
+                // being able to book again; being blocked with no explanation is not.
+                if (MembershipEvent.SUSPENDED.equals(kind)) {
+                    notifications.emit(NotificationType.MEMBERSHIP_BLOCKED, m.getId(), Map.of());
+                }
             }
         }
 

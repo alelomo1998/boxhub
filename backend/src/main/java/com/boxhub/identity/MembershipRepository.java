@@ -37,6 +37,10 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
     // AdminStatsController, which must state its own box predicate explicitly.
     List<Membership> findByBoxId(UUID boxId);
 
+    /** The staff audience for INVITE_ACCEPTED. Membership carries no @TenantId discriminator, so
+     *  the box predicate is stated explicitly — never findAll(). */
+    List<Membership> findByBoxIdAndRoleAndStatus(UUID boxId, String role, String status);
+
     // Join-fetch so callers can read m.getUser() after this method's own transaction has closed
     // (open-in-view is false) — used by mail-sending code (PaymentReceipts, SubscriptionLapseJob)
     // that runs strictly after a DB commit, outside any request-scoped session.
