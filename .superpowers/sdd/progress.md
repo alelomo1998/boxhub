@@ -2554,3 +2554,115 @@ open P2s — it is a pass, not a comfortable one.
   admin contact to link to. Honest today; revisit when that data exists.
 - **740px column cap** was chosen to kill the P1, not from analysis. Worth a considered number when
   an admin juggles five boxes.
+
+## M29b — notifications (branch `m29b-notifications`, 2026-09-03) — backend complete, Tasks 1–15
+
+Backend suite **676 → 749**, green throughout. Fourteen declared events, twelve writing a feed row.
+One `notification` table, one enum that is the single declaration of icon/params/channels/defaults.
+
+### The two decisions that must not be undone
+
+1. **`NEW_ANNOUNCEMENT` delegates read state to `announcement_recipient.read_at`** and leaves
+   `notification.read_at` null forever. ONE marker per announcement. `ReadStateDelegationTest`
+   proves it in both directions plus "the delegating row never stores its own read state".
+2. **The feed excludes messages.** The envelope keeps its own badge and marker. Two badges counting
+   one message is the announcement bug in a second place.
+
+### Defects found reviewing executor diffs — none were reported by the executor that wrote them
+
+- **`markNoShow` had no transition guard.** `/no-show` and `/uncheck` are both live coach endpoints,
+  so mark → uncheck → mark (or a double-tap) wrote duplicate rows. `NO_SHOW_RECORDED` has no dedupe
+  key, so the guard is the only defence. Mutation-checked.
+- **Six vacuous AssertJ assertions across three tasks.** `allSatisfy` / `noneSatisfy` /
+  `doesNotContain` / `extracting` all pass on an EMPTY list, so each would have survived emission
+  breaking completely. Assert the row count FIRST, then the property. Now briefed up front, and the
+  later executors did it unprompted.
+- **An admin-role invite told the acceptor they accepted their own invite.** `notifyAdmins` now
+  excludes the actor; mutation-checked.
+- **A drop-in visitor would have broken four fan-outs.** Since M22 `bookings.membership_id` is
+  nullable (V26 `ck_booking_subject`) and `notification.membership_id` is NOT NULL, so mapping a
+  roster straight to membership ids aborts the caller's whole transaction: **a coach could not
+  cancel a class containing a drop-in**, and one overnight visitor booking would kill a box's entire
+  no-show sweep. Guarded once in `NotificationService.emitAll` — one guard, not four, because a
+  guard per caller is one caller away from being forgotten. Latent today (nothing creates visitor
+  bookings yet) but the schema, entity and `DropInBookingTest` all do.
+
+### Plan-vs-reality conflicts (the plan's code was written before the source was checked)
+
+- Task 5: plan called `cancel(bookingId)`; the real signature is `cancel(sessionId, membershipId)`.
+- Task 6: the test cannot live in `com.boxhub.notify` (`PatchSessionRequest` and `ROSTER_STATUSES`
+  are package-private); **`SessionController.patch` had NO transaction at all**, so `emit`'s
+  MANDATORY propagation would have thrown — it gets `@Transactional`, matching
+  `AnnouncementController`/`MemberController`; and the suggested `coachName` helper is private in
+  another class, while `patch` already computes the value.
+- Task 8: `InvitePublicController.accept` and `BoxSignupService` are **deliberately** not
+  `@Transactional` (their javadocs say why), so they need a `TransactionTemplate` INSIDE the existing
+  `runAsBox` — never `@Transactional` on the method, never relaxed propagation.
+- Task 9: the real method is `nightlyNoShowSweep()`, cron `0 30 3 * * *`; the plan's snippet was a
+  placeholder. **This removed the last `runAsRoot(` call site in the backend.**
+- Task 15: the plan said to seed the probe notification against the ATHLETE. Wrong — the sweep's
+  positive control re-issues denied probes with box A's **OWNER** token and the route resolves `{id}`
+  against the caller's own membership, so an athlete-owned row 404s for the owner and the sweep
+  reports the tenancy probe as proving nothing. The announcement fixture only avoids this by writing
+  a recipient row for BOTH memberships.
+
+### `NEW_MEMBER_JOINED` has no trigger and ships unemitted
+
+Production code has exactly two membership-creation paths: `InviteAcceptTx` (that is
+`INVITE_ACCEPTED`'s) and `BoxSignupTx`, which creates a box **together with its owner** — so the only
+ACTIVE admin at that instant is the person who just signed up, and the row would tell them they
+joined their own gym. **There is no route by which somebody joins an existing box other than an
+invite.** Identical failure to `PR_CONGRATULATED`: an emit site listed in the approved spec without
+being verified. Enum constant stays; one line when self-signup ships. Recorded in spec §5.3, the
+registry and `docs/BACKLOG.md`.
+
+### Two environment traps this milestone added
+
+1. **A per-minute cron DOES fire inside the test suite.** Every other job here is a 3am cron, so
+   nobody had hit it. `ClassReminderScheduler` would have fired ~7 times per run, iterating every box
+   the suite had ever created and emitting into other tests' boxes — a flake that would have looked
+   random. The cron is now the property `boxhub.class-reminder-cron`, set to `-`
+   (`Scheduled.CRON_DISABLED`) in `AbstractIntegrationTest`. `@TestPropertySource` MERGES into
+   subclasses, so one entry covers all of them.
+2. **An anonymous non-GET returns 403, not 401** — the CSRF filter rejects before authentication, so
+   the auth check under test is never reached. Add `.with(csrf())`, exactly as `AuthzConformanceTest`
+   does on every non-GET probe.
+
+### Measured, not asserted
+
+The spec's open "measure before merge" risk on the per-minute sweep is closed: at **300k sessions
+across 300 boxes** the predicate plans as a Bitmap Index Scan on `(box_id, start_at)`
+(`idx_sessions_box_start`, present since V3) — 9 buffers, **0.047 ms**, so a 300-box sweep costs
+~14 ms of database time per minute.
+
+### Frontend plumbing — Tasks 16–18, also complete
+
+Karma **560 → 568**, production build clean with **zero warnings** throughout.
+
+- **T16** `NotificationService` mirrors `MessagingService` deliberately: the bell and the envelope sit
+  side by side, so a second pattern would drift. The service OWNS the `unread` signal, so a caller
+  that forgets to refresh cannot leave the badge stale — how the envelope's badge once stuck until
+  reload. A failed count poll leaves the badge alone; rendering 0 on error is a lie, not a fallback.
+- **T17** `bh-notification-bell`, in all three shells. `--bone` on `--surface-2`, never volt — the
+  switcher's mark already spends the shell's budget.
+- **T18** `notification-copy.ts`, twelve entries, every string `$localize`d. Two specs earn their
+  keep: one asserts every server feed type has an entry (a mismatch renders a BLANK ROW rather than
+  throwing, invisible in every other test), one asserts no title leaks a `:placeholder:` marker.
+
+**Two frontend traps worth keeping:**
+
+1. **Adding the bell to the three shells broke their specs** — the bell's `ngOnInit` calls
+   `refreshUnread()`, leaving an unflushed request that `HttpTestingController.verify()` catches.
+   Expected, and the fix is in the specs, not the component.
+2. **The dev gallery forbids API calls, and the bell's count comes from a `providedIn:'root'`
+   singleton** — so every instance on the page would share one signal and zero/one/many/99+ could
+   not be shown side by side. Resolved with a dev-only stand-in service plus a component-level
+   provider, so the REAL component markup renders (reimplementing it would itself be a design-law
+   violation) and no HTTP ever fires. This is very likely why `bh-messages-envelope`, same shape,
+   has no gallery section at all. `dev-gallery.page.spec.ts` hard-codes the section list and must be
+   updated in the same breath — it is a contract, so registering the new section IS the fix.
+
+### Still open
+
+Tasks 19–20 (**two new screens, each owing the full impeccable routine with Claude in Chrome
+connected**), 21 (e2e), 22 (baselines, gate sweep, merge).
