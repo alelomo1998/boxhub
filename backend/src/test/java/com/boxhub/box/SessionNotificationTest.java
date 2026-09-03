@@ -87,6 +87,32 @@ class SessionNotificationTest extends AbstractIntegrationTest {
 
     private record RosterSeed(UUID sessionId, UUID bookedMembershipId, UUID waitlistedMembershipId, Instant startAt) {}
 
+    @Test
+    void cancellingAClassWithADropInVisitorStillNotifiesTheMembers() {
+        var seeded = seedSessionWithBookedAndWaitlisted();
+
+        // A drop-in visitor books with visitor_user_id set and membership_id NULL (M22, V26's
+        // ck_booking_subject). notification.membership_id is NOT NULL, so mapping the roster
+        // straight to membership ids would abort the whole PATCH the first time a visitor sat in
+        // the class — a coach simply could not cancel it. NotificationService.emitAll drops the
+        // null centrally, because every booking-derived fan-out has the same hole.
+        User visitor = authService.register("visitor-" + System.nanoTime() + "@t.io",
+                "correct-horse-battery", "Visitor");
+        Booking dropIn = new Booking();
+        dropIn.setSessionId(seeded.sessionId());
+        dropIn.setVisitorUserId(visitor.getId());
+        dropIn.setStatus("BOOKED");
+        bookingRepo.save(dropIn);
+
+        patchSession(seeded.sessionId(), cancelRequest());
+
+        // The two members are told; the visitor is simply not addressable in-app.
+        assertThat(notifications.findAll()).hasSize(2)
+                .allSatisfy(n -> assertThat(n.getType()).isEqualTo(NotificationType.CLASS_CANCELLED.name()))
+                .extracting(Notification::getMembershipId)
+                .containsExactlyInAnyOrder(seeded.bookedMembershipId(), seeded.waitlistedMembershipId());
+    }
+
     private RosterSeed seedSessionWithBookedAndWaitlisted() {
         UUID boxId = seedBox();
         ClassSession s = new ClassSession();

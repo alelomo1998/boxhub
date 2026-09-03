@@ -72,13 +72,11 @@ public class ClassReminderScheduler {
             Instant to = now.plus(lead);
 
             for (ClassSession s : sessions.findByStatusAndStartAtBetween("SCHEDULED", from, to)) {
-                // membershipId is null for a visitor drop-in (M22) — no membership to notify, so
-                // filter it out rather than let a NOT NULL violation on notification.membership_id
-                // take down the rest of the box's sweep.
+                // A visitor drop-in has a null membershipId (M22); NotificationService.emitAll
+                // drops those centrally, because every booking-derived fan-out has that same hole.
                 List<UUID> booked = bookings.findBySessionId(s.getId()).stream()
                         .filter(b -> "BOOKED".equals(b.getStatus()) || "CHECKED_IN".equals(b.getStatus()))
                         .map(Booking::getMembershipId)
-                        .filter(java.util.Objects::nonNull)
                         .distinct()
                         .toList();
                 notifications.emitAll(NotificationType.CLASS_STARTING_SOON, booked,

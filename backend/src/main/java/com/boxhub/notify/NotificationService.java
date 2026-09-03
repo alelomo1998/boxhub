@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -55,7 +56,20 @@ public class NotificationService {
         if (membershipIds == null || membershipIds.isEmpty()) return;
         Map<String, Object> safeParams = params == null ? Map.of() : params;
 
-        Set<UUID> recipients = enabledFor(type, membershipIds);
+        // A booking need not have a membership: since M22 a drop-in visitor books as a
+        // visitor_user_id with membership_id NULL (V26's ck_booking_subject enforces exactly one of
+        // the two). notification.membership_id is NOT NULL, so a roster fan-out that maps bookings
+        // straight to membership ids would abort its caller's whole transaction the first time a
+        // visitor sat in the class — taking down a coach's class cancellation, or an entire box's
+        // nightly no-show sweep, for a row nobody could have read anyway.
+        //
+        // Filtered HERE rather than at each call site because every fan-out built from bookings has
+        // the identical hole, and a guard per caller is one caller away from being forgotten. There
+        // is no member to notify, so skipping is the correct answer, not an error.
+        List<UUID> addressable = membershipIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (addressable.isEmpty()) return;
+
+        Set<UUID> recipients = enabledFor(type, addressable);
         if (recipients.isEmpty()) return;
 
         String dedupeKey = type.dedupeKey(safeParams);
