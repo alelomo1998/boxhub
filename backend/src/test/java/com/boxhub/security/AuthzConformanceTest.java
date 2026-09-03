@@ -140,6 +140,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
     @Autowired BenchmarkTemplateRepository benchmarks;
     @Autowired com.boxhub.box.AnnouncementRepository announcements;
     @Autowired com.boxhub.box.AnnouncementRecipientRepository announcementRecipients;
+    @Autowired com.boxhub.notify.NotificationRepository notifications;
     @Autowired LiftEntryRepository lifts;
     @Autowired BookingRepository bookings;
     @MockitoBean Mailer mailer;
@@ -150,6 +151,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
 
     /** Path-variable name (or, for a bare {id}, the preceding path segment) -> REAL box-A id. */
     private UUID boxAnnouncementId;
+    private UUID boxANotificationId;
     private final Map<String, String> pathIds = new HashMap<>();
     /** Same, for {@code /api/admin/**} only — those probes must NOT touch box A, see {@link #concrete}. */
     private final Map<String, String> adminIds = new HashMap<>();
@@ -224,6 +226,26 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             rec.setMembershipId(mid);
             announcementRecipients.save(rec);
         }
+
+        // M29b. {id} in /api/box/notifications/{id}/read resolves off the preceding segment.
+        //
+        // Owned by ownerMembership, NOT the athlete: that handler resolves {id} against the
+        // CALLER's own membership, and the positive control re-issues every denied probe with box
+        // A's OWN ADMIN token and requires a non-404. Seeded against the athlete it 404s for the
+        // admin, and the sweep reports the foreign-box probe as proving nothing — which is exactly
+        // what it did the first time. (The announcement fixture above sidesteps this by writing a
+        // recipient row for BOTH memberships; a notification is one row for one member, so the
+        // owner is the one that has to hold it.)
+        //
+        // Seeded inside the actAsBox window above so @TenantId stamps box A rather than the
+        // NO_TENANT sentinel. Deliberately NOT a NEW_ANNOUNCEMENT: that type delegates its read
+        // state to announcement_recipient and leaves read_at null, so it would exercise a
+        // different branch of markRead than this probe is aimed at.
+        com.boxhub.notify.Notification sweepNotification = new com.boxhub.notify.Notification();
+        sweepNotification.setMembershipId(ownerMembership.getId());
+        sweepNotification.setType(com.boxhub.notify.NotificationType.WAITLIST_PROMOTED.name());
+        sweepNotification.setParams(java.util.Map.of("className", "Sweep " + mark));
+        boxANotificationId = notifications.save(sweepNotification).getId();
 
         Plan plan = new Plan();
         plan.setName("Plan " + mark);
@@ -357,6 +379,8 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
         // box A's OWN admin token and requires a non-404, and that handler resolves the row by
         // (my membership, announcement) — with no row, the control would fail on a correct handler.
         pathIds.put("announcements", boxAnnouncementId.toString());
+        // M29b. No other route puts a different id type after a "notifications" segment.
+        pathIds.put("notifications", boxANotificationId.toString());
 
         adminIds.clear();
         adminIds.put("boxes", boxC.getId().toString());
@@ -520,6 +544,11 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             // still run here, and (b) passes precisely because assertMayMessage resolves the target
             // with findByIdAndBoxId rather than a bare findById.
             Map.entry("GET /api/box/contacts", "ATHLETE"),
+            // M29b: the member's own feed. Member-level — any ACTIVE member of the box.
+            Map.entry("GET /api/box/notifications", "ATHLETE"),
+            Map.entry("GET /api/box/notifications/unread-count", "ATHLETE"),
+            Map.entry("POST /api/box/notifications/{id}/read", "ATHLETE"),
+            Map.entry("POST /api/box/notifications/read-all", "ATHLETE"),
             Map.entry("GET /api/box/conversations", "ATHLETE"),
             Map.entry("GET /api/box/conversations/{membershipId}", "ATHLETE"),
             Map.entry("POST /api/box/conversations/{membershipId}/messages", "ATHLETE"),
