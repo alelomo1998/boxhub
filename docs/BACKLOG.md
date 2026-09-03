@@ -866,3 +866,12 @@ Recorded at milestone close so the next reader knows these were decided, not mis
 - **No way to duplicate or resend a past announcement**, though the outbox sits directly above the
   composer showing exactly that need. Possibly deliberate friction (every send stays a conscious
   act); a product question, not a defect.
+
+### Found during M29b, not owned by it
+
+- **`NEW_MEMBER_JOINED` has no trigger and ships unemitted.** There is no route by which somebody
+  joins an *existing* box other than accepting an invite (which is `INVITE_ACCEPTED`'s). The only
+  non-invite membership creation is `BoxSignupTx`, which makes a box and its owner together, so the
+  notification would tell the new owner that they themselves joined. The enum constant stays; the
+  milestone that adds a **public self-signup to an existing box** emits it in one line. Full
+  reasoning in the M29b spec §5.3.

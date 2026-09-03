@@ -54,7 +54,7 @@ Each was put as an explicit fork and chosen. Recorded so they are not re-argued.
 | **D-11** | **`CLASS_STARTING_SOON` is scheduled in M29b and rendered by nobody.** | The scheduler is the hard, reusable half and M27c would otherwise build it while also building push. It writes a real row (so dedupe works and the sweep is assertable) which the feed query excludes via `showsInFeed = false`. Precedent: the v1.0 doc's "Stripe ships and works, no money flows". Amends registry §5.5 — see §3. |
 | **D-12** | **`EXPIRING_SOON_DAYS = 14` becomes the only answer**, and `HomeController`'s literal `7` is deleted. | Ships first, in its own commit, before any emitter. Banner, staff segment, members-table chip and `SUBSCRIPTION_EXPIRING` must answer one question or the badge and the banner contradict each other on screen. |
 | **D-13** | **No booking-confirmation event.** | A notification for an action you just performed, on the screen that just confirmed it. Registry §5.3: the fastest way to feel worse than a WhatsApp group is to notify more than one. The need behind it — *will I remember to go?* — is `CLASS_STARTING_SOON`'s. |
-| **D-14** | **`INVITE_ACCEPTED` and `NEW_MEMBER_JOINED` are mutually exclusive by construction.** | Discovered during design: both would fire at `InvitePublicController:72/80`, giving admins two rows for one event. `INVITE_ACCEPTED` fires on the invite route; `NEW_MEMBER_JOINED` fires only where a membership becomes ACTIVE by another route. Neither site fires both. |
+| **D-14** | **`INVITE_ACCEPTED` and `NEW_MEMBER_JOINED` are mutually exclusive by construction.** | Discovered during design: both would fire at `InvitePublicController:72/80`, giving admins two rows for one event. `INVITE_ACCEPTED` fires on the invite route; `NEW_MEMBER_JOINED` fires only where a membership becomes ACTIVE by another route. Neither site fires both. **As built the exclusivity is total** — no such other route exists, so `NEW_MEMBER_JOINED` is emitted nowhere (§5.3). |
 
 ---
 
@@ -164,7 +164,7 @@ or opt-in (off, switchable).
 | `PAYMENT_FAILED` | `triangle-alert` | `StripeWebhookController`'s transaction — **not** `PaymentReceipts` | the member | `amountCents, currency` | on, **mandatory** |
 | `MEMBERSHIP_BLOCKED` | `lock` | `MemberController`, status → SUSPENDED | the member | — | on, **mandatory** |
 | `INVITE_ACCEPTED` | `user` | `InvitePublicController` accept path | box admins | `inviteeName` | on, opt-out |
-| `NEW_MEMBER_JOINED` | `users` | non-invite `MembershipEvent.JOINED` writes only (D-14) | box admins | `memberName` | on, opt-out |
+| `NEW_MEMBER_JOINED` | `users` | ~~non-invite `MembershipEvent.JOINED`~~ — **no such site exists; not emitted, see §5.3** | box admins | `memberName` | on, opt-out |
 
 **`PAYMENT_FAILED`'s site is a correction, not a preference.** `StripeWebhookController:180` opens
 `runAsBox(boxId, () -> tx.execute(…))` and saves the payment at `:190`;
@@ -192,6 +192,18 @@ and renders as "Your gym", the same fallback the athlete announcements list alre
   so the event has no trigger. M25 owns the feed, the composer and **likes**, and it is the
   milestone that can wire this in one line once a like can happen. Building a like endpoint here
   would break milestone lock to serve a notification nobody can yet cause.
+- **`NEW_MEMBER_JOINED`** — **declared but emitted nowhere, 2026-09-03.** §5.1 gave its emit site as
+  "non-invite `MembershipEvent.JOINED` writes only (D-14)". Verified against the source during Task 8:
+  production code has exactly **two** membership-creation paths, `BoxSignupTx` and `InviteAcceptTx`
+  (`grep -rn "new Membership()" backend/src/main/java` — everything else is `DevDataSeeder`). The
+  invite path is `INVITE_ACCEPTED`'s. The only non-invite path is `BoxSignupService`, which creates a
+  box **together with its owner** — so the sole ACTIVE box admin at that moment is the person who just
+  signed up, and the row would tell them that they themselves joined. That is the "no notification for
+  an action you just performed" rule (registry §5.3, D-13) applied to its own audience. **There is no
+  route by which somebody joins an existing box other than an invite**, so the event has no trigger.
+  The enum constant, icon, link and default all stay — the milestone that adds a non-invite join path
+  (public self-signup to an existing box) emits it in one line. Same failure as `PR_CONGRATULATED`
+  above: an emit site listed in the approved spec without being verified against the source.
 - **`BOOKING_CONFIRMED`** — D-13.
 - **Waitlist position changed** ("you are now #2") — the only position that matters already has an
   event, and the rest is noise.

@@ -135,7 +135,7 @@ manual path should be re-examined, not kept by default, once this event exists.
 | Event | Fires when | Recipients | Channels | Owner | Notes |
 |---|---|---|---|---|---|
 | `CLASS_UNDER_BOOKED` | N hours before start, below a threshold | the assigned coach | feed | later | The "should I cancel this?" prompt. |
-| `NEW_MEMBER_JOINED` | a membership becomes ACTIVE | box admins | feed | M29b | |
+| `NEW_MEMBER_JOINED` | a membership becomes ACTIVE **by a non-invite route** | box admins | feed | deferred — no trigger exists yet (see M29b spec §5.3) | |
 | `COACH_UNASSIGNED_SESSION` | an upcoming session still has `coach_id = null` | box admins | feed | later | Already a real state — M29a had to rule on it: an unassigned session is admin-only for announcements. |
 
 ---
