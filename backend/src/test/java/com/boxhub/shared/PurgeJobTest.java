@@ -16,6 +16,9 @@ import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.RefreshToken;
 import com.boxhub.identity.RefreshTokenRepository;
 import com.boxhub.identity.User;
+import com.boxhub.notify.Notification;
+import com.boxhub.notify.NotificationRepository;
+import com.boxhub.notify.NotificationType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +51,7 @@ class PurgeJobTest extends AbstractIntegrationTest {
     @Autowired EmailTokenRepository emailTokens;
     @Autowired InviteRepository invites;
     @Autowired TvDeviceRepository tvDevices;
+    @Autowired NotificationRepository notifications;
 
     @AfterEach
     void clearAuth() { SecurityContextHolder.clearContext(); }
@@ -129,6 +134,33 @@ class PurgeJobTest extends AbstractIntegrationTest {
         d.setBoxId(boxId);
         setCreatedAt(d, createdAt);
         return tvDevices.save(d);
+    }
+
+    /** Notification.createdAt has a setter, so it can be overridden before the single insert —
+     *  no reflection needed, unlike TvDevice below. box_id is @TenantId (Hibernate-stamped), so
+     *  the insert must happen inside runAsBox; the box/user/membership setup above it does not
+     *  (Membership carries no @TenantId discriminator). {@code unread} lets the two tests below
+     *  cover both a read and an unread stale row — retention doesn't care about read state. */
+    private UUID seedNotification(Instant createdAt, boolean unread) {
+        UUID boxId = newBox("purge-notif-" + System.nanoTime() + "-" + (long) (Math.random() * 1_000_000));
+        User user = newUser(boxId, "notif");
+        UUID membershipId = memberships.findByUserIdAndBoxId(user.getId(), boxId).orElseThrow().getId();
+        return TenantContext.runAsBox(boxId, () -> {
+            Notification n = new Notification();
+            n.setMembershipId(membershipId);
+            n.setType(NotificationType.WAITLIST_PROMOTED.name());
+            n.setCreatedAt(createdAt);
+            if (!unread) n.setReadAt(createdAt);
+            return notifications.save(n).getId();
+        });
+    }
+
+    private UUID seedNotificationCreatedAt(Instant createdAt) {
+        return seedNotification(createdAt, false);
+    }
+
+    private UUID seedUnreadNotificationCreatedAt(Instant createdAt) {
+        return seedNotification(createdAt, true);
     }
 
     /** TvDevice.createdAt has no setter (defaults to Instant.now() at construction); use reflection
@@ -277,5 +309,34 @@ class PurgeJobTest extends AbstractIntegrationTest {
         assertThat(tvDevices.findById(freshPendingB)).isPresent();
         assertThat(tvDevices.findById(activeOldA)).isPresent();
         assertThat(tvDevices.findById(activeOldB)).isPresent();
+    }
+
+    @Test
+    void notificationsOlderThanNinetyDaysArePurged() {
+        UUID fresh = seedNotificationCreatedAt(Instant.now().minus(10, ChronoUnit.DAYS));
+        UUID stale = seedNotificationCreatedAt(Instant.now().minus(120, ChronoUnit.DAYS));
+
+        purgeJob.purge();
+
+        var remaining = TenantContext.runAsRoot(() -> notifications.findAll())
+                .stream().map(Notification::getId).toList();
+        assertThat(remaining).contains(fresh).doesNotContain(stale);
+    }
+
+    @Test
+    void anUnreadNotificationIsPurgedToo() {
+        // A 90-day-old unread notification is not actionable, and keeping it forever is exactly the
+        // table-that-grows-forever registry §5.5 warns about.
+        UUID staleUnread = seedUnreadNotificationCreatedAt(Instant.now().minus(120, ChronoUnit.DAYS));
+
+        // Prove the row actually exists before purging — doesNotContain() below would pass
+        // vacuously on an empty list if seeding silently wrote nothing.
+        assertThat(TenantContext.runAsRoot(() -> notifications.findAll()))
+                .extracting(Notification::getId).contains(staleUnread);
+
+        purgeJob.purge();
+
+        assertThat(TenantContext.runAsRoot(() -> notifications.findAll()))
+                .extracting(Notification::getId).doesNotContain(staleUnread);
     }
 }

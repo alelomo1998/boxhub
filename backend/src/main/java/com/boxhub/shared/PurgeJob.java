@@ -5,6 +5,7 @@ import com.boxhub.display.TvDeviceRepository;
 import com.boxhub.display.TvPairingService;
 import com.boxhub.identity.EmailTokenRepository;
 import com.boxhub.identity.RefreshTokenRepository;
+import com.boxhub.notify.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,18 +29,24 @@ public class PurgeJob {
 
     private static final Logger log = LoggerFactory.getLogger(PurgeJob.class);
     private static final Duration GRACE = Duration.ofDays(30);
+    /** A 90-day-old notification is not actionable; see spec §8. Longer than GRACE because these
+     *  are the user's own history, not security evidence. */
+    private static final Duration NOTIFICATION_RETENTION = Duration.ofDays(90);
 
     private final RefreshTokenRepository refreshTokens;
     private final EmailTokenRepository emailTokens;
     private final InviteRepository invites;
     private final TvDeviceRepository tvDevices;
+    private final NotificationRepository notifications;
 
     public PurgeJob(RefreshTokenRepository refreshTokens, EmailTokenRepository emailTokens,
-                     InviteRepository invites, TvDeviceRepository tvDevices) {
+                     InviteRepository invites, TvDeviceRepository tvDevices,
+                     NotificationRepository notifications) {
         this.refreshTokens = refreshTokens;
         this.emailTokens = emailTokens;
         this.invites = invites;
         this.tvDevices = tvDevices;
+        this.notifications = notifications;
     }
 
     @Scheduled(cron = "0 30 3 * * *")
@@ -51,7 +58,10 @@ public class PurgeJob {
         int invite = invites.purgeAcceptedOrExpired(cutoff);
         Instant codeCutoff = Instant.now().minus(TvPairingService.CODE_TTL);
         int tv = tvDevices.deleteByStatusAndCreatedAtBefore("PENDING", codeCutoff);
-        log.info("purge: {} refresh rows, {} email-token rows, {} invites, {} stale tv pairing codes",
-                refresh, email, invite, tv);
+        // Native and tenant-agnostic on purpose: this job holds no tenant, and a derived delete
+        // would filter to the NO_TENANT sentinel and remove nothing at all.
+        int notifs = notifications.purge(Instant.now().minus(NOTIFICATION_RETENTION));
+        log.info("purge: {} refresh rows, {} email-token rows, {} invites, {} stale tv pairing codes, {} notifications",
+                refresh, email, invite, tv, notifs);
     }
 }

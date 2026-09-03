@@ -384,7 +384,7 @@ greps, the `ui/` §8.1 greps, axe, visual baselines, i18n marking):
 |---|---|
 | `runAsRoot` in the no-show sweep silently writes sentinel `box_id`s | §7. Orchestrator-implemented, with a two-box tenancy test that would fail if it regressed. |
 | A third badge crowds the header at 360px | Responsive pass at 360 on all three shells before the audit. Chrome will not size below ~500px — 320 is Playwright's job (M29a environment note). |
-| The per-minute reminder sweep is a new recurring cost across every box | It selects on an indexed one-minute `startAt` window per box, not a full scan. Measured before merge. |
+| The per-minute reminder sweep is a new recurring cost across every box | It selects on an indexed `startAt` window per box, not a full scan. **Measured 2026-09-03, closed:** at 300k sessions across 300 boxes the predicate plans as a Bitmap Index Scan on `(box_id, start_at)` — `idx_sessions_box_start`, already present since `V3` — touching 9 buffers at **0.047 ms**, so a full sweep of 300 boxes costs ~14 ms of database time per minute. The cron is also a property (`boxhub.class-reminder-cron`) and is disabled under test, because unlike every other job here a per-minute cron *does* fire inside a suite run. |
 | 14 events is a large surface for one milestone | Planned in phases (§14) so review lands in reviewable batches, not as one diff. |
 | `params` shapes drift from what `notification-copy.ts` renders | The enum declares the shape and a Karma spec asserts every `NotificationType` has a copy entry — an unrendered type is a blank row otherwise. |
 
