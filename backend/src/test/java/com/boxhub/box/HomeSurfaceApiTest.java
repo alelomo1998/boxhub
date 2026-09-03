@@ -183,7 +183,7 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
         actAsBox(box.getId());
         Plan soonPlan = new Plan();
         soonPlan.setName("Soon " + n);
-        soonPlan.setDurationDays(5); // inside both HomeController's 7-day and AdminStats' 15-day windows
+        soonPlan.setDurationDays(5); // inside both HomeController's EXPIRING_SOON_DAYS (14) and AdminStats' 15-day windows
         UUID soonPlanId = plans.save(soonPlan).getId();
         subscriptionService.recordPeriod(soonTm.membershipId(), soonPlanId, 0, "test");
 
@@ -206,6 +206,49 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/admin-stats").header("Authorization", "Bearer " + boxAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expiringPlans").value(1)); // only the 5-day plan counts
+    }
+
+    /**
+     * M29b (D-12): the athlete banner's window must be SegmentResolver.EXPIRING_SOON_DAYS (14), the
+     * same number the staff-facing "expiring" segment and the members table use — a 10-day plan is
+     * inside 14 days but outside a stale 7-day literal.
+     */
+    @Test
+    void aMembershipExpiringInTenDaysIsExpiringSoon() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("Exp10 " + n, "exp10-" + n);
+        TokMem tm = member("exp10-" + n + "@t.io", box, "ATHLETE");
+
+        actAsBox(box.getId());
+        Plan plan = new Plan();
+        plan.setName("Ten " + n);
+        plan.setDurationDays(10);
+        UUID planId = plans.save(plan).getId();
+        subscriptionService.recordPeriod(tm.membershipId(), planId, 0, "test");
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + tm.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planExpiringSoon").value(true));
+    }
+
+    @Test
+    void aMembershipExpiringInTwentyDaysIsNotExpiringSoon() throws Exception {
+        long n = System.nanoTime();
+        Box box = newBox("Exp20 " + n, "exp20-" + n);
+        TokMem tm = member("exp20-" + n + "@t.io", box, "ATHLETE");
+
+        actAsBox(box.getId());
+        Plan plan = new Plan();
+        plan.setName("Twenty " + n);
+        plan.setDurationDays(20);
+        UUID planId = plans.save(plan).getId();
+        subscriptionService.recordPeriod(tm.membershipId(), planId, 0, "test");
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + tm.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planExpiringSoon").value(false));
     }
 
     /**

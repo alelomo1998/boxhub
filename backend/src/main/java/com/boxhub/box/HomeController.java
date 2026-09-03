@@ -11,6 +11,8 @@ import com.boxhub.programming.Movement;
 import com.boxhub.programming.MovementRepository;
 import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.TenantContext;
+
+import static com.boxhub.box.SegmentResolver.EXPIRING_SOON_DAYS;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -107,7 +109,10 @@ public class HomeController {
                 .orElse(null);
 
         Stats stats = new Stats(checkins, queries.streakWeeks(me.getId()), planDaysLeft, lastPr);
-        boolean expiring = planDaysLeft != null && planDaysLeft >= 0 && planDaysLeft <= 7;
+        // One number, everywhere a person is told about expiry: this banner, the staff "expiring"
+        // announcement segment, the members-table chip and SUBSCRIPTION_EXPIRING. A banner that
+        // disagreed with a badge about who is expiring is worse than either (M29b D-12).
+        boolean expiring = planDaysLeft != null && planDaysLeft >= 0 && planDaysLeft <= EXPIRING_SOON_DAYS;
         long unread = recipients.countByMembershipIdAndReadAtIsNull(me.getId());
         return new HomeDto(next, ann, stats, expiring, unread);
     }
