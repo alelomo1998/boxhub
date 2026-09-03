@@ -4,6 +4,8 @@ import com.boxhub.identity.Membership;
 import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.User;
 import com.boxhub.identity.UserRepository;
+import com.boxhub.notify.NotificationService;
+import com.boxhub.notify.NotificationType;
 import com.boxhub.shared.MediaSigner;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
@@ -35,10 +37,11 @@ public class SessionController {
     private final BookingService bookingService;
     private final ApplicationEventPublisher events;
     private final MediaSigner mediaSigner;
+    private final NotificationService notifications;
 
     public SessionController(ClassSessionRepository sessions, BookingRepository bookings,
                             MembershipRepository memberships, UserRepository users, BookingService bookingService,
-                            ApplicationEventPublisher events, MediaSigner mediaSigner) {
+                            ApplicationEventPublisher events, MediaSigner mediaSigner, NotificationService notifications) {
         this.sessions = sessions;
         this.bookings = bookings;
         this.memberships = memberships;
@@ -46,6 +49,7 @@ public class SessionController {
         this.bookingService = bookingService;
         this.events = events;
         this.mediaSigner = mediaSigner;
+        this.notifications = notifications;
     }
 
     record SessionView(UUID id, String name, Instant startAt, int durationMin, int capacity, UUID coachId,
@@ -88,10 +92,20 @@ public class SessionController {
 
     record PatchSessionRequest(Integer capacity, UUID coachId, Instant startAt, String status) {}
 
+    // @Transactional: emitting a notification below requires an open transaction (NotificationService
+    // is Propagation.MANDATORY, M29b D-4 — the feed row is persistence and must vanish with a
+    // rollback, like an audit row). This method had none before M29b.
+    @Transactional
     @PatchMapping("/{id}")
     public SessionView patch(@PathVariable UUID id, @RequestBody PatchSessionRequest req) {
         RoleGuard.requireStaff();
         ClassSession s = sessions.findById(id).orElseThrow(NoSuchElementException::new); // tenant filter → 404
+        // Captured BEFORE the setters: after them, "did this change?" is unanswerable, and a PATCH
+        // that echoes the current value is routine — it must not fire a notification.
+        Instant previousStartAt = s.getStartAt();
+        UUID previousCoachId = s.getCoachId();
+        String previousStatus = s.getStatus();
+
         if (req.capacity() != null && req.capacity() > 0) s.setCapacity(req.capacity());
         if (req.coachId() != null) s.setCoachId(req.coachId());
         if (req.startAt() != null) s.setStartAt(req.startAt());
@@ -101,8 +115,56 @@ public class SessionController {
         long waitlist = bookings.countBySessionIdAndStatus(s.getId(), "WAITLIST");
         String coachName = s.getCoachId() == null ? null :
                 users.findById(s.getCoachId()).map(User::getName).orElse(null);
+
+        boolean nowCancelled = "CANCELLED".equals(s.getStatus()) && !"CANCELLED".equals(previousStatus);
+        boolean timeMoved = !s.getStartAt().equals(previousStartAt);
+        boolean coachSwapped = s.getCoachId() != null && !s.getCoachId().equals(previousCoachId);
+        if (nowCancelled || timeMoved || coachSwapped) {
+            notifyRoster(s, previousStartAt, coachName, nowCancelled, timeMoved, coachSwapped);
+        }
+
         return new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
                 s.getCoachId(), coachName, s.getStatus(), s.getProgrammingStatus(), booked, waitlist, List.of(), null, null);
+    }
+
+    /**
+     * The roster INCLUDING the waitlist (M29a D-7): "tomorrow's 6am is cancelled" is precisely the
+     * message someone waiting for a spot needs. ROSTER_STATUSES is the same set announcements use,
+     * so the two surfaces cannot disagree about who is on a roster, and distinct() matters because
+     * one membership can hold two rows for one session.
+     *
+     * Cancellation wins when several things changed at once: a member whose class was cancelled does
+     * not also need to be told its new coach.
+     */
+    private void notifyRoster(ClassSession s, Instant previousStartAt, String coachName,
+                              boolean cancelled, boolean timeMoved, boolean coachSwapped) {
+        List<UUID> roster = bookings.findBySessionId(s.getId()).stream()
+                .filter(b -> SegmentResolver.ROSTER_STATUSES.contains(b.getStatus()))
+                .map(Booking::getMembershipId)
+                .distinct()
+                .toList();
+        if (roster.isEmpty()) return;
+
+        Map<String, Object> base = new HashMap<>();
+        base.put(NotificationType.SESSION_ID, s.getId().toString());
+        base.put(NotificationType.CLASS_NAME, s.getName());
+        base.put(NotificationType.START_AT, s.getStartAt().toString());
+
+        if (cancelled) {
+            notifications.emitAll(NotificationType.CLASS_CANCELLED, roster, base);
+            return;
+        }
+        if (timeMoved) {
+            Map<String, Object> moved = new HashMap<>(base);
+            moved.put(NotificationType.OLD_START_AT, previousStartAt.toString());
+            moved.put(NotificationType.NEW_START_AT, s.getStartAt().toString());
+            notifications.emitAll(NotificationType.CLASS_TIME_CHANGED, roster, moved);
+        }
+        if (coachSwapped) {
+            Map<String, Object> swapped = new HashMap<>(base);
+            swapped.put(NotificationType.COACH_NAME, coachName);
+            notifications.emitAll(NotificationType.COACH_CHANGED, roster, swapped);
+        }
     }
 
     record RosterEntry(UUID bookingId, UUID membershipId, String name, String email, String avatarPath, String status, Integer position) {}
