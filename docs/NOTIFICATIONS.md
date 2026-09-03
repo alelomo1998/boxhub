@@ -79,7 +79,7 @@ milestone that should build it, not a promise that it is scheduled.
 |---|---|---|---|---|---|
 | `CLASS_CANCELLED` | a `ClassSession` moves to `CANCELLED` | the roster, **waitlist included** | feed + push + email | M29b | D-7 already rules waitlist in for the announcement equivalent. Today a coach must send a CLASS_ROSTER announcement by hand — see §6. |
 | `WAITLIST_PROMOTED` | `BookingService:137` promotes the head of the waitlist into a freed spot | the promoted athlete | feed + push | M29b | **The sharpest gap in the product today.** The athlete now has a spot in a class they may not attend because nobody told them. Silent as of 2026-08-31. |
-| `CLASS_STARTING_SOON` | scheduled, N minutes before `startAt` | booked athletes | push | M27c | Needs a scheduler and a per-box lead time. Opt-out, and off by default — this is the single most likely event to make people mute rxed entirely. |
+| `CLASS_STARTING_SOON` | scheduled, N minutes before `startAt` | booked athletes | push | M29b schedules, M27c delivers | Needs a scheduler and a per-box lead time. On by default, opt-out — it fires only for a class the athlete booked themselves, and a reminder for a commitment you made is not unsolicited (one line to reverse if a pilot box disagrees). |
 | `CLASS_TIME_CHANGED` | `startAt` is patched on a session with bookings | the roster | feed + push + email | M29b | `SessionController` patches `startAt` today with no notice at all. |
 
 ### 4.2 Conversational — someone is waiting on a reply
@@ -178,8 +178,9 @@ per-box `runAsBox`, never on a thread serving a user request. Full rule: `docs/T
 
 ### 5.5 No event without a reader
 
-An event nobody is shown is a table that grows forever. Add the feed row and the event in the same
-milestone, or do not add the event.
+No event without a reader **in the milestone that delivers it**. An event may be recorded before its
+channel exists, provided the milestone that owns the channel is named and the rows are covered by
+retention (§8). A recorded event with no named delivery milestone is a table that grows forever.
 
 ---
 
