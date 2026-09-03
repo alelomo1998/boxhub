@@ -1,8 +1,8 @@
-# Next session — **M29b is IN PROGRESS on branch `m29b-notifications`. Resume at Task 4's review.**
+# Next session — **M29b is IN PROGRESS on branch `m29b-notifications`. Resume at Task 5.**
 
-M29b (notifications) is brainstormed, specced, planned and part-executed. **Tasks 1–3 are done and
-committed. Task 4 is written but UNCOMMITTED and its full-suite gate never finished** — the session
-ended mid-run. Nothing is on `origin`; the branch is local only.
+M29b (notifications) is brainstormed, specced, planned and part-executed. **Tasks 1–4 are done,
+committed and green: the whole event model exists.** The tree is clean and the backend suite is at
+676 / 0 / 0 / 0. Nothing is on `origin`; the branch is local only.
 
 ---
 
@@ -16,11 +16,10 @@ cd ~/dev/boxhub && git checkout m29b-notifications && git status
 Do NOT create a worktree and do NOT run EnterWorktree — git worktree list must
 show exactly one entry. Do NOT branch off again; this branch is the work.
 
-FIRST THING, before anything else: there is uncommitted work in the tree from
-Task 4 (NotificationService). Its targeted tests passed 9/9 but the full
-backend suite was still running when the session ended, so it is UNVERIFIED.
-Re-run the full suite yourself, review the diff, and only then commit it.
-Do not trust the 9/9 — it does not cover regressions elsewhere.
+Tasks 1-4 are committed and the tree is clean; start at Task 5 (the booking
+emitters). Confirm the baseline before building on it:
+  cd backend && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
+Expect 676 / 0 / 0 / 0 and BUILD SUCCESS.
 
 The plan is docs/superpowers/plans/2026-09-03-m29b-notifications.md, 22 tasks,
 each with real code and its own gates. The spec is
@@ -49,9 +48,9 @@ Playwright from e2e/.
 | | |
 |---|---|
 | Branch | `m29b-notifications`, **local only, never pushed** |
-| HEAD | `b1b0d6a` |
-| Working tree | **DIRTY** — Task 4's `NotificationService.java`, `NotificationServiceTest.java`, and a modified `docs/NOTIFICATIONS.md` |
-| Backend suite | **667 / 0 / 0 / 0** as of `b1b0d6a`. Task 4 adds 9, so it should reach 676 |
+| HEAD | `6fb74e9` |
+| Working tree | **clean** |
+| Backend suite | **676 / 0 / 0 / 0**, BUILD SUCCESS, measured by the orchestrator |
 | Frontend | untouched so far |
 
 ### Commits so far
@@ -65,13 +64,19 @@ Playwright from e2e/.
 | `50531bd` | Task 1 follow-up — two dependents the executor missed (orchestrator) |
 | `8aac672` | Plan correction: there are no shared test fixtures |
 | `b1b0d6a` | Tasks 2+3 — `V32`, both entities, both repositories, `NotificationType` |
+| `553bb7a` | A mid-session handoff, superseded by this file |
+| `6fb74e9` | Task 4 — `NotificationService`, plus the `NOTIFICATIONS.md` §5.1 amendment |
 
-### Task 4, uncommitted
+### What Task 4 established
 
-`NotificationService` with `emit` / `emitAll`, both `@Transactional(propagation = Propagation.MANDATORY)`
-— verified present. Targeted run was **9/9 green**. The full suite was mid-run at hand-off, so
-**re-run it before committing.** `docs/NOTIFICATIONS.md` §5.1 was also amended in the same working
-tree and belongs in the same commit.
+`emit` / `emitAll` are both `@Transactional(propagation = Propagation.MANDATORY)`. That is the
+milestone's structural guarantee, not a detail: emitting outside a transaction throws
+`IllegalTransactionStateException` at the call site rather than quietly writing a row that survives
+a rollback. **If a later task appears to need it relaxed to `REQUIRED`, that task forgot to open a
+transaction — give it a `TransactionTemplate`, never relax the propagation.**
+
+`docs/NOTIFICATIONS.md` §5.1 now splits persistence from delivery. **§5.5's amendment is still
+outstanding and belongs to Task 11**, which ships `CLASS_STARTING_SOON`.
 
 ---
 
@@ -118,7 +123,7 @@ preferences page. `docs/NOTIFICATIONS.md` is the registry it implements.
 
 ---
 
-## Remaining tasks
+## Remaining tasks — start at Task 5
 
 5–8 emitters · 9 the `runAsRoot` restructure (**orchestrator**) · 10–12 jobs and retention ·
 13–14 the API · 15 `AuthzConformanceTest` (**orchestrator**) · 16–18 frontend service, bell, copy ·
@@ -133,9 +138,10 @@ user a **click path, not a screenshot**, and never adjust a score by hand.
 
 ## Traps that cost time this session
 
-1. **An executor reported "full suite still running" and returned anyway.** Its commit landed a minute
-   later, after I had already inspected the tree and concluded nothing was committed. **Check
-   `git log` again before concluding an executor did nothing.**
+1. **An executor returns before its own background gate finishes.** This happened twice, with both
+   Task 1 and Task 4: the agent reported "full suite still running", returned, and its commit landed
+   minutes later. **Never conclude from one `git log` that an executor did nothing** — re-check, and
+   verify the suite result yourself from its output file rather than from the agent's summary.
 2. **An executor's finding can be real with the wrong diagnosis.** The `AdminStatsController` catch was
    good; its claim that the surface "can still disagree" was false. Verify the reasoning, not just
    the location.
