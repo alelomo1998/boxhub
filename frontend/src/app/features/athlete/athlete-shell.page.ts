@@ -9,6 +9,7 @@ import { ProfileSheetComponent } from './profile-sheet.component';
 import { HomeService } from './home.service';
 import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 import { MessagesEnvelopeComponent } from '../messaging/messages-envelope.component';
+import { NotificationBellComponent } from '../notifications/notification-bell.component';
 import { ShellChromeService } from '../../core/shell-chrome.service';
 
 /** Athlete shell: header nav on desktop, floating pill dock on mobile. */
@@ -18,7 +19,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, SheetComponent, AvatarComponent,
     ShellHeaderComponent, DockComponent, ProfileSheetComponent, BoxSwitcherComponent,
-    MessagesEnvelopeComponent,
+    MessagesEnvelopeComponent, NotificationBellComponent,
   ],
   template: `
     <div class="app" [class.locked]="chrome.viewportLocked()">
@@ -30,6 +31,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
           }
         </nav>
         <bh-messages-envelope actions route="/athlete/messages" testId="athlete-messages-link" />
+        <bh-notification-bell actions route="/athlete/notifications" testId="athlete-notifications-link" />
         <button actions class="me" (click)="profileOpen.set(true)" aria-label="Your profile">
           <bh-avatar [path]="avatarPath()" [name]="userName" size="sm" />
         </button>

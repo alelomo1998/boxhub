@@ -8,6 +8,7 @@ import { ButtonComponent } from '../../ui/button.component';
 import { IconComponent } from '../../ui/icon.component';
 import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 import { MessagesEnvelopeComponent } from '../messaging/messages-envelope.component';
+import { NotificationBellComponent } from '../notifications/notification-bell.component';
 import { ShellChromeService } from '../../core/shell-chrome.service';
 
 /** Admin: SaaS shell on desktop (side nav + top bar), bottom tabs + More sheet on mobile. */
@@ -17,13 +18,14 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, SheetComponent,
     ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent, BoxSwitcherComponent,
-    MessagesEnvelopeComponent,
+    MessagesEnvelopeComponent, NotificationBellComponent,
   ],
   template: `
     <div class="admin" [class.locked]="chrome.viewportLocked()">
       <bh-shell-header class="top" [customBrand]="true" area="Admin">
         <bh-box-switcher brand />
         <bh-messages-envelope actions route="/admin/messages" testId="admin-messages-link" />
+        <bh-notification-bell actions route="/admin/notifications" testId="admin-notifications-link" />
         <a actions routerLink="/account" aria-label="Security" title="Security" data-testid="admin-security-link">
           <bh-icon name="settings" />
         </a>

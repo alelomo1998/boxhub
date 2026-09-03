@@ -7,6 +7,7 @@ import { ButtonComponent } from '../../ui/button.component';
 import { IconComponent } from '../../ui/icon.component';
 import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 import { MessagesEnvelopeComponent } from '../messaging/messages-envelope.component';
+import { NotificationBellComponent } from '../notifications/notification-bell.component';
 import { ShellChromeService } from '../../core/shell-chrome.service';
 
 /** Coach shell: header nav on desktop, floating pill dock on mobile. */
@@ -16,7 +17,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive,
     ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent, BoxSwitcherComponent,
-    MessagesEnvelopeComponent,
+    MessagesEnvelopeComponent, NotificationBellComponent,
   ],
   template: `
     <div class="app" [class.locked]="chrome.viewportLocked()">
@@ -28,6 +29,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
           }
         </nav>
         <bh-messages-envelope actions route="/coach/inbox" testId="coach-messages-link" />
+        <bh-notification-bell actions route="/coach/notifications" testId="coach-notifications-link" />
         <a actions routerLink="/account" aria-label="Security" title="Security" data-testid="coach-security-link">
           <bh-icon name="settings" />
         </a>
