@@ -9,7 +9,9 @@ import { Component, input, model } from '@angular/core';
   standalone: true,
   template: `
     <button type="button" class="sw" role="switch" [attr.aria-checked]="checked()"
-            [disabled]="disabled()" (click)="checked.set(!checked())">
+            [disabled]="disabled()" (click)="checked.set(!checked())"
+            [attr.data-testid]="testId() || null"
+            [attr.aria-label]="ariaLabel() || null">
       <span class="txt">
         <span class="lab">{{ label() }}</span>
         @if (hint()) { <span class="hint">{{ hint() }}</span> }
@@ -42,4 +44,9 @@ export class SwitchComponent {
   label = input('');
   hint = input('');
   disabled = input(false);
+  /** Bound to the inner button's data-testid — a testid on the host never reaches it (M13c). */
+  testId = input('');
+  /** For a switch whose visible label lives outside it: role="switch" with no accessible name
+   *  is worse than no switch at all. `label` stays the VISIBLE text; this only names the control. */
+  ariaLabel = input('');
 }

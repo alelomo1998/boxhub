@@ -64,7 +64,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     .content { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
     @media (max-width: 719px) {
       .hnav { display: none; }
-      .content { padding: var(--sp-4) var(--sp-4) calc(88px + env(safe-area-inset-bottom)); }
+      .content { padding: var(--sp-4) var(--sp-4) calc(112px + env(safe-area-inset-bottom)); }
       .content.no-dock { padding-bottom: var(--sp-4); }
     }
   `],

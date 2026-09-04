@@ -105,7 +105,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     @media (max-width: 719px) {
       .admin { grid-template-columns: 1fr; grid-template-areas: "top" "content"; grid-template-rows: auto 1fr; }
       .side { display: none; }
-      .content { padding: var(--sp-4) var(--sp-4) calc(88px + env(safe-area-inset-bottom)); }
+      .content { padding: var(--sp-4) var(--sp-4) calc(112px + env(safe-area-inset-bottom)); }
       .content.no-dock { padding-bottom: var(--sp-4); }
     }
   `],

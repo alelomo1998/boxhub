@@ -90,3 +90,66 @@ export const NOTIFICATION_COPY: Record<string, NotificationCopy> = {
     body: () => null,
   },
 };
+
+export interface NotificationPrefCopy {
+  /** Names the setting in plain words — the feed's eyebrow ("Unrefunded") is a tag, not a
+   *  setting name, so the preferences page needs its own copy rather than reusing NOTIFICATION_COPY. */
+  label: string;
+  /** One short sentence: when it fires. For the three mandatory types this states the always-on
+   *  reason instead — a locked switch with no explanation is a design-law violation. */
+  hint: string;
+}
+
+/** Settings-page labels for the twelve in-app feed types. Task 20's preferences page is its only
+ *  consumer. A type missing here must not crash the page — fall back to something localized and
+ *  generic, same as NOTIFICATION_COPY's row fallback above. */
+export const NOTIFICATION_PREF_COPY: Record<string, NotificationPrefCopy> = {
+  WAITLIST_PROMOTED: {
+    label: $localize`:@@notifications.pref.waitlistPromoted.label:Waitlist spots`,
+    hint: $localize`:@@notifications.pref.waitlistPromoted.hint:When a spot opens up and you move off the waitlist into a class.`,
+  },
+  CLASS_CANCELLED: {
+    label: $localize`:@@notifications.pref.classCancelled.label:Cancelled classes`,
+    hint: $localize`:@@notifications.pref.classCancelled.hint:When a class you're booked into is cancelled.`,
+  },
+  CLASS_TIME_CHANGED: {
+    label: $localize`:@@notifications.pref.classTimeChanged.label:Class time changes`,
+    hint: $localize`:@@notifications.pref.classTimeChanged.hint:When a class you're booked into moves to a new time.`,
+  },
+  COACH_CHANGED: {
+    label: $localize`:@@notifications.pref.coachChanged.label:Coach changes`,
+    hint: $localize`:@@notifications.pref.coachChanged.hint:When the coach for a class you're booked into changes.`,
+  },
+  LATE_CANCEL_UNREFUNDED: {
+    label: $localize`:@@notifications.pref.lateCancel.label:Late cancellations`,
+    hint: $localize`:@@notifications.pref.lateCancel.hint:When a late cancellation uses up your booking without a refund.`,
+  },
+  NO_SHOW_RECORDED: {
+    label: $localize`:@@notifications.pref.noShow.label:No-shows`,
+    hint: $localize`:@@notifications.pref.noShow.hint:When you're marked absent from a class you booked.`,
+  },
+  NEW_ANNOUNCEMENT: {
+    label: $localize`:@@notifications.pref.announcement.label:Announcements`,
+    hint: $localize`:@@notifications.pref.announcement.hint:When your gym posts a new announcement.`,
+  },
+  SUBSCRIPTION_EXPIRING: {
+    label: $localize`:@@notifications.pref.expiring.label:Membership expiring`,
+    hint: $localize`:@@notifications.pref.expiring.hint:Always on — this affects your ability to book classes.`,
+  },
+  PAYMENT_FAILED: {
+    label: $localize`:@@notifications.pref.paymentFailed.label:Payment failed`,
+    hint: $localize`:@@notifications.pref.paymentFailed.hint:Always on — this affects your payments.`,
+  },
+  MEMBERSHIP_BLOCKED: {
+    label: $localize`:@@notifications.pref.blocked.label:Membership on hold`,
+    hint: $localize`:@@notifications.pref.blocked.hint:Always on — this affects your membership status.`,
+  },
+  INVITE_ACCEPTED: {
+    label: $localize`:@@notifications.pref.inviteAccepted.label:Invite accepted`,
+    hint: $localize`:@@notifications.pref.inviteAccepted.hint:When someone you invited joins your gym.`,
+  },
+  NEW_MEMBER_JOINED: {
+    label: $localize`:@@notifications.pref.memberJoined.label:New members`,
+    hint: $localize`:@@notifications.pref.memberJoined.hint:When a new member joins your gym.`,
+  },
+};

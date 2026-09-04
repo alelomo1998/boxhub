@@ -30,6 +30,11 @@ a { color: var(--bone); text-decoration: underline; text-underline-offset: 2px; 
    Structural selector on purpose: both the admin side nav and `bh-dock` render a real <nav>, so
    this scopes correctly without editing screens that other milestones own. */
 nav a { text-decoration: none; }
+/* iOS paints its own translucent blue box over whatever you tap. Rows and switches here are
+   full-width buttons, so that overlay covered an entire row on every tap — a colour this design
+   system does not own, on an area it never intended to fill. The focus ring below is the
+   affordance; the knob sliding and the row navigating are the feedback. */
+* { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 ::selection { background: var(--volt); color: var(--on-volt); }
 
