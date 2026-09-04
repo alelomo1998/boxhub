@@ -2666,3 +2666,22 @@ Karma **560 → 568**, production build clean with **zero warnings** throughout.
 
 Tasks 19–20 (**two new screens, each owing the full impeccable routine with Claude in Chrome
 connected**), 21 (e2e), 22 (baselines, gate sweep, merge).
+
+## M29b — Task 19 and Task 20 (session ending 2026-09-04)
+
+- **Task 19, the feed page — `1ceb254`, fully gated.** audit 19/20, critique 35/40 (32 → 33 → 35
+  across three rounds), harden clean, no open P0/P1. Karma 568 → 590.
+  Eleven defects found by looking at the running app, none visible to the suite: every sticky day
+  header pinning at once (eight stacked, showing the wrong date); a ResizeObserver that never fired
+  under a comment claiming it measured; a circular `height`/`--nf-ph-h` lock; unread state invisible
+  to screen readers; two eyebrows colliding across different severities; three silent failure paths;
+  an `aria-live` that would have read 30 rows aloud; two hardcoded gaps; a raw enum reaching the UI.
+- **Task 20, the preferences page — `164582e`, NOT gated.** Built, rendering, user has signed off on
+  the composition only. audit, critique and clarify still owe.
+- **Three shared-chrome fixes**, all found by the user in Chrome DevTools at iPhone 16 Pro, all
+  affecting every screen rather than one: the dock reservation was 6px (now 112px in all four
+  shells, moving visual baselines); iOS's blue tap overlay was never suppressed (now global); the
+  prefs switch dimmed to 50% for the duration of every save.
+- **Scope added beyond the plan, at the user's direction:** all three shells get a profile sheet so
+  notification settings is reached identically everywhere; coach and admin lose their standalone
+  gear and Log out button. Not yet built — it is the next task after Task 20's gates.
