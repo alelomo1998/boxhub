@@ -26,4 +26,13 @@ describe('NOTIFICATION_COPY', () => {
       expect(rendered).withContext(type).not.toMatch(/:[a-zA-Z]+:/);
     }
   });
+
+  it('gives every type a short, non-empty eyebrow with no stray placeholder marker', () => {
+    const entries = Object.entries(NOTIFICATION_COPY);
+    expect(entries.length).toBe(12);
+    for (const [type, copy] of entries) {
+      expect(copy.eyebrow.length).withContext(type).toBeGreaterThan(0);
+      expect(copy.eyebrow).withContext(type).not.toMatch(/:[a-zA-Z]+:/);
+    }
+  });
 });
