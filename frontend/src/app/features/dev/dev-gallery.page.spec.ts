@@ -44,9 +44,9 @@ describe('DevGalleryPage', () => {
       .sort();
 
     expect(sections).toEqual(
-      ['alert', 'auth-layout', 'avatar', 'benchmark-board', 'button', 'data-table', 'day-pager', 'dock', 'empty',
+      ['alert', 'auth-layout', 'avatar', 'benchmark-board', 'button', 'data-table', 'dock', 'empty',
         'field', 'icon', 'notification-bell', 'panel', 'pill', 'search-bar', 'segmented', 'select', 'sheet',
-        'shell-header', 'switch',
+        'shell-header', 'switch', 'week-calendar',
         'wordmark'].sort(),
     );
   });
