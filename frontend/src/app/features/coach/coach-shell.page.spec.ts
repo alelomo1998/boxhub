@@ -15,17 +15,51 @@ describe('CoachShellPage', () => {
     const messaging = TestBed.inject(MessagingService);
     const fixture = TestBed.createComponent(CoachShellPage);
     fixture.detectChanges();
+    // The shell's own ngOnInit profile fetch, for the header avatar.
+    http.expectOne('/api/box/me/profile').flush({
+      membershipId: 'm1', name: 'Cody', avatarPath: null, isPrivate: false, me: true,
+      benchmarks: null, liftPrs: null, streakWeeks: null,
+    });
     // The header envelope's own ngOnInit refresh.
     http.expectOne('/api/box/conversations').flush([]);
     return { fixture, http, messaging };
   }
 
-  it('renders Security as a real anchor with an href, not a button — RouterLink only emits ' +
-     'href on a/area hosts, so a bh-button host silently drops it', () => {
+  it('opens the profile sheet with a Notifications row pointed at the coach settings route ' +
+     '— Security and Log out moved into the sheet too (M29b Task 20)', () => {
     const { fixture } = setup();
-    const link = fixture.nativeElement.querySelector('[data-testid="coach-security-link"]');
-    expect(link.matches('a[href]')).toBe(true);
-    expect(link.getAttribute('href')).toBe('/account');
+    const avatarBtn = fixture.nativeElement.querySelector('button[aria-label="Your profile"]');
+    expect(avatarBtn).not.toBeNull();
+    avatarBtn.click();
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/box/me/profile').flush({
+      membershipId: 'm1', name: 'Cody', avatarPath: null, isPrivate: false, me: true,
+      benchmarks: null, liftPrs: null, streakWeeks: null,
+    });
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('[data-testid="profile-notifications-link"]');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/coach/notifications/settings');
+  });
+
+  it('closes the profile sheet when the Notifications row is clicked, so it does not sit on ' +
+     'top of the page it just navigated to', () => {
+    const { fixture } = setup();
+    const avatarBtn = fixture.nativeElement.querySelector('button[aria-label="Your profile"]');
+    avatarBtn.click();
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/box/me/profile').flush({
+      membershipId: 'm1', name: 'Cody', avatarPath: null, isPrivate: false, me: true,
+      benchmarks: null, liftPrs: null, streakWeeks: null,
+    });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.profileOpen()).toBe(true);
+    const link: HTMLElement = fixture.nativeElement.querySelector('[data-testid="profile-notifications-link"]');
+    link.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.profileOpen()).toBe(false);
   });
 
   it('gives the coach shell the same header unread envelope as the athlete shell, pointed at ' +

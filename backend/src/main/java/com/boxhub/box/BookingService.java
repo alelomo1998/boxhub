@@ -1,5 +1,7 @@
 package com.boxhub.box;
 
+import com.boxhub.notify.NotificationService;
+import com.boxhub.notify.NotificationType;
 import com.boxhub.shared.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -10,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -26,15 +29,18 @@ public class BookingService {
     private final PlanRepository plans;
     private final SubscriptionService subscriptions;
     private final EntitlementLedger ledger;
+    private final NotificationService notifications;
 
     public BookingService(ClassSessionRepository sessions, BookingRepository bookings, BoxRepository boxes,
-                          PlanRepository plans, SubscriptionService subscriptions, EntitlementLedger ledger) {
+                          PlanRepository plans, SubscriptionService subscriptions, EntitlementLedger ledger,
+                          NotificationService notifications) {
         this.sessions = sessions;
         this.bookings = bookings;
         this.boxes = boxes;
         this.plans = plans;
         this.subscriptions = subscriptions;
         this.ledger = ledger;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -131,6 +137,15 @@ public class BookingService {
             }
         }
 
+        // Only when the lateness actually cost something. A plain "you cancelled" would be a receipt
+        // for an action the member just performed; this is a consequence they may not have noticed.
+        if (active != null && wasBooked && late && !refundEntry) {
+            notifications.emit(NotificationType.LATE_CANCEL_UNREFUNDED, membershipId,
+                    Map.of(NotificationType.SESSION_ID, session.getId().toString(),
+                           NotificationType.CLASS_NAME, session.getName(),
+                           NotificationType.START_AT, session.getStartAt().toString()));
+        }
+
         if (wasBooked) {
             List<Booking> waitlist = bookings.findBySessionIdAndStatusOrderByPosition(sessionId, "WAITLIST");
             if (!waitlist.isEmpty()) {
@@ -138,6 +153,13 @@ public class BookingService {
                 promoted.setStatus("BOOKED");
                 promoted.setPosition(null);
                 bookings.save(promoted);
+                // The gap NOTIFICATIONS.md called the sharpest in the product: before M29b this line
+                // gave someone a place in a class and told them nothing. Inside the transaction on
+                // purpose — a promotion that rolls back must not leave a "you're in" behind it (M29b D-4).
+                notifications.emit(NotificationType.WAITLIST_PROMOTED, promoted.getMembershipId(),
+                        Map.of(NotificationType.SESSION_ID, session.getId().toString(),
+                               NotificationType.CLASS_NAME, session.getName(),
+                               NotificationType.START_AT, session.getStartAt().toString()));
                 for (int i = 1; i < waitlist.size(); i++) {
                     Booking wl = waitlist.get(i);
                     wl.setPosition(wl.getPosition() - 1);
@@ -171,11 +193,28 @@ public class BookingService {
     @Transactional
     public Booking markNoShow(UUID bookingId) {
         Booking b = bookings.findById(bookingId).orElseThrow();
+        boolean alreadyNoShow = "NO_SHOW".equals(b.getStatus());
         b.setStatus("NO_SHOW");
-        return bookings.save(b);
+        Booking saved = bookings.save(b);
+        // Only on the actual transition. uncheck() sends NO_SHOW back to BOOKED, so mark -> uncheck
+        // -> mark is a real coach flow and a double-tap on the roster is a likelier one; neither may
+        // stack a second row. NO_SHOW_RECORDED carries no dedupe_key, so this guard is the only
+        // defence, and every other M29b emitter guards its transition the same way.
+        if (!alreadyNoShow) {
+            ClassSession session = sessions.findById(b.getSessionId()).orElseThrow();
+            notifications.emit(NotificationType.NO_SHOW_RECORDED, b.getMembershipId(),
+                    Map.of(NotificationType.SESSION_ID, session.getId().toString(),
+                           NotificationType.CLASS_NAME, session.getName(),
+                           NotificationType.START_AT, session.getStartAt().toString()));
+        }
+        return saved;
     }
 
-    /** Nightly sweep target: flips unmarked BOOKED -> NO_SHOW for sessions that already started. */
+    /**
+     * Nightly sweep target: flips unmarked BOOKED -> NO_SHOW for sessions that already started.
+     * Runs under ONE box's tenant per call (see BookingMaintenance) — never runAsRoot, because the
+     * notification below is a @TenantId insert and under root it would take the sentinel box_id.
+     */
     @Transactional
     public int sweepNoShows(Instant before) {
         int flipped = 0;
@@ -184,6 +223,10 @@ public class BookingService {
                 if ("BOOKED".equals(b.getStatus())) {
                     b.setStatus("NO_SHOW");
                     bookings.save(b);
+                    notifications.emit(NotificationType.NO_SHOW_RECORDED, b.getMembershipId(),
+                            Map.of(NotificationType.SESSION_ID, s.getId().toString(),
+                                   NotificationType.CLASS_NAME, s.getName(),
+                                   NotificationType.START_AT, s.getStartAt().toString()));
                     flipped++;
                 }
             }

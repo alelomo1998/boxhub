@@ -64,7 +64,7 @@ import { WordmarkComponent } from '../../ui/wordmark.component';
       min-width: 0; }
     @media (max-width: 719px) {
       .hnav { display: none; }
-      .content { padding: var(--sp-4) var(--sp-4) calc(88px + env(safe-area-inset-bottom)); }
+      .content { padding: var(--sp-4) var(--sp-4) calc(112px + env(safe-area-inset-bottom)); }
     }
   `],
 })

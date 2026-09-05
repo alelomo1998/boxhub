@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
@@ -11,6 +11,8 @@ import { DockComponent, DockTab } from '../../ui/dock.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { FieldComponent } from '../../ui/field.component';
 import { ICON_NAMES, IconComponent } from '../../ui/icon.component';
+import { NotificationBellComponent } from '../notifications/notification-bell.component';
+import { NotificationService } from '../notifications/notification.service';
 import { PanelComponent } from '../../ui/panel.component';
 import { PillComponent } from '../../ui/pill.component';
 import { SearchBarComponent } from '../../ui/search-bar.component';
@@ -53,6 +55,35 @@ export interface StateEntry {
   why?: string;
 }
 
+/** ponytail: dev gallery must never call the API (file doc above: "no API call ... fabricated
+ *  data only") — bh-notification-bell's ngOnInit calls refreshUnread() unconditionally, so this
+ *  page needs a stand-in that never touches HttpClient. */
+export class GalleryNotificationService extends NotificationService {
+  override refreshUnread(): void {}
+}
+
+/**
+ * Dev-gallery only. bh-notification-bell's count comes from an injected, providedIn:'root'
+ * NotificationService, so every instance on a page shares one signal — fine in the app (one bell
+ * per shell), useless for showing zero/one/many/99+ side by side. A component-level provider
+ * gives each demo cell its OWN GalleryNotificationService instance instead of reimplementing the
+ * bell's markup.
+ */
+@Component({
+  selector: 'bh-gallery-notification-bell',
+  standalone: true,
+  imports: [NotificationBellComponent],
+  template: `<bh-notification-bell route="." [testId]="testId()" />`,
+  providers: [{ provide: NotificationService, useClass: GalleryNotificationService }],
+  changeDetection: ChangeDetectionStrategy.Eager,
+})
+export class GalleryNotificationBellComponent implements OnInit {
+  private svc = inject(NotificationService);
+  count = input.required<number>();
+  testId = input.required<string>();
+  ngOnInit() { this.svc.unread.set(this.count()); }
+}
+
 @Component({
   selector: 'bh-dev-gallery',
   standalone: true,
@@ -63,7 +94,7 @@ export interface StateEntry {
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
     AvatarComponent, PillComponent, DayPagerComponent, SheetComponent, AuthLayoutComponent,
-    BenchmarkBoardComponent,
+    BenchmarkBoardComponent, GalleryNotificationBellComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -662,6 +693,41 @@ export interface StateEntry {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'switch' }" />
       </section>
 
+      <section class="gsec" id="notification-bell" data-gallery="notification-bell">
+        <h2 class="t-h2" i18n="@@dev.gallery.notificationBell.heading">Notification bell</h2>
+        <p class="note" i18n="@@dev.gallery.notificationBell.note">
+          The header bell, sibling of the messages envelope beside it in every shell — same badge
+          styling, same 60s poll, its own count. Rendered here against a stand-in service so this
+          page never calls the API; the ledger below marks disabled, loading and error
+          not-applicable, because it is a link whose only variable is a number.
+        </p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.notificationBell.state.zero">Zero (no badge)</span>
+            <bh-gallery-notification-bell [count]="0" testId="dev-notification-bell-zero" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.notificationBell.state.one">One</span>
+            <bh-gallery-notification-bell [count]="1" testId="dev-notification-bell-one" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.notificationBell.state.many">Many</span>
+            <bh-gallery-notification-bell [count]="5" testId="dev-notification-bell-many" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.notificationBell.state.capped">99+</span>
+            <bh-gallery-notification-bell [count]="140" testId="dev-notification-bell-capped" />
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.notificationBell.note.focus">
+          Tab to it for a solid 2px --focus ring, inherited from shell-header's shared .acts a
+          rule — it has no focus styling of its own. No disabled, loading or empty state either:
+          it is always interactive when rendered, fetches nothing that this page can show pending,
+          and a failed refresh silently keeps the last known count.
+        </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'notification-bell' }" />
+      </section>
+
       <section class="gsec" id="search-bar" data-gallery="search-bar">
         <h2 class="t-h2" i18n="@@dev.gallery.searchBar.heading">Search bar</h2>
         <div class="row">
@@ -1095,6 +1161,15 @@ export class DevGalleryPage {
       { state: 'disabled', how: 'rendered' },
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.loading:toggles synchronously; it does not fetch` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.switch.error:a boolean choice cannot be invalid; the surrounding form renders its own error` },
+    ],
+    'notification-bell': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.notificationBell.hover:inherits its hover colour from shell-header's shared .acts a rule; it has none of its own` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.notificationBell.active:no active-press styling of its own; the badge count is the only feedback` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.notificationBell.disabled:a link, always reachable; it has no disabled state` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.notificationBell.loading:the badge reads an already-fetched count; it has no pending state of its own` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.notificationBell.error:a failed refresh silently keeps the last known count; the feed page renders its own error for an actual fetch failure` },
     ],
     'search-bar': [
       { state: 'default', how: 'rendered' },

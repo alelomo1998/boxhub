@@ -99,7 +99,12 @@ test.describe.serial('self-serve box signup through superadmin approval', () => 
   });
 
   test('superadmin approves the box from the pending queue', async () => {
-    await page.click('button[aria-label="Log out"]');
+    // Log out now lives in the profile sheet (M29b): open it from the header avatar, wait for
+    // the sheet's body to render (it only appears once the profile GET resolves), then click
+    // Log out inside it.
+    await page.click('button[aria-label="Your profile"]');
+    await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+    await page.getByRole('button', { name: 'Log out' }).click();
     await expect(page).toHaveURL(/auth\/login/);
 
     await page.goto('/app/auth/login');

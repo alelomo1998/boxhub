@@ -50,4 +50,41 @@ describe('AthleteShellPage', () => {
     expect(link.getAttribute('aria-label')).toBe('3 unread messages');
     expect(link.getAttribute('aria-label')).not.toContain(':count:');
   });
+
+  it('opens the profile sheet with a Notifications row pointed at the athlete settings route ' +
+     '(M29b Task 20)', () => {
+    const { fixture } = setup();
+    const avatarBtn = fixture.nativeElement.querySelector('button[aria-label="Your profile"]');
+    expect(avatarBtn).not.toBeNull();
+    avatarBtn.click();
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/box/me/profile').flush({
+      membershipId: 'm1', name: 'Ada', avatarPath: null, isPrivate: false, me: true,
+      benchmarks: null, liftPrs: null, streakWeeks: null,
+    });
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('[data-testid="profile-notifications-link"]');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/athlete/notifications/settings');
+  });
+
+  it('closes the profile sheet when the Notifications row is clicked, so it does not sit on ' +
+     'top of the page it just navigated to', () => {
+    const { fixture } = setup();
+    const avatarBtn = fixture.nativeElement.querySelector('button[aria-label="Your profile"]');
+    avatarBtn.click();
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/box/me/profile').flush({
+      membershipId: 'm1', name: 'Ada', avatarPath: null, isPrivate: false, me: true,
+      benchmarks: null, liftPrs: null, streakWeeks: null,
+    });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.profileOpen()).toBe(true);
+    const link: HTMLElement = fixture.nativeElement.querySelector('[data-testid="profile-notifications-link"]');
+    link.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.profileOpen()).toBe(false);
+  });
 });

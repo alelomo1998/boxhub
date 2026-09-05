@@ -59,8 +59,9 @@ import { NgTemplateOutlet } from '@angular/common';
     .btn.solid { background: var(--surface-2); color: var(--bone); border: 1px solid var(--hairline); }
     /* strong is THE one primary action on a screen that has no volt to spend — volt means live /
        now / winning, and a plumbing screen's save is none of those. solid is the wrong answer
-       there: it sits one token step from the card behind it (--surface-2 #1d231e on --surface
-       #151a16) with only a hairline between, so on the announcements composer it read as an empty
+       there: it sits one token step from the card behind it (--surface-2 on --surface, whose
+       values live in _tokens.scss) with only a hairline between, so on the announcements
+       composer it read as an empty
        box until you found the label. That was a critique P2, twice.
        Use it at most ONCE per screen. A second strong button is two primary actions, which is the
        same mistake in a different colour. */

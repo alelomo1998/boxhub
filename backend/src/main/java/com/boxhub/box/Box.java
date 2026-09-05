@@ -13,6 +13,8 @@ public class Box {
     @Column(name = "logo_url") private String logoUrl;
     @Column(name = "cancel_cutoff_min", nullable = false) private int cancelCutoffMin = 120;
     @Column(name = "booking_horizon_weeks", nullable = false) private int bookingHorizonWeeks = 2;
+    /** Lead time for CLASS_STARTING_SOON, in minutes before startAt. Per box (registry §4.1). */
+    @Column(name = "class_reminder_minutes", nullable = false) private int classReminderMinutes = 60;
     // M16a cancellation policy. cancel_cutoff_min (above) says HOW LATE is late; these three say what
     // happens then. All default false = exactly the pre-M16a behaviour: a BOOKED booking simply
     // cannot be cancelled past the cutoff.
@@ -57,6 +59,8 @@ public class Box {
     public void setCancelCutoffMin(int cancelCutoffMin) { this.cancelCutoffMin = cancelCutoffMin; }
     public int getBookingHorizonWeeks() { return bookingHorizonWeeks; }
     public void setBookingHorizonWeeks(int bookingHorizonWeeks) { this.bookingHorizonWeeks = bookingHorizonWeeks; }
+    public int getClassReminderMinutes() { return classReminderMinutes; }
+    public void setClassReminderMinutes(int v) { this.classReminderMinutes = v; }
     public boolean isAllowLateCancel() { return allowLateCancel; }
     public void setAllowLateCancel(boolean v) { this.allowLateCancel = v; }
     public boolean isLateCancelRefundsEntry() { return lateCancelRefundsEntry; }

@@ -1,5 +1,7 @@
 package com.boxhub.box;
 
+import com.boxhub.notify.NotificationService;
+import com.boxhub.notify.NotificationType;
 import com.boxhub.shared.CryptoService;
 import com.boxhub.shared.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -83,6 +86,7 @@ public class StripeWebhookController {
     private final SubscriptionService subscriptionService;
     private final PaymentReceipts receipts;
     private final CryptoService crypto;
+    private final NotificationService notifications;
     private final TransactionTemplate tx;
     private final ObjectMapper json = new ObjectMapper();
 
@@ -90,7 +94,8 @@ public class StripeWebhookController {
                                     SubscriptionRepository subscriptions,
                                     PlanRepository plans, BoxStripeRepository boxStripe,
                                     SubscriptionService subscriptionService, PaymentReceipts receipts,
-                                    CryptoService crypto, PlatformTransactionManager txManager) {
+                                    CryptoService crypto, NotificationService notifications,
+                                    PlatformTransactionManager txManager) {
         this.payments = payments;
         this.refunds = refunds;
         this.subscriptions = subscriptions;
@@ -99,6 +104,7 @@ public class StripeWebhookController {
         this.subscriptionService = subscriptionService;
         this.receipts = receipts;
         this.crypto = crypto;
+        this.notifications = notifications;
         this.tx = new TransactionTemplate(txManager);
     }
 
@@ -188,6 +194,13 @@ public class StripeWebhookController {
                 Subscription sub = subscriptions.findById(p.getSubscriptionId()).orElseThrow();
                 p.setStatus("FAILED");
                 payments.save(p);
+
+                // Inside the tx, unlike the mail below it: the mail is delivery and cannot be
+                // retracted, the feed row is persistence and must vanish with a rollback (D-4).
+                // This is the whole reason the two are in different places.
+                notifications.emit(NotificationType.PAYMENT_FAILED, sub.getMembershipId(),
+                        Map.of(NotificationType.AMOUNT_CENTS, p.getAmountCents(),
+                               NotificationType.CURRENCY, p.getCurrency()));
                 return new FailureData(p, sub);
             }));
 

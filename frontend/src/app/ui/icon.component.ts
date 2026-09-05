@@ -18,7 +18,7 @@ export const ICON_NAMES = [
   'trending-up', 'credit-card', 'users', 'layout-grid', 'plus',
   'ellipsis', 'chevron-left', 'chevron-right', 'chevron-up', 'chevron-down',
   'check', 'x', 'arrow-right', 'arrow-left', 'settings', 'log-out',
-  'lock', 'search', 'triangle-alert', 'circle-alert', 'info', 'inbox', 'user', 'mail',
+  'lock', 'search', 'triangle-alert', 'circle-alert', 'info', 'inbox', 'user', 'mail', 'bell',
 ] as const;
 
 export type IconName = typeof ICON_NAMES[number];
@@ -163,6 +163,10 @@ export type IconName = typeof ICON_NAMES[number];
         @case ('mail') {
           <path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7" />
           <rect x="2" y="4" width="20" height="16" rx="2" />
+        }
+        @case ('bell') {
+          <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+          <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
         }
       }
     </svg>

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,6 +14,11 @@ public interface AnnouncementRecipientRepository extends JpaRepository<Announcem
 
     /** Member-scoped (spec §4): a member marking an announcement read can only reach their OWN row. */
     Optional<AnnouncementRecipient> findByMembershipIdAndAnnouncementId(UUID membershipId, UUID announcementId);
+
+    /** The feed's read flags for one page: ONE query for every announcement row on it, never one
+     *  lookup per row — the N+1 shape GET /api/box/me/announcements shipped with and had to fix. */
+    List<AnnouncementRecipient> findByMembershipIdAndAnnouncementIdIn(UUID membershipId,
+                                                                      Collection<UUID> announcementIds);
 
     /** Every announcement addressed to this member, newest first. Member-scoped. */
     @Query("""

@@ -30,7 +30,12 @@ import org.testcontainers.containers.PostgreSQLContainer;
         "boxhub.stripe.enc-keys=1:HYjgfGYymYYLNWDjEGICrN1gXPc6SkDd8lVuYB/4vfo=",
         // >=32 chars: MediaSigner enforces a 32-char floor (a short or blank link secret makes
         // every signed media URL forgeable), so this must satisfy it or no context boots.
-        "boxhub.media.link-secret=test-only-media-link-secret-padded-to-32"
+        "boxhub.media.link-secret=test-only-media-link-secret-padded-to-32",
+        // Every other job in this codebase is a 3am cron and never fires inside a test run. The class
+        // reminder sweep is per-minute, so it WOULD — iterating every box the suite has ever created,
+        // several times per run, and emitting CLASS_STARTING_SOON into other tests' boxes. "-" is
+        // Spring's Scheduled.CRON_DISABLED. Tests drive sweepBox(boxId, now) directly.
+        "boxhub.class-reminder-cron=-"
 })
 public abstract class AbstractIntegrationTest {
 

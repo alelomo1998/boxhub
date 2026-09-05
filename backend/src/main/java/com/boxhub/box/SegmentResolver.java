@@ -22,9 +22,14 @@ public class SegmentResolver {
     public static final String EXPIRING = "EXPIRING";
 
     /**
-     * 14, matching the staff members list. The segment is a STAFF-facing audience, so it must select
-     * the same people staff already see flagged "expiring soon" there.
-     * HomeController's athlete-facing 7-day banner is a different question and stays at 7.
+     * 14 — the ONE answer to "who is expiring soon?", for staff and athletes alike. The staff
+     * members list, the EXPIRING segment, HomeController's athlete banner and M29b's
+     * SUBSCRIPTION_EXPIRING all read it.
+     * <p>
+     * It used to say the athlete banner was "a different question" and stayed at 7. It was not a
+     * different question, and the two numbers were about to contradict each other on screen: M29b
+     * fires SUBSCRIPTION_EXPIRING on this constant, so a member 10 days out would have been sent a
+     * badge saying their membership was ending while home showed no banner at all (M29b D-12).
      */
     public static final int EXPIRING_SOON_DAYS = 14;
 

@@ -1,9 +1,17 @@
 package com.boxhub.box;
 
 import com.boxhub.identity.AuthController;
+import com.boxhub.identity.Membership;
+import com.boxhub.identity.MembershipRepository;
+import com.boxhub.notify.NotificationService;
+import com.boxhub.notify.NotificationType;
 import com.boxhub.shared.TenantContext;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -17,17 +25,25 @@ public class InvitePublicController {
     private final PlanRepository plans;
     private final SubscriptionService subscriptionService;
     private final MembershipEventRepository membershipEvents;
+    private final MembershipRepository memberships;
+    private final NotificationService notifications;
+    private final TransactionTemplate tx;
 
     public InvitePublicController(InviteService inviteService, InviteAcceptTx acceptTx,
                                   BoxRepository boxes, PlanRepository plans,
                                   SubscriptionService subscriptionService,
-                                  MembershipEventRepository membershipEvents) {
+                                  MembershipEventRepository membershipEvents,
+                                  MembershipRepository memberships, NotificationService notifications,
+                                  PlatformTransactionManager txManager) {
         this.inviteService = inviteService;
         this.acceptTx = acceptTx;
         this.boxes = boxes;
         this.plans = plans;
         this.subscriptionService = subscriptionService;
         this.membershipEvents = membershipEvents;
+        this.memberships = memberships;
+        this.notifications = notifications;
+        this.tx = new TransactionTemplate(txManager);
     }
 
     record PreviewResponse(String boxName, String boxSlug, String role, String email, String planName) {}
@@ -70,6 +86,9 @@ public class InvitePublicController {
                 // entitlement check lets them book immediately; the lapse job chases them later.
                 subscriptionService.recordPeriod(r.membership().getId(), plan.getId(), plan.getPriceCents(), null);
                 membershipEvents.save(new MembershipEvent(r.membership().getId(), MembershipEvent.JOINED, null, null));
+                tx.executeWithoutResult(status -> notifyAdmins(NotificationType.INVITE_ACCEPTED,
+                        r.membership().getId(),
+                        Map.of(NotificationType.INVITEE_NAME, r.membership().getUser().getName())));
             });
         } else {
             // A plan-less invite (planId null) means the box bills this member offline — but they
@@ -78,10 +97,31 @@ public class InvitePublicController {
             TenantContext.runAsBox(r.box().getId(), () -> {
                 subscriptionService.comp(r.membership().getId());
                 membershipEvents.save(new MembershipEvent(r.membership().getId(), MembershipEvent.JOINED, null, null));
+                tx.executeWithoutResult(status -> notifyAdmins(NotificationType.INVITE_ACCEPTED,
+                        r.membership().getId(),
+                        Map.of(NotificationType.INVITEE_NAME, r.membership().getUser().getName())));
             });
         }
 
         Box box = r.box();
         return new AuthController.MembershipDto(box.getId(), box.getName(), box.getSlug(), r.membership().getRole(), box.getStatus());
+    }
+
+    /**
+     * Staff-facing events go to every ACTIVE box admin EXCEPT the person who caused them. Membership
+     * carries no @TenantId discriminator, so the box predicate is explicit.
+     *
+     * <p>The exclusion is not defensive: an invite may itself carry the BOX_ADMIN role, and the
+     * acceptor is already an ACTIVE admin by the time this runs — so without it, accepting an
+     * admin invite would tell you that you accepted your own invite. A notification for an action
+     * you just performed is the noise NOTIFICATIONS.md §5.3 exists to prevent.
+     */
+    private void notifyAdmins(NotificationType type, UUID actorMembershipId, Map<String, Object> params) {
+        List<UUID> admins = memberships
+                .findByBoxIdAndRoleAndStatus(TenantContext.requireBoxId(), "BOX_ADMIN", "ACTIVE")
+                .stream().map(Membership::getId)
+                .filter(id -> !id.equals(actorMembershipId))
+                .toList();
+        notifications.emitAll(type, admins, params);
     }
 }

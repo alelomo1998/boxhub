@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
@@ -36,11 +36,22 @@ import { HomeService, Profile } from './home.service';
             <input type="checkbox" [checked]="p.isPrivate" (change)="togglePrivacy($any($event.target).checked)" />
           </label>
 
+          <!-- /account is outside the shells: navigating there tears down the whole shell
+               (and the sheet with it), so there's nothing for this row to emit. -->
           <a class="row asbtn" routerLink="/account" data-testid="profile-security-link">
             <span class="rl">Security</span>
             <span class="rh">Password, email, sessions</span>
             <span aria-hidden="true">›</span>
           </a>
+
+          @if (notificationsRoute) {
+            <a class="row asbtn" [routerLink]="notificationsRoute" data-testid="profile-notifications-link"
+               (click)="navigated.emit()">
+              <span class="rl" i18n="@@profile.notifications.label">Notifications</span>
+              <span class="rh" i18n="@@profile.notifications.hint">Which alerts reach you</span>
+              <span aria-hidden="true">›</span>
+            </a>
+          }
 
           <div class="actions">
             <bh-button variant="ghost" class="full" (click)="logout()">Log out</bh-button>
@@ -74,6 +85,13 @@ import { HomeService, Profile } from './home.service';
 })
 export class ProfileSheetComponent implements OnInit {
   @Output() avatarChanged = new EventEmitter<string | null>();
+  /** Fires on any row that navigates within the same shell (Notifications today), so the
+   *  host can close its own sheet — bh-sheet's `open` is one-way, only the caller resets it. */
+  @Output() navigated = new EventEmitter<void>();
+
+  /** Per-shell target: /athlete/notifications/settings, /coach/..., /admin/... . Unset hides the
+   *  row entirely — a row that navigates nowhere is worse than no row. */
+  @Input() notificationsRoute: string | null = null;
 
   private auth = inject(AuthService);
   private router = inject(Router);

@@ -61,6 +61,9 @@ boxhub:
   # The Angular app lives here; the API (/api) and the OAuth2 callback (/login/oauth2/) stay at the
   # server root. See AppUrls — prefixing the OAuth redirect-uri breaks Google SSO in production only.
   app-base: ${BOXHUB_APP_BASE:/app}
+  # Not a secret. ClassReminderScheduler's sweep — "-" disables it (Scheduled.CRON_DISABLED), which
+  # is how the test suite turns it off (AbstractIntegrationTest).
+  class-reminder-cron: ${BOXHUB_CLASS_REMINDER_CRON:0 * * * * *}
   mail:
     # "rxed" here is a literal, not a reference — a YAML default can't read a Java constant.
     # Keep in sync by hand with Brand.NAME (backend .../shared/Brand.java), the single source
