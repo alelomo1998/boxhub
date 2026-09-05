@@ -37,7 +37,10 @@ test('an announcement reaches the feed, and reading it there clears the home car
 
 test('the bell badge clears on mark-all-read and stays cleared across a reload', async ({ page }) => {
   test.setTimeout(45000);
-  const stamp = runId();
+  // runId() is one id per test PROCESS, so the previous test's announcement carries this exact
+  // stamp too — filtering on the stamp alone matches both rows and trips Playwright strict mode.
+  // Match on the whole body, which is unique to this test.
+  const body = `E2E mark-all ping ${runId()}`;
 
   // mark-all-read needs something unread to act on. The previous test reads its own notification
   // individually (that's its whole point), so it can leave the athlete with nothing unread —
@@ -45,11 +48,11 @@ test('the bell badge clears on mark-all-read and stays cleared across a reload',
   await login(page, 'admin@demo.io');
   await page.goto('/app/admin/announcements');
   await page.getByTestId('announcement-segment-everyone').click();
-  await page.fill('[data-testid="announcement-body"]', `E2E mark-all ping ${stamp}`);
+  await page.fill('[data-testid="announcement-body"]', body);
   await page.getByTestId('announcement-send').click();
   await expect(page.getByTestId('announcement-confirm-count')).toBeVisible({ timeout: 10000 });
   await page.getByTestId('announcement-confirm-send').click();
-  await expect(page.locator('[data-testid^="announcement-row-"]', { hasText: stamp })).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[data-testid^="announcement-row-"]', { hasText: body })).toBeVisible({ timeout: 10000 });
 
   await login(page, 'athlete@demo.io');
   await page.getByTestId('athlete-notifications-link').click();
