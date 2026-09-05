@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { login } from './_support';
+import { login, nextDay } from './_support';
 
 /**
  * bh-button puts the data-testid on the custom-element HOST, which stretches wider than the
@@ -101,7 +101,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   await joinPage.locator('.cards, .empty').first().waitFor();
   const card = joinPage.locator('.card', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await card.isVisible().catch(() => false)); i++) {
-    await joinPage.locator('button[aria-label="Next day"]').click();
+    await nextDay(joinPage);
     await joinPage.waitForTimeout(100);
   }
   await expect(card).toBeVisible();

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './_support';
+import { login, nextDay } from './_support';
 
 test('admin schedules a class, athlete books it, coach checks them in from the photo grid', async ({ page }) => {
   const stamp = Date.now();
@@ -22,7 +22,7 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   // page shows today; the new weekly class may generate on a later day — page through the pager
   const card = page.locator('.card', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await card.isVisible().catch(() => false)); i++) {
-    await page.locator('button[aria-label="Next day"]').click();
+    await nextDay(page);
     await page.waitForTimeout(100);
   }
   await expect(card).toBeVisible();
@@ -39,7 +39,7 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   await page.locator('.list, .empty').first().waitFor();
   const row = page.locator('.row', { hasText: className }).filter({ hasText: '1/1' }).first();
   for (let i = 0; i < 14 && !(await row.isVisible().catch(() => false)); i++) {
-    await page.locator('button[aria-label="Next day"]').click();
+    await nextDay(page);
     await page.waitForTimeout(100);
   }
   await expect(row).toBeVisible();
