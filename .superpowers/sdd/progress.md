@@ -2685,3 +2685,52 @@ connected**), 21 (e2e), 22 (baselines, gate sweep, merge).
 - **Scope added beyond the plan, at the user's direction:** all three shells get a profile sheet so
   notification settings is reached identically everywhere; coach and admin lose their standalone
   gear and Log out button. Not yet built — it is the next task after Task 20's gates.
+
+## M29b — Tasks 20 (gates + entry point), 21, 22 — MILESTONE CLOSED (session ending 2026-09-05)
+
+- **Task 20 gated at last.** `audit` 17/20 → **19/20**, `critique` 35/40 → **35/40** (dual-agent,
+  browser-connected, not degraded), `clarify` run and its three findings fixed. **Zero open P0/P1.**
+  The critique total held while its composition moved: user-control 2→3 and recognition 3→4 as the
+  entry point and the pill landed, aesthetic 4→3 because the locked rows now run 3–4 lines.
+- **The entry point (`4fa2259`).** Header avatar → profile sheet → Notifications, in all three
+  shells; coach and admin lost their standalone gear and Log out. The sheet's row takes its route
+  as an input and does not render without one.
+- **Four defects the gates found, all fixed in that commit:**
+  1. **Header overflow.** A flex item's default `min-width:auto` meant the projected box switcher
+     could not shrink once the bell joined `.acts`: athlete scrolled at 320px (331), coach at 320,
+     360 **and 393** (427). One declaration on `bh-shell-header` fixed both. Admin sits at 401 for
+     an unrelated pre-existing reason — `docs/BACKLOG.md`. **M29b now adds no overflow anywhere.**
+  2. **Locked rows were fake switches**, distinguished from live ones only by a luminance drop
+     (rgb(122,141,50) vs rgb(223,255,78)), and a disabled control also leaves the tab order and the
+     a11y tree. Now a `bh-pill` reading "Always on" — not a control, and it spends no volt.
+  3. **Four `<span>` group headings** meant a screen-reader user got twelve switches as one
+     undifferentiated wall. Now `<h2>` + `aria-labelledby`. **axe cannot catch this** — an unnamed
+     `<section>` is a missed opportunity, not a violation.
+  4. **`clarify`:** group names were the registry's vocabulary, not a member's, and one heading sat
+     above a row of the same name → Classes and bookings / From your gym / Money and membership /
+     Members. The three "Always on" hints were circular ("Payment failed → this affects your
+     payments") and alone among the twelve never said what the notification was.
+- **A bug the user found, not the gates:** navigating from the profile sheet to settings left the
+  sheet open on top. The route is inside the same shell, so the shell is never destroyed and
+  `profileOpen` was never reset — `Security` escapes it only because `/account` lives outside the
+  shells. `bh-sheet`'s `open` is one-way, so the sheet now emits `navigated` and each shell resets
+  its own signal. The output is generic on purpose: any future in-shell row has the same bug.
+- **Task 21 (`3b9edd9`)** — `e2e/tests/notifications.spec.ts`, 4 passed twice at `retries: 0`. Two
+  corrections to the plan's draft, both found by running it: **EVERYONE announcements are
+  BOX_ADMIN-only** (gated in `AnnouncementController` and hidden in the UI for a coach), so the
+  draft's `coach@demo.io` could never have worked; and **`empty@demo.io` does not exist** — the
+  empty-feed test uses `duo@demo.io` at Northside Barbell, a seeded ATHLETE membership with zero
+  notifications, since notifications are per-membership. Nobody's memberships were changed.
+- **Task 22 baselines (`abf2720`)** — 11 changed + 3 new, each accounted for before acceptance.
+  Beyond the expected icon/bell/dock-reservation churn, **seven phone gallery sections moved 1px**
+  because the icon grid grew a row and shifted everything below it into different subpixel
+  rounding. Worth remembering: **Playwright rejects on a DIMENSION mismatch before it consults
+  `maxDiffPixels`**, so a 1px reflow bypasses the 100-pixel tolerance entirely and reads as a hard
+  failure. Reverting those seven as presumed churn made them fail one at a time, which is what
+  proved they were real.
+- **Coverage gap found, not fixed:** `visual.spec.ts`'s `SCREENS` are all auth/account surfaces, so
+  **the three in-shell headers have no visual baseline at all** — which is why removing coach's and
+  admin's gear and Log out moved no baseline. Pre-existing; recorded rather than silently absorbed.
+- **Not done, deliberately:** a `Saving…` affordance on a pref row while the save is in flight
+  (critique P2). Both gates pass without it, but design principle 4 says state is never silent, so
+  it is a real candidate rather than a nicety. Left to the user's call.

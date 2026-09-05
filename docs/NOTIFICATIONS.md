@@ -15,7 +15,7 @@ Notification work is split across four milestones, in this order:
 | Milestone | Owns |
 |---|---|
 | **M29a** (now) | Thread state and the unread count on the Messages surface itself. **Emits nothing.** |
-| **M29b** (next) | `NotificationEvent`, the global in-app feed, the shell badge, per-type preferences |
+| **M29b** | **Built, 2026-09-05.** `NotificationType`, the in-app feed, the shell bell + badge, per-type preferences. Twelve feed types; eleven have live emit sites, listed in §4. |
 | **M27c** | Push delivery through the Capacitor mobile wrapper |
 | **M32b** | SMS channel, automation rules, campaign builder |
 
@@ -34,7 +34,7 @@ semantics. Those belong to the milestone that owns the channel.
 | Channel | Status | Owner | Notes |
 |---|---|---|---|
 | **Email** | **Shipping today** — 11 sends, listed in §3 | already built | `Mailer.send(to, subject, template, vars)` with Thymeleaf templates under `resources/templates/mail`. The one sanctioned place raw hex is allowed, because HTML mail cannot read custom properties. |
-| **In-app feed** | not built | **M29b** | The bell and the feed page. This is the default channel for anything gym-operational. |
+| **In-app feed** | **shipped (M29b)** | M29b | The bell and the feed page. The default channel for anything gym-operational. Preferences are per type AND per channel, so M27c adds push without a migration. |
 | **Push** | not built | **M27c** | Arrives with the Capacitor wrapper, not before. Until it does, **a time-sensitive message is seen when the athlete next opens rxed** — recorded in M29a spec A1.8 #1 so the gap is a known deferral, not an oversight. |
 | **SMS** | not built | **M32b** | Expensive per message. Reserve for the genuinely urgent; see §5.3. |
 
@@ -70,24 +70,33 @@ fills, and it is why the in-app feed is the right default channel rather than mo
 
 ## 4. The registry — events that should exist
 
-Ordered by how much a person loses by missing it. **Nothing here is built.** Column *Owner* is the
-milestone that should build it, not a promise that it is scheduled.
+Ordered by how much a person loses by missing it. Column *Owner* is the milestone that should
+build it, not a promise that it is scheduled.
+
+**M29b shipped the twelve feed types below; each carries its real emit site.** The enum
+`backend/src/main/java/com/boxhub/notify/NotificationType.java` is the executable copy of this
+table — icon, feed visibility, default and mandatory flags live there and nowhere else, which is
+why adding an event is a constant plus a row here, never a migration (D-5). Rows still marked
+with an owner and no emit site are not built.
 
 ### 4.1 Time-critical — someone changes their day because of this
 
 | Event | Fires when | Recipients | Channels | Owner | Notes |
 |---|---|---|---|---|---|
-| `CLASS_CANCELLED` | a `ClassSession` moves to `CANCELLED` | the roster, **waitlist included** | feed + push + email | M29b | D-7 already rules waitlist in for the announcement equivalent. Today a coach must send a CLASS_ROSTER announcement by hand — see §6. |
-| `WAITLIST_PROMOTED` | `BookingService:137` promotes the head of the waitlist into a freed spot | the promoted athlete | feed + push | M29b | **The sharpest gap in the product today.** The athlete now has a spot in a class they may not attend because nobody told them. Silent as of 2026-08-31. |
-| `CLASS_STARTING_SOON` | scheduled, N minutes before `startAt` | booked athletes | push | M29b schedules, M27c delivers | Needs a scheduler and a per-box lead time. On by default, opt-out — it fires only for a class the athlete booked themselves, and a reminder for a commitment you made is not unsolicited (one line to reverse if a pilot box disagrees). |
-| `CLASS_TIME_CHANGED` | `startAt` is patched on a session with bookings | the roster | feed + push + email | M29b | `SessionController` patches `startAt` today with no notice at all. |
+| `CLASS_CANCELLED` | a `ClassSession` moves to `CANCELLED` | the roster, **waitlist included** | feed + push + email | **shipped — `SessionController:154`** | D-7 already rules waitlist in for the announcement equivalent. Today a coach must send a CLASS_ROSTER announcement by hand — see §6. |
+| `WAITLIST_PROMOTED` | `BookingService:137` promotes the head of the waitlist into a freed spot | the promoted athlete | feed + push | **shipped — `BookingService:159`** | **The sharpest gap in the product today.** The athlete now has a spot in a class they may not attend because nobody told them. Silent as of 2026-08-31. |
+| `CLASS_STARTING_SOON` | scheduled, N minutes before `startAt` | booked athletes | push | **M29b schedules — `ClassReminderScheduler:82`; M27c delivers** | Needs a scheduler and a per-box lead time. On by default, opt-out — it fires only for a class the athlete booked themselves, and a reminder for a commitment you made is not unsolicited (one line to reverse if a pilot box disagrees). |
+| `CLASS_TIME_CHANGED` | `startAt` is patched on a session with bookings | the roster | feed + push + email | **shipped — `SessionController:161`** | `SessionController` patches `startAt` today with no notice at all. |
+| `COACH_CHANGED` | a session's assigned coach is swapped on a session with bookings | the roster | feed | **shipped — `SessionController:166`** | Not in the original registry: added during M29b because `SessionController` patches the coach on the same endpoint that patches `startAt`, and a silent coach swap is the same broken promise as a silent time change. |
+| `LATE_CANCEL_UNREFUNDED` | a cancellation lands inside the late window and the entry is not returned | the athlete | feed | **shipped — `BookingService:143`** | Not in the original registry. Added during M29b: the athlete loses a booking credit, and learning that from a balance rather than a message is how a policy becomes a complaint. |
+| `NO_SHOW_RECORDED` | a booking is marked absent, by a coach or by the sweep | the athlete | feed | **shipped — `BookingService:205,226`** | Not in the original registry. Added during M29b: same reasoning as the late cancel, and it is the one type a member is most likely to dispute, so a timestamped record they can see matters. |
 
 ### 4.2 Conversational — someone is waiting on a reply
 
 | Event | Fires when | Recipients | Channels | Owner | Notes |
 |---|---|---|---|---|---|
-| `NEW_MESSAGE` | a `Message` is inserted | the other participant | feed + push | M29b | Named explicitly in the M29a spec §1 boundary table as M29b's. M29a deliberately emits nothing. |
-| `NEW_ANNOUNCEMENT` | an `Announcement` is sent | its frozen `announcement_recipient` rows | feed + push | **M29b — user-confirmed 2026-09-01** | See §4.2.1. The audience already exists as rows (D-2), so the fan-out is a read, not a resolution. |
+| `NEW_MESSAGE` | a `Message` is inserted | the other participant | push (no feed row) | **declared in `NotificationType`, deliberately emits nothing — M27c delivers** | Named explicitly in the M29a spec §1 boundary table as M29b's. M29a deliberately emits nothing. |
+| `NEW_ANNOUNCEMENT` | an `Announcement` is sent | its frozen `announcement_recipient` rows | feed + push | **shipped — `AnnouncementService:86`** | See §4.2.1. The audience already exists as rows (D-2), so the fan-out is a read, not a resolution. |
 
 #### 4.2.1 `NEW_ANNOUNCEMENT` — what M29a already built for it
 
@@ -117,16 +126,16 @@ manual path should be re-examined, not kept by default, once this event exists.
 
 | Event | Fires when | Recipients | Channels | Owner | Notes |
 |---|---|---|---|---|---|
-| `SUBSCRIPTION_EXPIRING` | inside `EXPIRING_SOON_DAYS` (14) of `current_period_end` | the member | feed + email | M29b | Today the member learns **only after it lapses** (#11 above). Warning beats condolence. Note the live inconsistency the M29a spec §5 records: staff-facing "expiring" is 14 days, `HomeController`'s athlete banner is 7. Pick one **before** this event ships, or the badge and the banner will disagree on screen. |
-| `PAYMENT_FAILED` | already emails (#10) | the member | **+ feed** | M29b | Email exists; the feed entry is what makes it visible to someone who does not read email. |
-| `MEMBERSHIP_BLOCKED` | a membership moves to a blocked state | the member | feed + email | M29b | Being unable to book with no explanation is the worst version of this. |
-| `INVITE_ACCEPTED` | an invite is redeemed | box admins | feed | M29b | Staff-facing. Low urgency, high satisfaction. |
+| `SUBSCRIPTION_EXPIRING` | inside `EXPIRING_SOON_DAYS` (14) of `current_period_end` | the member | feed + email | **shipped — `SubscriptionExpiringJob:67`** | Today the member learns **only after it lapses** (#11 above). Warning beats condolence. Note the live inconsistency the M29a spec §5 records: staff-facing "expiring" is 14 days, `HomeController`'s athlete banner is 7. Pick one **before** this event ships, or the badge and the banner will disagree on screen. |
+| `PAYMENT_FAILED` | already emails (#10) | the member | **+ feed** | **shipped — `StripeWebhookController:201`** | Email exists; the feed entry is what makes it visible to someone who does not read email. |
+| `MEMBERSHIP_BLOCKED` | a membership moves to a blocked state | the member | feed + email | **shipped — `MemberController:103`** | Being unable to book with no explanation is the worst version of this. |
+| `INVITE_ACCEPTED` | an invite is redeemed | box admins | feed | **shipped — `InvitePublicController:89,100`** | Staff-facing. Low urgency, high satisfaction. |
 
 ### 4.4 Social and performance — never urgent, easy to over-send
 
 | Event | Fires when | Recipients | Channels | Owner | Notes |
 |---|---|---|---|---|---|
-| `PR_CONGRATULATED` | someone likes or comments on your PR post | the athlete | feed | M29b | `PostLike` exists already. |
+| `PR_CONGRATULATED` | someone likes or comments on your PR post | the athlete | feed | **deferred to M25 (social), 2026-09-03** | `PostLike` exists already. |
 | `LEADERBOARD_PLACED` | you land top-3 on a WOD | the athlete | feed | later | Genuinely optional. Ship only if it does not add noise. |
 | `PROGRAMMING_PUBLISHED` | a session's `programming_status` → `PUBLISHED` | athletes booked on it | feed | later | **Off by default.** A box that publishes a week at a time would fire this a dozen times in a minute. |
 
@@ -135,7 +144,7 @@ manual path should be re-examined, not kept by default, once this event exists.
 | Event | Fires when | Recipients | Channels | Owner | Notes |
 |---|---|---|---|---|---|
 | `CLASS_UNDER_BOOKED` | N hours before start, below a threshold | the assigned coach | feed | later | The "should I cancel this?" prompt. |
-| `NEW_MEMBER_JOINED` | a membership becomes ACTIVE **by a non-invite route** | box admins | feed | deferred — no trigger exists yet (see M29b spec §5.3) | |
+| `NEW_MEMBER_JOINED` | a membership becomes ACTIVE **by a non-invite route** | box admins | feed | **declared in `NotificationType`, no emitter — M29b spec §5.3** | Ships unemitted on purpose: no non-invite route into a box exists yet. Public self-signup emits it in one line. |
 | `COACH_UNASSIGNED_SESSION` | an upcoming session still has `coach_id = null` | box admins | feed | later | Already a real state — M29a had to rule on it: an unassigned session is admin-only for announcements. |
 
 ---
