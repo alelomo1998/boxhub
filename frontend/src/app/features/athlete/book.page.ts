@@ -4,7 +4,8 @@ import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
-import { DayPagerComponent } from '../../ui/day-pager.component';
+import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
+import { tonesOf } from '../booking/session-tones';
 
 function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
 
@@ -12,10 +13,10 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
 @Component({
   selector: 'bh-book',
   standalone: true,
-  imports: [RouterLink, ButtonComponent, PillComponent, DayPagerComponent, DatePipe],
+  imports: [RouterLink, ButtonComponent, PillComponent, WeekCalendarComponent, DatePipe],
   template: `
     <section class="book">
-      <bh-day-pager [(offset)]="dayOffset" [max]="13" />
+      <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
 
       @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
 
@@ -61,8 +62,8 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
             </div>
           } @empty {
             <div class="empty">
-              <p class="e1">No classes this day.</p>
-              <p class="e2">Try another day with ‹ ›.</p>
+              <p class="e1" i18n="@@athlete.book.empty.title">No classes this day.</p>
+              <p class="e2" i18n="@@athlete.book.empty.hint">Pick another day from the strip above.</p>
             </div>
           }
         </div>
@@ -126,6 +127,9 @@ export class BookPage implements OnInit {
     const key = dayKey(this.day());
     return this.sessions().filter(s => dayKey(new Date(s.startAt)) === key);
   });
+
+  /** Per-day availability for the strip's dots, from sessions already fetched — no extra request. */
+  readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
   ngOnInit() {
     this.load();
