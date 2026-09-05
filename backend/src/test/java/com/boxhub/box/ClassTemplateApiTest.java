@@ -7,10 +7,21 @@ import com.boxhub.identity.MembershipRepository;
 import com.boxhub.identity.TokenService;
 import com.boxhub.identity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -25,6 +36,9 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
     @Autowired MembershipRepository memberships;
     @Autowired TokenService tokenService;
     @Autowired ObjectMapper om;
+    @Autowired ClassSessionRepository sessions;
+    @Autowired ScheduleSlotRepository slots;
+    @Autowired BookingRepository bookings;
 
     String adminToken, athleteToken, otherAdminToken;
     Box a, b;
@@ -37,6 +51,55 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
         adminToken = boxToken("cta-" + n + "@t.io", a, "BOX_ADMIN");
         athleteToken = boxToken("ctath-" + n + "@t.io", a, "ATHLETE");
         otherAdminToken = boxToken("ctb-" + n + "@t.io", b, "BOX_ADMIN");
+    }
+
+    @AfterEach
+    void clearContext() { SecurityContextHolder.clearContext(); }
+
+    // Since M21 a tenant-less read fails CLOSED (docs/TENANCY.md): no ambient tenant means the
+    // filter stays on with a sentinel no row carries, so a direct repository read returns EMPTY
+    // rather than everything. MockMvc calls carry their own auth via the Bearer token and don't
+    // need this; only direct sessions/slots/bookings reads and writes do.
+    private void actAsBox(UUID boxId) {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
+                .subject(UUID.randomUUID().toString())
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));
+    }
+
+    private UUID createSlot(String name, int weekday, String startTime) throws Exception {
+        String body = mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"" + name + "\",\"weekday\":" + weekday
+                                + ",\"startTime\":\"" + startTime + "\",\"durationMin\":60,\"capacity\":12}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return UUID.fromString(om.readTree(body).get("id").asText());
+    }
+
+    private ClassSession firstFutureSession(UUID slotId) {
+        actAsBox(a.getId());
+        return sessions.findByScheduleSlotIdAndStartAtGreaterThanEqual(slotId, Instant.now()).stream()
+                .min(Comparator.comparing(ClassSession::getStartAt))
+                .orElseThrow();
+    }
+
+    // Saves a Booking row directly rather than going through BookingService.book (which needs an
+    // entitled subscription) — existsBySessionIdAndStatusIn is all SlotRegenerationService checks.
+    private void bookSession(UUID sessionId) {
+        actAsBox(a.getId());
+        User u = authService.register("booker-" + System.nanoTime() + "@t.io", "correct-horse-battery", "Booker");
+        Membership m = new Membership();
+        m.setUser(u); m.setBox(a); m.setRole("ATHLETE");
+        memberships.save(m);
+
+        Booking booking = new Booking();
+        booking.setSessionId(sessionId);
+        booking.setMembershipId(m.getId());
+        booking.setStatus("BOOKED");
+        bookings.save(booking);
     }
 
     private Box newBox(String name, String slug) {
@@ -243,5 +306,95 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.name == 'WOD Class')]", org.hamcrest.Matchers.hasSize(2)))
                 .andExpect(jsonPath("$[?(@.name == 'Burn It')]", org.hamcrest.Matchers.hasSize(0)));
+    }
+
+    /**
+     * defect: patch() routed a schedule-affecting edit through the additive-only generator, which
+     * creates sessions that don't exist and skips ones that do but never deletes. Moving a slot from
+     * 06:00 to 07:00 left every already-generated 06:00 session in place. Fixed by routing through
+     * SlotRegenerationService.
+     */
+    @Test
+    void movingASlotLeavesNoSessionAtTheOldTime() throws Exception {
+        UUID slotId = createSlot("CrossFit", 1, "06:00");
+
+        mvc.perform(patch("/api/box/class-templates/" + slotId).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"startTime\":\"07:00\"}"))
+                .andExpect(status().isOk());
+
+        actAsBox(a.getId());
+        ZoneId tz = ZoneId.of(a.getTimezone());
+        assertThat(sessions.findByScheduleSlotIdAndStartAtGreaterThanEqual(slotId, Instant.now()))
+                .as("every future session must sit at the NEW time; an additive generate leaves the old ones")
+                .isNotEmpty()
+                .allSatisfy(s -> assertThat(LocalTime.ofInstant(s.getStartAt(), tz)).isEqualTo(LocalTime.of(7, 0)));
+    }
+
+    @Test
+    void editingASlotWithABookedSessionIsRefusedAndChangesNothing() throws Exception {
+        UUID slotId = createSlot("CrossFit", 1, "06:00");
+        ClassSession booked = firstFutureSession(slotId);
+        bookSession(booked.getId());
+
+        mvc.perform(patch("/api/box/class-templates/" + slotId).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"startTime\":\"07:00\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(result -> assertThat(result.getResolvedException().getMessage())
+                        .contains("RANGE_HAS_BOOKINGS")
+                        .contains(LocalDate.ofInstant(booked.getStartAt(), ZoneId.of(a.getTimezone())).toString()));
+
+        actAsBox(a.getId());
+        assertThat(slots.findById(slotId).orElseThrow().getStartTime())
+                .as("a refused edit must not have written the slot either")
+                .isEqualTo(LocalTime.of(6, 0));
+    }
+
+    @Test
+    void applyFromPastTheBlockingDatesSucceedsAndKeepsTheBookedSessionAtTheOldTime() throws Exception {
+        UUID slotId = createSlot("CrossFit", 1, "06:00");
+        ClassSession booked = firstFutureSession(slotId);
+        bookSession(booked.getId());
+        ZoneId tz = ZoneId.of(a.getTimezone());
+        LocalDate after = LocalDate.ofInstant(booked.getStartAt(), tz).plusDays(1);
+
+        mvc.perform(patch("/api/box/class-templates/" + slotId).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"startTime\":\"07:00\",\"applyFrom\":\"" + after + "\"}"))
+                .andExpect(status().isOk());
+
+        actAsBox(a.getId());
+        assertThat(sessions.findById(booked.getId()).orElseThrow().getStartAt())
+                .as("the already-booked session keeps its old time")
+                .isEqualTo(booked.getStartAt());
+
+        // Asserting only the non-effect above is not enough: this test passed even against the OLD
+        // additive-only generator, which never deleted anything and so never disturbed the booked
+        // session either. Proving the mechanism ran means showing something AFTER applyFrom
+        // actually moved — without this, a regression where regeneration silently did nothing
+        // would still go green.
+        Instant afterInstant = after.atStartOfDay(tz).toInstant();
+        assertThat(sessions.findByScheduleSlotIdAndStartAtGreaterThanEqual(slotId, afterInstant))
+                .as("sessions from applyFrom onward must have moved to the new time")
+                .isNotEmpty()
+                .allSatisfy(s -> assertThat(LocalTime.ofInstant(s.getStartAt(), tz)).isEqualTo(LocalTime.of(7, 0)));
+    }
+
+    @Test
+    void aRenameUpdatesFutureSessionsInPlaceAndIsNeverRefused() throws Exception {
+        UUID slotId = createSlot("CrossFit", 1, "06:00");
+        ClassSession booked = firstFutureSession(slotId);
+        bookSession(booked.getId());   // would REFUSE a regeneration; a rename must not regenerate
+
+        mvc.perform(patch("/api/box/class-templates/" + slotId).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Barbell Club\"}"))
+                .andExpect(status().isOk());
+
+        actAsBox(a.getId());
+        assertThat(sessions.findById(booked.getId()).orElseThrow().getName())
+                .as("ClassSession.name is a snapshot, so a rename must rewrite future sessions in place")
+                .isEqualTo("Barbell Club");
     }
 }
