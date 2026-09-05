@@ -6,6 +6,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { SwitchComponent } from '../../ui/switch.component';
 import { PanelComponent } from '../../ui/panel.component';
 import { EmptyComponent } from '../../ui/empty.component';
+import { PillComponent } from '../../ui/pill.component';
 
 /** A fetched row plus this screen's own transient state — never sent to the server. */
 interface PrefRowVm extends PrefRow {
@@ -16,8 +17,8 @@ interface PrefRowVm extends PrefRow {
 interface GroupDef {
   key: string;
   types: string[];
-  /** "Your gym" is role-gated, not shell-gated (a BOX_ADMIN can legitimately be in the athlete
-   *  shell and still owns staff notifications) — keyed on AuthService.activeBox()?.role. */
+  /** The staff group is role-gated, not shell-gated (a BOX_ADMIN can legitimately be in the
+   *  athlete shell and still owns staff notifications) — keyed on AuthService.activeBox()?.role. */
   staffOnly?: boolean;
 }
 
@@ -51,7 +52,7 @@ const GROUP_DEFS: GroupDef[] = [
 @Component({
   selector: 'bh-notification-prefs',
   standalone: true,
-  imports: [SwitchComponent, PanelComponent, EmptyComponent],
+  imports: [SwitchComponent, PanelComponent, EmptyComponent, PillComponent],
   template: `
     <div class="pf" data-testid="notification-prefs-page">
       <header class="page-header">
@@ -72,24 +73,22 @@ const GROUP_DEFS: GroupDef[] = [
                 <bh-empty data-testid="notification-prefs-empty" icon="bell" [title]="emptyTitle" />
               } @else {
                 @for (g of groups(); track g.key) {
-                  <section class="group">
-                    <div class="group-header"><span>{{ g.heading }}</span></div>
+                  <section class="group" [attr.aria-labelledby]="'pref-group-' + g.key">
+                    <div class="group-header"><h2 [id]="'pref-group-' + g.key">{{ g.heading }}</h2></div>
                     <bh-panel class="group-panel">
                       @for (row of g.rows; track row.type) {
                         <div class="pref-row">
                           @if (row.mandatory) {
-                            <!-- The reason is rendered OUTSIDE the switch on purpose. bh-switch
-                                 dims a disabled control to opacity .5, which took this text to
-                                 2.14:1 against the ground — and design law requires a locked row
-                                 state its reason in words, which words at 2.14:1 do not do. -->
+                            <!-- No fake control to tap: a real bh-switch here differs from a live
+                                 one only by a luminance drop, invites a tap that does nothing, and
+                                 disappears from the tab order and a11y tree. bh-pill isn't a
+                                 control at all, and its label keeps the "Always on" state in words. -->
                             <div class="locked-row">
                               <div class="locked-text">
                                 <span class="locked-label">{{ prefCopy(row.type).label }}</span>
                                 <p class="locked-reason">{{ prefCopy(row.type).hint }}</p>
                               </div>
-                              <bh-switch [checked]="true" [disabled]="true"
-                                         [ariaLabel]="prefCopy(row.type).label"
-                                         [testId]="'pref-locked-' + row.type" />
+                              <bh-pill tone="suspended" [label]="alwaysOnLabel" [attr.data-testid]="'pref-locked-' + row.type" />
                             </div>
                           } @else {
                             <!-- Deliberately NOT disabled while saving. bh-switch dims a disabled
@@ -137,8 +136,8 @@ const GROUP_DEFS: GroupDef[] = [
     /* Same centred mono divider the feed's day headers use — the two screens read as siblings. */
     .group-header { padding: 0 0 var(--sp-2); display: flex; align-items: center; gap: var(--sp-3); }
     .group-header::before, .group-header::after { content: ''; flex: 1; height: 1px; background: var(--hairline); }
-    .group-header span { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
-      text-transform: uppercase; color: var(--faint); }
+    .group-header h2 { margin: 0; font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--faint); font-weight: 400; }
 
     .group-panel { padding: 0 var(--sp-4); }
     /* min-width: 0 is what lets a long label wrap inside bh-switch's flex row instead of pushing
@@ -146,10 +145,16 @@ const GROUP_DEFS: GroupDef[] = [
     .pref-row { min-width: 0; padding: var(--sp-3) 0; border-bottom: 1px solid var(--hairline); }
     .pref-row:last-child { border-bottom: none; }
 
-    /* Full contrast, outside the dimmed control — this is the only thing telling someone why
-       the row cannot be changed. */
-    .locked-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
+    /* Full contrast, outside the pill — the label and reason are what tell someone why the row
+       cannot be changed, so they never inherit the pill's quieter treatment. */
+    /* flex-start, not center: the reason runs to four lines on a 393px phone, and a centred pill
+       floats halfway down the paragraph instead of reading as the label's state. */
+    .locked-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); }
     .locked-text { min-width: 0; }
+    /* The pill is a flex item beside wrapping prose, so without this it shrinks and breaks its
+       own two-word label across two lines inside the oval. nowrap is set on the host and
+       inherits into the pill, which keeps app/ui/ untouched. */
+    .locked-row bh-pill { flex-shrink: 0; white-space: nowrap; }
     .locked-label { font-family: var(--font-body); font-size: var(--fs-body); color: var(--bone); }
     .locked-reason { margin: var(--sp-1) 0 0; font-family: var(--font-body); font-size: var(--fs-sm);
       color: var(--bone-dim); }
@@ -170,11 +175,17 @@ export class NotificationPrefsPage implements OnInit {
   private readonly saveFailedMsg = $localize`:@@notifications.prefs.save.failed:Couldn't save that change. Try again.`;
   private readonly unknownLabel = $localize`:@@notifications.pref.unknown.label:Notification setting`;
   private readonly unknownHint = $localize`:@@notifications.pref.unknown.hint:A setting this app doesn't recognize yet.`;
+  protected readonly alwaysOnLabel = $localize`:@@notifications.prefs.alwaysOn:Always on`;
 
-  private readonly timeCriticalHeading = $localize`:@@notifications.prefs.group.timeCritical:Time-critical`;
-  private readonly announcementsHeading = $localize`:@@notifications.prefs.group.announcements:Announcements`;
+  // The old heading named the registry's own urgency classification, not how a member thinks,
+  // and it oversold two of its six rows: late cancellations and no-shows are retrospective, not
+  // urgent-now.
+  private readonly classesHeading = $localize`:@@notifications.prefs.group.classes:Classes and bookings`;
+  // The old heading sat directly above a single row whose label was that same word.
+  private readonly fromYourGymHeading = $localize`:@@notifications.prefs.group.fromYourGym:From your gym`;
   private readonly moneyHeading = $localize`:@@notifications.prefs.group.money:Money and membership`;
-  private readonly gymHeading = $localize`:@@notifications.prefs.group.gym:Your gym`;
+  // The old heading for this staff-only group would have collided with the group above it.
+  private readonly membersHeading = $localize`:@@notifications.prefs.group.members:Members`;
   private readonly otherHeading = $localize`:@@notifications.prefs.group.other:Other`;
 
   protected readonly isStaff = computed(() => {
@@ -236,10 +247,10 @@ export class NotificationPrefsPage implements OnInit {
 
   private headingFor(key: string): string {
     switch (key) {
-      case 'time-critical': return this.timeCriticalHeading;
-      case 'announcements': return this.announcementsHeading;
+      case 'time-critical': return this.classesHeading;
+      case 'announcements': return this.fromYourGymHeading;
       case 'money': return this.moneyHeading;
-      case 'gym': return this.gymHeading;
+      case 'gym': return this.membersHeading;
       default: return this.otherHeading;
     }
   }

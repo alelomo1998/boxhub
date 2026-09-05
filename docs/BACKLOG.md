@@ -875,3 +875,11 @@ Recorded at milestone close so the next reader knows these were decided, not mis
   notification would tell the new owner that they themselves joined. The enum constant stays; the
   milestone that adds a **public self-signup to an existing box** emits it in one line. Full
   reasoning in the M29b spec §5.3.
+
+- **Admin shell overflows horizontally on mobile (401px floor at 320/360/393).** Pre-existing, not
+  M29b: the header's own children fit (last ends at 381 of 393) and hiding the dock changes
+  nothing, so a grid item under `.admin`'s single mobile column carries a 401px min-content that
+  neither `grid-template-columns: 1fr` nor `main { min-width: 0 }` collapses. M29b's header bell
+  briefly took it to 447; moving Security and Log out into the profile sheet returned it to its
+  pre-M29b 401. Needs a bisect of the column's grid items. Admin is desktop-first, so this is a
+  polish item, not a pilot blocker.

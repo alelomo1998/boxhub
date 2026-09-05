@@ -43,7 +43,9 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     </div>
 
     <bh-sheet [open]="profileOpen()" title="Profile" label="Your profile" (closed)="profileOpen.set(false)">
-      @if (profileOpen()) { <bh-profile-sheet (avatarChanged)="avatarPath.set($event)" /> }
+      @if (profileOpen()) {
+        <bh-profile-sheet notificationsRoute="/athlete/notifications/settings" (avatarChanged)="avatarPath.set($event)" (navigated)="profileOpen.set(false)" />
+      }
     </bh-sheet>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,

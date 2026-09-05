@@ -42,7 +42,14 @@ import { Component, computed, input } from '@angular/core';
       text-overflow: ellipsis; white-space: nowrap; }
     .area { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); }
-    .acts { display: flex; gap: 2px; margin-left: auto; }
+    .acts { display: flex; gap: 2px; margin-left: auto; flex-shrink: 0; }
+    /* The projected brand (the box switcher) is a flex item exactly as .brand is, and needs the
+       same permission to shrink: a flex item's default min-width:auto refuses to go below its
+       content width, so the header overflowed at 320px once the bell joined .acts. The switcher's
+       own button already carries min-width:0 and its name already ellipsizes; only the host —
+       the actual flex item — was missing it. Projected content carries the CONSUMER's
+       encapsulation attribute, so ::ng-deep is how this component already reaches .acts a. */
+    ::ng-deep .top > [brand] { min-width: 0; }
     /* Projected action links (e.g. Security) render as a real <a> so RouterLink emits an href —
        it only does that on a/area hosts, never on bh-button. Projected content carries the
        consumer's encapsulation attribute, not this component's, so a scoped selector can't reach

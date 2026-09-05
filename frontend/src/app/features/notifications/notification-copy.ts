@@ -134,15 +134,15 @@ export const NOTIFICATION_PREF_COPY: Record<string, NotificationPrefCopy> = {
   },
   SUBSCRIPTION_EXPIRING: {
     label: $localize`:@@notifications.pref.expiring.label:Membership expiring`,
-    hint: $localize`:@@notifications.pref.expiring.hint:Always on — this affects your ability to book classes.`,
+    hint: $localize`:@@notifications.pref.expiring.hintLocked:When your membership is about to end. Always on — so it can't lapse without warning.`,
   },
   PAYMENT_FAILED: {
     label: $localize`:@@notifications.pref.paymentFailed.label:Payment failed`,
-    hint: $localize`:@@notifications.pref.paymentFailed.hint:Always on — this affects your payments.`,
+    hint: $localize`:@@notifications.pref.paymentFailed.hintLocked:When a payment doesn't go through. Always on — so you can fix it before you lose access.`,
   },
   MEMBERSHIP_BLOCKED: {
     label: $localize`:@@notifications.pref.blocked.label:Membership on hold`,
-    hint: $localize`:@@notifications.pref.blocked.hint:Always on — this affects your membership status.`,
+    hint: $localize`:@@notifications.pref.blocked.hintLocked:When your membership is put on hold. Always on — so you know why you can't book.`,
   },
   INVITE_ACCEPTED: {
     label: $localize`:@@notifications.pref.inviteAccepted.label:Invite accepted`,

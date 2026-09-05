@@ -1,24 +1,29 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
+import { AvatarComponent } from '../../ui/avatar.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
-import { ButtonComponent } from '../../ui/button.component';
 import { IconComponent } from '../../ui/icon.component';
 import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 import { MessagesEnvelopeComponent } from '../messaging/messages-envelope.component';
 import { NotificationBellComponent } from '../notifications/notification-bell.component';
 import { ShellChromeService } from '../../core/shell-chrome.service';
+// Cross-feature import, deliberate: the profile sheet and HomeService.myProfile() are role-agnostic
+// (any signed-in member has an avatar/name/security/notifications), and moving the file would
+// touch the athlete shell and its spec for no gain.
+import { ProfileSheetComponent } from '../athlete/profile-sheet.component';
+import { HomeService } from '../athlete/home.service';
 
 /** Admin: SaaS shell on desktop (side nav + top bar), bottom tabs + More sheet on mobile. */
 @Component({
   selector: 'bh-admin-shell',
   standalone: true,
   imports: [
-    RouterOutlet, RouterLink, RouterLinkActive, SheetComponent,
-    ShellHeaderComponent, DockComponent, ButtonComponent, IconComponent, BoxSwitcherComponent,
-    MessagesEnvelopeComponent, NotificationBellComponent,
+    RouterOutlet, RouterLink, RouterLinkActive, SheetComponent, AvatarComponent,
+    ShellHeaderComponent, DockComponent, IconComponent, BoxSwitcherComponent,
+    MessagesEnvelopeComponent, NotificationBellComponent, ProfileSheetComponent,
   ],
   template: `
     <div class="admin" [class.locked]="chrome.viewportLocked()">
@@ -26,12 +31,9 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
         <bh-box-switcher brand />
         <bh-messages-envelope actions route="/admin/messages" testId="admin-messages-link" />
         <bh-notification-bell actions route="/admin/notifications" testId="admin-notifications-link" />
-        <a actions routerLink="/account" aria-label="Security" title="Security" data-testid="admin-security-link">
-          <bh-icon name="settings" />
-        </a>
-        <bh-button actions variant="icon" (click)="logout()" label="Log out" title="Log out">
-          <bh-icon name="log-out" />
-        </bh-button>
+        <button actions class="me" (click)="profileOpen.set(true)" aria-label="Your profile">
+          <bh-avatar [path]="avatarPath()" [name]="userName" size="sm" />
+        </button>
       </bh-shell-header>
 
       <nav class="side" aria-label="Admin">
@@ -67,6 +69,12 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
         <button class="m-item asbtn" (click)="logout()">Log out</button>
       </div>
     </bh-sheet>
+
+    <bh-sheet [open]="profileOpen()" title="Profile" label="Your profile" (closed)="profileOpen.set(false)">
+      @if (profileOpen()) {
+        <bh-profile-sheet notificationsRoute="/admin/notifications/settings" (avatarChanged)="avatarPath.set($event)" (navigated)="profileOpen.set(false)" />
+      }
+    </bh-sheet>
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
@@ -101,6 +109,9 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     .m-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .asbtn { background: none; border-left: none; border-right: none; border-top: 1px solid var(--hairline);
       width: 100%; text-align: left; cursor: pointer; font: inherit; }
+    .me { min-width: var(--tap); min-height: var(--tap); display: grid; place-items: center;
+      background: transparent; border: none; border-radius: var(--r-full); cursor: pointer; }
+    .me:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     @media (max-width: 719px) {
       .admin { grid-template-columns: 1fr; grid-template-areas: "top" "content"; grid-template-rows: auto 1fr; }
@@ -110,13 +121,24 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     }
   `],
 })
-export class AdminShellPage {
+export class AdminShellPage implements OnInit {
   auth = inject(AuthService);
   private router = inject(Router);
+  private homeSvc = inject(HomeService);
   protected chrome = inject(ShellChromeService);
   moreOpen = signal(false);
+  profileOpen = signal(false);
+  avatarPath = signal<string | null>(null);
+  userName = '';
 
   logout() { this.auth.logout().subscribe(() => this.router.navigate(['/auth/login'])); }
+
+  ngOnInit() {
+    this.homeSvc.myProfile().subscribe({
+      next: p => { this.avatarPath.set(p.avatarPath); this.userName = p.name; },
+      error: () => {},
+    });
+  }
 
   nav = [
     { link: 'dashboard', label: 'Dashboard' },

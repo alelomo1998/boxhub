@@ -58,10 +58,10 @@ describe('NotificationPrefsPage', () => {
     const fixture = create();
     const el = fixture.nativeElement as HTMLElement;
 
-    const headers = Array.from(el.querySelectorAll('.group-header span')) as HTMLElement[];
+    const headers = Array.from(el.querySelectorAll('.group-header h2')) as HTMLElement[];
     expect(headers.length).toBe(3);
-    expect(headers[0].textContent).toContain('Time-critical');
-    expect(headers[1].textContent).toContain('Announcements');
+    expect(headers[0].textContent).toContain('Classes and bookings');
+    expect(headers[1].textContent).toContain('From your gym');
     expect(headers[2].textContent).toContain('Money');
 
     const groups = el.querySelectorAll('.group');
@@ -71,25 +71,43 @@ describe('NotificationPrefsPage', () => {
     expect(groups[2].querySelectorAll('.pref-row').length).toBe(3);
   });
 
-  it('hides the "Your gym" group for an ATHLETE', () => {
+  it('every group section has aria-labelledby pointing at a non-empty h2 that exists', () => {
+    setup('BOX_ADMIN');
+    svc.prefs.and.returnValue(of(ALL_PREF_ROWS));
+    const fixture = create();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const groups = Array.from(el.querySelectorAll('section.group')) as HTMLElement[];
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups) {
+      const labelledBy = group.getAttribute('aria-labelledby');
+      expect(labelledBy).withContext('aria-labelledby').toBeTruthy();
+      const heading = el.querySelector(`#${labelledBy}`);
+      expect(heading).withContext(`heading for ${labelledBy}`).not.toBeNull();
+      expect(heading!.tagName).toBe('H2');
+      expect(heading!.textContent!.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('hides the "Members" group for an ATHLETE', () => {
     setup('ATHLETE');
     svc.prefs.and.returnValue(of(ALL_PREF_ROWS));
     const fixture = create();
-    const headers = Array.from(fixture.nativeElement.querySelectorAll('.group-header span')) as HTMLElement[];
+    const headers = Array.from(fixture.nativeElement.querySelectorAll('.group-header h2')) as HTMLElement[];
     expect(headers.length).toBe(3);
-    expect(headers.some(h => h.textContent?.includes('Your gym'))).toBeFalse();
+    expect(headers.some(h => h.textContent?.includes('Members'))).toBeFalse();
   });
 
   for (const role of ['COACH', 'BOX_ADMIN'] as const) {
-    it(`shows a fourth "Your gym" group of 2 rows for a ${role}`, () => {
+    it(`shows a fourth "Members" group of 2 rows for a ${role}`, () => {
       setup(role);
       svc.prefs.and.returnValue(of(ALL_PREF_ROWS));
       const fixture = create();
       const el = fixture.nativeElement as HTMLElement;
 
-      const headers = Array.from(el.querySelectorAll('.group-header span')) as HTMLElement[];
+      const headers = Array.from(el.querySelectorAll('.group-header h2')) as HTMLElement[];
       expect(headers.length).toBe(4);
-      expect(headers[3].textContent).toContain('Your gym');
+      expect(headers[3].textContent).toContain('Members');
 
       const groups = el.querySelectorAll('.group');
       expect(groups.length).toBe(4);
@@ -107,16 +125,17 @@ describe('NotificationPrefsPage', () => {
     for (const type of MANDATORY_TYPES) {
       const locked = el.querySelector(`[data-testid="pref-locked-${type}"]`);
       expect(locked).withContext(type).not.toBeNull();
-      expect(locked!.hasAttribute('disabled')).withContext(type).toBeTrue();
+      // A locked row is a bh-pill, not a control: no disabled attribute to drop it from the tab
+      // order or the a11y tree, because there's nothing tappable to begin with.
+      expect(locked!.hasAttribute('disabled')).withContext(type).toBeFalse();
+      // The pill itself legitimately states "Always on" now — it isn't a dimmed fake control.
+      expect(locked!.textContent).withContext(type).toContain('Always on');
 
-      // The reason must be stated, and stated OUTSIDE the switch: bh-switch dims a disabled
-      // control to opacity .5, which put this text at 2.14:1 against the ground. Words nobody
-      // can read do not satisfy "render locked with the reason stated".
+      // The reason must still be stated in words, outside the pill, at full contrast.
       const row = locked!.closest('.pref-row')!;
       const reason = row.querySelector('.locked-reason');
       expect(reason).withContext(type).not.toBeNull();
-      expect(reason!.textContent).withContext(type).toContain('Always on');
-      expect(locked!.textContent).withContext(type).not.toContain('Always on');
+      expect(reason!.textContent!.length).withContext(type).toBeGreaterThan(0);
       // A locked row must never also carry the toggleable testid.
       expect(el.querySelector(`[data-testid="pref-switch-${type}"]`)).withContext(type).toBeNull();
     }
@@ -247,7 +266,7 @@ describe('NotificationPrefsPage', () => {
     let fixture!: ReturnType<typeof create>;
     expect(() => { fixture = create(); }).not.toThrow();
 
-    const headers = Array.from(fixture.nativeElement.querySelectorAll('.group-header span')) as HTMLElement[];
+    const headers = Array.from(fixture.nativeElement.querySelectorAll('.group-header h2')) as HTMLElement[];
     expect(headers.length).toBe(4); // the 3 athlete groups + "Other"
     expect(headers.some(h => h.textContent?.includes('Other'))).toBeTrue();
     expect(fixture.nativeElement.textContent).not.toContain('SOME_UNKNOWN_TYPE');
