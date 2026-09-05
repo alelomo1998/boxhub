@@ -256,4 +256,21 @@ class SlotRegenerationTest extends AbstractIntegrationTest {
                     .hasMessageContaining("RANGE_HAS_BOOKINGS");
         }
     }
+
+    @Test
+    void regenerationFromAPastDateDoesNotDeleteASessionThatAlreadyRan() {
+        // The sibling test above passes `from` = now + 3 days, which is why this has never been
+        // caught: the delete is unbounded BACKWARDS, so only a past `from` reaches the past
+        // sessions. The generator floors recreation at now (SessionGenerator:76,80), so anything
+        // it deletes before now is never refilled — and a session that has run may carry scores,
+        // which cascade class_sessions -> session_item -> wod_score.
+        var ctx = seedSlotWithSessions();
+
+        regeneration.regenerateFrom(ctx.slotId(), LocalDate.now().minusWeeks(1));
+
+        assertThat(sessions.findById(ctx.pastSessionId()))
+                .as("a session that already ran must survive regeneration from a past date")
+                .isPresent();
+    }
+
 }
