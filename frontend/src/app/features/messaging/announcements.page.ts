@@ -11,7 +11,7 @@ import { SheetComponent } from '../../ui/sheet.component';
 import { AlertComponent } from '../../ui/alert.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { IconComponent } from '../../ui/icon.component';
-import { DayPagerComponent } from '../../ui/day-pager.component';
+import { WeekCalendarComponent } from '../../ui/week-calendar.component';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { SearchBarComponent } from '../../ui/search-bar.component';
 
@@ -33,7 +33,7 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
   selector: 'bh-announcements',
   standalone: true,
   imports: [DatePipe, ButtonComponent, SheetComponent, AlertComponent, EmptyComponent, IconComponent,
-    DayPagerComponent, AvatarComponent, SearchBarComponent],
+    WeekCalendarComponent, AvatarComponent, SearchBarComponent],
   template: `
     <div class="ann-root" data-testid="announcements-root">
       <header class="head">
@@ -110,7 +110,7 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
                 label="Choose a class" i18n-label="@@announcements.picker.title"
                 data-testid="announcement-picker-sheet" (closed)="pickerOpen.set(false)">
         <div class="picker">
-          <bh-day-pager [offset]="pickerDayOffset()" (offsetChange)="onPickerDayChange($event)" [max]="13" />
+          <bh-week-calendar [offset]="pickerDayOffset()" (offsetChange)="onPickerDayChange($event)" [max]="13" />
           <div class="picker-body" #pickerBody>
           @switch (targetsState()) {
             @case ('loading') {

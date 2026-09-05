@@ -88,7 +88,7 @@ describe('WeekCalendarComponent', () => {
 
   it('announces the SELECTED DAY, not the month, when the day changes', () => {
     // The month label only changes at a month boundary, so a live region on it says nothing for
-    // six days out of seven. bh-day-pager announced the full date on every change; the strip owes
+    // six days out of seven. The superseded pager announced the full date on every change; this owes
     // the same. Regression guard for exactly that mistake.
     const fixture = make(13);
     const cmp = fixture.componentInstance;

@@ -29,12 +29,13 @@ function isoOf(d: Date): string {
  * Week strip: a Monday-first calendar week with one availability dot per day, above whatever the
  * screen projects as that day's list.
  *
- * Replaces bh-day-pager, which could only step one day at a time. Three ways to move, because the
- * filed complaint named three separate failures: the chevrons page a WEEK (and sit inside the
- * strip, in the thumb zone), a swipe pages a DAY, and tapping a day jumps straight to it — so
- * reaching any class in the horizon is one tap rather than up to thirteen.
+ * Replaces the single-day pager it supersedes, which could only step one day at a time. Three ways
+ * to move, because the filed complaint named three separate failures: the chevrons page a WEEK (and
+ * sit inside the strip, in the thumb zone), a swipe pages a DAY, and tapping a day jumps straight to
+ * it — so reaching any class in the horizon is one tap rather than up to thirteen.
  *
- * `offset` keeps bh-day-pager's contract exactly, which is what made the consumer swaps mechanical.
+ * `offset` keeps the superseded pager's contract exactly, which is what made the consumer swaps
+ * mechanical.
  */
 @Component({
   selector: 'bh-week-calendar',
@@ -69,7 +70,7 @@ function isoOf(d: Date): string {
       </div>
       <!-- The live region carries the SELECTED DAY, not the month: the month label only changes at
            a month boundary, so announcing it would say nothing for six days out of seven. This is
-           the announcement bh-day-pager made on every change and the strip owes the same. -->
+           the announcement the superseded pager made on every change, and the strip owes the same. -->
       <span class="sr" aria-live="polite">{{ dayLabel(selectedDay()) }}</span>
     </div>
     <ng-content />

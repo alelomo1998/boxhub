@@ -150,7 +150,7 @@ test("the class picker's height and pager arrow do not move when paging, whateve
     measured.push({ day, before: { x: before!.x, y: before!.y }, after: { x: after!.x, y: after!.y } });
   }
 
-  console.log('day-pager arrow boxes per transition:', JSON.stringify(measured));
+  console.log('day strip arrow boxes per transition:', JSON.stringify(measured));
   console.log('picker body heights per day:', JSON.stringify(bodyHeights));
   console.log('card counts per day:', JSON.stringify(cardCounts));
   console.log('empty-day offsets seen:', seenEmptyAt, '— populated-day offsets seen:', seenPopulatedAt);
