@@ -72,33 +72,28 @@
 
 Add to `SlotRegenerationTest.java`:
 
+`seedSlotWithSessions()` already seeds a past session (`now - 2 days`) and exposes it as
+`ctx.pastSessionId()`, so the test needs no fixture of its own. Append to `SlotRegenerationTest.java`:
+
 ```java
 @Test
-void regenerationNeverDeletesASessionThatHasAlreadyStarted() {
-    // A slot whose sessions include one that ran YESTERDAY. Regenerating from a week ago must
-    // leave it alone: the generator floors recreation at now, so anything earlier would be
-    // deleted and never refilled — and a session that has run may carry scores, which cascade
-    // through session_item to wod_score.
+void regenerationFromAPastDateDoesNotDeleteASessionThatAlreadyRan() {
+    // The sibling test above passes `from` = now + 3 days, which is why this has never been
+    // caught: the delete is unbounded BACKWARDS, so only a past `from` reaches the past sessions.
+    // The generator floors recreation at now (SessionGenerator:76,80), so anything it deletes
+    // before now is never refilled — and a session that has run may carry scores, which cascade
+    // class_sessions -> session_item -> wod_score.
     var ctx = seedSlotWithSessions();
-
-    ClassSession past = new ClassSession();
-    past.setScheduleSlotId(ctx.slotId());
-    past.setName("CrossFit");
-    past.setStartAt(Instant.now().minus(1, ChronoUnit.DAYS));
-    past.setDurationMin(60);
-    past.setCapacity(12);
-    past = sessions.save(past);
-    UUID pastId = past.getId();
 
     regeneration.regenerateFrom(ctx.slotId(), LocalDate.now().minusWeeks(1));
 
-    assertThat(sessions.findById(pastId))
-            .as("a session that already started must survive regeneration from a past date")
+    assertThat(sessions.findById(ctx.pastSessionId()))
+            .as("a session that already ran must survive regeneration from a past date")
             .isPresent();
 }
 ```
 
-Add the imports `java.time.temporal.ChronoUnit` and `java.util.UUID` if not already present.
+No new imports are needed — `LocalDate`, `assertThat` and the `sessions` repository are already in the file.
 
 - [ ] **Step 2: Run it and watch it fail**
 
@@ -239,7 +234,19 @@ void aRenameUpdatesFutureSessionsInPlaceAndIsNeverRefused() throws Exception {
 }
 ```
 
-Use the file's existing helpers for `createSlot`, `staffHeaders`, `bookSession` and `firstFutureSession`; if any is absent, write it as a small private helper in this test class rather than changing production code to suit the test.
+**CORRECTION (found while dispatching — the test code above names helpers this codebase does not have).** The four behaviours are right; the scaffolding is not. `ClassTemplateApiTest` actually has:
+
+- `@Autowired MockMvc mvc`, `AuthService authService`, `BoxRepository boxes`, `MembershipRepository memberships`, `TokenService tokenService`, `ObjectMapper om`
+- fields `Box a, b;` / `String adminToken, athleteToken, otherAdminToken;` from `@BeforeEach setup()`
+- private `newBox(name, slug)` (timezone `Europe/Rome`) and `boxToken(email, box, role)`
+- auth written as `.header("Authorization", "Bearer " + adminToken)` — there is **no** `staffHeaders()`
+- **no** `createSlot`, `bookSession` or `firstFutureSession`
+
+So the task must add:
+
+1. `@Autowired ClassSessionRepository sessions; @Autowired ScheduleSlotRepository slots; @Autowired BookingRepository bookings;`
+2. **An ambient tenant for every direct repository read/write.** Since M21 a tenant-less read fails CLOSED — the filter stays on with a sentinel no row carries, so `sessions.findAll()` returns **empty**, not everything. Copy `actAsBox(UUID)` from `SlotRegenerationTest.java:44` along with an `@AfterEach` calling `SecurityContextHolder.clearContext()`. MockMvc calls carry their own auth via the Bearer token; the two are separate.
+3. **A blocking booking without the entitlement machinery.** The check is `bookings.existsBySessionIdAndStatusIn(...)`, so saving a `Booking` directly is enough and far simpler than `BookingService.book`, which needs an entitled subscription. Setters: `setSessionId(UUID)`, `setMembershipId(UUID)`, `setStatus(String)`. `boxId` is `@TenantId` and comes from the ambient tenant, so `actAsBox` must be in effect at save time. `boxToken(...)` saves a `Membership` but does not return its id — capture it rather than guessing one.
 
 - [ ] **Step 2: Run them and watch them fail**
 

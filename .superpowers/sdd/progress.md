@@ -2734,3 +2734,72 @@ connected**), 21 (e2e), 22 (baselines, gate sweep, merge).
 - **Not done, deliberately:** a `Saving…` affordance on a pref row while the save is in flight
   (critique P2). Both gates pass without it, but design principle 4 says state is never silent, so
   it is a real candidate rather than a nicety. Left to the user's call.
+
+---
+
+# M14b — schedule & classes surfaces
+
+Branch `m14b-schedule-classes`, off `main` at `feedbe9`.
+
+**Baselines confirmed before building** (not inherited from the handoff — re-measured):
+backend **749/0/0/0** + `BUILD SUCCESS`, Karma **615 SUCCESS**, production build **zero warnings**.
+
+Spec `docs/superpowers/specs/2026-09-05-m14b-schedule-classes-design.md` (`e33c5b9`).
+Plan `docs/superpowers/plans/2026-09-05-m14b-schedule-classes.md`, 14 tasks (`fc3aa68`).
+
+## Decisions the user ruled on at design time
+
+1. **Week strip + day list**, not a 7-column grid, not a paging-free agenda.
+2. **Wire slot editing**, fixing the regeneration bug first.
+3. **Adopt the component on the athlete Book page too**, not only the M14b surfaces.
+4. **Delete `bh-day-pager`** — all four consumers swap.
+5. **Refusal UX:** name the blocking dates, offer one-tap "Apply from <first free date>".
+
+Decisions 9 and 10 in the spec (rename-in-place, deactivate-unchanged) are mine, flagged to the
+user and approved with the plan.
+
+## Found while planning, not inherited
+
+- **`PATCH /api/box/class-templates/{id}` is a LIVE defect, not the latent one the backlog names.**
+  It accepts `weekday`/`startTime`/`capacity` then calls `generateForBox`, which is additive only,
+  so moving a slot leaves the old sessions and adds new ones beside them. `COACH`-reachable today;
+  only the UI never sends those fields.
+- **`regenerateFrom`'s existing test uses a FUTURE `from`** (`now + 3 days`), which is exactly why
+  the unbounded-backwards delete has never been caught. Only a past `from` reaches the past.
+- **Six e2e call sites** drive `button[aria-label="Next day"]` across `booking-flow`, `messaging`
+  and `memberships`. The spec does not name them; Task 8 owns them.
+- **A fourth `bh-day-pager` consumer** the roadmap does not mention: M29a's announcements
+  class-picker. It is what made "delete the old component" a real question rather than a formality.
+
+## Task log
+
+- **T1** regeneration delete-range guard — **done** `b8d6570`. Backend **750/0/0/0**.
+  Verified the guard does real work rather than trusting the executor: reverted the one-line clamp,
+  ran the new test alone, watched it fail (`Expecting Optional to contain a value but it was
+  empty`), restored. A test that passes against the broken code proves nothing.
+- **T3** `bh-week-calendar` + Karma spec — **done** `010c19d`. Karma **625 SUCCESS**, build clean,
+  `ui/` greps zero.
+  **Review caught one real defect:** the executor copied the plan verbatim, and the plan put
+  `aria-live="polite"` on the MONTH label. The month only changes at a month boundary, so moving
+  Wed→Thu announced nothing — a regression against bh-day-pager, which announced the full date on
+  every change, and against the spec's own §3.5. Moved the live region onto the selected day using
+  bh-wordmark's existing `.sr` pattern, plus a spec so it cannot come back silently. My defect, not
+  the executor's — it was in the plan they were told to copy exactly.
+- **T2** slot edit regenerates — dispatched
+- **T4** gallery section + ledger — dispatched (parallel; disjoint from T2)
+
+## Plan defects found while dispatching
+
+- **T2's test code named four helpers that do not exist** (`createSlot`, `staffHeaders`,
+  `bookSession`, `firstFutureSession`). Corrected in the plan with the real scaffolding:
+  `ClassTemplateApiTest` uses `.header("Authorization", "Bearer " + adminToken)`, has no repository
+  access, and needs `actAsBox` copied from `SlotRegenerationTest:44` because **since M21 a
+  tenant-less repository read returns EMPTY, not everything**. Writing a brief from a plan without
+  re-checking the file it targets is how an executor gets sent after fictional names.
+- **T1's test was simpler than planned**: `seedSlotWithSessions()` already seeds a past session and
+  exposes `ctx.pastSessionId()`, so no fixture was needed.
+
+## Watch for
+
+- A rare one-off `NoClassDefFoundError` flake in `SkeletonApiTest`/`SkeletonConcurrencyTest` on a
+  full run; passed clean on re-run and my own full run was clean at 750. Not caused by M14b.
