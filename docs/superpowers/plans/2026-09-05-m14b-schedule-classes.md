@@ -737,6 +737,7 @@ git commit -m "feat(m14b): bh-week-calendar, a week strip with availability dots
 
 **Files:**
 - Modify: `frontend/src/app/features/dev/dev-gallery.page.ts:96` (imports), `:825-835` (the day-pager section), `:1057-1065` (the day-pager ledger)
+- Modify: `frontend/src/app/features/dev/dev-gallery.page.spec.ts:46` — **this file is not optional.** Its completeness test hardcodes a sorted array of every shipped component's `data-gallery` id, including the literal `'day-pager'`. Renaming the section makes that array wrong, so the spec fails deterministically until `'day-pager'` is swapped for `'week-calendar'` **in its sorted position**. That array is a registry: it going red is the registry doing its job. Swap the literal and nothing else — never weaken or reorder the assertion.
 
 **Interfaces:**
 - Consumes: `WeekCalendarComponent`, `DayTone` from Task 3.
@@ -821,14 +822,63 @@ git commit -m "feat(m14b): gallery section and seven-state ledger for bh-week-ca
 
 ---
 
-## Task 5: Coach classes page adopts the strip
+## Task 5: The shared `tones` helper, and both athlete + coach consumers
+
+**Revised while executing (was: Tasks 5 and 6 separately).** Three screens — coach classes,
+athlete book, and the admin schedule page in Task 9 — each need the identical per-day rollup of
+`SessionView[]` into `Record<string, DayTone>`. The original plan wrote it out three times. Three
+copies of one computation is the duplication the project's own rules exist to prevent, and it would
+drift the moment one screen's definition of "full" changed.
+
+So it becomes **one exported function**, and the two consumer swaps merge into this task — they
+must, because separate parallel executors would both create the same new file and race.
+
+`features/` may import from `ui/` (that is the allowed direction), so `DayTone` is imported from the
+component. `ui/` still must never import from `features/`, which is why the helper lives here and
+not beside the component.
 
 **Files:**
-- Modify: `frontend/src/app/features/coach/classes.page.ts:5,11,22,60-64`
+- Create: `frontend/src/app/features/booking/session-tones.ts`
+- Modify: `frontend/src/app/features/coach/classes.page.ts`
+- Modify: `frontend/src/app/features/athlete/book.page.ts`
 
 **Interfaces:**
-- Consumes: `WeekCalendarComponent`, `DayTone` from Task 3.
-- Produces: nothing new.
+- Consumes: `WeekCalendarComponent`, `DayTone` from Task 3; `SessionView` from `booking.service`.
+- Produces: `tonesOf(sessions: SessionView[]): Record<string, DayTone>` — Task 9 consumes it too.
+
+**The helper:**
+
+```typescript
+import { DayTone } from '../../ui/week-calendar.component';
+import { SessionView } from './booking.service';
+
+/**
+ * Per-day availability for bh-week-calendar's dots, rolled up from sessions a screen has ALREADY
+ * fetched — deliberately not a request of its own, since every consumer holds the whole horizon.
+ *
+ * A day is 'open' if any session still has a place, and 'full' only when every session that day is
+ * at capacity. A day with no sessions is absent from the map, which the component reads as 'none'.
+ *
+ * Keyed by LOCAL calendar date, matching the component's own isoOf(): toISOString() would convert
+ * to UTC and key the dots a day out for every box west of Greenwich.
+ */
+export function tonesOf(sessions: SessionView[]): Record<string, DayTone> {
+  const out: Record<string, DayTone> = {};
+  for (const s of sessions) {
+    const d = new Date(s.startAt);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (out[iso] === 'open') continue;              // one open session is enough to mark the day
+    out[iso] = s.bookedCount < s.capacity ? 'open' : 'full';
+  }
+  return out;
+}
+```
+
+Each consumer then holds one line: `readonly tones = computed(() => tonesOf(this.sessions()));`
+
+This helper owes a small spec of its own (`session-tones.spec.ts`): a day with one open and one
+full session is `open`; a day where every session is at capacity is `full`; a day with no sessions
+is absent from the map.
 
 - [ ] **Step 1: Swap the component**
 
