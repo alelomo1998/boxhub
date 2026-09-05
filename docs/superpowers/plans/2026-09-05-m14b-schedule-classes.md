@@ -1098,19 +1098,53 @@ await page.locator('button[aria-label="Next day"]').click();
 
 with a helper added to `e2e/tests/_support.ts`:
 
+**CORRECTED while executing.** The first version of this helper computed `today + 1` from the
+wall clock. That is wrong: five of the six call sites loop up to 14 times hunting for a session
+whose weekday the fixture chose (the admin create form defaults `weekday = 0`, Monday), so a
+helper pinned to an absolute date clicks the same cell every iteration and never advances — and
+because the component no-ops a click on the already-selected day, the stall is **silent** rather
+than a failure. It must read the current selection and advance from there:
+
 ```typescript
 /**
- * Move the week strip forward one day. bh-week-calendar's chevrons page a WEEK, so stepping a
- * single day means selecting the next day cell directly — which is also the interaction the
- * milestone exists to make cheap.
+ * Advance the week strip by ONE day, cumulatively.
+ *
+ * Reads the currently selected cell rather than computing from wall-clock "today". These call
+ * sites loop up to 14 times hunting for a session whose weekday the fixture chose, so a helper
+ * pinned to today+1 would click the same cell every iteration and never move — and the component
+ * no-ops a click on the already-selected day, so that stall would be SILENT rather than a failure.
+ *
+ * Crosses a week boundary by paging the week first: the target cell is not in the strip until then.
+ * Returns false when the horizon is exhausted, so a caller's loop can simply stop.
  */
-export async function nextDay(page: Page) {
-  const d = new Date();
+export async function nextDay(page: Page): Promise<boolean> {
+  const cur = await page.locator('.day[aria-current="date"]').first().getAttribute('data-testid');
+  if (!cur) return false;
+  const d = new Date(`${cur.replace('day-', '')}T12:00:00`); // noon: never lands on a DST edge
   d.setDate(d.getDate() + 1);
-  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  await page.locator(`[data-testid="day-${iso}"]`).click();
+  const id = `day-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const cell = page.locator(`[data-testid="${id}"]`);
+  if (await cell.count() === 0) {
+    const week = page.locator('button[aria-label="Next week"]');
+    if (await week.isDisabled()) return false;
+    await week.click();
+  }
+  if (await cell.count() === 0) return false; // past the booking horizon
+  await cell.click();
+  return true;
 }
 ```
+
+**`messaging.spec.ts:112` is not a selector swap.** It bbox-measures one persistent control across
+13 pages to prove that paging never moves the picker's chrome and that the list box's height does
+not depend on what a day holds — a content-sized list used to slide cards out from under a finger
+resting on the control. The invariant survives intact; only the element standing for "the control
+your finger is on" changes, because day cells have no stable identity across pages. Point the
+measured locator at the **`Next week` chevron** (the one always-present, fixed-position control in
+the header), keep every `pickerBody` height assertion unchanged, and advance with `nextDay(page)` —
+never by clicking that chevron, which pages a week and would skip most of the days the loop samples.
+Rename the variable off "arrow" and update its comment: a stale comment here is worse than none,
+because the next reader will believe the chevron steps a day.
 
 and call `await nextDay(page);` at each of the six sites, importing it from `./_support`.
 
