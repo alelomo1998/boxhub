@@ -141,9 +141,7 @@ type SlotPatch = { name: string; weekday: number; startTime: string; durationMin
 
           @if (blockingDates().length) {
             <bh-alert tone="warn" data-testid="schedule-blocked-alert">
-              <p i18n="@@admin.schedule.blocked.title">
-                {{ blockingDates().length }} classes in this range have bookings.
-              </p>
+              <p i18n="@@admin.schedule.blocked.title">{blockingDates().length, plural, =1 {1 class in this range has bookings.} other {# classes in this range have bookings.}}</p>
               <p i18n="@@admin.schedule.blocked.body">
                 Changing the schedule would cancel them, so we haven't.
               </p>

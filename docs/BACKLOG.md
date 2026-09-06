@@ -328,11 +328,17 @@ full e2e run.
   Accepted at the time (user decision, 2026-08-19) because the alternative was either editing the
   frontend, which M14a forbade itself, or keeping a dead column the migration test asserts is gone.
   **M14c** rebuilds that select against the real axes and the loss disappears with it.
-- **Day pager** (Book + coach Classes): no swipe, chevrons outside the thumb zone, no week-strip with
-  availability dots — paging to the next open class can take 13 taps. 14-day bound.
 - Builder score-type select is still a 5-option decision per scored piece.
 - No coach-facing help for the skeleton → instance → publish flow.
 - Drag-and-drop reorder + drag-to-move calendar slots (today: up/down + click-assign).
+- **A capacity change regenerates rather than applying in place, so it is refused on any slot with a
+  booked session in range.** Deliberate (M14b decision 8) — one mechanism, not two: every scheduling
+  edit routes through `SlotRegenerationService`, which refuses rather than cancelling, because
+  cancelling would mail everyone booked. The cost is that raising a capacity from 12 to 14, which
+  harms nobody, is refused exactly as moving the class an hour earlier would be; the admin's way
+  through is the `applyFrom` retry, which only helps for dates *after* the booked ones. Revisit if
+  the pilot finds the refusal too blunt — the narrow fix is an in-place capacity update that skips
+  regeneration entirely, since capacity alone changes no session's identity.
 
 ### → M15 Admin: people
 
@@ -774,14 +780,6 @@ athlete's result for that class. `M33` names performance history as *the real sw
 CrossFit box*, which is what makes this expensive rather than annoying. Verified directly, not
 inferred. **Open question: fix now as a defect, or fold into `M14c-a`, which rebuilds the builder
 anyway?** Full context: `docs/superpowers/specs/2026-08-27-analytics-brief.md` §2 D-1.
-
-**`SlotRegenerationService.regenerateFrom` can delete sessions that nothing refills (latent).**
-Its delete is unbounded backwards (`findByScheduleSlotIdAndStartAtGreaterThanEqual`) while the
-recreate floors at today (`box/SessionGenerator.java:76,80`), so a past `from` deletes sessions
-between `from` and today and never refills them; its blocking check inspects only `bookings.status`,
-so a session carrying scores but no live booking is unprotected. **No controller calls it today** —
-grep finds only javadoc and two tests — so this is latent, not live. It becomes live the moment a
-schedule-edit flow wires it in, which is **`M14b`**. Read before planning M14b.
 
 **A TV SSE push can go missing, and the TV is dropped silently (OPEN — found 2026-08-28).**
 Evidence, from a CI failure rather than a theory: the TV's `data-frames` attribute sat at **2** for
