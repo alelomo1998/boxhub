@@ -359,6 +359,16 @@ full e2e run.
   accent change silently reintroduces an unreadable button.
 
 ### → M17 Athlete
+- **The class row/card is ONE shared component across athlete Book and coach Classes, with the
+  ACTIONS differing by role (user-ruled 2026-09-06).** M14b gave both screens the week strip but
+  explicitly left their rows alone — its spec annotates the sketch *"the component owns the strip,
+  not the rows"*, and §4.2 keeps `book.page.ts`'s photo cards as M17a's. That left the coach row
+  with no owning milestone at all; this ruling gives it one rather than leaving it to be
+  rediscovered. Build it once, vary the actions (athlete: book / cancel / waitlist; coach: open the
+  class, check-in, run it), not the layout. `docs/design-ref/screens/booking-screen-example.webp` is
+  the binding reference for the shape — full-bleed image with the text on a scrim over it, not a
+  thumbnail beside text — and **nothing implements it today**. M17a therefore covers
+  `athlete/book.page.ts`, `athlete/class-detail.page.ts` **and** `coach/classes.page.ts`'s rows.
 - Score form has no cancel/delete of a logged score (edit-only); no way to delete a lift entry.
 - Booking error renders at the list top, not in the card foot next to the button that caused it.
 - Leaderboard button could show score count ("3 posted"); score-save could show your rank ("you're 3rd")
