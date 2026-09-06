@@ -34,9 +34,11 @@ type FetchState = 'loading' | 'error' | 'ready';
         }
         @default {
           @if (detail(); as d) {
+            <!-- No name heading here: bh-sheet's own title already IS the class name, and
+                 rendering it twice stacked "WOD CLASS" directly under "WOD CLASS". The eyebrow
+                 carries what the title cannot — when it runs and for how long. -->
             <div class="head">
               <span class="eyebrow num">{{ d.startAt | date:'EEEE d MMMM · HH:mm' }} · {{ durationLabel(d) }}</span>
-              <h3 class="nm">{{ d.name }}</h3>
             </div>
 
             <div class="coach">
@@ -136,9 +138,6 @@ type FetchState = 'loading' | 'error' | 'ready';
     .head { margin-bottom: var(--sp-4); }
     .eyebrow { display: block; font-size: var(--fs-meta); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--faint); }
-    .nm { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2);
-      text-transform: uppercase; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis;
-      white-space: nowrap; }
 
     .coach { display: flex; align-items: center; gap: var(--sp-3); border: 1px solid var(--hairline);
       border-radius: var(--r-card); background: var(--surface-2); padding: var(--sp-3) var(--sp-4);

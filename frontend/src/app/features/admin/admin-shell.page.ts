@@ -78,7 +78,14 @@ import { HomeService } from '../athlete/home.service';
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
-    .admin { display: grid; grid-template-columns: 210px 1fr; grid-template-rows: auto 1fr;
+    /* minmax(0, 1fr), never a bare 1fr. A grid ITEM's automatic minimum is its MIN-CONTENT size,
+       so a bare 1fr track can never be narrower than the widest thing inside it — the track grows
+       past the viewport instead of the content shrinking, and every ellipsis and overflow rule
+       inside it is dead because nothing ever applies pressure. That is the whole of the filed
+       401px floor: at a 330px viewport this grid measured 401px, and since the week strip's seven
+       cells stretch to the track, the SELECTED day fell off-screen on any Sunday, when today is
+       the last cell. Measured 401 -> 330 with this one change. */
+    .admin { display: grid; grid-template-columns: 210px minmax(0, 1fr); grid-template-rows: auto 1fr;
       grid-template-areas: "top top" "side content"; min-height: 100dvh; }
     .admin.locked { height: 100dvh; overflow: hidden; }
     .admin.locked .content { min-height: 0; overflow: hidden; }
@@ -114,7 +121,9 @@ import { HomeService } from '../athlete/home.service';
     .me:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     @media (max-width: 719px) {
-      .admin { grid-template-columns: 1fr; grid-template-areas: "top" "content"; grid-template-rows: auto 1fr; }
+      /* minmax(0, 1fr) here too — this is the track that was actually measured at 401px, since
+         the sidebar is gone at this breakpoint and this single column carries everything. */
+      .admin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "content"; grid-template-rows: auto 1fr; }
       .side { display: none; }
       .content { padding: var(--sp-4) var(--sp-4) calc(112px + env(safe-area-inset-bottom)); }
       .content.no-dock { padding-bottom: var(--sp-4); }

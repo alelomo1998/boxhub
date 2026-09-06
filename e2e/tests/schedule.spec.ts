@@ -123,6 +123,52 @@ async function revealDay(page: Page, targetIso: string) {
   return cell;
 }
 
+/**
+ * The filed 401px floor, as a test. The admin shell is a CSS grid whose track was a bare `1fr`,
+ * and a grid ITEM's automatic minimum is its min-content — so the track grew past the viewport
+ * instead of the content shrinking, and every ellipsis inside it was inert.
+ *
+ * It is asserted here rather than anywhere else because of what it did to THIS milestone's
+ * component: the strip's seven cells stretch to the track, so on a Sunday — when today is the
+ * last cell — the SELECTED day sat entirely off-screen. Checked at the three widths the backlog
+ * named, and at 320 because that is the narrowest the design law requires.
+ */
+for (const width of [320, 360, 393]) {
+  test(`the admin schedule does not scroll horizontally at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 780 });
+    await gotoNorthside(page, 'multi@demo.io');
+    // Wait for the box switch to land before navigating: without this the goto races it and the
+    // route guard bounces straight back to the gyms hub, where admin-schedule-root never exists.
+    await expect(page).toHaveURL(/\/app\/admin/);
+    await page.goto('/app/admin/schedule');
+    await page.getByTestId('admin-schedule-root').waitFor();
+
+    const { scrollW, clientW } = await page.evaluate(() => ({
+      scrollW: document.documentElement.scrollWidth,
+      clientW: document.documentElement.clientWidth,
+    }));
+    expect(scrollW, `page overflows by ${scrollW - clientW}px at ${width}`).toBeLessThanOrEqual(clientW);
+
+    // and the consequence that made it a P0 rather than a blemish: today must be on screen
+    const today = page.locator('.day[aria-current="date"]');
+    await expect(today).toBeVisible();
+    const box = await today.boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(clientW);
+
+    // The header must not overlap itself. Removing the overflow put the header under real width
+    // pressure for the first time, and the gym name laid out ON TOP of the area label: a button's
+    // automatic width is fit-content, so it ignored its host and never let the name ellipsise.
+    // A scrollWidth check alone cannot see this — the page fits perfectly while the text collides.
+    const collision = await page.evaluate(() => {
+      const name = document.querySelector('.bn')?.getBoundingClientRect();
+      const area = document.querySelector('.area')?.getBoundingClientRect();
+      if (!name || !area) return 0;
+      return Math.round(name.right - area.left);
+    });
+    expect(collision, `gym name overlaps the area label by ${collision}px`).toBeLessThanOrEqual(0);
+  });
+}
+
 test('a class on a later day is reachable in one tap on its day cell', async ({ page }) => {
   const stamp = runId();
   const className = `Northside OneTap ${stamp}`;
