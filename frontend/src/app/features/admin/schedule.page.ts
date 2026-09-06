@@ -11,6 +11,7 @@ import { SheetComponent } from '../../ui/sheet.component';
 import { AlertComponent } from '../../ui/alert.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { IconComponent } from '../../ui/icon.component';
+import { ClassDetailSheet } from './class-detail.sheet';
 
 type FetchState = 'loading' | 'error' | 'ready';
 
@@ -19,9 +20,9 @@ type FetchState = 'loading' | 'error' | 'ready';
 type SlotPatch = { name: string; weekday: number; startTime: string; durationMin: number; capacity: number; active?: boolean };
 
 /**
- * Admin schedule: week calendar -> that day's sessions -> tap a session to open the detail sheet
- * (Task 10 mounts it on `openSessionId`; this task only leaves the seam) -> weekly templates as
- * tappable rows, each opening a slot editor in a `bh-sheet`.
+ * Admin schedule: week calendar -> that day's sessions -> tap a session to open
+ * `bh-admin-class-detail` (roster, coach, cancel, builder link) -> weekly templates as tappable
+ * rows, each opening a slot editor in a `bh-sheet`.
  *
  * Rebuilt off the old template-driven submit binding, a native weekday `<select>`, a cramped
  * inline row of bare inputs and a `bh-data-table` of "next two weeks" — all banned by the M13d form
@@ -31,7 +32,7 @@ type SlotPatch = { name: string; weekday: number; startTime: string; durationMin
   selector: 'bh-admin-schedule',
   standalone: true,
   imports: [DatePipe, WeekCalendarComponent, ButtonComponent, FieldComponent, SelectComponent,
-    SwitchComponent, SheetComponent, AlertComponent, EmptyComponent, IconComponent],
+    SwitchComponent, SheetComponent, AlertComponent, EmptyComponent, IconComponent, ClassDetailSheet],
   template: `
     <section class="sched" data-testid="admin-schedule-root">
       <header class="head">
@@ -110,6 +111,9 @@ type SlotPatch = { name: string; weekday: number; startTime: string; durationMin
           }
         }
       </section>
+
+      <bh-admin-class-detail [sessionId]="openSessionId()" [open]="openSessionId() !== null"
+                             (closed)="onClassDetailClosed()" (changed)="loadSessions()" />
 
       <bh-sheet [open]="sheetOpen()" [title]="sheetTitle()" [label]="sheetTitle()"
                 data-testid="schedule-slot-sheet" (closed)="onSheetClosed()">
@@ -229,8 +233,9 @@ export class SchedulePage implements OnInit {
   protected readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
   /**
-   * Task 10's seam. Tapping a session sets this; the class-detail sheet mounts on it there
-   * (`[sessionId]`, `[open]`, `(closed)` resetting it back to null). Not built in this task.
+   * Drives `bh-admin-class-detail`, mounted permanently below: `[sessionId]` is this signal,
+   * `[open]` is `openSessionId() !== null`, and `(closed)` resets it back to null (see
+   * `onClassDetailClosed`).
    */
   protected openSessionId = signal<string | null>(null);
 
@@ -312,6 +317,15 @@ export class SchedulePage implements OnInit {
 
   protected openSession(s: SessionView): void {
     this.openSessionId.set(s.id);
+  }
+
+  /**
+   * bh-sheet's `open` is a ONE-WAY input, not a model — the component never clears it. So this
+   * caller must reset its own signal on (closed), or the sheet will not reopen: setting the signal
+   * true again won't re-run the effect because it never went false.
+   */
+  protected onClassDetailClosed(): void {
+    this.openSessionId.set(null);
   }
 
   /** Counted, so mono/tabular in the template — the placeholder name sits immediately after the
