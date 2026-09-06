@@ -9,10 +9,11 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   await login(page, 'admin@demo.io');
   await expect(page).toHaveURL(/\/admin/);
   await page.goto('/app/admin/schedule');
-  await page.fill('[data-testid="template-name"]', className);
-  await page.fill('input[name="capacity"]', '1');
-  await page.click('[data-testid="template-create"]');
-  await expect(page.locator('li', { hasText: className })).toBeVisible();
+  await page.click('[data-testid="schedule-add-slot"]');
+  await page.fill('[data-testid="schedule-name"]', className);
+  await page.fill('[data-testid="schedule-capacity"]', '1');
+  await page.click('[data-testid="schedule-slot-save"]');
+  await expect(page.locator('.trow', { hasText: className })).toBeVisible();
 
   // athlete books the first session of that class from the card list
   await login(page, 'athlete@demo.io');

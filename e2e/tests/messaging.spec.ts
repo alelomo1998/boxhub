@@ -184,10 +184,11 @@ test('a CLASS_ROSTER announcement reaches only its roster, and read counts becom
   // admin creates a fresh, capacity-1 class so its roster is exactly one known athlete
   await login(page, 'admin@demo.io');
   await page.goto('/app/admin/schedule');
-  await page.fill('[data-testid="template-name"]', className);
-  await page.fill('input[name="capacity"]', '1');
-  await page.click('[data-testid="template-create"]');
-  await expect(page.locator('li', { hasText: className })).toBeVisible();
+  await page.click('[data-testid="schedule-add-slot"]');
+  await page.fill('[data-testid="schedule-name"]', className);
+  await page.fill('[data-testid="schedule-capacity"]', '1');
+  await page.click('[data-testid="schedule-slot-save"]');
+  await expect(page.locator('.trow', { hasText: className })).toBeVisible();
 
   // athlete@demo.io books the only slot — the deterministic "on the roster" member
   await login(page, 'athlete@demo.io');
