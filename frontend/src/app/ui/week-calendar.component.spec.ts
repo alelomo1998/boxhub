@@ -57,23 +57,52 @@ describe('WeekCalendarComponent', () => {
     expect(cmp.week().filter(d => d.iso !== todayIso).every(d => d.tone === 'none')).toBeTrue();
   });
 
-  it('selects only a selectable day', () => {
+  // The two halves below are deliberately set up differently, because "is there a day of this
+  // kind in the visible week" depends on TODAY'S WEEKDAY unless you force it.
+  //
+  // The first version of this looked for `selectable && offset > 0` in the default week. That is
+  // absent exactly one day in seven: on a SUNDAY today is the last cell of a Monday-first week, so
+  // no selectable day with a greater offset exists, `find()` returned undefined, and the
+  // non-null assertion sailed past it into a TypeError. It passed every day until it did not.
+  it('refuses a day outside [0, max]', () => {
+    // max=2 guarantees an unselectable day whatever today is: either days past the horizon (early
+    // in the week) or days already gone (late in it).
+    const fixture = make(2);
+    const cmp = fixture.componentInstance;
+    const blocked = cmp.week().find(d => !d.selectable)!;
+    expect(blocked).toBeDefined();
+    cmp.select(blocked);
+    expect(cmp.offset()).toBe(0); // the guard lives in select(), not only on [disabled]
+  });
+
+  it('selects a selectable day', () => {
     const fixture = make(13);
     const cmp = fixture.componentInstance;
-    const past = cmp.week().find(d => !d.selectable);
-    if (past) { cmp.select(past); expect(cmp.offset()).toBe(0); }
-    const future = cmp.week().find(d => d.selectable && d.offset > 0)!;
-    cmp.select(future);
-    expect(cmp.offset()).toBe(future.offset);
+    // Move a week out first: the week containing offset 7 has every day inside [1, 13] for ANY
+    // starting weekday, so a fully-selectable week is guaranteed rather than hoped for.
+    cmp.offset.set(7);
+    fixture.detectChanges();
+    expect(cmp.week().filter(d => d.selectable).length).toBe(7);
+
+    const target = cmp.week().find(d => d.offset !== cmp.offset())!;
+    cmp.select(target);
+    expect(cmp.offset()).toBe(target.offset);
   });
 
   it('ignores the click that ends a swipe', () => {
     const fixture = make(13);
     const cmp = fixture.componentInstance;
-    const target = cmp.week().find(d => d.selectable && d.offset > 0)!;
     cmp.onPointerDown({ clientX: 200, clientY: 100 } as PointerEvent);
     cmp.onPointerUp({ clientX: 100, clientY: 105 } as PointerEvent); // swipe left = next day
     expect(cmp.offset()).toBe(1);
+    fixture.detectChanges();
+
+    // Picked AFTER the swipe, from the week now on screen — and asserted to exist rather than
+    // non-null-asserted. Picking it from the pre-swipe week only ever worked because select()
+    // short-circuits on `swiped` before it dereferences the day, so on a Sunday this test was
+    // passing an undefined straight past a bug it could not have caught.
+    const target = cmp.week().find(d => d.selectable && d.offset !== cmp.offset())!;
+    expect(target).toBeDefined();
     cmp.select(target); // the click the browser fires after that swipe
     expect(cmp.offset()).toBe(1); // suppressed, not jumped
   });
