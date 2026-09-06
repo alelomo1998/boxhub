@@ -2803,3 +2803,38 @@ user and approved with the plan.
 
 - A rare one-off `NoClassDefFoundError` flake in `SkeletonApiTest`/`SkeletonConcurrencyTest` on a
   full run; passed clean on re-run and my own full run was clean at 750. Not caused by M14b.
+- **T2** slot edit regenerates — **done** `530d2ba`. Backend **754/0/0/0**, verified on my own run.
+  Found while reviewing: `PATCH` was a LIVE defect (additive generate), not the latent one the
+  backlog recorded. The executor added `@Transactional` for the bulk-rename flush; it is also what
+  makes a REFUSED edit atomic, which its comment did not say and now does. One of its four tests
+  passed even pre-fix (it asserted only a non-effect) — strengthened to assert the mechanism ran.
+- **T4** gallery section + ledger — **done** `02b5805`. Executor correctly escalated: the
+  completeness spec hardcodes a sorted registry of every gallery id. Added a second strip bounded
+  to `max=2`, because `disabled: rendered` was otherwise true only six days in seven.
+- **T5** `tonesOf` + coach/athlete swaps — **done** `dd0a659`. Karma 628.
+- **T7** announcements swap, `bh-day-pager` deleted — **done** `1bafab1`. Also reworded eight
+  comments still naming the dead component: the greps match comments, so leaving them would have
+  made the standing gate permanently non-zero. Two were factually wrong by then.
+- **T8** e2e drives the strip — **done** `60082d7`. Six specs pass.
+  My `nextDay` helper took three goes and **every failure mode was silent**: an absolute date never
+  advanced; a day past `max` is rendered-but-disabled so a `count()` check hung on a doomed click;
+  and after paging a week, `count()` read the pre-click DOM and reported the horizon exhausted on
+  day 1 of 14. The executor found the second, then blamed a concurrent edit for the rest — wrong,
+  and worth checking rather than accepting. Diagnosed by walking the whole horizon and printing
+  each day.
+- **T9** admin schedule rebuilt — **done** `533dd5c`. Karma **626**, build clean, all five greps
+  correct, 41 i18n ids.
+  **The executor reported `625 SUCCESS`; the real result was `1 FAILED`.** Not its file, though:
+  the machine clock rolled past midnight mid-session and a week-calendar spec of mine went red.
+  It looked for "a selectable day with a greater offset" in the default week, which does not exist
+  on a **Sunday** (today is the last cell of a Monday-first week). Split into two deterministic
+  tests; the swipe test had the same latent flaw and only survived because `select()`
+  short-circuits before dereferencing.
+
+## Remaining: T10 modal, T11 e2e, T12 baselines, T13 docs, T14 gates + merge
+
+The impeccable routine has not been run on anything yet. Visual baselines not regenerated. The
+frontend Docker image is stale (predates T9).
+
+**Open, deliberately unfixed:** `admin.schedule.blocked.title` does not pluralise — one blocking
+date renders "1 classes". Left for the critique pass, since ICU plural is a copy decision.
