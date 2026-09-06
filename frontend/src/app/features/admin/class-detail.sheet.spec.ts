@@ -108,6 +108,24 @@ describe('ClassDetailSheet', () => {
     expect(closedCount).toBe(1);
   });
 
+  it('states the real number of people the cancel would notify', () => {
+    const fixture = setup();
+    fixture.componentRef.setInput('sessionId', 's1');
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+    // two on the roster: one active, one queued — both get notified
+    http.expectOne('/api/box/sessions/s1/detail').flush(DETAIL);
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-testid="admin-class-detail-cancel-open"]').click();
+    fixture.detectChanges();
+
+    const confirm = fixture.nativeElement.querySelector('[data-testid="admin-class-detail-cancel-confirm"]').textContent;
+    expect(confirm).toContain('notifies 2 people');
+    // Angular's ICU does not substitute the MessageFormat "#" placeholder, it prints it.
+    expect(confirm).not.toContain('#');
+  });
+
   it('renders the error state and its retry re-requests the detail', () => {
     const fixture = setup();
     fixture.componentRef.setInput('sessionId', 's1');

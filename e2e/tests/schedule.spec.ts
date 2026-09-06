@@ -284,6 +284,13 @@ test('editing a slot with a live booking is refused, and the retry applies from 
   const alert = page.getByTestId('schedule-blocked-alert');
   await expect(alert).toBeVisible();
 
+  // The copy, in the SERVED bundle. Exactly one date blocks here, so this pins the ICU plural's
+  // =1 branch — it shipped as "1 classes" — and proves Angular's ICU is substituting a number at
+  // all: the MessageFormat "#" placeholder is NOT substituted by Angular, it renders literally,
+  // which a green Karma run and a clean build both sailed past.
+  await expect(alert).toContainText('1 class in this range has bookings.');
+  await expect(alert).not.toContainText('#');
+
   // the retry applies the same change from the next free day instead
   await page.getByTestId('apply-from-retry').click();
   await expect(alert).not.toBeVisible();

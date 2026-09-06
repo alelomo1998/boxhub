@@ -99,7 +99,7 @@ type SlotPatch = { name: string; weekday: number; startTime: string; durationMin
                   <button type="button" class="trow" [class.off]="!t.active" [attr.data-testid]="'template-' + t.id"
                           (click)="openEdit(t)">
                     <div class="tmid">
-                      <span class="tnm">{{ dayLabels[t.weekday] }} {{ t.startTime }} · {{ t.name }}</span>
+                      <span class="tnm">{{ dayLabels[t.weekday] }} {{ hhmm(t.startTime) }} · {{ t.name }}</span>
                       <span class="tsub num">{{ templateMeta(t) }}</span>
                     </div>
                     @if (!t.active) { <span class="badge" data-testid="template-inactive">{{ inactiveLabel }}</span> }
@@ -141,12 +141,23 @@ type SlotPatch = { name: string; weekday: number; startTime: string; durationMin
 
           @if (blockingDates().length) {
             <bh-alert tone="warn" data-testid="schedule-blocked-alert">
-              <p i18n="@@admin.schedule.blocked.title">{blockingDates().length, plural, =1 {1 class in this range has bookings.} other {# classes in this range have bookings.}}</p>
+              <!-- Interpolation, not the MessageFormat "#" placeholder: Angular's ICU does NOT
+                   substitute #, it renders the character, so the alert read "# classes in this
+                   range have bookings." A plural that reports no number is worse than the
+                   "1 classes" it replaced. -->
+              <p i18n="@@admin.schedule.blocked.title">{blockingDates().length, plural, =1 {1 class in this range has bookings.} other {{{ blockingDates().length }} classes in this range have bookings.}}</p>
               <p i18n="@@admin.schedule.blocked.body">
                 Changing the schedule would cancel them, so we haven't.
               </p>
-              <bh-button variant="ghost" size="sm" data-testid="apply-from-retry" (click)="retryFromNextFreeDay()"
-                         i18n="@@admin.schedule.blocked.retry">Apply from {{ (retryFrom() ?? '') + 'T00:00:00' | date:'d MMM' }}</bh-button>
+              <!-- Guarded on retryFrom() itself, not coalesced to an empty string. Coalescing
+                   produced "T00:00:00", which DatePipe REJECTS: it threw InvalidPipeArgument
+                   inside change detection, so the whole refusal alert failed to render and the
+                   admin saw a broken screen instead of the one message that tells them what to
+                   do. A fallback that manufactures a value the consumer refuses is not a guard. -->
+              @if (retryFrom(); as from) {
+                <bh-button variant="ghost" size="sm" data-testid="apply-from-retry" (click)="retryFromNextFreeDay()"
+                           i18n="@@admin.schedule.blocked.retry">Apply from {{ from + 'T00:00:00' | date:'d MMM' }}</bh-button>
+              }
             </bh-alert>
           }
 
@@ -332,6 +343,17 @@ export class SchedulePage implements OnInit {
     return $localize`:@@admin.schedule.sessions.meta:${s.bookedCount}:booked:/${s.capacity}:capacity: booked`;
   }
 
+  /**
+   * The API returns `startTime` as a wire time, which Postgres renders with seconds — the rows
+   * read "Mon 18:00:00 · WOD Class". Trimming to HH:mm is a display concern, not a parse: the
+   * value is already the box's local wall-clock time, so putting it through a Date (and therefore
+   * a timezone) would be wrong, not merely heavier. The form's `type="time"` input round-trips
+   * either form, so this does not affect editing.
+   */
+  protected hhmm(startTime: string): string {
+    return startTime.slice(0, 5);
+  }
+
   protected templateMeta(t: ClassTemplate): string {
     return $localize`:@@admin.schedule.templates.meta:${t.durationMin}:duration: min · cap ${t.capacity}:capacity:`;
   }
@@ -352,7 +374,7 @@ export class SchedulePage implements OnInit {
     this.editing.set(t);
     this.formName.set(t.name);
     this.formWeekday.set(String(t.weekday));
-    this.formStartTime.set(t.startTime);
+    this.formStartTime.set(this.hhmm(t.startTime)); // the time input's own value format
     this.formDurationMin.set(String(t.durationMin));
     this.formCapacity.set(String(t.capacity));
     this.formActive.set(t.active);
@@ -444,8 +466,13 @@ export class SchedulePage implements OnInit {
     }
     const dates = detail.slice(marker.length).split(',').map(d => d.trim()).filter(Boolean);
     this.blockingDates.set(dates);
+
+    // An unparseable date yields NaN getters and therefore the retryFrom string "NaN-aN-aN", which
+    // DatePipe rejects exactly as "T00:00:00" did. Leaving retryFrom null instead drops only the
+    // retry button; the refusal itself — the part the admin must not miss — still renders.
     const last = dates[dates.length - 1];
     const next = new Date(last + 'T00:00:00');
+    if (!last || Number.isNaN(next.getTime())) { this.retryFrom.set(null); return; }
     next.setDate(next.getDate() + 1);
     this.retryFrom.set(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`);
   }

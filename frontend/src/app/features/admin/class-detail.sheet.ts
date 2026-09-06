@@ -99,7 +99,10 @@ type FetchState = 'loading' | 'error' | 'ready';
                 </bh-button>
               } @else {
                 <bh-alert tone="warn" data-testid="admin-class-detail-cancel-confirm">
-                  <span i18n="@@admin.classDetail.cancel.confirm.body">{d.active.length + d.queue.length, plural, =0 {This cancels the class. No one is booked yet, so no one is notified.} =1 {This cancels the class and notifies 1 person — booked or waitlisted.} other {This cancels the class and notifies # people — booked or waitlisted.}}</span>
+                  <!-- Interpolation, not the MessageFormat "#" placeholder: Angular's ICU does
+                       NOT substitute #, it renders the character. This confirm would have read
+                       "notifies # people" — on the one control that mails the whole roster. -->
+                  <span i18n="@@admin.classDetail.cancel.confirm.body">{d.active.length + d.queue.length, plural, =0 {This cancels the class. No one is booked yet, so no one is notified.} =1 {This cancels the class and notifies 1 person — booked or waitlisted.} other {This cancels the class and notifies {{ d.active.length + d.queue.length }} people — booked or waitlisted.}}</span>
                 </bh-alert>
 
                 @if (cancelError()) {
