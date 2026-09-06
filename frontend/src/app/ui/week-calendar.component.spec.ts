@@ -25,15 +25,29 @@ describe('WeekCalendarComponent', () => {
     expect(week.some(d => !d.selectable)).toBeTrue();
   });
 
-  it('shiftWeek moves seven days and clamps to [0, max]', () => {
+  it("shiftWeek lands on the target week's Monday and clamps to [0, max]", () => {
     const fixture = make(13);
     const cmp = fixture.componentInstance;
+
+    // Derived from the component's own week(), never hardcoded: today's weekday decides every
+    // number here, so a literal would pass six days in seven and fail on the seventh. This spec
+    // asserted `toBe(7)` when paging kept the weekday, which is exactly that trap.
+    const thisMonday = cmp.week()[0].offset; // <= 0; 0 only when today IS Monday
+
+    cmp.shiftWeek(1);
+    expect(cmp.offset()).toBe(thisMonday + 7); // next week's MONDAY, not today + 7
+
     cmp.shiftWeek(-1);
-    expect(cmp.offset()).toBe(0); // cannot go before today
-    cmp.shiftWeek(1);
-    expect(cmp.offset()).toBe(7);
-    cmp.shiftWeek(1);
-    expect(cmp.offset()).toBe(13); // clamped at max, not 14
+    expect(cmp.offset()).toBe(0); // that Monday is at or before today, so it clamps onto today
+  });
+
+  it('shiftWeek never leaves the selectable range, whatever weekday today is', () => {
+    const fixture = make(13);
+    const cmp = fixture.componentInstance;
+    for (let i = 0; i < 5; i++) cmp.shiftWeek(1); // walk past max deliberately
+    expect(cmp.offset()).toBeLessThanOrEqual(13);
+    expect(cmp.offset()).toBeGreaterThanOrEqual(0);
+    expect(cmp.selectedDay().selectable).toBeTrue();
   });
 
   it('shiftDay moves one day and clamps', () => {

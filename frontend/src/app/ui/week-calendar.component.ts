@@ -187,7 +187,20 @@ export class WeekCalendarComponent {
     if (next !== this.offset()) this.offset.set(next);
   }
 
-  shiftWeek(dir: number) { this.shiftDay(dir * 7); }
+  /**
+   * Paging a week lands on that week's MONDAY, not on the same weekday seven days away
+   * (user-ruled 2026-09-06): pressing "next week" from a Wednesday should open the next week,
+   * not hop Wednesday-to-Wednesday. week()[0] IS that week's Monday by construction.
+   *
+   * Clamped into [0, max]. Backwards the clamp bites often and correctly — the target Monday is
+   * usually before today, and today is then the earliest selectable day of that same week.
+   * Forwards it never bites: canNext() already requires week()[6].offset < max(), so the next
+   * Monday is at most max.
+   */
+  shiftWeek(dir: number) {
+    const next = Math.min(this.max(), Math.max(0, this.week()[0].offset + dir * 7));
+    if (next !== this.offset()) this.offset.set(next);
+  }
 
   onPointerDown(e: PointerEvent) {
     this.swiped = false;                              // reset here, so a swipe that ends off a
