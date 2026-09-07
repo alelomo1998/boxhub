@@ -132,6 +132,23 @@ public class WodService {
     @Transactional
     public SessionItem attachToSession(UUID libraryWodId, UUID sessionId, int sortOrder) {
         Wod source = wods.findById(libraryWodId).orElseThrow();
+        Wod copy = copyForSession(source);
+
+        SessionItem item = new SessionItem();
+        item.setSessionId(sessionId);
+        item.setWodId(copy.getId());
+        item.setSortOrder(sortOrder);
+        item.setScoreType(copy.getScoreType());
+        return sessionItems.save(item);
+    }
+
+    /**
+     * The copy half of attachToSession, reusable by the replace-items path, which owns item
+     * creation itself. ONE copier, so a field added to Wod cannot be copied by one path and
+     * forgotten by the other. source_wod_id is the link "save to library" later updates in place.
+     */
+    @Transactional
+    public Wod copyForSession(Wod source) {
         Wod copy = new Wod();
         copy.setTitle(source.getTitle());
         copy.setMacro(source.getMacro());
@@ -142,23 +159,49 @@ public class WodService {
         copy.setBodyText(source.getBodyText());
         copy.setBlocksJson(source.getBlocksJson());
         copy.setScalingNotes(source.getScalingNotes());
+        copy.setTeamSize(source.getTeamSize());
+        copy.setTeamShare(source.getTeamShare());
         copy.setBenchmarkTemplateId(source.getBenchmarkTemplateId());
         copy.setLibrary(false);
-        wods.save(copy);
-
-        SessionItem item = new SessionItem();
-        item.setSessionId(sessionId);
-        item.setWodId(copy.getId());
-        item.setSortOrder(sortOrder);
-        item.setScoreType(copy.getScoreType());
-        return sessionItems.save(item);
+        copy.setSourceWodId(source.getId());
+        return wods.save(copy);
     }
 
-    /** Promotes a copy back into the shared library (e.g. "save this as a reusable WOD"). */
+    /**
+     * "Save this piece to the library", default OFF in the UI (tour decision 4). When the piece
+     * came from a library entry, that entry is UPDATED IN PLACE -- which is what decision 4 means
+     * by re-saving. Otherwise one library row is created and linked, so the NEXT save takes the
+     * update branch instead of adding a second row. This replaces promoteToLibrary, which flipped
+     * the class's own copy into the library and re-coupled the class to the shared row, undoing
+     * copy-on-attach.
+     */
     @Transactional
-    public Wod promoteToLibrary(UUID wodId) {
-        Wod w = wods.findById(wodId).orElseThrow();
-        w.setLibrary(true);
-        return wods.save(w);
+    public Wod saveToLibrary(UUID wodId) {
+        Wod piece = wods.findById(wodId).orElseThrow();
+        UUID sourceId = piece.getSourceWodId();
+        Wod target = sourceId != null ? wods.findById(sourceId).orElse(null) : null;
+        if (target == null) {
+            target = new Wod();
+            target.setCreatedBy(TenantContext.userId());
+        }
+        target.setTitle(piece.getTitle());
+        target.setMacro(piece.getMacro());
+        target.setTimingPreset(piece.getTimingPreset());
+        target.setTimingJson(piece.getTimingJson());
+        target.setScoreType(piece.getScoreType());
+        target.setTimeCapSeconds(piece.getTimeCapSeconds());
+        target.setBodyText(piece.getBodyText());
+        target.setBlocksJson(piece.getBlocksJson());
+        target.setScalingNotes(piece.getScalingNotes());
+        target.setTeamSize(piece.getTeamSize());
+        target.setTeamShare(piece.getTeamShare());
+        target.setBenchmarkTemplateId(piece.getBenchmarkTemplateId());
+        target.setLibrary(true);
+        target.setUpdatedAt(now());
+        Wod saved = wods.save(target);
+
+        piece.setSourceWodId(saved.getId());
+        wods.save(piece);
+        return saved;
     }
 }

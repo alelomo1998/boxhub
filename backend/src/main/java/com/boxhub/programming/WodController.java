@@ -130,7 +130,11 @@ public class WodController {
         if (req.blocks() != null) w.setBlocksJson(service.serialize(req.blocks()));
         if (req.scalingNotes() != null) w.setScalingNotes(req.scalingNotes());
         w.setUpdatedAt(Instant.now());
-        return toDto(wods.save(w));
+        Wod saved = wods.save(w);
+        // Default OFF: an ordinary edit of a class's own piece never reaches the library. When it
+        // is asked for, source_wod_id makes the second save update the row the first one made.
+        if (Boolean.TRUE.equals(req.saveToLibrary())) service.saveToLibrary(saved.getId());
+        return toDto(saved);
     }
 
     @DeleteMapping("/{id}")

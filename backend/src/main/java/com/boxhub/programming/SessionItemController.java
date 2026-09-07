@@ -45,7 +45,8 @@ public class SessionItemController {
 
     public record ItemDto(UUID id, UUID wodId, WodController.WodDto wod, int sortOrder,
                           boolean scoreable, String scoreType, boolean myScoreLogged) {}
-    record ItemInput(UUID id, @NotNull UUID wodId, boolean scoreable, String scoreType) {}
+    /** Exactly one of wodId (a piece the class already owns) and fromLibraryWodId (copy it in). */
+    record ItemInput(UUID id, UUID wodId, UUID fromLibraryWodId, boolean scoreable, String scoreType) {}
     record ItemsRequest(@NotNull List<ItemInput> items) {}
     record ProgrammingRequest(@NotNull String status) {}
 
@@ -83,11 +84,31 @@ public class SessionItemController {
     public List<ItemDto> replace(@PathVariable UUID sessionId, @Valid @RequestBody ItemsRequest req) {
         RoleGuard.requireStaff();
         sessions.findById(sessionId).orElseThrow(NoSuchElementException::new);
+        // Exactly one of wodId / fromLibraryWodId, and a library pick is COPIED so the class owns
+        // its content: editing the library entry later must never rewrite what a class that has
+        // already run actually did (spec decision 3). resolvedWodIds is index-aligned with
+        // req.items(), and every read of a piece's wod below goes through it rather than in.wodId().
         Map<UUID, Wod> wodByInputId = new java.util.HashMap<>();
+        List<UUID> resolvedWodIds = new java.util.ArrayList<>(req.items().size());
         for (ItemInput in : req.items()) {
-            // tenant-filtered -> foreign 404; kept for the write-time score-type derivation below
-            Wod w = wods.findById(in.wodId()).orElseThrow(NoSuchElementException::new);
-            wodByInputId.put(in.wodId(), w);
+            boolean hasWod = in.wodId() != null, hasLib = in.fromLibraryWodId() != null;
+            if (hasWod == hasLib)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Give exactly one of wodId or fromLibraryWodId");
+            Wod w;
+            if (hasLib) {
+                if (in.id() != null)
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "An existing item already owns its copy");
+                // tenant-filtered -> foreign 404
+                Wod source = wods.findById(in.fromLibraryWodId()).orElseThrow(NoSuchElementException::new);
+                w = wodService.copyForSession(source);
+            } else {
+                // tenant-filtered -> foreign 404; kept for the write-time score-type derivation below
+                w = wods.findById(in.wodId()).orElseThrow(NoSuchElementException::new);
+            }
+            wodByInputId.put(w.getId(), w);
+            resolvedWodIds.add(w.getId());
             if (in.scoreType() != null && !SCORE_TYPES.contains(in.scoreType()))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown score type");
         }
@@ -138,13 +159,15 @@ public class SessionItemController {
 
         // 3. Walk the request in order: update survivors in place (keeping their id), create new pieces.
         int sort = 0;
-        for (ItemInput in : req.items()) {
+        for (int idx = 0; idx < req.items().size(); idx++) {
+            ItemInput in = req.items().get(idx);
+            UUID wodId = resolvedWodIds.get(idx); // the copy's id when the piece came from the library
             // score_type is NOT NULL (M14a): null on the wire still means "auto", but the derivation
             // now happens here, at write time, rather than on every read.
-            String scoreType = in.scoreType() != null ? in.scoreType() : wodByInputId.get(in.wodId()).getScoreType();
+            String scoreType = in.scoreType() != null ? in.scoreType() : wodByInputId.get(wodId).getScoreType();
             if (in.id() != null) {
                 SessionItem i = existingById.get(in.id());
-                if (!i.getWodId().equals(in.wodId())) {
+                if (!i.getWodId().equals(wodId)) {
                     // A changed wodId on an existing item is the ORDINARY edit, not an attempt to swap
                     // workouts: instance-builder's ensureWod() mints a brand-new wod whenever a piece's
                     // title, body or type changed, so "edit this piece's text and save" arrives here as
@@ -154,7 +177,7 @@ public class SessionItemController {
                     if (scored.contains(i.getId()))
                         throw new ResponseStatusException(HttpStatus.CONFLICT,
                                 "Cannot change the workout of a scored piece: results are logged against the current one");
-                    i.setWodId(in.wodId());
+                    i.setWodId(wodId);
                 }
                 i.setSortOrder(sort++);
                 i.setScoreable(in.scoreable());
@@ -163,7 +186,7 @@ public class SessionItemController {
             } else {
                 SessionItem i = new SessionItem();
                 i.setSessionId(sessionId);
-                i.setWodId(in.wodId());
+                i.setWodId(wodId);
                 i.setSortOrder(sort++);
                 i.setScoreable(in.scoreable());
                 i.setScoreType(scoreType);
