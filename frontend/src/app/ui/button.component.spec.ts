@@ -373,6 +373,17 @@ describe('ButtonComponent as an internal link', () => {
     expect(a.getAttribute('href')).toBe('/coach/classes/abc/build');
   });
 
+  it('resolves a router-relative string, NOT an app-base-prefixed one', () => {
+    // href and route take DIFFERENT strings: base href is /app/, so href carries the /app prefix
+    // and route must not. The gallery's own sample shipped as route="/app/dev/components" and
+    // resolved to /app/app/dev/components — a dead link in the cell meant to teach the pattern.
+    const f = TestBed.createComponent(RouteHost);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a.getAttribute('href')).toBe('/coach/classes');
+    expect(a.getAttribute('href')).not.toContain('/app/app');
+  });
+
   it('drops the link when disabled, so it leaves the tab order like the href branch', () => {
     const f = TestBed.createComponent(RouteArrayHost);
     f.componentInstance.d.set(true);

@@ -158,7 +158,12 @@ export class ButtonComponent {
   href = input('');
   /** Internal navigation, rendered as an <a routerLink>. Takes what routerLink takes: a string or
    *  a command array. Use this instead of hand-rolling an anchor and re-deriving the button's
-   *  styling — that duplication is what this input exists to end. */
+   *  styling — that duplication is what this input exists to end.
+   *
+   *  NOT interchangeable with `href`'s string. index.html sets base href="/app/", so `href` carries
+   *  the /app prefix while `route` must omit it — routerLink resolves against the router, not the
+   *  document. '/coach/classes' here becomes /app/coach/classes; '/app/coach/classes' would become
+   *  /app/app/coach/classes and 404. The gallery's own sample shipped with exactly that bug. */
   route = input<string | unknown[] | null>(null);
   testId = input('');
 
