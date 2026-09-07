@@ -47,6 +47,8 @@ and answered on 2026-09-07; two were already answered elsewhere.
 | 4 | Team WOD depth | **Authoring + team scoring.** "Team of N" and how the work is shared, on the piece; one result logged per team with members picked at score time. Roster planning stays out — that is "Heats/teams", Project 2. |
 | 5 | Team scoring reach | **Model + API + a picker in the existing `bh-score-form`.** Authoring a "Team of 2" that can never be scored would be *absent*, which `2026-08-22-v1-0-pilot-program.md` forbids; built-but-idle is the permitted shape, absent is not. |
 | 6 | Movement field | **A picker sheet, not the native `<datalist>`.** User-stated: *"we have to avoid the basic combo and be mobile friendly."* |
+| 8 | Scaling options per exercise | **A line carries a LIST of scales, each shaped like the line itself** — movement + reps + load. "6 muscle-ups → 12 pull-ups or 20 ring rows". User-asked 2026-09-07. §5A. |
+| 9 | Notify when a coach posts the programming | **Fire `PROGRAMMING_PUBLISHED`, on by default, to the athletes booked on that session.** User-asked 2026-09-07: *"fire a notification when the coach attach the class exercise to the class"*, and *"only for the class that im booked"*. §5B. |
 | 7 | Admin access to the builder | **Coach-only route now, admin entry point filed to M15b.** `BOX_ADMIN` already passes the staff guard, so an admin who reaches the URL can use it. Where an admin *finds* it is an IA decision belonging with the admin surfaces. |
 
 Two mechanisms were chosen by the orchestrator rather than asked, and are called out as reversible in
@@ -183,6 +185,113 @@ caller's box (`@TenantId` gives this, and a foreign id therefore 404s rather tha
 
 ---
 
+## 5A. Backend — scaling options per exercise
+
+**User-asked, 2026-09-07:** *"we need also a scaling option to every exercise (multiple also), for
+example exercise is 6 muscle up and we can scale it with 12 pull ups or 20 ring row."*
+
+### 5A.1 A scale has the same shape as the line it scales
+
+`WodJson.Line` carries a single free-text `String scaling` today. It becomes a **list**, and each
+entry is shaped like the line itself, so a scale gets the same movement picker and a later
+leaderboard can tell *scaled to ring rows* from *scaled to jumping pull-ups*:
+
+```java
+public record Scale(String text, UUID movementId, String reps, String load) {}
+public record Line(String text, UUID movementId, String reps, String load,
+                   String scaling, List<Scale> scales) {}
+```
+
+### 5A.2 No migration — normalise on read instead
+
+`blocks_json` is JSONB, so widening the record needs no DDL. Rewriting every historical `scaling`
+string would mean a `jsonb_set` walk through two levels of block nesting for a field that, verified
+before planning, **has almost no reader**: the record, the TS interface, and
+`wod-builder.page.ts` — which this milestone deletes.
+
+So `WodService.deserialize` normalises: a line with a non-blank `scaling` and no `scales` is read
+as `scales = [ Scale(scaling, null, null, null) ]` with `scaling` cleared. Writes always emit
+`scales` and never `scaling`. **One meaning at every API boundary, a legacy reader behind it, and
+the row heals itself the next time it is saved.** This is the same move M14a made for the block
+depth cap — behaviour in the validator rather than a rewrite of stored JSON.
+
+`scaling` stays on the record as the legacy input only, and is **never** returned populated.
+
+### 5A.3 Validation
+
+`WodJsonValidator` gains: a scale must carry a non-blank `text` **or** a `movementId` (an entry that
+says nothing is a UI slip, not a prescription), and **at most 6 scales per line**. The cap exists
+because `blocks_json` is an unbounded user-controlled document and this milestone is closing an
+unbounded-growth bug, not opening a second one. Six is generous — a box offering seven alternatives
+to one movement has a programming problem, not a software one.
+
+---
+
+## 5B. `PROGRAMMING_PUBLISHED` — the coach has posted the workout
+
+**User-asked, 2026-09-07:** *"we need to fire a notification when the coach attach the class exercise
+to the class: for example 'The coach has uploaded the wod/exercises'"*, and on the audience,
+*"only for the class that im booked"*.
+
+### 5B.1 The event already exists in the registry
+
+`docs/NOTIFICATIONS.md` §4.4 already carries the row: trigger `programming_status → PUBLISHED`,
+recipients *athletes booked on it*, channel *feed*, owner **"later"**. **This milestone is taking
+ownership of a registered event, not inventing one** — which is what §7 of the registry requires
+before any code is written.
+
+M29b built the entire mechanism. `NotificationType` is the registry in code, and its own comment is
+explicit: *"adding an event is a row in `docs/NOTIFICATIONS.md` plus a constant here, never a
+migration."* So this costs **one enum constant and one call site.**
+
+### 5B.2 The one conflict, and how it resolves
+
+The registry declares the event **off by default**, reasoning: *"a box that publishes a week at a
+time would fire this a dozen times in a minute."*
+
+That worry was written against a bulk-publish path **that does not exist**: the builder publishes
+**one session at a time**, from one screen, with one button. Off-by-default would also mean almost
+no athlete ever receives it, which is not what was asked for.
+
+**Resolution — the registry row is amended, with the reasoning recorded rather than silently
+flipped:** `defaultOn = true`, `mandatory = false` (an athlete can turn it off; it is a training
+event, and §5.3 makes training events opt-out rather than mandatory).
+
+### 5B.3 The declaration
+
+```java
+PROGRAMMING_PUBLISHED ("clipboard-list", true, true, false),
+//                      icon             feed  default  mandatory
+```
+
+`clipboard-list` is already in `ICON_NAMES`; no icon is added.
+
+- **link** — `/athlete/class/{sessionId}`, joining the existing session-scoped arm of
+  `NotificationType.link`.
+- **dedupeKey** — `sessionId`. A coach who fixes a typo and hits *Save & republish* must not
+  re-notify the roster. This is the mechanism `CLASS_STARTING_SOON` already uses, not a new one.
+- **audience** — the **booked** roster of that session (`BOOKED` or `CHECKED_IN`), resolved once at
+  emit and stored, per §5.2's frozen-audience rule.
+
+### 5B.4 Two rules that are easy to get wrong here
+
+1. **`NotificationService.emitAll` is `@Transactional(propagation = MANDATORY)`** — it must run
+   inside a caller's transaction, because an in-app row is *persistence* and belongs inside the
+   transaction that caused it (registry §5.1). **`SessionItemController.publish` carries no
+   `@Transactional` today**, so it gains one. Without it the call throws at runtime rather than
+   silently doing nothing — but only on the path a coach actually uses.
+2. **A drop-in visitor has a null `membershipId`** (M22), and `notification.membership_id` is NOT
+   NULL. `emitAll` already filters nulls centrally, precisely so every booking-derived fan-out does
+   not have to remember. Follow `ClassReminderScheduler.sweepBox` — do not re-implement the filter
+   at this call site.
+
+### 5B.5 It fires on the transition, not on every save
+
+Only when `programming_status` actually moves to `PUBLISHED` from something else. A publish of an
+already-published session emits nothing, and `dedupeKey` is the belt to that braces.
+
+---
+
 ## 6. Frontend — two routes, one editor
 
 | Route | Screen | Replaces |
@@ -221,6 +330,10 @@ the user's ->   N x [ 30s work "squat", 15s rest, 30s work "burpees" ]
 AMRAP 20   ->   1 x [ 20:00 work ]
 For time   ->   1 x [ cap ]
 ```
+
+**Each line carries its scaling options** (§5A): under the prescribed movement, a list of
+alternatives, each an ordinary line row reusing the same movement pick sheet, with *+ scaling
+option* beneath. Empty by default — most lines have none — and capped at six.
 
 **Blocks are exactly two levels** and the UI must not offer a third — `WodJsonValidator` rejects it
 with `BLOCK_DEPTH`, and an affordance that produces a 400 is a defect, not a guard.
@@ -269,6 +382,27 @@ alternative is shipping a chip option that silently does nothing. Per the root-c
 call sites change together; patching only the log button would leave the label still lying.
 
 The score chip row itself is `bh-segmented` with `wrap` and `tone="bone"` (§7.2), not a new component.
+
+### 6.6 The athlete's reader renders one level, and this milestone gives it two
+
+Same class of gap, found the same way. `athlete/wod.page.ts:39-46` renders the structured blocks:
+
+```
+@for (blk of i.wod.blocks.blocks)  ->  @for (l of blk.lines)
+```
+
+It renders `blk.lines` and **never `blk.blocks`** — one level. Two-level nesting has existed since
+M14a, but nothing could author it, so the gap was invisible. The moment this milestone's editor can
+create a macro block holding sub-blocks, **the athlete sees a labelled block with nothing in it**,
+and a line's scaling options are invisible for exactly the same reason.
+
+Authoring something no one can read is the *absent* the v1.0 rule forbids, so the reader is widened
+here: recurse one level, and render a line's `scales` beneath it. **One level of recursion, not
+arbitrary depth** — the model is capped at two and the renderer should say so.
+
+This is a contained change to a screen **M17b will rebuild**, taken here for the same reason §6.5's
+guard fix is: the alternative is shipping an editor whose output cannot be seen. M17b still owns the
+screen's design; this owns its correctness.
 
 ---
 
@@ -340,6 +474,13 @@ membership carries the gallery-and-baselines contract. Promote it if a third con
   athlete is refused.
 - **The type loss, asserted:** a wod created with `macro=WORKOUT, timingPreset=null` reads back
   unchanged — no round-trip through `WodTypeWire`.
+- **Scales round-trip**, a legacy `scaling` string normalises to a one-entry `scales` list, a
+  seventh scale is refused, and an empty scale is refused.
+- **The athlete reader shows a nested block's lines and a line's scaling options** — asserted on
+  `athlete/wod.page`, because this milestone is the first that can author either.
+- **`PROGRAMMING_PUBLISHED`** fires once to the booked roster on the DRAFT→PUBLISHED transition,
+  emits nothing on republish, skips a visitor booking with a null membership, and writes its row
+  **inside** the publishing transaction.
 - New routes registered in `AuthzConformanceTest.MIN_ROLE` with their real intent. **Registering a
   route (and seeding a real id in `pathIds`) is the only permitted edit to that file**, and the
   orchestrator audits it.
@@ -411,3 +552,5 @@ Found while writing this spec, fixed here rather than filed:
 - **`bh-score-form`'s completion branch is unreachable** — `athlete/wod.page.ts:50` and `:179` both
   gate on `scoreType !== 'NONE'`, so a piece authored as scored-by-completion can never be logged.
   §6.5.
+- **The athlete's block renderer is one level deep** — `athlete/wod.page.ts:39-46` never renders
+  `blk.blocks`, so a nested block would show as empty the moment the editor can author one. §6.6.
