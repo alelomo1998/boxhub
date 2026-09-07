@@ -594,6 +594,9 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("PUT /api/box/sessions/items/{itemId}/score", "ATHLETE"),
             Map.entry("GET /api/box/sessions/items/{itemId}/score", "ATHLETE"),
             Map.entry("POST /api/box/sessions/items/{itemId}/score/{membershipId}", "COACH"),
+            // M14c-a. ATHLETE + a per-row check in the handler: the caller must be one of the named
+            // members, or staff. Same shape as GET /api/box/receipts/{paymentId}.
+            Map.entry("POST /api/box/sessions/items/{itemId}/score/team", "ATHLETE"),
             Map.entry("GET /api/box/sessions/items/{itemId}/leaderboard", "ATHLETE"),
             Map.entry("GET /api/box/my-scores", "ATHLETE"),
             Map.entry("GET /api/box/benchmark-history", "ATHLETE"),
