@@ -425,6 +425,20 @@ dependency.
 with arrows, drop with Space, Escape cancels and restores the original position. Every move announces
 through a live region.
 
+**Rows are `role="listitem"` inside a `role="list"`, NOT `option`/`listbox` — ruled 2026-09-07.**
+The first build used `listbox`/`option`, which is the natural ARIA fit for "pick one of these" and
+wrong for this component. An `option`'s children are presentational (`childrenPresentational` in
+axe's role table), so a link or button inside a row fails `nested-interactive` — and **the class
+stack's rows must be tappable**, because tapping a piece is how you open its editor and the
+mobile-first rule requires exactly that for choosing a domain object. A list of rows that each do
+something is a `list`, not a single-select control.
+
+Reordering therefore needs its own focusable affordance rather than borrowing the row's focus:
+- **pointer** — long-press anywhere on the row, as before;
+- **keyboard** — a **drag handle button** in each row (`aria-label` naming the item), which takes
+  Space-to-grab, arrows-to-move, Escape-to-cancel. A `listitem` may legally contain it; an `option`
+  may not, which is the whole reason for the change.
+
 Owes the full seven-states contract, a dev-gallery section that declares the states it cannot have,
 axe, and visual baselines. `ui/` law: signal inputs only, no raw px type sizes, no raw hex.
 
