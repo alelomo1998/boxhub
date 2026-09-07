@@ -1,190 +1,144 @@
-# Next session — **M14b is DONE and merged. Start M14c-a, the builder.**
+# Next session — **M14c-a is IN PROGRESS on `m14c-a-builder`. Continue at Task 9.**
 
 | | |
 |---|---|
-| Last milestone | **M14b** schedule & classes surfaces — merged to `main`, plus a follow-up that closed the critique's P1 and re-scored. Both branches deleted. |
-| Backend suite | **754 / 0 / 0 / 0**, `BUILD SUCCESS` |
-| Karma | **642 SUCCESS** (626 at handoff + 16) |
+| Branch | **`m14c-a-builder`**, pushed. `main` is at `ee19a35` and also pushed. |
+| Spec | `docs/superpowers/specs/2026-09-07-m14c-a-builder-design.md` |
+| Plan | `docs/superpowers/plans/2026-09-07-m14c-a-builder.md` — **17 tasks**, 1–8 done |
+| Backend suite | **798 / 0 / 0 / 0**, `BUILD SUCCESS` (last verified at `e8669c5`; nothing since has touched backend) |
+| Karma | **666 SUCCESS** |
 | Production build | clean, **zero warnings** |
-| Playwright | **91 passed, 0 failed** — the FULL suite, on a `down -v` stack |
-| Visual baselines | **33 passed**, regenerated for the strip |
-| Standing greps | `runAsRoot` 0 · `ui/` decorators 0 · `bh-day-pager` 0 · `AuthzConformanceTest` untouched |
-
-Next: **M14c-a — the builder** (`docs/ROADMAP-AT-A-GLANCE.md` row 10).
+| Playwright | **not run yet this milestone** — Task 13 |
+| Visual baselines | **one MISSING**: `sortable-list` has no snapshot. Task 13 Step 0. |
 
 ---
 
 ## Paste this into the new session
 
 ```
-Read .superpowers/sdd/NEXT-SESSION.md and START M14c-a, the builder.
+Read .superpowers/sdd/NEXT-SESSION.md and CONTINUE M14c-a at Task 9.
 
-cd ~/dev/boxhub && git checkout main && git pull && git status
-# expect a CLEAN tree and NO m14b branch — it was merged and deleted
+cd ~/dev/boxhub && git checkout m14c-a-builder && git status
+# expect a CLEAN tree at 65b2c66, branch already pushed
 
-M14b is finished and merged. Do not resume it. M14c-a is the next milestone
-(docs/ROADMAP-AT-A-GLANCE.md row 10): one page for checking a WOD, creating
-one, and building a class. Blocks of blocks at two levels, the presets UI over
-the segment sequence, swipe reorder replacing the arrows, a replacement for the
-scored checkbox, and team WOD authoring.
+Do NOT re-plan and do NOT re-spec. The spec and the plan exist and are
+approved:
+  docs/superpowers/specs/2026-09-07-m14c-a-builder-design.md
+  docs/superpowers/plans/2026-09-07-m14c-a-builder.md
+Tasks 1-8 are committed and independently verified. Start at Task 9.
 
-Start with superpowers:brainstorming, then a spec, then a plan. Do not write
-code before the plan exists.
+Remaining: 9 (frontend wire), 10 (piece editor), 11 (class stack),
+12 (athlete reader + team scoring), 13 (e2e), 14 (close the records).
+
+ALWAYS SUBAGENT. One executor per plan task, model chosen per task -- Opus
+where a wrong diff is expensive (screens, anything touching scores), Sonnet
+for mechanical work. The orchestrator reviews every diff, runs every gate
+itself, and commits. NEVER accept an executor's reported test numbers: run
+the suite yourself and read the real line.
+
+THE SCREEN FLOW IS BINDING AND THE USER RESTATED IT 2026-09-07:
+  build -> USER LOOKS AND SAYS OK -> audit (>=16/20) -> critique (>=32/40)
+        -> fix every P0/P1 -> RE-SCORE BOTH
+The user's look sits BETWEEN build and audit and is a gate, not a courtesy.
+Hand over a click path (URL + which demo account) and WAIT. Do not run audit
+or critique on an unapproved composition. Expect 3-5 look-and-adjust rounds
+per screen; every one has found a real defect. You are authorised to sign
+into the dev stack with the demo accounts yourself.
 
 Baselines to confirm before building on them:
-  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 754/0/0/0
+  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 798/0/0/0
   cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless
   cd frontend && env -u NODE_OPTIONS npm run build                 # 0 warnings
-Expect 754/0/0/0, TOTAL: 642 SUCCESS, zero warnings. The "Mailer ... Couldn't
-connect to host, port: localhost, 1025" ERROR lines are pre-existing SMTP
-noise — judge only by "Tests run:" and "BUILD SUCCESS".
+Expect 798/0/0/0, TOTAL: 666 SUCCESS, zero warnings. The "Mailer ... port:
+localhost, 1025" ERROR lines are pre-existing SMTP noise -- judge only by
+"Tests run:" and "BUILD SUCCESS".
 
 Environment: NODE_OPTIONS is poisoned, always `env -u NODE_OPTIONS`. There is
-no ./mvnw. NEVER chain a grep gate with && — a grep that correctly finds
-nothing exits 1 and aborts the chain. Compose from the repo root
-(docker/docker-compose.yml), Playwright from e2e/. Rebuild the frontend image
-and verify your change is in the SERVED bundle before any browser pass or e2e
-run; the image does not rebuild itself.
+no ./mvnw; JAVA_HOME=/opt/homebrew/opt/openjdk@21. NEVER chain a grep gate
+with && -- a grep that correctly finds nothing exits 1 and aborts the chain.
+Compose from the repo root (docker/docker-compose.yml), Playwright from e2e/.
+Rebuild the frontend image and verify your change is in the SERVED bundle
+before any browser pass or e2e run; the image does not rebuild itself.
 
-M14c-a inherits two things M14b filed for it:
-  - the unbounded `wod` growth bug (BACKLOG "→ M14 Class model & schedule")
-  - the pre-M14a CIRCUIT/CUSTOM/SKILL wod type loss, which its rebuilt select
-    is the only place allowed to fix
+TELL EVERY EXECUTOR, IN THE BRIEF: run maven and npm in the FOREGROUND with
+timeout 900000. Seven executors stalled this milestone by backgrounding a
+test run and ending their turn to wait for it, one of them after being told
+not to. It costs a full round-trip each time.
 
-ALWAYS subagent: one Sonnet executor per plan task, review every diff yourself,
-run the gates yourself, commit yourself. Executors return BEFORE their own
-background suite finishes — verify from the output file, never from the agent's
-summary.
+Five things that cost real time here and will again:
+- Reverting a file with `mv file.bak file` restores its OLD MTIME, so Maven
+  skips recompiling and you test the broken class. touch after any
+  revert-by-restore. Tasks that say "break the fix and watch it fail" all
+  hit this.
+- Green Karma is NOT evidence the build compiles. AOT rejected a private
+  field referenced from a template that Karma's JIT accepted. Run
+  `npm run build` too, every time.
+- The plan's predicted test counts are guidance, not gates. Judge by
+  "Failures: 0" and "BUILD SUCCESS", never by matching a number.
+- The plan's test helpers are ILLUSTRATIVE. Working MockMvc + JWT harnesses
+  now exist in WodAxesWireTest, WodLibraryListTest, WodGrowthTest,
+  TeamScoreTest. Read one and follow it; do not invent another.
+- Repository reads from a test thread need TenantContext.runAsBox(boxId,...).
+  @TenantId entities fail CLOSED post-M21, so a bare count() returns 0 and
+  every emptiness assertion passes vacuously.
 
-The impeccable routine is per screen and the LAST step is the one that gets
-skipped: shape -> build -> audit (>=16/20) -> critique (>=32/40) -> fix every
-P0/P1 -> RE-SCORE BOTH. A score measured with a P0/P1 still open is not the
-screen's score, so do not merge on one. M14b was merged on an uncounted 33/40
-and needed a follow-up branch to correct it. Also: verify a critique's proposed
-FIX against the code before implementing it — M14b's was unsafe and would have
-turned three in-app navigations into whole-app reloads.
-
-A backtick inside a comment in an Angular `template:`/`styles:` literal closes
-the string, and a backtick in a bash -m commit message runs command
-substitution and silently eats the word. This fired four times in one session,
-twice after being written down. Use plain words in template comments and write
-commit messages through a quoted heredoc.
+A backtick inside a comment in an Angular `template:`/`styles:` literal
+closes the string, and a backtick in a bash -m commit message runs command
+substitution and silently eats the word. Use plain words in template
+comments and write commit messages through a quoted heredoc.
 ```
 
 ---
 
-## What M14b shipped
+## What is done — 8 tasks, every one verified by the orchestrator, not by its executor
 
-`bh-week-calendar`, a swipeable Monday-first week strip with availability dots, replacing
-`bh-day-pager` (deleted, all four consumers swapped). The admin schedule page rebuilt on it, the
-admin class-detail sheet, and the two schedule-regeneration defects that wiring slot editing
-exposed.
+| Task | Commit | What it did |
+|---|---|---|
+| 1 | `dbd6438` | **V33** migration: `wod.source_wod_id/team_size/team_share`, `wod_score.team_id/team_name` |
+| 2 | `7481c34` | The **additive wire** — DTO carries `macro`/`timingPreset`/`timing`/`library`/team; an explicit macro wins over legacy `wodType`. **Closes the CIRCUIT/CUSTOM/SKILL type loss.** Also **scaling options**: a line carries a LIST of `Scale`, with the legacy free-text `scaling` normalised on read |
+| 3 | `e978f55` | `GET /api/box/wods` filters `library = true` |
+| 4 | `edf6baf` | **The growth fix.** Attach copies, edits patch the copy, `saveToLibrary` uses `source_wod_id` to update in place. `promoteToLibrary` deleted |
+| 5 | `a6fb123` | **Team scoring** — one result, N rows sharing a `team_id` |
+| 5A | `e8669c5` | **`PROGRAMMING_PUBLISHED`** fires to the booked roster on publish |
+| 5B | `31835ea` | Its athlete-facing **copy** + a new `training` prefs group |
+| 6 | `f48383b` | **`bh-sortable-list`** — long-press drag + full keyboard reorder |
+| 6A | `7108bea` | Its rows became `listitem` so they may carry their own controls |
+| 7 | `e7fbf78` | `bh-segmented` gains `wrap` and a `bone` tone |
+| 8 | `65b2c66` | **`bh-pick-sheet`** — replaces the native `datalist` |
 
-**Backend defects fixed, both live rather than latent:**
-- `PATCH /api/box/class-templates/{id}` accepted scheduling fields and then called the **additive**
-  `generateForBox`, so moving a slot left the old sessions in place and added new ones beside them,
-  permanently. `COACH`-reachable; only the UI never sent those fields.
-- `regenerateFrom`'s delete was unbounded backwards while the recreate floored at today, so a past
-  `from` deleted sessions nothing refilled — destroying every score logged against them.
+**M14a had built the model and left it unreachable.** Two-level blocks, the segment sequence, TABATA,
+`wod.library` and `attachToSession` all existed and were referenced only by one test. Most of Tasks
+1–5 was wiring what was already there, which is why the migration is one small additive file.
 
----
+## Two API contracts Tasks 10 and 11 must honour
 
-## What the last session found that nothing had recorded
+**`bh-sortable-list`** — generic in `T`. `items` (required), `label`, `itemLabel: (item, index) => string`, `(reordered)` emitting `{from, to}`. **Presentational: it never mutates `items()`** — the consumer splices its own array. Row template context is `{ $implicit: item, index }`. Rows are `role="listitem"` and **may** contain buttons/links. Hold the `itemLabel` labeller as a **class field**, not an inline arrow, or you mint a new function identity every change-detection cycle.
 
-**Six defects, every one found by LOOKING at the rendered screen, none by a green suite.** This is
-the single most useful fact for the next milestone: 638 Karma specs, a clean build and 91 green
-e2e tests all shipped past these.
+**`bh-pick-sheet`** — `open` (one-way input), `title`, `rows: PickRow[]`, `allowFreeText`, `searchLabel`, `searchPlaceholder`; outputs `(search)` (debounced term), `(picked)` (`{id}` or `{freeText}`), `(closed)`. Testids: `pick-search`, `pick-row-<id>`, `pick-free-text`.
+- **Reset your own `open` signal to `false` on BOTH `(closed)` and `(picked)`** — the component never clears it, and a stuck-true signal will not reopen the sheet.
+- **It does not filter.** `(search)` hands you the debounced term; you fetch or filter and push back through `[rows]`. **Ruled: keep it that way for both consumers** — the movement picker searches server-side, and `programming.service.wods(search)` already does the same for the library, so a second client-side filter would hide rows the server matched on an alias.
 
-1. **Angular's ICU does NOT substitute the MessageFormat `#` placeholder** — it renders the
-   character. The blocking alert read "# classes in this range have bookings." and the cancel
-   confirm read "notifies # people", on the one control that mails an entire roster. Angular's own
-   docs interpolate `{{expr}}`; `#` is standard MessageFormat, not Angular. **Assume any `#` in an
-   existing ICU plural in this codebase is broken.**
-2. **A sheet showed the PREVIOUS class's name** while loading the next one: `load()` reset `state`
-   but not `detail`, and the title read `detail()?.name`. The body switched on `state()` and looked
-   right, which is exactly why it survived review.
-3. **`?? ''` handed `DatePipe` the string `"T00:00:00"`, which it REJECTS** — InvalidPipeArgument
-   thrown inside change detection, destroying the whole refusal alert. A fallback that manufactures
-   a value the consumer refuses is not a guard.
-4. **The admin shell's 401px floor**, filed long ago as "needs a bisect", bisected: `.admin` is a
-   CSS grid whose tracks were a bare `1fr`, and **a grid ITEM's automatic minimum is its MIN-CONTENT
-   size**, so the track could never be narrower than its widest content. `minmax(0, 1fr)` fixed it,
-   401 → 330. Every ellipsis inside that track had been dead code because nothing ever applied
-   pressure.
-5. **Removing that overflow exposed an overlap underneath it**: the gym name laid out 24px on top of
-   the "Admin" label, because **a `<button>`'s automatic width is FIT-CONTENT, not stretch like a
-   div's** — it ignored its 92px host and laid out at its full 166px content width.
-6. **`--faint` on `--surface-2` is 4.27:1 and fails AA.** It is 5.07:1 on `--ground` and passes, so
-   the token is only wrong on a raised surface. This is the same number and the same token pair
-   M23's critique needed three passes to find. It will recur wherever a faint label sits on a
-   raised surface — check the background a label actually sits on, not the page.
+## Corrections executors found in the plan — all four were the executor being right
 
----
+1. **`columnExists` is not inherited** from `AbstractIntegrationTest`; each migration test declares its own (4 files already do). Fixed in `38fc3a5`.
+2. **The route is `coach/classes/:id/build`**, which already exists and is linked from `classes.page.ts:47` — not the `/coach/build/:sessionId` the spec first proposed. The piece editor is a child route beneath it.
+3. **`promoteToLibrary` had ZERO callers and ZERO tests**, not "referenced only in `WodLibraryCopyTest`". Deleting it lost no coverage. Fixed in `dffd45c`.
+4. **The plan's `@NotEmpty` on `membershipIds` would have failed the authz sweep** — bean validation runs before the handler, so it would 400 before the tenancy check, which is exactly the "validation ran before authz" hole the sweep hunts. Dropped; the count is checked in the handler against the piece's own `team_size`.
 
-## The routine has a step that is easy to skip, and skipping it cost a re-merge
+Also corrected: Task 5A's Step 7 named the wrong test as the one that goes red (the rollback test's own `TransactionTemplate` supplies the transaction, so the five happy-path tests are what fail).
 
-`shape -> build -> audit -> critique -> fix every P0/P1 -> **re-score BOTH**`. M14b was merged with
-the coach/classes P1 *filed* rather than fixed, on a 33/40 that — by the routine's own rule, *"a
-score measured with a P0 or P1 still open is not the screen's score"* — did not count. The user
-caught it. The follow-up fixed the P1 and re-scored to **36/40**.
+## The pattern worth carrying into the remaining tasks
 
-Two things that came out of doing it properly, both of which would have been lost by filing:
+**Three times this milestone, something was authored with no reader — and every gate stayed green.**
 
-- **The critique's recommended fix was unsafe.** It said to swap coach/classes' hand-rolled links
-  onto `bh-button` — but that component's only link branch was `href`, a FULL PAGE LOAD, and its own
-  doc read *"Internal navigation is a text link with routerLink, not this."* Following the advice
-  would have traded a styling duplication for three whole-app reloads. **Verify a critique's
-  proposed fix against the code before implementing it**; the finding was right and the remedy was
-  wrong.
-- **The fix introduced its own P2, which only the re-score caught.** `bh-button`'s new `route` and
-  its existing `href` take DIFFERENT strings, because `index.html` sets `base href="/app/"`: `href`
-  carries the `/app` prefix, `route` must omit it. The gallery sample was written by copying its
-  href sibling and resolved to `/app/app/dev/components` — a dead link in the one cell whose job is
-  to teach the pattern.
+- `bh-score-form`'s completion branch is unreachable: `athlete/wod.page.ts:50,179` gate on `scoreType !== 'NONE'`. **Task 12 fixes it.**
+- `athlete/wod.page.ts:39-46` renders blocks ONE level deep and never renders `blk.blocks` or a line's scaling. Nothing could author either until now. **Task 12 fixes it.**
+- `PROGRAMMING_PUBLISHED` shipped with no frontend copy, and both consumers have a generic fallback so nothing crashed. The copy spec hardcodes its own type list, so Karma stayed green. **Task 5B fixed it.**
 
-## Traps that cost time here and will again
-
-1. **Compare like with like before calling something a regression.** Two specs failed in the full
-   suite and passed on `main` — but that was a 2-spec run on main against a 91-spec run on the
-   branch. Run the same set both sides: both are green. The failures were load flakiness from
-   builds running concurrently, and the suite is 91/91 on a quiet machine.
-2. **`runner.spec.ts:43` is FLAKY, not a standing failure.** The previous handoff said it "still
-   fails and is not yours (M37)". It passed in both clean full runs. Do not use it to excuse a red
-   suite — re-run on a `down -v` stack instead.
-3. **A backtick inside a comment in a `template:`/`styles:` literal closes the string** — and the
-   same character bites in a bash `-m` commit message, where it runs command substitution and
-   silently deletes the word. This happened FOUR times in one session, twice after being written
-   down. Errors never point at the backtick: one build failure blamed line 36. Prefer plain words
-   in template comments, and always write commit messages through a quoted heredoc.
-4. **Verify a new assertion by breaking the fix.** Three times this session an assertion was
-   confirmed real by reverting the one-line fix and watching it go red (1 FAILED; 171/131/98px
-   overflow). An assertion that has never failed proves nothing.
-5. **The e2e specs and the served bundle drift silently.** Task 9 rebuilt a screen and broke three
-   specs' selectors; they kept passing because the running container served the PRE-rebuild bundle.
-   Rebuild the image, then grep the served chunks for your new testid before trusting any result.
-6. **Date-dependent specs fail one day in seven.** The date rolled from Sunday to Monday mid-session
-   and a tone assertion went red, because a previous run's template landed on the weekday this run
-   used for a different purpose. Derive expectations from the component's own state, never from a
-   hardcoded offset — one spec asserted `toBe(7)` only because paging preserved the weekday.
-7. **`schedule.spec.ts` reruns collide on a dirty stack.** Weekly templates persist for the life of
-   the box, so a rerun within the same ~2-week horizon can hit a prior run's fixtures on the same
-   weekday. Same shape as `booking-flow.spec.ts`'s ever-growing "E2E WOD" classes — run on a
-   `down -v` stack.
-
----
+**The gates catch "broken", never "absent".** For each remaining task ask: *who reads what this writes, and can they?*
 
 ## Open, filed, NOT fixed
 
-- **The shell header squeezes the box switcher FIRST** (`→ M23` in `docs/BACKLOG.md`): the gym name
-  clips to 76/87px at 393 and to ~3px at 320 while the "Admin" area label keeps its space. The
-  switcher is the shell's one volt element and should be the last thing to give up room. Reordering
-  the header is a design decision, not a bug fix.
-- **The seven day cells are 39px wide at a 330px viewport**, under this project's own `--tap` rule
-  though they pass WCAG 2.2 AA (2.5.8 needs 24×24).
-- **A capacity change regenerates rather than applying in place**, so it is refused on any slot with
-  a booked session in range (M14b decision 8, filed with the narrow fix named).
-- **The class row/card is ONE shared component across athlete Book and coach Classes, owned by
-  M17a** (user-ruled 2026-09-06) — actions differ by role, layout does not. This closed a real
-  ownership gap: M14b gave both screens the strip but left their rows alone, and nothing owned the
-  coach row. `docs/design-ref/screens/booking-screen-example.webp` is the binding card shape and
-  **nothing implements it yet**.
+- **`ScoreDto` does not echo `teamId`/`teamName`.** Flagged during Task 5; check whether Task 12's UI needs it before widening.
+- **The `sortable-list` visual baseline does not exist.** Task 13 Step 0 — run `e2e/visual.sh` (Linux container), never Playwright locally.
+- Everything in spec §10: timer auto-arm → M34, the admin entry point → M15b, the library/benchmarks/types pages → M14c-b, roster team-splitting → Project 2, and the seven remaining `wodType` consumers.
