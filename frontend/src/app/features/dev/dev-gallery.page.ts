@@ -351,6 +351,34 @@ export class GalleryNotificationBellComponent implements OnInit {
           out of the tab order. Tab through this row to confirm only the first cell is reachable.
         </p>
 
+        <p class="gsub" i18n="@@dev.gallery.button.route.heading">As an internal link</p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.default">Default</span>
+            <bh-button variant="ghost" route="/dev/components" i18n="@@dev.gallery.button.route.sample">Open</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.loading">Loading</span>
+            <bh-button variant="ghost" route="/dev/components" [loading]="true" i18n="@@dev.gallery.button.route.sample">Open</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.state.disabled">Disabled</span>
+            <bh-button variant="ghost" route="/dev/components" [disabled]="true" i18n="@@dev.gallery.button.route.sample">Open</bh-button>
+          </div>
+        </div>
+        <p class="note" i18n="@@dev.gallery.button.note.route">
+          The route input is the INTERNAL counterpart of href: an anchor carrying routerLink, so navigation
+          stays client-side where href would reload the whole app. It exists because without it a
+          screen had to hand-roll an anchor and re-derive this button's border, radius and --tap in
+          its own CSS — which about 25 of them did. Same inert rule as href: the loading and
+          disabled cells drop the routerLink and leave the tab order.
+          The two inputs take DIFFERENT strings and it is easy to get wrong: this app sets
+          base href="/app/", so href needs the /app prefix while route must NOT have it — routerLink
+          is router-relative. The cell above reads /dev/components and resolves to /app/dev/components;
+          writing /app/dev/components there resolves to /app/app/dev/components, which is how this
+          very sample first shipped.
+        </p>
+
         <p class="note" i18n="@@dev.gallery.button.note.hoverActiveFocus">
           Hover, active and focus aren't shown statically — hover on ghost/icon climbs --surface to
           --surface-2 (primary/danger brighten via filter instead); click-and-hold on any variant

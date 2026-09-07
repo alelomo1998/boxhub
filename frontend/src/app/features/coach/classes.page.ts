@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
+import { ButtonComponent } from '../../ui/button.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
 
@@ -9,7 +9,7 @@ import { tonesOf } from '../booking/session-tones';
 @Component({
   selector: 'bh-coach-classes',
   standalone: true,
-  imports: [DatePipe, RouterLink, WeekCalendarComponent],
+  imports: [DatePipe, WeekCalendarComponent, ButtonComponent],
   template: `
     <section class="cls">
       <header class="head">
@@ -17,7 +17,7 @@ import { tonesOf } from '../booking/session-tones';
           <span class="eyebrow">This week</span>
           <h1 class="title">Classes</h1>
         </div>
-        <a class="act" routerLink="/coach/announcements" data-testid="announce-link" i18n="@@coach.classes.announce">Announce</a>
+        <bh-button variant="ghost" size="sm" route="/coach/announcements" testId="announce-link"><span i18n="@@coach.classes.announce">Announce</span></bh-button>
       </header>
 
       <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
@@ -44,9 +44,9 @@ import { tonesOf } from '../booking/session-tones';
                 {{ s.programmingStatus === 'PUBLISHED' ? 'Published' : 'Draft' }}
               </span>
               <div class="acts">
-                <a class="act" [routerLink]="['/coach/classes', s.id, 'build']" data-testid="build-link">Build</a>
-                <a class="act" [routerLink]="['/coach/classes', s.id, 'checkin']" data-testid="checkin-link">Check-in</a>
-                <a class="act" [routerLink]="['/coach/classes', s.id, 'run']" data-testid="run-link">Run</a>
+                <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'build']" testId="build-link"><span i18n="@@coach.classes.action.build">Build</span></bh-button>
+                <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'checkin']" testId="checkin-link"><span i18n="@@coach.classes.action.checkin">Check-in</span></bh-button>
+                <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'run']" testId="run-link"><span i18n="@@coach.classes.action.run">Run</span></bh-button>
               </div>
             </div>
           } @empty {
@@ -85,10 +85,6 @@ import { tonesOf } from '../booking/session-tones';
       padding: 3px 10px; border: 1px solid var(--hairline); border-radius: var(--r-full); color: var(--faint); }
     .prog.pub { color: var(--good); border-color: var(--good); }
     .acts { display: flex; gap: var(--sp-2); }
-    .act { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-3);
-      border: 1px solid var(--hairline); border-radius: var(--edge); color: var(--bone);
-      font-size: var(--fs-sm); text-decoration: none; }
-    .act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .empty { padding: var(--sp-8) 0; }
     .e1 { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
       text-transform: uppercase; color: var(--bone-dim); margin: 0 0 var(--sp-2); }

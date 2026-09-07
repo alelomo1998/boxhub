@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { RouterLink } from '@angular/router';
 
 /**
  * The product's button. 100 call sites, so the input names and their accepted values are a public
@@ -12,11 +13,27 @@ import { NgTemplateOutlet } from '@angular/common';
 @Component({
   selector: 'bh-button',
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, RouterLink],
   template: `
     <ng-template #body><ng-content /></ng-template>
 
-    @if (href()) {
+    @if (route()) {
+      <!-- Internal navigation. Before this existed the only link branch was href, which is a
+           FULL PAGE LOAD, so ~25 screens hand-rolled an <a routerLink> and re-derived .btn.ghost's
+           border/radius/--tap in their own CSS. That is the "re-implementing a component's markup
+           in a screen" bug, and it was the component's gap rather than theirs.
+           Kept as a separate branch from href: routerLink and href on one anchor fight over the
+           same attribute. Inert drops the routerLink, matching how the href branch withholds its
+           own — an anchor cannot be natively disabled. -->
+      <a [routerLink]="inert() ? null : route()"
+         [class]="'btn ' + variant() + ' ' + size()"
+         [attr.aria-busy]="loading()"
+         [attr.aria-disabled]="inert() ? 'true' : null"
+         [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
+        @if (loading()) { <span class="spin" aria-hidden="true"></span> }
+        @if (!(loading() && variant() === 'icon')) { <ng-container [ngTemplateOutlet]="body" /> }
+      </a>
+    } @else if (href()) {
       <!-- A link styled as a button must BE an anchor: routerLink/href on a bh-button host emits
            no href at all, losing ctrl/cmd-click, open-in-new-tab and the correct role. Two real
            consumers: the Google control on login and on signup.
@@ -135,9 +152,19 @@ export class ButtonComponent {
    *  against a double-fire belongs in the click handler, not here. */
   ariaDisabled = input(false);
   label = input('');
-  /** Set to render an <a> instead of a <button>. For real navigation only — an OAuth start, an
-   *  external destination. Internal navigation is a text link with routerLink, not this. */
+  /** Set to render an <a> instead of a <button>. For navigation that LEAVES the app — an OAuth
+   *  start, an external destination. Internal navigation uses `route` below, which keeps
+   *  client-side routing; this one is a full page load. */
   href = input('');
+  /** Internal navigation, rendered as an <a routerLink>. Takes what routerLink takes: a string or
+   *  a command array. Use this instead of hand-rolling an anchor and re-deriving the button's
+   *  styling — that duplication is what this input exists to end.
+   *
+   *  NOT interchangeable with `href`'s string. index.html sets base href="/app/", so `href` carries
+   *  the /app prefix while `route` must omit it — routerLink resolves against the router, not the
+   *  document. '/coach/classes' here becomes /app/coach/classes; '/app/coach/classes' would become
+   *  /app/app/coach/classes and 404. The gallery's own sample shipped with exactly that bug. */
+  route = input<string | unknown[] | null>(null);
   testId = input('');
 
   /** An anchor honours disabled/loading by losing its href, which is the only way to make one
