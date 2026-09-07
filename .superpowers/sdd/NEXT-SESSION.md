@@ -52,7 +52,23 @@ M14c-a inherits two things M14b filed for it:
     is the only place allowed to fix
 
 ALWAYS subagent: one Sonnet executor per plan task, review every diff yourself,
-run the gates yourself, commit yourself.
+run the gates yourself, commit yourself. Executors return BEFORE their own
+background suite finishes — verify from the output file, never from the agent's
+summary.
+
+The impeccable routine is per screen and the LAST step is the one that gets
+skipped: shape -> build -> audit (>=16/20) -> critique (>=32/40) -> fix every
+P0/P1 -> RE-SCORE BOTH. A score measured with a P0/P1 still open is not the
+screen's score, so do not merge on one. M14b was merged on an uncounted 33/40
+and needed a follow-up branch to correct it. Also: verify a critique's proposed
+FIX against the code before implementing it — M14b's was unsafe and would have
+turned three in-app navigations into whole-app reloads.
+
+A backtick inside a comment in an Angular `template:`/`styles:` literal closes
+the string, and a backtick in a bash -m commit message runs command
+substitution and silently eats the word. This fired four times in one session,
+twice after being written down. Use plain words in template comments and write
+commit messages through a quoted heredoc.
 ```
 
 ---
