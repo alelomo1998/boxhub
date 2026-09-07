@@ -19,6 +19,7 @@ import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SelectComponent } from '../../ui/select.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
+import { SortableListComponent } from '../../ui/sortable-list.component';
 import { SwitchComponent } from '../../ui/switch.component';
 import { DayTone, WeekCalendarComponent } from '../../ui/week-calendar.component';
 import { WordmarkComponent } from '../../ui/wordmark.component';
@@ -92,7 +93,7 @@ export class GalleryNotificationBellComponent implements OnInit {
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
-    ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
+    ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent, SortableListComponent,
     AvatarComponent, PillComponent, WeekCalendarComponent, SheetComponent, AuthLayoutComponent,
     BenchmarkBoardComponent, GalleryNotificationBellComponent,
   ],
@@ -872,6 +873,27 @@ export class GalleryNotificationBellComponent implements OnInit {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'week-calendar' }" />
       </section>
 
+      <section class="gsec" id="sortable-list" data-gallery="sortable-list">
+        <h2 class="t-h2" i18n="@@dev.gallery.sortableList.heading">Sortable list</h2>
+        <bh-sortable-list [items]="sortableSample" label="Class pieces"
+                          i18n-label="@@dev.gallery.sortableList.label">
+          <ng-template let-piece let-i="index">
+            <span class="sl-pos">{{ i + 1 }}</span>
+            <span>{{ piece }}</span>
+          </ng-template>
+        </bh-sortable-list>
+        <p class="note" i18n="@@dev.gallery.sortableList.note">
+          Reorder without a mouse: tab to a row, press space or enter to grab it, move it with the
+          arrows, drop it with space or enter, or press escape to put it back where it was. Every
+          move is announced in a live region. Pointer drag needs a long press first, so a thumb can
+          still scroll the list. The grabbed row lifts on a shadow — the one case a flat surface is
+          allowed one, because it genuinely floats — and it lifts to --surface-2, never to volt:
+          reordering a list is plumbing, and the shell has already spent this screen's accent.
+          Hover, focus and the lifted state are all live states, checked by hand.
+        </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'sortable-list' }" />
+      </section>
+
       <section class="gsec" id="wordmark" data-gallery="wordmark">
         <h2 class="t-h2" i18n="@@dev.gallery.wordmark.heading">Wordmark</h2>
         <div class="row">
@@ -1049,6 +1071,8 @@ export class GalleryNotificationBellComponent implements OnInit {
       border: 1px solid transparent; border-radius: var(--r-ctl); padding: 3px var(--sp-2) 3px 3px;
       min-height: var(--tap); cursor: pointer; font: inherit; color: var(--bone); }
     .demo-brandbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .sl-pos { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+      color: var(--faint); font-size: var(--fs-sm); }
     .demo-brandmark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt);
       color: var(--on-volt); display: grid; place-items: center; font-family: var(--font-display);
       font-weight: 800; font-size: var(--fs-body); }
@@ -1100,6 +1124,15 @@ export class DevGalleryPage {
       { state: 'disabled', how: 'rendered' },
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.weekCalendar.loading:it derives its own dates; the screen beside it owns the fetch and its spinner. Absent tones is a resting state, not a loading one` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.weekCalendar.error:a date cannot fail to be a date; the screen renders any fetch error` },
+    ],
+    'sortable-list': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'hand' },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.sortableList.disabled:a list with one item simply does not reorder; there is no disabled variant to render` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.sortableList.loading:reordering is synchronous and local; the consumer owns any save that follows` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.sortableList.error:it emits a from/to pair and cannot fail; a rejected save is the consumer's error to render` },
     ],
     'auth-layout': [
       { state: 'default', how: 'rendered' },
@@ -1249,6 +1282,9 @@ export class DevGalleryPage {
   protected readonly iconNames = ICON_NAMES;
   /** Drives the jump-to index. Same keys as `ledgers`, so the index cannot drift from the sections. */
   protected readonly sectionKeys = Object.keys(this.ledgers);
+  /** Fabricated, per this page's "no API call" rule. Strings, because a row's children are
+   *  presentational -- see bh-sortable-list's consumer contract. */
+  protected readonly sortableSample = ['Warm-up', 'Strength: back squat', 'Metcon: Fran', 'Cool-down'];
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
   // it, so this page must reset its own signal on (closed) or the sheet could never reopen.
