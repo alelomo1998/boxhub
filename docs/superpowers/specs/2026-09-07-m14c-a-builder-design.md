@@ -513,11 +513,23 @@ membership carries the gallery-and-baselines contract. Promote it if a third con
   on rebuilt screens.
 - axe and visual baselines on the gallery.
 
-### 8.3 The impeccable routine runs TWICE
+### 8.3 The impeccable routine runs TWICE, and the user sees the screen BEFORE it is scored
 
 The class stack and the piece editor are **two screens**, so it is two full passes of
-`shape -> build -> audit (>=16/20) -> critique (>=32/40) -> fix every P0/P1 -> re-score BOTH`, not one
-pass over the milestone at the end.
+
+```
+shape -> build -> USER LOOKS AND SAYS OK -> audit (>=16/20) -> critique (>=32/40)
+      -> fix every P0/P1 -> re-score BOTH
+```
+
+not one pass over the milestone at the end.
+
+**The user sign-off is a gate, not a courtesy** (re-stated by the user 2026-09-07). Between build and
+audit, the screen is handed over as a **click path** — how to reach it in the running stack, with the
+demo account to use — and nothing is scored until the composition is approved. Scoring a composition
+the user has not seen wastes the audit and the critique both: a screen that is wrong in shape scores
+against the wrong thing, and the fixes land on a layout that is about to change. Expect **three to
+five look-and-adjust rounds per screen**; every one of them has found a real defect.
 
 Both run with Claude in Chrome connected; a source-only pass is provisional and must say so. If the
 browser is unavailable, **stop and ask** rather than scoring anyway. **A score measured with a P0 or
