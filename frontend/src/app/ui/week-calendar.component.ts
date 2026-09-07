@@ -94,6 +94,12 @@ function isoOf(d: Date): string {
     .day:disabled { opacity: 0.3; cursor: default; }
     .day:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .day.sel { background: var(--surface-2); border-color: var(--hairline); }
+    /* --faint is 5.07:1 on --ground and passes, but the SELECTED cell paints --surface-2 behind
+       it, which drops the same token to 4.27:1 — under AA for this 11px label. The weekday letter
+       is the one piece of text whose background changes with state, so it is the one that has to
+       be re-checked against that state rather than against the page. --bone-dim is 7.17:1 there,
+       and reads as emphasis on the selected day, which is what selection should look like anyway. */
+    .day.sel .dow { color: var(--bone-dim); }
     .dow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--faint); }
     .dnum { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-body); }

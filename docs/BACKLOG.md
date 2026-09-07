@@ -200,6 +200,19 @@ M13b ships `public/favicon.svg` only. `index.html` references exactly one icon a
 `apple-touch-icon`, no web manifest, and no `theme-color`. Deliberately not smuggled into the design
 milestone. Decide when the marketing site (M19) or the pilot forces it.
 
+### → M23 App entry & shells
+
+- **The shell header squeezes the box switcher FIRST, so the gym name is the thing that
+  disappears.** Found while fixing the 401px floor (M14b, 2026-09-06). Now that the header takes
+  real width pressure, the flex order means `.acts` (three tap targets, rigid at the `--tap` 44px
+  a11y floor — correctly so) and the `.area` label ("Admin") both outrank the switcher, so the gym
+  name clips to **76 of 87px at 393** and to **3px at 320**, leaving only the volt mark. The
+  overlap and the overflow are fixed; this is the leftover *priority* question. The switcher is
+  described in `CLAUDE.md` as the shell's one volt element, meaning *the gym you are in now* — it
+  should be the LAST thing to give up space, not the first. The `.area` label is the expendable
+  one: it duplicates what the dock's active tab already says. Not fixed in M14b because reordering
+  the header is a design decision, not a bug fix.
+
 ### → M15 Admin: people — signup collects only name + email; birthday / gender / address are missing
 
 Raised by the user 2026-08-11 while M13d rebuilt signup. **Deliberately not built in M13d**: the
