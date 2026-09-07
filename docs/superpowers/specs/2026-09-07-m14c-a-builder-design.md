@@ -187,9 +187,14 @@ caller's box (`@TenantId` gives this, and a foreign id therefore 404s rather tha
 
 | Route | Screen | Replaces |
 |---|---|---|
-| `/coach/build/:sessionId` | class stack | `coach/instance-builder.page.ts` — **deleted** |
-| `/coach/build/:sessionId/piece/:index` | piece editor | — |
-| `/coach/wods/new`, `/coach/wods/:id` | the **same** piece editor, standalone mode | `programming/wod-builder.page.ts` — **deleted** |
+| `coach/classes/:id/build` | class stack | `coach/instance-builder.page.ts` — **deleted** |
+| `coach/classes/:id/build/piece/:index` | piece editor | — |
+| `coach/wods/new`, `coach/wods/:id` | the **same** piece editor, standalone mode | `programming/wod-builder.page.ts` — **deleted** |
+
+**The class-stack path is the one that already exists**, not a new one: `classes.page.ts:47` links to
+it as `[route]="['/coach/classes', s.id, 'build']"`, and it already carries
+`canDeactivate: [unsavedGuard]`. Keeping it means no dead link and a smaller diff; the piece editor
+is a child route beneath it.
 
 ### 6.1 The class stack
 
