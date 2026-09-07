@@ -20,7 +20,8 @@ checkbox, and team WOD authoring. Fixes the two defects M14b filed for this mile
 | `WodJson.Timing{rounds, segments[WORK\|REST]}` | **no** — `timing_json` is written empty on every create and read by nobody |
 | `Macros.ALL` = WARMUP/STRENGTH/GYMNASTIC/WORKOUT | **no** — the wire still sends legacy `wodType` |
 | `TimingPresets.ALL` = FOR_TIME/AMRAP/EMOM/**TABATA**/INTERVAL | **no** — TABATA has never been expressible |
-| `wod.library`, `WodService.attachToSession`, `WodService.promoteToLibrary` | **no** — `grep` finds references only in `WodLibraryCopyTest` |
+| `wod.library`, `WodService.attachToSession` | **no** — `grep` finds references only in `WodLibraryCopyTest` |
+| `WodService.promoteToLibrary` | **no** — and stronger than the row above: **zero** callers and **zero** tests, verified at `7481c34`. Deleted in Task 4 rather than migrated. |
 
 So M14c-a is mostly **wiring what exists**, plus one page, plus team (which genuinely does not exist
 anywhere in the backend). That is why its migration is small.
