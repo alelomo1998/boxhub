@@ -25,6 +25,9 @@ public class Wod {
     // no other kind yet (a future "attached by copy, not in the library" flow is what the column
     // exists for). So the entity default matches the migration's backfill of every pre-existing row.
     @Column(nullable = false) private boolean library = true;
+    @Column(name = "source_wod_id") private UUID sourceWodId;
+    @Column(name = "team_size", nullable = false) private int teamSize = 1;
+    @Column(name = "team_share") private String teamShare;
     @Column(name = "score_type", nullable = false) private String scoreType;
     @Column(name = "time_cap_seconds") private Integer timeCapSeconds;
     @Column(name = "body_text", nullable = false) private String bodyText = "";
@@ -49,6 +52,12 @@ public class Wod {
     public void setTimingJson(String timingJson) { this.timingJson = timingJson; }
     public boolean isLibrary() { return library; }
     public void setLibrary(boolean library) { this.library = library; }
+    public UUID getSourceWodId() { return sourceWodId; }
+    public void setSourceWodId(UUID sourceWodId) { this.sourceWodId = sourceWodId; }
+    public int getTeamSize() { return teamSize; }
+    public void setTeamSize(int teamSize) { this.teamSize = teamSize; }
+    public String getTeamShare() { return teamShare; }
+    public void setTeamShare(String teamShare) { this.teamShare = teamShare; }
     public String getScoreType() { return scoreType; }
     public void setScoreType(String scoreType) { this.scoreType = scoreType; }
     public Integer getTimeCapSeconds() { return timeCapSeconds; }
