@@ -202,7 +202,15 @@ milestone. Decide when the marketing site (M19) or the pilot forces it.
 
 ### → M23 App entry & shells
 
-- **`bh-button` has a link mode but no `routerLink` mode, so 25 screens hand-roll a link-as-button.**
+- **~25 screens still hand-roll a link-as-button, now that `bh-button` supports `route`.** M14b added
+  the missing input (an `<a routerLink>` branch keeping client-side routing) and converted
+  `coach/classes.page.ts`, which is what the critique's P1 was about. The remaining screens were
+  deliberately NOT swept — that is its own pass, not a milestone-closing change. **Note for whoever
+  does it:** `href` and `route` take different strings, because `index.html` sets `base href="/app/"`
+  — `href` carries the `/app` prefix and `route` must omit it, or the link resolves to
+  `/app/app/...`. The gallery's own sample shipped with exactly that bug.
+
+- ~~**`bh-button` has a link mode but no `routerLink` mode, so 25 screens hand-roll a link-as-button.**~~ FIXED in M14b's follow-up; see the entry above for what remains.
   Found by the M14b critique on `coach/classes.page.ts` (its `.act` class re-implements the button's
   border/radius/`--tap` CSS for Build / Check-in / Run), then confirmed as systemic: ~25 feature
   screens carry the same shape. It reads as a straight violation of *"re-implementing a component's

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Last milestone | **M14b** schedule & classes surfaces — 23 commits, merged to `main`, branch deleted |
+| Last milestone | **M14b** schedule & classes surfaces — merged to `main`, plus a follow-up that closed the critique's P1 and re-scored. Both branches deleted. |
 | Backend suite | **754 / 0 / 0 / 0**, `BUILD SUCCESS` |
-| Karma | **638 SUCCESS** (626 at handoff + 12) |
+| Karma | **642 SUCCESS** (626 at handoff + 16) |
 | Production build | clean, **zero warnings** |
 | Playwright | **91 passed, 0 failed** — the FULL suite, on a `down -v` stack |
 | Visual baselines | **33 passed**, regenerated for the strip |
@@ -35,7 +35,7 @@ Baselines to confirm before building on them:
   cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 754/0/0/0
   cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless
   cd frontend && env -u NODE_OPTIONS npm run build                 # 0 warnings
-Expect 754/0/0/0, TOTAL: 638 SUCCESS, zero warnings. The "Mailer ... Couldn't
+Expect 754/0/0/0, TOTAL: 642 SUCCESS, zero warnings. The "Mailer ... Couldn't
 connect to host, port: localhost, 1025" ERROR lines are pre-existing SMTP
 noise — judge only by "Tests run:" and "BUILD SUCCESS".
 
@@ -105,6 +105,27 @@ e2e tests all shipped past these.
 
 ---
 
+## The routine has a step that is easy to skip, and skipping it cost a re-merge
+
+`shape -> build -> audit -> critique -> fix every P0/P1 -> **re-score BOTH**`. M14b was merged with
+the coach/classes P1 *filed* rather than fixed, on a 33/40 that — by the routine's own rule, *"a
+score measured with a P0 or P1 still open is not the screen's score"* — did not count. The user
+caught it. The follow-up fixed the P1 and re-scored to **36/40**.
+
+Two things that came out of doing it properly, both of which would have been lost by filing:
+
+- **The critique's recommended fix was unsafe.** It said to swap coach/classes' hand-rolled links
+  onto `bh-button` — but that component's only link branch was `href`, a FULL PAGE LOAD, and its own
+  doc read *"Internal navigation is a text link with routerLink, not this."* Following the advice
+  would have traded a styling duplication for three whole-app reloads. **Verify a critique's
+  proposed fix against the code before implementing it**; the finding was right and the remedy was
+  wrong.
+- **The fix introduced its own P2, which only the re-score caught.** `bh-button`'s new `route` and
+  its existing `href` take DIFFERENT strings, because `index.html` sets `base href="/app/"`: `href`
+  carries the `/app` prefix, `route` must omit it. The gallery sample was written by copying its
+  href sibling and resolved to `/app/app/dev/components` — a dead link in the one cell whose job is
+  to teach the pattern.
+
 ## Traps that cost time here and will again
 
 1. **Compare like with like before calling something a regression.** Two specs failed in the full
@@ -114,9 +135,11 @@ e2e tests all shipped past these.
 2. **`runner.spec.ts:43` is FLAKY, not a standing failure.** The previous handoff said it "still
    fails and is not yours (M37)". It passed in both clean full runs. Do not use it to excuse a red
    suite — re-run on a `down -v` stack instead.
-3. **A backtick inside a comment in a `template:`/`styles:` literal closes the string.** It cost a
-   confusing build failure whose errors pointed at line 36, never at the comment. Grep for backtick
-   pairs; there should be exactly three in a component with template + styles.
+3. **A backtick inside a comment in a `template:`/`styles:` literal closes the string** — and the
+   same character bites in a bash `-m` commit message, where it runs command substitution and
+   silently deletes the word. This happened FOUR times in one session, twice after being written
+   down. Errors never point at the backtick: one build failure blamed line 36. Prefer plain words
+   in template comments, and always write commit messages through a quoted heredoc.
 4. **Verify a new assertion by breaking the fix.** Three times this session an assertion was
    confirmed real by reverting the one-line fix and watching it go red (1 FAILED; 171/131/98px
    overflow). An assertion that has never failed proves nothing.
