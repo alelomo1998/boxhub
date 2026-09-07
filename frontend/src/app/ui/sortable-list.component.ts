@@ -21,31 +21,41 @@ const SLOP_PX = 8;
  *
  * PRESENTATIONAL: it emits { from, to } and never mutates items(). The consumer owns the array.
  *
- * CONSUMER CONTRACT — a row is role="option", whose children are presentational. Do not project a
- * button, link or input into a row: axe's nested-interactive fails on a focusable descendant of an
- * option, and a screen reader will not reach it either. Per-row controls belong beside the list,
- * or the row's whole content becomes the tap target on the consumer's own element outside this one.
+ * CONSUMER CONTRACT — a row is role="listitem" inside a role="list", NOT option/listbox (ruled
+ * 2026-09-07). An option's children are presentational, so a button or link inside one fails axe's
+ * nested-interactive and no screen reader reaches it — and rows here must be tappable, because
+ * tapping a piece is how its editor opens. So a row MAY carry interactive content, and reordering
+ * gets its own affordance instead of borrowing the row's focus: the drag handle button.
+ *
+ * Name the handles. itemLabel() turns an item into the words that follow "Reorder", because a
+ * column of buttons all called "Reorder" tells a screen-reader user nothing about which is which.
  */
 @Component({
   selector: 'bh-sortable-list',
   standalone: true,
   imports: [NgTemplateOutlet],
   template: `
-    <div class="list" role="listbox" [attr.aria-label]="label() || null">
+    <div class="list" role="list" [attr.aria-label]="label() || null">
       @for (item of view(); track $index) {
-        <div #row class="row" role="option" data-sortable-row tabindex="0"
+        <div #row class="row" role="listitem" data-sortable-row
              [class.grabbed]="grabbedAt() === $index"
              [class.dragging]="dragging() && grabbedAt() === $index"
-             [attr.aria-grabbed]="grabbedAt() === $index"
              [style.touch-action]="dragging() ? 'none' : null"
              [style.transform]="dragging() && grabbedAt() === $index ? 'translateY(' + dy() + 'px)' : null"
-             (keydown)="onKey($event, $index)"
              (pointerdown)="onPointerDown($event, $index)"
              (pointermove)="onPointerMove($event)"
              (pointerup)="onPointerUp($event)"
              (pointercancel)="onPointerCancel()"
              (touchmove)="onTouchMove($event)">
-          <span class="grip" aria-hidden="true"></span>
+          <!-- The keyboard reorder path lives here, not on the row: a listitem is not focusable,
+               and pointer drag alone fails WCAG 2.1.1. aria-label is bound on the button itself
+               because an attribute written on a component host never reaches the element inside. -->
+          <button #handle type="button" class="handle" data-sortable-handle
+                  [attr.aria-label]="handleLabel(item, $index)"
+                  [attr.aria-grabbed]="grabbedAt() === $index"
+                  (keydown)="onKey($event, $index)">
+            <span class="grip" aria-hidden="true"></span>
+          </button>
           <span class="body">
             <ng-container [ngTemplateOutlet]="rowTpl() ?? null"
                           [ngTemplateOutletContext]="{ $implicit: item, index: $index }" />
@@ -63,7 +73,12 @@ const SLOP_PX = 8;
       cursor: grab; user-select: none;
       transition: background var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
     .row:hover { background: var(--surface-2); }
-    .row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .handle { flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+      min-width: var(--tap); min-height: var(--tap);
+      background: none; border: 0; border-radius: var(--r-ctl); color: inherit;
+      cursor: grab; }
+    .handle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .row.grabbed .handle { cursor: grabbing; }
     /* A grabbed row genuinely floats above the others, which is the one case design law allows a
        shadow on a flat surface. Not volt: reordering a list is plumbing, and the shell's box
        switcher has already spent this screen's volt budget. */
@@ -82,14 +97,26 @@ const SLOP_PX = 8;
     @media (prefers-reduced-motion: reduce) { .row { transition: none; } }
   `],
 })
-export class SortableListComponent {
-  items = input.required<readonly unknown[]>();
-  /** Names the listbox. A group of options with no accessible name is a group nobody can find. */
+export class SortableListComponent<T> {
+  items = input.required<readonly T[]>();
+  /** Names the list. A group of rows with no accessible name is a group nobody can find. */
   label = input('');
+  /**
+   * Turns an item into the words that follow "Reorder" in its handle's accessible name. The
+   * default falls back to the position, which is honest but says nothing about the item — every
+   * consumer with a title should pass one.
+   */
+  itemLabel = input<(item: T, index: number) => string>(
+    (_item, i) => $localize`:@@ui.sortableList.itemFallback:item ${i + 1}:position:`);
   reordered = output<{ from: number; to: number }>();
 
   protected readonly rowTpl = contentChild(TemplateRef);
   private rowEls = viewChildren<ElementRef<HTMLElement>>('row');
+  private handleEls = viewChildren<ElementRef<HTMLElement>>('handle');
+
+  protected handleLabel(item: T, index: number): string {
+    return $localize`:@@ui.sortableList.handle:Reorder ${this.itemLabel()(item, index)}:item:`;
+  }
 
   /** Where the moving item started. Null when nothing is being moved. */
   private from = signal<number | null>(null);
@@ -109,10 +136,10 @@ export class SortableListComponent {
   /**
    * The items in their CURRENT visual order: the moving one lifted out of `from` and dropped back
    * at `to`. Rendered with `track $index` on purpose — the DOM nodes stay put and their content
-   * shifts, so focus survives a move (Angular's reorder detaches a node, and a detached node is
-   * blurred) and every slot keeps a stable box to hit-test against.
+   * shifts, so the handle's focus survives a move (Angular's reorder detaches a node, and a
+   * detached node is blurred) and every slot keeps a stable box to hit-test against.
    */
-  protected readonly view = computed<readonly unknown[]>(() => {
+  protected readonly view = computed<readonly T[]>(() => {
     const f = this.from(), t = this.to();
     const arr = [...this.items()];
     if (f === null || t === null || f === t) return arr;
@@ -126,13 +153,14 @@ export class SortableListComponent {
   onKey(ev: KeyboardEvent, index: number) {
     const isConfirm = ev.key === ' ' || ev.key === 'Spacebar' || ev.key === 'Enter';
     if (this.to() === null) {
-      // Not moving anything: the row under the cursor is the one that gets grabbed, and until a
-      // grab starts the display order IS the items order, so its index needs no translation.
+      // Not moving anything: the row whose handle has focus is the one that gets grabbed, and
+      // until a grab starts the display order IS the items order, so its index needs no
+      // translation. preventDefault also stops Space from clicking the button and scrolling.
       if (isConfirm) { ev.preventDefault(); this.grab(index); }
       return;
     }
-    // Moving: the handler reads its own state, never the row's index — the row the keys arrive on
-    // is whichever node the moving item currently occupies.
+    // Moving: the handler reads its own state, never the row's index — the handle the keys arrive
+    // on is whichever node the moving item currently occupies.
     if (isConfirm) { ev.preventDefault(); this.drop(); }
     else if (ev.key === 'ArrowDown') { ev.preventDefault(); this.step(1); }
     else if (ev.key === 'ArrowUp') { ev.preventDefault(); this.step(-1); }
@@ -154,7 +182,7 @@ export class SortableListComponent {
     this.to.set(next);
     this.announce($localize`:@@ui.sortableList.moved:Moved to position ${next + 1}:position: of ${this.items().length}:total:.`);
     // The nodes are positional (track $index), so focus follows the item into its new slot.
-    this.rowEls()[next]?.nativeElement.focus();
+    this.handleEls()[next]?.nativeElement.focus();
   }
 
   private drop() {
@@ -169,7 +197,7 @@ export class SortableListComponent {
     const f = this.from();
     this.reset();
     this.announce($localize`:@@ui.sortableList.cancelled:Move cancelled. Back at position ${(f ?? 0) + 1}:position: of ${this.items().length}:total:.`);
-    this.rowEls()[f ?? 0]?.nativeElement.focus();
+    this.handleEls()[f ?? 0]?.nativeElement.focus();
   }
 
   // ---- pointer -----------------------------------------------------------------------------

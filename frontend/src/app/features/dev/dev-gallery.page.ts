@@ -876,20 +876,29 @@ export class GalleryNotificationBellComponent implements OnInit {
       <section class="gsec" id="sortable-list" data-gallery="sortable-list">
         <h2 class="t-h2" i18n="@@dev.gallery.sortableList.heading">Sortable list</h2>
         <bh-sortable-list [items]="sortableSample" label="Class pieces"
-                          i18n-label="@@dev.gallery.sortableList.label">
+                          i18n-label="@@dev.gallery.sortableList.label"
+                          [itemLabel]="sortableLabel">
           <ng-template let-piece let-i="index">
-            <span class="sl-pos">{{ i + 1 }}</span>
-            <span>{{ piece }}</span>
+            <span class="sl-row">
+              <span class="sl-pos">{{ i + 1 }}</span>
+              <span class="sl-name">{{ piece }}</span>
+              @if (i === 1) {
+                <bh-button variant="ghost" size="sm" i18n="@@dev.gallery.sortableList.edit">Edit</bh-button>
+              }
+            </span>
           </ng-template>
         </bh-sortable-list>
         <p class="note" i18n="@@dev.gallery.sortableList.note">
-          Reorder without a mouse: tab to a row, press space or enter to grab it, move it with the
-          arrows, drop it with space or enter, or press escape to put it back where it was. Every
-          move is announced in a live region. Pointer drag needs a long press first, so a thumb can
-          still scroll the list. The grabbed row lifts on a shadow — the one case a flat surface is
-          allowed one, because it genuinely floats — and it lifts to --surface-2, never to volt:
-          reordering a list is plumbing, and the shell has already spent this screen's accent.
-          Hover, focus and the lifted state are all live states, checked by hand.
+          Reorder without a mouse: tab to a row's drag handle, press space or enter to grab it, move
+          it with the arrows, drop it with space or enter, or press escape to put it back where it
+          was. The handle exists because a row is a listitem rather than an option — a listitem may
+          carry its own controls, which is what the second row's Edit button demonstrates, and what
+          a class stack needs so that tapping a piece opens its editor. Every move is announced in a
+          live region. Pointer drag needs a long press first, so a thumb can still scroll the list.
+          The grabbed row lifts on a shadow — the one case a flat surface is allowed one, because it
+          genuinely floats — and it lifts to --surface-2, never to volt: reordering a list is
+          plumbing, and the shell has already spent this screen's accent. Hover, focus and the
+          lifted state are all live states, checked by hand.
         </p>
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'sortable-list' }" />
       </section>
@@ -1071,6 +1080,8 @@ export class GalleryNotificationBellComponent implements OnInit {
       border: 1px solid transparent; border-radius: var(--r-ctl); padding: 3px var(--sp-2) 3px 3px;
       min-height: var(--tap); cursor: pointer; font: inherit; color: var(--bone); }
     .demo-brandbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .sl-row { display: flex; align-items: center; gap: var(--sp-3); }
+    .sl-name { flex: 1; min-width: 0; }
     .sl-pos { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
       color: var(--faint); font-size: var(--fs-sm); }
     .demo-brandmark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt);
@@ -1282,9 +1293,10 @@ export class DevGalleryPage {
   protected readonly iconNames = ICON_NAMES;
   /** Drives the jump-to index. Same keys as `ledgers`, so the index cannot drift from the sections. */
   protected readonly sectionKeys = Object.keys(this.ledgers);
-  /** Fabricated, per this page's "no API call" rule. Strings, because a row's children are
-   *  presentational -- see bh-sortable-list's consumer contract. */
+  /** Fabricated, per this page's "no API call" rule. */
   protected readonly sortableSample = ['Warm-up', 'Strength: back squat', 'Metcon: Fran', 'Cool-down'];
+  /** Names each drag handle after the piece it moves, so the four are told apart by ear. */
+  protected readonly sortableLabel = (piece: string) => piece;
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
   // it, so this page must reset its own signal on (closed) or the sheet could never reopen.
