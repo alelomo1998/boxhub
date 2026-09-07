@@ -9,14 +9,16 @@ const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
 ];
 
-// bh-day-pager renders `new Date()` via `{{ day() | date:'EEEE d MMMM' }}` — real "today" — so a
-// baseline generated on one date mismatches on every other date, forever. Frozen to Wednesday 12
+// bh-week-calendar derives its whole strip from `new Date()` — real "today" — so a baseline
+// generated on one date mismatches on every other date, forever. Frozen to Wednesday 12
 // August 2026: unambiguous weekday/month in the rendered format, and noon UTC keeps the calendar
-// date stable regardless of the container's local timezone. Confirmed empirically (Playwright
+// date stable regardless of the container's local timezone. Landing mid-week is deliberate — the
+// strip then renders Mon 10 to Sun 16 with a selected day that is neither the first nor the last
+// cell, and with days on both sides of today. Confirmed empirically (Playwright
 // 1.62 page.clock): the freeze must be installed BEFORE page.goto() — installing it after the
-// page has already rendered does not retroactively update the DOM (day() only re-runs on the next
-// change-detection pass, and nothing here triggers one), so the same real-date bug reappears if
-// this call moves below goto().
+// page has already rendered does not retroactively update the DOM (the week only recomputes on the
+// next change-detection pass, and nothing here triggers one), so the same real-date bug reappears
+// if this call moves below goto().
 const FROZEN_TIME = new Date('2026-08-12T12:00:00Z');
 
 /**
@@ -355,8 +357,8 @@ for (const vp of [PHONE, DESKTOP]) {
     // a value the SERVER stamped (RefreshToken.lastUsedAt, set from the real backend clock at
     // registration). page.clock only freezes the browser's Date/Date.now(), which this format
     // never calls — there's no client-side "now" in an absolute-date pipe — so FROZEN_TIME does
-    // NOT make this row reproducible, unlike bh-day-pager's `{{ day() | date }}` elsewhere in this
-    // file, which genuinely does call `new Date()` client-side. Confirmed empirically: three
+    // NOT make this row reproducible, unlike bh-week-calendar elsewhere in this file, which
+    // genuinely does call `new Date()` client-side. Confirmed empirically: three
     // ./visual.sh runs in a row happened to land in the same minute and passed by luck; a run an
     // hour (or a day) later would not. Masked the same way join masks its runId()-stamped email —
     // '.meta' is sessions.page.ts's own class for the ip+date line, scoped inside the one list

@@ -2,13 +2,14 @@ import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } 
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
-import { DayPagerComponent } from '../../ui/day-pager.component';
+import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
+import { tonesOf } from '../booking/session-tones';
 
-/** Coach home: one day's classes at a time (same pager as Book); tap into check-in or the builder. */
+/** Coach home: one day's classes at a time (same week strip as Book); tap into check-in or the builder. */
 @Component({
   selector: 'bh-coach-classes',
   standalone: true,
-  imports: [DatePipe, RouterLink, DayPagerComponent],
+  imports: [DatePipe, RouterLink, WeekCalendarComponent],
   template: `
     <section class="cls">
       <header class="head">
@@ -19,14 +20,18 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
         <a class="act" routerLink="/coach/announcements" data-testid="announce-link" i18n="@@coach.classes.announce">Announce</a>
       </header>
 
-      <bh-day-pager [(offset)]="dayOffset" [max]="13" />
+      <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
 
       @if (loading()) { <p class="stateline">Loading classes…</p> }
       @else if (error()) {
         <p class="stateline err">Couldn't load.
           <button class="retry" (click)="load()">Try again</button></p>
       } @else {
-        <div class="list">
+        <!-- aria-live, matching the admin schedule's session list. The strip announces the DAY it
+             moved to, but the list under it changes silently — and this milestone is what made
+             paging cheap enough to do repeatedly, so a screen-reader user now moves through days
+             far more often with no idea what landed. -->
+        <div class="list" aria-live="polite">
           @for (s of daySessions(); track s.id) {
             <div class="row" [attr.data-testid]="'class-' + s.id">
               <span class="time num">{{ s.startAt | date:'HH:mm' }}</span>
@@ -46,8 +51,8 @@ import { DayPagerComponent } from '../../ui/day-pager.component';
             </div>
           } @empty {
             <div class="empty">
-              <p class="e1">No classes this day.</p>
-              <p class="e2">Flip through the week with ‹ › — or schedule class types in the Types tab.</p>
+              <p class="e1" i18n="@@coach.classes.empty.title">No classes this day.</p>
+              <p class="e2" i18n="@@coach.classes.empty.hint">Pick another day from the strip above — or schedule class types in the Types tab.</p>
             </div>
           }
         </div>
@@ -109,6 +114,9 @@ export class CoachClassesPage implements OnInit {
     const key = d.toDateString();
     return this.sessions().filter(s => new Date(s.startAt).toDateString() === key);
   });
+
+  /** Per-day availability for the strip's dots, from sessions this page already fetched — no extra request. */
+  readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
   ngOnInit() { this.load(); }
 

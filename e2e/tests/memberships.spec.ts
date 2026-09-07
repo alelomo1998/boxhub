@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { login } from './_support';
+import { login, nextDay } from './_support';
 
 /**
  * bh-button puts the data-testid on the custom-element HOST, which stretches wider than the
@@ -49,10 +49,11 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   // admin creates a class for the athlete to book once entitled (capacity 1 — same isolation
   // convention as booking-flow.spec.ts's "E2E WOD")
   await page.goto('/app/admin/schedule');
-  await page.fill('[data-testid="template-name"]', className);
-  await page.fill('input[name="capacity"]', '1');
-  await page.click(btn('template-create'));
-  await expect(page.locator('li', { hasText: className })).toBeVisible();
+  await page.click('[data-testid="schedule-add-slot"]');
+  await page.fill('[data-testid="schedule-name"]', className);
+  await page.fill('[data-testid="schedule-capacity"]', '1');
+  await page.click('[data-testid="schedule-slot-save"]');
+  await expect(page.locator('.trow', { hasText: className })).toBeVisible();
 
   // admin invites a fresh athlete (plan-less invite -> no subscription created on accept) — the
   // invite form now requires an EXPLICIT choice once plans exist (M10 review fix), so pick the
@@ -101,7 +102,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   await joinPage.locator('.cards, .empty').first().waitFor();
   const card = joinPage.locator('.card', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await card.isVisible().catch(() => false)); i++) {
-    await joinPage.locator('button[aria-label="Next day"]').click();
+    await nextDay(joinPage);
     await joinPage.waitForTimeout(100);
   }
   await expect(card).toBeVisible();

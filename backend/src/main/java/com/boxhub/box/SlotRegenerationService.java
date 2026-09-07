@@ -52,7 +52,15 @@ public class SlotRegenerationService {
         ZoneId tz = ZoneId.of(box.getTimezone());
         Instant fromInstant = from.atStartOfDay(tz).toInstant();
 
-        List<ClassSession> inRange = sessions.findByScheduleSlotIdAndStartAtGreaterThanEqual(slotId, fromInstant);
+        // Never touch a session that has already started. The generator floors recreation at now
+        // (SessionGenerator:76,80), so a session earlier than that would be deleted and NEVER
+        // refilled; and a session that has run may carry scores, which cascade
+        // class_sessions -> session_item -> wod_score. Clamping here makes the delete range and
+        // the recreate range identical, which is the property that was missing.
+        Instant now = Instant.now();
+        Instant floor = fromInstant.isBefore(now) ? now : fromInstant;
+
+        List<ClassSession> inRange = sessions.findByScheduleSlotIdAndStartAtGreaterThanEqual(slotId, floor);
 
         List<String> blockingDates = inRange.stream()
                 .filter(s -> bookings.existsBySessionIdAndStatusIn(s.getId(), BLOCKING))

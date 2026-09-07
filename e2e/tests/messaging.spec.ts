@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, runId } from './_support';
+import { login, runId, nextDay } from './_support';
 
 /** Composer's submit button carries no data-testid (bh-button gets no [testId] there — see
  *  conversations.page.ts), so it's found by role/type within the form instead. */
@@ -100,7 +100,7 @@ test('a conversation opens scrolled to its newest message, not its oldest', asyn
   expect(metrics.scrollTop + metrics.clientHeight).toBeGreaterThanOrEqual(metrics.scrollHeight - 4);
 });
 
-test("the class picker's height and pager arrow do not move when paging, whatever a day holds", async ({ page }) => {
+test("the class picker's height and header chrome do not move when paging, whatever a day holds", async ({ page }) => {
   test.setTimeout(45000);
   await login(page, 'admin@demo.io');
   await page.goto('/app/admin/announcements');
@@ -109,7 +109,13 @@ test("the class picker's height and pager arrow do not move when paging, whateve
   await expect(page.getByTestId('announcement-picker-sheet')).toBeVisible();
   await page.waitForTimeout(300); // let the sheet's open animation settle before measuring
 
-  const nextBtn = page.locator('button[aria-label="Next day"]');
+  // bh-week-calendar has no persistent per-day paging control (each day is its own cell, and
+  // selecting one moves which cell is "current"). The one always-present, fixed-position control
+  // left in the header is the "Next week" chevron — used here only as a position anchor to prove
+  // the header doesn't shift when the list's content height changes. The day itself is still
+  // advanced one at a time via nextDay(), never by clicking this chevron (that pages a week and
+  // would skip most of the days this loop is meant to sample).
+  const chromeAnchor = page.locator('button[aria-label="Next week"]');
   const emptyMarker = page.getByTestId('announcement-day-empty');
   const cardsMarker = page.locator('.tcard');
 
@@ -134,23 +140,23 @@ test("the class picker's height and pager arrow do not move when paging, whateve
     expect(bodyBox, `picker body must be present at day offset ${day}`).not.toBeNull();
     bodyHeights.push(Math.round(bodyBox!.height));
 
-    const before = await nextBtn.boundingBox();
-    expect(before, `arrow must be present at day offset ${day}`).not.toBeNull();
-    await nextBtn.click();
+    const before = await chromeAnchor.boundingBox();
+    expect(before, `header chevron must be present at day offset ${day}`).not.toBeNull();
+    await nextDay(page);
     await page.waitForTimeout(150);
-    const after = await nextBtn.boundingBox();
-    expect(after, `arrow must be present after paging past day offset ${day}`).not.toBeNull();
+    const after = await chromeAnchor.boundingBox();
+    expect(after, `header chevron must be present after paging past day offset ${day}`).not.toBeNull();
 
     // The real regression: paging changed the sheet's height because an empty day's content is
-    // shorter than a populated day's, sliding the arrow (and every card under a still-pressed
-    // finger) up or down. Asserted on the arrow's ACTUAL bounding box, not a value the component
-    // wrote.
-    expect(after!.x, `day ${day}->${day + 1}: arrow x moved`).toBeCloseTo(before!.x, 0);
-    expect(after!.y, `day ${day}->${day + 1}: arrow y moved`).toBeCloseTo(before!.y, 0);
+    // shorter than a populated day's, sliding the header chrome (and every card under a
+    // still-pressed finger) up or down. Asserted on the chevron's ACTUAL bounding box, not a value
+    // the component wrote.
+    expect(after!.x, `day ${day}->${day + 1}: header chrome x moved`).toBeCloseTo(before!.x, 0);
+    expect(after!.y, `day ${day}->${day + 1}: header chrome y moved`).toBeCloseTo(before!.y, 0);
     measured.push({ day, before: { x: before!.x, y: before!.y }, after: { x: after!.x, y: after!.y } });
   }
 
-  console.log('day-pager arrow boxes per transition:', JSON.stringify(measured));
+  console.log('header chrome boxes per transition:', JSON.stringify(measured));
   console.log('picker body heights per day:', JSON.stringify(bodyHeights));
   console.log('card counts per day:', JSON.stringify(cardCounts));
   console.log('empty-day offsets seen:', seenEmptyAt, '— populated-day offsets seen:', seenPopulatedAt);
@@ -178,10 +184,11 @@ test('a CLASS_ROSTER announcement reaches only its roster, and read counts becom
   // admin creates a fresh, capacity-1 class so its roster is exactly one known athlete
   await login(page, 'admin@demo.io');
   await page.goto('/app/admin/schedule');
-  await page.fill('[data-testid="template-name"]', className);
-  await page.fill('input[name="capacity"]', '1');
-  await page.click('[data-testid="template-create"]');
-  await expect(page.locator('li', { hasText: className })).toBeVisible();
+  await page.click('[data-testid="schedule-add-slot"]');
+  await page.fill('[data-testid="schedule-name"]', className);
+  await page.fill('[data-testid="schedule-capacity"]', '1');
+  await page.click('[data-testid="schedule-slot-save"]');
+  await expect(page.locator('.trow', { hasText: className })).toBeVisible();
 
   // athlete@demo.io books the only slot — the deterministic "on the roster" member
   await login(page, 'athlete@demo.io');
@@ -189,7 +196,7 @@ test('a CLASS_ROSTER announcement reaches only its roster, and read counts becom
   await page.locator('.cards, .empty').first().waitFor();
   const bookCard = page.locator('.card', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await bookCard.isVisible().catch(() => false)); i++) {
-    await page.locator('button[aria-label="Next day"]').click();
+    await nextDay(page);
     await page.waitForTimeout(100);
   }
   await expect(bookCard).toBeVisible();
@@ -203,7 +210,7 @@ test('a CLASS_ROSTER announcement reaches only its roster, and read counts becom
   await page.getByTestId('announcement-session-picker').click();
   const targetCard = page.locator('[data-testid^="announcement-target-"]', { hasText: className });
   for (let i = 0; i < 14 && !(await targetCard.isVisible().catch(() => false)); i++) {
-    await page.locator('button[aria-label="Next day"]').click();
+    await nextDay(page);
     await page.waitForTimeout(100);
   }
   await expect(targetCard).toBeVisible();

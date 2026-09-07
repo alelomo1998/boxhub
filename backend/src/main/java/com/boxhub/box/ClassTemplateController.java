@@ -9,9 +9,13 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -27,13 +31,21 @@ public class ClassTemplateController {
     private final ClassTypeRepository types;
     private final SessionGenerator generator;
     private final MediaSigner mediaSigner;
+    private final SlotRegenerationService regeneration;
+    private final ClassSessionRepository sessions;
+    private final BoxRepository boxes;
 
     public ClassTemplateController(ScheduleSlotRepository slots, ClassTypeRepository types,
-                                   SessionGenerator generator, MediaSigner mediaSigner) {
+                                   SessionGenerator generator, MediaSigner mediaSigner,
+                                   SlotRegenerationService regeneration, ClassSessionRepository sessions,
+                                   BoxRepository boxes) {
         this.slots = slots;
         this.types = types;
         this.generator = generator;
         this.mediaSigner = mediaSigner;
+        this.regeneration = regeneration;
+        this.sessions = sessions;
+        this.boxes = boxes;
     }
 
     /**
@@ -62,7 +74,7 @@ public class ClassTemplateController {
 
     record PatchTemplateRequest(String name, @Min(0) @Max(6) Integer weekday, String startTime, String imagePath,
                                 @Min(1) Integer durationMin, @Min(1) Integer capacity,
-                                UUID coachId, Boolean active) {}
+                                UUID coachId, Boolean active, LocalDate applyFrom) {}
 
     private ClassType typeOf(ScheduleSlot s) {
         return types.findById(s.getClassTypeId()).orElseThrow(NoSuchElementException::new);
@@ -109,11 +121,35 @@ public class ClassTemplateController {
         return TemplateDto.of(savedSlot, type, mediaSigner);
     }
 
+    /**
+     * @Transactional is load-bearing here for TWO reasons, and the second is the subtle one.
+     *
+     * <p>1. renameFutureSessions is a @Modifying bulk query with flushAutomatically=true, which
+     * needs an open transaction to flush against — this method had none before (same reasoning as
+     * SessionController#patch, M29b D-4).
+     *
+     * <p>2. It is what makes a REFUSED edit atomic. regenerateFrom throws on a range holding a live
+     * booking, and without a transaction spanning this method the slots.save(s) below would already
+     * have committed by then — leaving the slot moved to 07:00 while its sessions all stayed at
+     * 06:00, which is a worse state than either outcome. The rollback is the guarantee behind
+     * "a refused edit must not have written the slot either".
+     */
+    @Transactional
     @PatchMapping("/{id}")
     public TemplateDto patch(@PathVariable UUID id, @Valid @RequestBody PatchTemplateRequest req) {
         RoleGuard.requireStaff(); // M5: class types are coach/admin-managed
         ScheduleSlot s = slots.findById(id).orElseThrow(NoSuchElementException::new); // tenant filter: foreign = 404
         ClassType t = typeOf(s);
+
+        // Computed BEFORE the setters below, or every comparison reads the value we just wrote.
+        boolean scheduleChanged =
+                (req.weekday() != null && req.weekday() != s.getWeekday())
+             || (req.startTime() != null && !LocalTime.parse(req.startTime()).equals(s.getStartTime()))
+             || (req.durationMin() != null && req.durationMin() != s.getDurationMin())
+             || (req.capacity() != null && req.capacity() != s.getCapacity())
+             || (req.coachId() != null && !req.coachId().equals(s.getCoachId()));
+        boolean renamed = req.name() != null && !req.name().trim().equals(t.getName());
+
         if (req.name() != null) {
             String newName = req.name().trim();
             if (!newName.equals(t.getName())) {
@@ -139,7 +175,28 @@ public class ClassTemplateController {
         if (req.coachId() != null) s.setCoachId(req.coachId());
         if (req.active() != null) s.setActive(req.active());
         ScheduleSlot savedSlot = slots.save(s);
-        if (savedSlot.isActive()) generator.generateForBox(TenantContext.requireBoxId());
+        if (savedSlot.isActive()) {
+            if (scheduleChanged) {
+                // Regeneration REFUSES a range holding a live booking rather than cancelling it
+                // (M14a decision 11) — both destructive options send mail, and an admin adjusting a
+                // schedule must not be able to mail forty people by accident. The 409 carries the
+                // blocking dates so the screen can offer a later applyFrom.
+                ZoneId tz = ZoneId.of(boxes.findById(savedSlot.getBoxId()).orElseThrow().getTimezone());
+                regeneration.regenerateFrom(savedSlot.getId(),
+                        req.applyFrom() != null ? req.applyFrom() : LocalDate.now(tz));
+            } else {
+                generator.generateForBox(TenantContext.requireBoxId());
+            }
+        }
+
+        // A rename is NOT a regeneration: a name is not a booking-relevant number, so updating it in
+        // place invalidates nothing, whereas regenerating for a typo fix would be refused on any booked
+        // slot. Runs after the block above so a combined rename+reschedule renames the NEW sessions.
+        if (renamed) {
+            List<UUID> slotIds = slots.findByClassTypeId(t.getId()).stream().map(ScheduleSlot::getId).toList();
+            sessions.renameFutureSessions(slotIds, t.getName(), Instant.now());
+        }
+
         return TemplateDto.of(savedSlot, t, mediaSigner);
     }
 }

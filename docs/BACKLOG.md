@@ -200,6 +200,30 @@ M13b ships `public/favicon.svg` only. `index.html` references exactly one icon a
 `apple-touch-icon`, no web manifest, and no `theme-color`. Deliberately not smuggled into the design
 milestone. Decide when the marketing site (M19) or the pilot forces it.
 
+### → M23 App entry & shells
+
+- **`bh-button` has a link mode but no `routerLink` mode, so 25 screens hand-roll a link-as-button.**
+  Found by the M14b critique on `coach/classes.page.ts` (its `.act` class re-implements the button's
+  border/radius/`--tap` CSS for Build / Check-in / Run), then confirmed as systemic: ~25 feature
+  screens carry the same shape. It reads as a straight violation of *"re-implementing a component's
+  markup in a screen is a bug"* — **but the obvious fix is wrong.** `bh-button`'s link branch emits a
+  plain `[attr.href]`, so swapping these in-app navigations onto it turns client-side routes into
+  FULL PAGE RELOADS. Closing this properly means teaching `bh-button` `routerLink` (a `ui/` API
+  change, M13c's clean zone, every consumer affected) and only then swapping. Not taken in M14b:
+  a shared-component API change on merge day is exactly the wrong time.
+
+
+- **The shell header squeezes the box switcher FIRST, so the gym name is the thing that
+  disappears.** Found while fixing the 401px floor (M14b, 2026-09-06). Now that the header takes
+  real width pressure, the flex order means `.acts` (three tap targets, rigid at the `--tap` 44px
+  a11y floor — correctly so) and the `.area` label ("Admin") both outrank the switcher, so the gym
+  name clips to **76 of 87px at 393** and to **3px at 320**, leaving only the volt mark. The
+  overlap and the overflow are fixed; this is the leftover *priority* question. The switcher is
+  described in `CLAUDE.md` as the shell's one volt element, meaning *the gym you are in now* — it
+  should be the LAST thing to give up space, not the first. The `.area` label is the expendable
+  one: it duplicates what the dock's active tab already says. Not fixed in M14b because reordering
+  the header is a design decision, not a bug fix.
+
 ### → M15 Admin: people — signup collects only name + email; birthday / gender / address are missing
 
 Raised by the user 2026-08-11 while M13d rebuilt signup. **Deliberately not built in M13d**: the
@@ -311,6 +335,17 @@ full e2e run.
   Fix when the dashboard is rebuilt.
 
 ### → M14 Class model & schedule
+
+- **Two endpoints disagree about what "booked" means, and M14b made the disagreement visible.**
+  `SessionController.java:75` computes a session's `bookedCount` from status **`BOOKED` only**;
+  `SessionDetailController.java:79` builds its `active` grid from **`BOOKED` or `CHECKED_IN`**. So
+  the moment anyone checks in, the schedule row reads "2/14 booked" and the class-detail sheet
+  opened *from that row* reads "3/14" for the same session — observed live, then confirmed in
+  source. M14b did not cause it; it put the two numbers side by side, which is why it is now
+  obvious. **The open question is bigger than the display:** if capacity checks also count `BOOKED`
+  only, a check-in frees a place and the class can be overbooked. Verify that before choosing which
+  number is the right one — the detail's is the more truthful of the two for a human reading it.
+
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
   change to this screen's save model. **Still open after M14a, deliberately.** M14a built the mechanism —
@@ -328,11 +363,17 @@ full e2e run.
   Accepted at the time (user decision, 2026-08-19) because the alternative was either editing the
   frontend, which M14a forbade itself, or keeping a dead column the migration test asserts is gone.
   **M14c** rebuilds that select against the real axes and the loss disappears with it.
-- **Day pager** (Book + coach Classes): no swipe, chevrons outside the thumb zone, no week-strip with
-  availability dots — paging to the next open class can take 13 taps. 14-day bound.
 - Builder score-type select is still a 5-option decision per scored piece.
 - No coach-facing help for the skeleton → instance → publish flow.
 - Drag-and-drop reorder + drag-to-move calendar slots (today: up/down + click-assign).
+- **A capacity change regenerates rather than applying in place, so it is refused on any slot with a
+  booked session in range.** Deliberate (M14b decision 8) — one mechanism, not two: every scheduling
+  edit routes through `SlotRegenerationService`, which refuses rather than cancelling, because
+  cancelling would mail everyone booked. The cost is that raising a capacity from 12 to 14, which
+  harms nobody, is refused exactly as moving the class an hour earlier would be; the admin's way
+  through is the `applyFrom` retry, which only helps for dates *after* the booked ones. Revisit if
+  the pilot finds the refusal too blunt — the narrow fix is an in-place capacity update that skips
+  regeneration entirely, since capacity alone changes no session's identity.
 
 ### → M15 Admin: people
 
@@ -359,6 +400,16 @@ full e2e run.
   accent change silently reintroduces an unreadable button.
 
 ### → M17 Athlete
+- **The class row/card is ONE shared component across athlete Book and coach Classes, with the
+  ACTIONS differing by role (user-ruled 2026-09-06).** M14b gave both screens the week strip but
+  explicitly left their rows alone — its spec annotates the sketch *"the component owns the strip,
+  not the rows"*, and §4.2 keeps `book.page.ts`'s photo cards as M17a's. That left the coach row
+  with no owning milestone at all; this ruling gives it one rather than leaving it to be
+  rediscovered. Build it once, vary the actions (athlete: book / cancel / waitlist; coach: open the
+  class, check-in, run it), not the layout. `docs/design-ref/screens/booking-screen-example.webp` is
+  the binding reference for the shape — full-bleed image with the text on a scrim over it, not a
+  thumbnail beside text — and **nothing implements it today**. M17a therefore covers
+  `athlete/book.page.ts`, `athlete/class-detail.page.ts` **and** `coach/classes.page.ts`'s rows.
 - Score form has no cancel/delete of a logged score (edit-only); no way to delete a lift entry.
 - Booking error renders at the list top, not in the card foot next to the button that caused it.
 - Leaderboard button could show score count ("3 posted"); score-save could show your rank ("you're 3rd")
@@ -764,14 +815,6 @@ athlete's result for that class. `M33` names performance history as *the real sw
 CrossFit box*, which is what makes this expensive rather than annoying. Verified directly, not
 inferred. **Open question: fix now as a defect, or fold into `M14c-a`, which rebuilds the builder
 anyway?** Full context: `docs/superpowers/specs/2026-08-27-analytics-brief.md` §2 D-1.
-
-**`SlotRegenerationService.regenerateFrom` can delete sessions that nothing refills (latent).**
-Its delete is unbounded backwards (`findByScheduleSlotIdAndStartAtGreaterThanEqual`) while the
-recreate floors at today (`box/SessionGenerator.java:76,80`), so a past `from` deletes sessions
-between `from` and today and never refills them; its blocking check inspects only `bookings.status`,
-so a session carrying scores but no live booking is unprotected. **No controller calls it today** —
-grep finds only javadoc and two tests — so this is latent, not live. It becomes live the moment a
-schedule-edit flow wires it in, which is **`M14b`**. Read before planning M14b.
 
 **A TV SSE push can go missing, and the TV is dropped silently (OPEN — found 2026-08-28).**
 Evidence, from a CI failure rather than a theory: the TV's `data-frames` attribute sat at **2** for

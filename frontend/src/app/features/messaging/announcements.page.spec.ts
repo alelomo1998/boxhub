@@ -7,7 +7,7 @@ import { MessagingService } from './messaging.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AnnouncementRow, AnnouncementTarget, AnnouncementDetail } from './messaging.models';
 
-/** `startAt` fixed today-relative so the day-pager tests below (offset 0 = today) stay correct
+/** `startAt` fixed today-relative so the day-picker tests below (offset 0 = today) stay correct
  *  regardless of when the suite runs. */
 function todayAt(hh: number): string {
   const d = new Date(); d.setHours(hh, 0, 0, 0);

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
@@ -6,7 +6,6 @@ import { AvatarComponent } from '../../ui/avatar.component';
 import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
-import { DayPagerComponent } from '../../ui/day-pager.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { FieldComponent } from '../../ui/field.component';
@@ -21,6 +20,7 @@ import { SelectComponent } from '../../ui/select.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
 import { SwitchComponent } from '../../ui/switch.component';
+import { DayTone, WeekCalendarComponent } from '../../ui/week-calendar.component';
 import { WordmarkComponent } from '../../ui/wordmark.component';
 import { ProofAdminMembersComponent } from './proof-admin-members.component';
 import { ProofWodBoardComponent } from './proof-wod-board.component';
@@ -93,7 +93,7 @@ export class GalleryNotificationBellComponent implements OnInit {
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
     PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
-    AvatarComponent, PillComponent, DayPagerComponent, SheetComponent, AuthLayoutComponent,
+    AvatarComponent, PillComponent, WeekCalendarComponent, SheetComponent, AuthLayoutComponent,
     BenchmarkBoardComponent, GalleryNotificationBellComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -822,16 +822,26 @@ export class GalleryNotificationBellComponent implements OnInit {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'pill' }" />
       </section>
 
-      <section class="gsec" id="day-pager" data-gallery="day-pager">
-        <h2 class="t-h2" i18n="@@dev.gallery.dayPager.heading">Day pager</h2>
-        <bh-day-pager />
-        <p class="note" i18n="@@dev.gallery.dayPager.note">
-          Offset is a model — two-way bound by the athlete book page and the coach classes page.
-          Previous/Next arrows disable at the [0, max] bounds. Their aria-labels are marked for
-          translation and are also asserted verbatim by e2e, which passes because the suite runs
-          against the English source — a locale switch would need those selectors revisited.
+      <section class="gsec" id="week-calendar" data-gallery="week-calendar">
+        <h2 class="t-h2" i18n="@@dev.gallery.weekCalendar.heading">Week calendar</h2>
+        <bh-week-calendar [tones]="galleryTones()" />
+        <!-- A SECOND instance, bounded tight, so the disabled state is on this page EVERY day.
+             The one above only shows disabled cells when today is not a Monday: on a Monday the
+             whole calendar week is in range and nothing dims, which would make the ledger's
+             "disabled: rendered" claim true six days in seven. A ledger that is conditionally
+             true is the omission it exists to prevent. -->
+        <bh-week-calendar [max]="2" />
+        <p class="note" i18n="@@dev.gallery.weekCalendar.note">
+          Offset is a model — two-way bound by the athlete book page, the coach classes page and
+          the admin schedule page. Chevrons page a week and disable at the [0, max] bounds; a swipe
+          pages a day; tapping a day jumps to it. Dots carry availability by SHAPE, not hue —
+          filled is open, a hollow ring is full, a flat tick is no classes — and each day's
+          aria-label states it in words, so the strip works with no dot visible at all. Days
+          outside [0, max] render dimmed and are not selectable — the second strip is bounded to
+          max=2 so that disabled state is visible here on any day of the week, not only when today
+          falls mid-week.
         </p>
-        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'day-pager' }" />
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'week-calendar' }" />
       </section>
 
       <section class="gsec" id="wordmark" data-gallery="wordmark">
@@ -1054,14 +1064,14 @@ export class DevGalleryPage {
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.loading:a static tab list; it fetches nothing` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dock.error:navigation chrome has nothing to fail at` },
     ],
-    'day-pager': [
+    'week-calendar': [
       { state: 'default', how: 'rendered' },
-      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.hover:the pager buttons carry no hover styling of their own` },
+      { state: 'hover', how: 'hand' },
       { state: 'focus', how: 'hand' },
-      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.active:the pager buttons carry no active-press styling of their own` },
+      { state: 'active', how: 'rendered' },
       { state: 'disabled', how: 'rendered' },
-      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.loading:it emits a date; the screen beside it owns the fetch and its spinner` },
-      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.dayPager.error:a date cannot fail to be a date; the screen renders any fetch error` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.weekCalendar.loading:it derives its own dates; the screen beside it owns the fetch and its spinner. Absent tones is a resting state, not a loading one` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.weekCalendar.error:a date cannot fail to be a date; the screen renders any fetch error` },
     ],
     'auth-layout': [
       { state: 'default', how: 'rendered' },
@@ -1221,4 +1231,13 @@ export class DevGalleryPage {
     { link: '.', label: 'Book', icon: 'calendar-plus' },
     { link: '.', label: 'WOD', icon: 'clipboard-list' },
   ];
+  /** ponytail: fabricated, per this page's "no API call — fabricated data only" rule. Keyed off
+   *  real dates so the strip renders all three tones whatever day the gallery is opened. */
+  protected readonly galleryTones = computed<Record<string, DayTone>>(() => {
+    const iso = (n: number) => {
+      const d = new Date(); d.setDate(d.getDate() + n);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    return { [iso(0)]: 'open', [iso(1)]: 'open', [iso(2)]: 'full' };
+  });
 }

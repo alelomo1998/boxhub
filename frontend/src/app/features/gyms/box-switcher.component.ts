@@ -74,7 +74,13 @@ import { AlertComponent } from '../../ui/alert.component';
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
-    .switcher { display: flex; align-items: center; gap: 10px; min-width: 0;
+    /* max-width, and it is load-bearing: a <button>'s automatic width is FIT-CONTENT, not stretch
+       like a div's, so this button ignored its 92px host and laid out at its full 166px content
+       width — spilling the gym name straight on top of the "Admin" area label. Nothing inside
+       could fix it, because with the button wider than the host there was never any pressure for
+       .bn to ellipsise against. Only visible once the shell's grid stopped flooring at
+       min-content; before that the whole header simply overflowed instead. */
+    .switcher { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%;
       background: none; border: 1px solid transparent; border-radius: var(--r-ctl);
       padding: 3px var(--sp-2) 3px 3px; margin-left: -3px; min-height: var(--tap);
       cursor: pointer; font: inherit; color: inherit; }
@@ -85,8 +91,11 @@ import { AlertComponent } from '../../ui/alert.component';
     .mark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt);
       color: var(--on-volt); display: grid; place-items: center; flex-shrink: 0;
       font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body); }
+    /* min-width: 0 is what makes the ellipsis above reachable at all. A flex item's automatic
+       minimum is its min-content width, so without this the name refuses to shrink and the
+       overflow/text-overflow pair never engages — the rule looked correct and did nothing. */
     .bn { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body);
-      text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden;
+      text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden; min-width: 0;
       text-overflow: ellipsis; white-space: nowrap; }
     /* bh-icon, not a text glyph: at --fs-meta the raw caret rendered as a near-invisible dot and
        the gym name did not read as interactive. Every sibling chrome icon uses bh-icon. */

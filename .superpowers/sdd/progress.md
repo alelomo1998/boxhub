@@ -2734,3 +2734,107 @@ connected**), 21 (e2e), 22 (baselines, gate sweep, merge).
 - **Not done, deliberately:** a `Saving…` affordance on a pref row while the save is in flight
   (critique P2). Both gates pass without it, but design principle 4 says state is never silent, so
   it is a real candidate rather than a nicety. Left to the user's call.
+
+---
+
+# M14b — schedule & classes surfaces
+
+Branch `m14b-schedule-classes`, off `main` at `feedbe9`.
+
+**Baselines confirmed before building** (not inherited from the handoff — re-measured):
+backend **749/0/0/0** + `BUILD SUCCESS`, Karma **615 SUCCESS**, production build **zero warnings**.
+
+Spec `docs/superpowers/specs/2026-09-05-m14b-schedule-classes-design.md` (`e33c5b9`).
+Plan `docs/superpowers/plans/2026-09-05-m14b-schedule-classes.md`, 14 tasks (`fc3aa68`).
+
+## Decisions the user ruled on at design time
+
+1. **Week strip + day list**, not a 7-column grid, not a paging-free agenda.
+2. **Wire slot editing**, fixing the regeneration bug first.
+3. **Adopt the component on the athlete Book page too**, not only the M14b surfaces.
+4. **Delete `bh-day-pager`** — all four consumers swap.
+5. **Refusal UX:** name the blocking dates, offer one-tap "Apply from <first free date>".
+
+Decisions 9 and 10 in the spec (rename-in-place, deactivate-unchanged) are mine, flagged to the
+user and approved with the plan.
+
+## Found while planning, not inherited
+
+- **`PATCH /api/box/class-templates/{id}` is a LIVE defect, not the latent one the backlog names.**
+  It accepts `weekday`/`startTime`/`capacity` then calls `generateForBox`, which is additive only,
+  so moving a slot leaves the old sessions and adds new ones beside them. `COACH`-reachable today;
+  only the UI never sends those fields.
+- **`regenerateFrom`'s existing test uses a FUTURE `from`** (`now + 3 days`), which is exactly why
+  the unbounded-backwards delete has never been caught. Only a past `from` reaches the past.
+- **Six e2e call sites** drive `button[aria-label="Next day"]` across `booking-flow`, `messaging`
+  and `memberships`. The spec does not name them; Task 8 owns them.
+- **A fourth `bh-day-pager` consumer** the roadmap does not mention: M29a's announcements
+  class-picker. It is what made "delete the old component" a real question rather than a formality.
+
+## Task log
+
+- **T1** regeneration delete-range guard — **done** `b8d6570`. Backend **750/0/0/0**.
+  Verified the guard does real work rather than trusting the executor: reverted the one-line clamp,
+  ran the new test alone, watched it fail (`Expecting Optional to contain a value but it was
+  empty`), restored. A test that passes against the broken code proves nothing.
+- **T3** `bh-week-calendar` + Karma spec — **done** `010c19d`. Karma **625 SUCCESS**, build clean,
+  `ui/` greps zero.
+  **Review caught one real defect:** the executor copied the plan verbatim, and the plan put
+  `aria-live="polite"` on the MONTH label. The month only changes at a month boundary, so moving
+  Wed→Thu announced nothing — a regression against bh-day-pager, which announced the full date on
+  every change, and against the spec's own §3.5. Moved the live region onto the selected day using
+  bh-wordmark's existing `.sr` pattern, plus a spec so it cannot come back silently. My defect, not
+  the executor's — it was in the plan they were told to copy exactly.
+- **T2** slot edit regenerates — dispatched
+- **T4** gallery section + ledger — dispatched (parallel; disjoint from T2)
+
+## Plan defects found while dispatching
+
+- **T2's test code named four helpers that do not exist** (`createSlot`, `staffHeaders`,
+  `bookSession`, `firstFutureSession`). Corrected in the plan with the real scaffolding:
+  `ClassTemplateApiTest` uses `.header("Authorization", "Bearer " + adminToken)`, has no repository
+  access, and needs `actAsBox` copied from `SlotRegenerationTest:44` because **since M21 a
+  tenant-less repository read returns EMPTY, not everything**. Writing a brief from a plan without
+  re-checking the file it targets is how an executor gets sent after fictional names.
+- **T1's test was simpler than planned**: `seedSlotWithSessions()` already seeds a past session and
+  exposes `ctx.pastSessionId()`, so no fixture was needed.
+
+## Watch for
+
+- A rare one-off `NoClassDefFoundError` flake in `SkeletonApiTest`/`SkeletonConcurrencyTest` on a
+  full run; passed clean on re-run and my own full run was clean at 750. Not caused by M14b.
+- **T2** slot edit regenerates — **done** `530d2ba`. Backend **754/0/0/0**, verified on my own run.
+  Found while reviewing: `PATCH` was a LIVE defect (additive generate), not the latent one the
+  backlog recorded. The executor added `@Transactional` for the bulk-rename flush; it is also what
+  makes a REFUSED edit atomic, which its comment did not say and now does. One of its four tests
+  passed even pre-fix (it asserted only a non-effect) — strengthened to assert the mechanism ran.
+- **T4** gallery section + ledger — **done** `02b5805`. Executor correctly escalated: the
+  completeness spec hardcodes a sorted registry of every gallery id. Added a second strip bounded
+  to `max=2`, because `disabled: rendered` was otherwise true only six days in seven.
+- **T5** `tonesOf` + coach/athlete swaps — **done** `dd0a659`. Karma 628.
+- **T7** announcements swap, `bh-day-pager` deleted — **done** `1bafab1`. Also reworded eight
+  comments still naming the dead component: the greps match comments, so leaving them would have
+  made the standing gate permanently non-zero. Two were factually wrong by then.
+- **T8** e2e drives the strip — **done** `60082d7`. Six specs pass.
+  My `nextDay` helper took three goes and **every failure mode was silent**: an absolute date never
+  advanced; a day past `max` is rendered-but-disabled so a `count()` check hung on a doomed click;
+  and after paging a week, `count()` read the pre-click DOM and reported the horizon exhausted on
+  day 1 of 14. The executor found the second, then blamed a concurrent edit for the rest — wrong,
+  and worth checking rather than accepting. Diagnosed by walking the whole horizon and printing
+  each day.
+- **T9** admin schedule rebuilt — **done** `533dd5c`. Karma **626**, build clean, all five greps
+  correct, 41 i18n ids.
+  **The executor reported `625 SUCCESS`; the real result was `1 FAILED`.** Not its file, though:
+  the machine clock rolled past midnight mid-session and a week-calendar spec of mine went red.
+  It looked for "a selectable day with a greater offset" in the default week, which does not exist
+  on a **Sunday** (today is the last cell of a Monday-first week). Split into two deterministic
+  tests; the swipe test had the same latent flaw and only survived because `select()`
+  short-circuits before dereferencing.
+
+## Remaining: T10 modal, T11 e2e, T12 baselines, T13 docs, T14 gates + merge
+
+The impeccable routine has not been run on anything yet. Visual baselines not regenerated. The
+frontend Docker image is stale (predates T9).
+
+**Open, deliberately unfixed:** `admin.schedule.blocked.title` does not pluralise — one blocking
+date renders "1 classes". Left for the critique pass, since ICU plural is a copy decision.

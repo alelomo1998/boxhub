@@ -64,7 +64,7 @@ export class BookingService {
   createTemplate(t: { name: string; weekday: number; startTime: string; durationMin: number; capacity: number; coachId?: string }): Observable<ClassTemplate> {
     return this.http.post<ClassTemplate>('/api/box/class-templates', t);
   }
-  patchTemplate(id: string, patch: Partial<ClassTemplate> & { imagePath?: string }): Observable<ClassTemplate> {
+  patchTemplate(id: string, patch: Partial<ClassTemplate> & { imagePath?: string; applyFrom?: string }): Observable<ClassTemplate> {
     return this.http.patch<ClassTemplate>(`/api/box/class-templates/${id}`, patch);
   }
 }
