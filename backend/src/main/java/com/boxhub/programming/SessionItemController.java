@@ -1,8 +1,12 @@
 package com.boxhub.programming;
 
+import com.boxhub.box.Booking;
+import com.boxhub.box.BookingRepository;
 import com.boxhub.box.ClassSession;
 import com.boxhub.box.ClassSessionRepository;
 import com.boxhub.identity.MembershipRepository;
+import com.boxhub.notify.NotificationService;
+import com.boxhub.notify.NotificationType;
 import com.boxhub.performance.WodScoreRepository;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
@@ -30,15 +34,20 @@ public class SessionItemController {
     private final WodService wodService;
     private final WodScoreRepository scores;
     private final MembershipRepository memberships;
+    private final BookingRepository bookings;
+    private final NotificationService notifications;
 
     public SessionItemController(SessionItemRepository items, ClassSessionRepository sessions, WodRepository wods,
-                                 WodService wodService, WodScoreRepository scores, MembershipRepository memberships) {
+                                 WodService wodService, WodScoreRepository scores, MembershipRepository memberships,
+                                 BookingRepository bookings, NotificationService notifications) {
         this.items = items;
         this.sessions = sessions;
         this.wods = wods;
         this.wodService = wodService;
         this.scores = scores;
         this.memberships = memberships;
+        this.bookings = bookings;
+        this.notifications = notifications;
     }
 
     private static final java.util.Set<String> SCORE_TYPES = java.util.Set.of("TIME", "ROUNDS_REPS", "LOAD", "NONE");
@@ -197,14 +206,41 @@ public class SessionItemController {
         return toDtos(items.findBySessionIdOrderBySortOrderAsc(sessionId));
     }
 
+    /**
+     * @Transactional is load-bearing, not decoration: an in-app notification row is persistence and
+     * belongs inside the transaction that caused it (docs/NOTIFICATIONS.md §5.1), which is why
+     * NotificationService.emitAll is Propagation.MANDATORY and throws without one.
+     */
     @PatchMapping("/{sessionId}/programming")
+    @Transactional
     public Map<String, String> publish(@PathVariable UUID sessionId, @Valid @RequestBody ProgrammingRequest req) {
         RoleGuard.requireStaff();
         if (!"DRAFT".equals(req.status()) && !"PUBLISHED".equals(req.status()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown status");
         ClassSession s = sessions.findById(sessionId).orElseThrow(NoSuchElementException::new);
+        boolean becomingPublished = "PUBLISHED".equals(req.status())
+                && !"PUBLISHED".equals(s.getProgrammingStatus());
         s.setProgrammingStatus(req.status());
         sessions.save(s);
+
+        if (becomingPublished) {
+            // The audience is resolved ONCE, here, and stored -- a feed entry recomputed at read
+            // time silently disappears for someone whose booking changed later, and "who was told?"
+            // stops being answerable (registry §5.2).
+            //
+            // A visitor drop-in has a null membershipId (M22); emitAll drops those centrally,
+            // because every booking-derived fan-out has that same hole. Do not filter here. Same
+            // roster derivation as ClassReminderScheduler.sweepBox, deliberately.
+            List<UUID> booked = bookings.findBySessionId(sessionId).stream()
+                    .filter(b -> "BOOKED".equals(b.getStatus()) || "CHECKED_IN".equals(b.getStatus()))
+                    .map(Booking::getMembershipId)
+                    .distinct()
+                    .toList();
+            notifications.emitAll(NotificationType.PROGRAMMING_PUBLISHED, booked,
+                    Map.of(NotificationType.SESSION_ID, sessionId.toString(),
+                           NotificationType.CLASS_NAME, s.getName(),
+                           NotificationType.START_AT, s.getStartAt().toString()));
+        }
         return Map.of("programmingStatus", s.getProgrammingStatus());
     }
 }

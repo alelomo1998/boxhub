@@ -137,7 +137,7 @@ manual path should be re-examined, not kept by default, once this event exists.
 |---|---|---|---|---|---|
 | `PR_CONGRATULATED` | someone likes or comments on your PR post | the athlete | feed | **deferred to M25 (social), 2026-09-03** | `PostLike` exists already. |
 | `LEADERBOARD_PLACED` | you land top-3 on a WOD | the athlete | feed | later | Genuinely optional. Ship only if it does not add noise. |
-| `PROGRAMMING_PUBLISHED` | a session's `programming_status` → `PUBLISHED` | athletes booked on it | feed | later | **Off by default.** A box that publishes a week at a time would fire this a dozen times in a minute. |
+| `PROGRAMMING_PUBLISHED` | a session's `programming_status` → `PUBLISHED` | athletes booked on it | feed | **shipped — `SessionItemController:239`** | **On by default.** The "a dozen times in a minute" worry was written against a bulk week-publish path that does not exist: the builder publishes one session at a time, from one screen, one button. Deduped on `sessionId`, so *Save & republish* after a typo fix does not re-notify a roster. Opt-out, per §5.3's rule that training events are opt-out rather than mandatory. Amended 2026-09-07 at the user's request, who also fixed the audience: *"only for the class that im booked"*. |
 
 ### 4.5 Staff-facing operations
 
