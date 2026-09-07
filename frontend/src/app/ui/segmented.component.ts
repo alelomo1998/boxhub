@@ -11,7 +11,8 @@ export interface SegOption { value: string; label: string; }
   selector: 'bh-segmented',
   standalone: true,
   template: `
-    <div class="seg" role="radiogroup" [attr.aria-label]="label()">
+    <div class="seg" role="radiogroup" [attr.aria-label]="label()"
+         [class.tone-bone]="tone() === 'bone'" [class.wrap]="wrap()">
       @for (o of options(); track o.value; let i = $index) {
         <button #opt type="button" class="opt" role="radio"
                 [class.on]="o.value === value()"
@@ -33,12 +34,24 @@ export interface SegOption { value: string; label: string; }
     .opt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     /* A volt ring on the volt-filled selected segment is invisible — law §11.2. */
     .opt.on:focus-visible { outline-color: var(--focus-inv); }
+    .seg.wrap { flex-wrap: wrap; }
+    .seg.tone-bone .opt.on { background: var(--bone); color: var(--on-bone); }
+    /* A volt ring is invisible on volt; on a near-white bone fill it is invisible too. Both
+       selected fills therefore take the inverted ring, for the same reason. */
+    .seg.tone-bone .opt.on:focus-visible { outline-color: var(--focus-inv); }
   `],
 })
 export class SegmentedComponent {
   options = input.required<SegOption[]>();
   value = model.required<string>();
   label = input('');
+  /** Selected-chip fill. 'volt' is the default so existing consumers are unchanged. Use 'bone'
+   *  on a screen whose volt budget is already spent by the shell's box switcher -- a plumbing
+   *  screen. --bone on --on-bone is 15.9:1 and is not volt, the same answer bh-button's `strong`
+   *  variant gives to the same problem. */
+  tone = input<'volt' | 'bone'>('volt');
+  /** Let the group wrap onto more than one line. Five score options do not fit one line at 360px. */
+  wrap = input(false);
 
   private opts = viewChildren<ElementRef<HTMLButtonElement>>('opt');
 

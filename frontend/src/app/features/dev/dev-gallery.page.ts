@@ -686,6 +686,14 @@ export class GalleryNotificationBellComponent implements OnInit {
             <span class="stlabel" i18n="@@dev.gallery.segmented.state.sc">Scaled selected</span>
             <bh-segmented [options]="segOptions" value="sc" label="Division" i18n-label="@@dev.gallery.segmented.label" />
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.segmented.state.bone">Bone tone (plumbing screens)</span>
+            <bh-segmented [options]="segOptions" value="rx" tone="bone" label="Division" i18n-label="@@dev.gallery.segmented.label" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.segmented.state.wrap">Wrapped, five options at 360px</span>
+            <bh-segmented [options]="scoreOptions" value="rx" [wrap]="true" label="Score" i18n-label="@@dev.gallery.segmented.scoreLabel" />
+          </div>
         </div>
         <p class="note" i18n="@@dev.gallery.segmented.note">
           Hover and focus aren't shown statically — hover on an unselected segment lightens its text
@@ -1298,6 +1306,10 @@ export class DevGalleryPage {
   /** Names each drag handle after the piece it moves, so the four are told apart by ear. */
   protected readonly sortableLabel = (piece: string) => piece;
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
+  protected readonly scoreOptions: SegOption[] = [
+    { value: 'rx', label: 'RX' }, { value: 'rx+', label: 'RX+' }, { value: 'sc', label: 'Scaled' },
+    { value: 'sc+', label: 'Scaled+' }, { value: 'foundations', label: 'Foundations' },
+  ];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
   // it, so this page must reset its own signal on (closed) or the sheet could never reopen.
   protected readonly sheetOpen = signal(false);
