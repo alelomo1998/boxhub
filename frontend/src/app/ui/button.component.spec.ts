@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { ButtonComponent } from './button.component';
 
 @Component({
@@ -325,5 +326,59 @@ describe('ButtonComponent as a link, disabled and loading', () => {
     expect(a().getAttribute('aria-disabled')).toBe('true');
     expect(a().getAttribute('aria-busy')).toBe('false');
     expect(a().querySelector('.spin')).toBeFalsy();
+  });
+});
+
+@Component({
+  standalone: true, imports: [ButtonComponent],
+  template: `<bh-button route="/coach/classes" testId="route-btn">Build</bh-button>`,
+})
+class RouteHost {}
+
+@Component({
+  standalone: true, imports: [ButtonComponent],
+  template: `<bh-button [route]="['/coach/classes', 'abc', 'build']" [disabled]="d()">Build</bh-button>`,
+})
+class RouteArrayHost { d = signal(false); }
+
+/**
+ * `route` exists to end the duplication that made ~25 screens hand-roll an anchor and re-derive
+ * .btn.ghost's border/radius/--tap in their own CSS: before it, the only link branch was `href`,
+ * which is a FULL PAGE LOAD and therefore wrong for in-app navigation.
+ */
+describe('ButtonComponent as an internal link', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RouteHost, RouteArrayHost],
+      providers: [provideRouter([])],
+    }).compileComponents();
+  });
+
+  it('renders an anchor whose href the ROUTER resolved, not a raw attribute', () => {
+    const f = TestBed.createComponent(RouteHost);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a).toBeTruthy();
+    expect(f.nativeElement.querySelector('button')).toBeNull();
+    // routerLink resolves to a real href, which is what preserves cmd-click and open-in-new-tab.
+    expect(a.getAttribute('href')).toBe('/coach/classes');
+    expect(a.className).toContain('btn');
+    expect(a.getAttribute('data-testid')).toBe('route-btn');
+  });
+
+  it('accepts a command array, the form every per-row action uses', () => {
+    const f = TestBed.createComponent(RouteArrayHost);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a.getAttribute('href')).toBe('/coach/classes/abc/build');
+  });
+
+  it('drops the link when disabled, so it leaves the tab order like the href branch', () => {
+    const f = TestBed.createComponent(RouteArrayHost);
+    f.componentInstance.d.set(true);
+    f.detectChanges();
+    const a: HTMLAnchorElement = f.nativeElement.querySelector('a');
+    expect(a.getAttribute('href')).toBeNull();
+    expect(a.getAttribute('aria-disabled')).toBe('true');
   });
 });
