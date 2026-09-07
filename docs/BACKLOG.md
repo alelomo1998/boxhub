@@ -202,6 +202,17 @@ milestone. Decide when the marketing site (M19) or the pilot forces it.
 
 ### → M23 App entry & shells
 
+- **`bh-button` has a link mode but no `routerLink` mode, so 25 screens hand-roll a link-as-button.**
+  Found by the M14b critique on `coach/classes.page.ts` (its `.act` class re-implements the button's
+  border/radius/`--tap` CSS for Build / Check-in / Run), then confirmed as systemic: ~25 feature
+  screens carry the same shape. It reads as a straight violation of *"re-implementing a component's
+  markup in a screen is a bug"* — **but the obvious fix is wrong.** `bh-button`'s link branch emits a
+  plain `[attr.href]`, so swapping these in-app navigations onto it turns client-side routes into
+  FULL PAGE RELOADS. Closing this properly means teaching `bh-button` `routerLink` (a `ui/` API
+  change, M13c's clean zone, every consumer affected) and only then swapping. Not taken in M14b:
+  a shared-component API change on merge day is exactly the wrong time.
+
+
 - **The shell header squeezes the box switcher FIRST, so the gym name is the thing that
   disappears.** Found while fixing the 401px floor (M14b, 2026-09-06). Now that the header takes
   real width pressure, the flex order means `.acts` (three tap targets, rigid at the `--tap` 44px
@@ -324,6 +335,17 @@ full e2e run.
   Fix when the dashboard is rebuilt.
 
 ### → M14 Class model & schedule
+
+- **Two endpoints disagree about what "booked" means, and M14b made the disagreement visible.**
+  `SessionController.java:75` computes a session's `bookedCount` from status **`BOOKED` only**;
+  `SessionDetailController.java:79` builds its `active` grid from **`BOOKED` or `CHECKED_IN`**. So
+  the moment anyone checks in, the schedule row reads "2/14 booked" and the class-detail sheet
+  opened *from that row* reads "3/14" for the same session — observed live, then confirmed in
+  source. M14b did not cause it; it put the two numbers side by side, which is why it is now
+  obvious. **The open question is bigger than the display:** if capacity checks also count `BOOKED`
+  only, a check-in frees a place and the class can be overbooked. Verify that before choosing which
+  number is the right one — the detail's is the more truthful of the two for a human reading it.
+
 - **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
   change to this screen's save model. **Still open after M14a, deliberately.** M14a built the mechanism —

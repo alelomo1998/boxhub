@@ -27,7 +27,11 @@ import { tonesOf } from '../booking/session-tones';
         <p class="stateline err">Couldn't load.
           <button class="retry" (click)="load()">Try again</button></p>
       } @else {
-        <div class="list">
+        <!-- aria-live, matching the admin schedule's session list. The strip announces the DAY it
+             moved to, but the list under it changes silently — and this milestone is what made
+             paging cheap enough to do repeatedly, so a screen-reader user now moves through days
+             far more often with no idea what landed. -->
+        <div class="list" aria-live="polite">
           @for (s of daySessions(); track s.id) {
             <div class="row" [attr.data-testid]="'class-' + s.id">
               <span class="time num">{{ s.startAt | date:'HH:mm' }}</span>
