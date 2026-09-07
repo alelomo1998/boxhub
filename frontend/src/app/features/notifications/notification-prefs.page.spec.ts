@@ -11,7 +11,7 @@ function prefRow(type: string, enabled: boolean, mandatory = false): PrefRow {
   return { type, channel: 'IN_APP', enabled, mandatory };
 }
 
-/** The full 12-row shape the API always returns — effective state, one row per feed type. */
+/** The full 13-row shape the API always returns — effective state, one row per feed type. */
 const ALL_PREF_ROWS: PrefRow[] = [
   prefRow('WAITLIST_PROMOTED', true),
   prefRow('CLASS_CANCELLED', true),
@@ -20,6 +20,7 @@ const ALL_PREF_ROWS: PrefRow[] = [
   prefRow('LATE_CANCEL_UNREFUNDED', true),
   prefRow('NO_SHOW_RECORDED', true),
   prefRow('NEW_ANNOUNCEMENT', true),
+  prefRow('PROGRAMMING_PUBLISHED', true),
   prefRow('SUBSCRIPTION_EXPIRING', true, true),
   prefRow('PAYMENT_FAILED', true, true),
   prefRow('MEMBERSHIP_BLOCKED', true, true),
@@ -52,23 +53,25 @@ describe('NotificationPrefsPage', () => {
     return fixture;
   }
 
-  it('renders three groups in the stated order for an ATHLETE, with the right rows in each', () => {
+  it('renders four groups in the stated order for an ATHLETE, with the right rows in each', () => {
     setup('ATHLETE');
     svc.prefs.and.returnValue(of(ALL_PREF_ROWS));
     const fixture = create();
     const el = fixture.nativeElement as HTMLElement;
 
     const headers = Array.from(el.querySelectorAll('.group-header h2')) as HTMLElement[];
-    expect(headers.length).toBe(3);
+    expect(headers.length).toBe(4);
     expect(headers[0].textContent).toContain('Classes and bookings');
     expect(headers[1].textContent).toContain('From your gym');
-    expect(headers[2].textContent).toContain('Money');
+    expect(headers[2].textContent).toContain('Training');
+    expect(headers[3].textContent).toContain('Money');
 
     const groups = el.querySelectorAll('.group');
-    expect(groups.length).toBe(3);
+    expect(groups.length).toBe(4);
     expect(groups[0].querySelectorAll('.pref-row').length).toBe(6);
     expect(groups[1].querySelectorAll('.pref-row').length).toBe(1);
-    expect(groups[2].querySelectorAll('.pref-row').length).toBe(3);
+    expect(groups[2].querySelectorAll('.pref-row').length).toBe(1);
+    expect(groups[3].querySelectorAll('.pref-row').length).toBe(3);
   });
 
   it('every group section has aria-labelledby pointing at a non-empty h2 that exists', () => {
@@ -94,24 +97,24 @@ describe('NotificationPrefsPage', () => {
     svc.prefs.and.returnValue(of(ALL_PREF_ROWS));
     const fixture = create();
     const headers = Array.from(fixture.nativeElement.querySelectorAll('.group-header h2')) as HTMLElement[];
-    expect(headers.length).toBe(3);
+    expect(headers.length).toBe(4);
     expect(headers.some(h => h.textContent?.includes('Members'))).toBeFalse();
   });
 
   for (const role of ['COACH', 'BOX_ADMIN'] as const) {
-    it(`shows a fourth "Members" group of 2 rows for a ${role}`, () => {
+    it(`shows a fifth "Members" group of 2 rows for a ${role}`, () => {
       setup(role);
       svc.prefs.and.returnValue(of(ALL_PREF_ROWS));
       const fixture = create();
       const el = fixture.nativeElement as HTMLElement;
 
       const headers = Array.from(el.querySelectorAll('.group-header h2')) as HTMLElement[];
-      expect(headers.length).toBe(4);
-      expect(headers[3].textContent).toContain('Members');
+      expect(headers.length).toBe(5);
+      expect(headers[4].textContent).toContain('Members');
 
       const groups = el.querySelectorAll('.group');
-      expect(groups.length).toBe(4);
-      expect(groups[3].querySelectorAll('.pref-row').length).toBe(2);
+      expect(groups.length).toBe(5);
+      expect(groups[4].querySelectorAll('.pref-row').length).toBe(2);
     });
   }
 
@@ -267,7 +270,7 @@ describe('NotificationPrefsPage', () => {
     expect(() => { fixture = create(); }).not.toThrow();
 
     const headers = Array.from(fixture.nativeElement.querySelectorAll('.group-header h2')) as HTMLElement[];
-    expect(headers.length).toBe(4); // the 3 athlete groups + "Other"
+    expect(headers.length).toBe(5); // the 4 athlete groups + "Other"
     expect(headers.some(h => h.textContent?.includes('Other'))).toBeTrue();
     expect(fixture.nativeElement.textContent).not.toContain('SOME_UNKNOWN_TYPE');
   });

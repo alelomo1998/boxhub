@@ -9,6 +9,7 @@ describe('NOTIFICATION_COPY', () => {
       'WAITLIST_PROMOTED', 'CLASS_CANCELLED', 'CLASS_TIME_CHANGED', 'COACH_CHANGED',
       'LATE_CANCEL_UNREFUNDED', 'NO_SHOW_RECORDED', 'NEW_ANNOUNCEMENT', 'SUBSCRIPTION_EXPIRING',
       'PAYMENT_FAILED', 'MEMBERSHIP_BLOCKED', 'INVITE_ACCEPTED', 'NEW_MEMBER_JOINED',
+      'PROGRAMMING_PUBLISHED',
     ];
     expect(Object.keys(NOTIFICATION_COPY).sort()).toEqual(SERVER_FEED_TYPES.sort());
   });
@@ -29,7 +30,7 @@ describe('NOTIFICATION_COPY', () => {
 
   it('gives every type a short, non-empty eyebrow with no stray placeholder marker', () => {
     const entries = Object.entries(NOTIFICATION_COPY);
-    expect(entries.length).toBe(12);
+    expect(entries.length).toBe(13);
     for (const [type, copy] of entries) {
       expect(copy.eyebrow.length).withContext(type).toBeGreaterThan(0);
       expect(copy.eyebrow).withContext(type).not.toMatch(/:[a-zA-Z]+:/);
@@ -38,14 +39,15 @@ describe('NOTIFICATION_COPY', () => {
 });
 
 describe('NOTIFICATION_PREF_COPY', () => {
-  it('has a label and a hint for all twelve feed types, and no id collides with NOTIFICATION_COPY', () => {
+  it('has a label and a hint for all thirteen feed types, and no id collides with NOTIFICATION_COPY', () => {
     const SERVER_FEED_TYPES = [
       'WAITLIST_PROMOTED', 'CLASS_CANCELLED', 'CLASS_TIME_CHANGED', 'COACH_CHANGED',
       'LATE_CANCEL_UNREFUNDED', 'NO_SHOW_RECORDED', 'NEW_ANNOUNCEMENT', 'SUBSCRIPTION_EXPIRING',
       'PAYMENT_FAILED', 'MEMBERSHIP_BLOCKED', 'INVITE_ACCEPTED', 'NEW_MEMBER_JOINED',
+      'PROGRAMMING_PUBLISHED',
     ];
     const entries = Object.entries(NOTIFICATION_PREF_COPY);
-    expect(entries.length).toBe(12);
+    expect(entries.length).toBe(13);
     expect(Object.keys(NOTIFICATION_PREF_COPY).sort()).toEqual(SERVER_FEED_TYPES.sort());
     for (const [type, copy] of entries) {
       expect(copy.label.length).withContext(type).toBeGreaterThan(0);

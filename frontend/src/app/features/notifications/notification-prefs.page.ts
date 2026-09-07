@@ -36,6 +36,7 @@ const GROUP_DEFS: GroupDef[] = [
     'COACH_CHANGED', 'LATE_CANCEL_UNREFUNDED', 'NO_SHOW_RECORDED',
   ] },
   { key: 'announcements', types: ['NEW_ANNOUNCEMENT'] },
+  { key: 'training', types: ['PROGRAMMING_PUBLISHED'] },
   { key: 'money', types: ['SUBSCRIPTION_EXPIRING', 'PAYMENT_FAILED', 'MEMBERSHIP_BLOCKED'] },
   { key: 'gym', types: ['INVITE_ACCEPTED', 'NEW_MEMBER_JOINED'], staffOnly: true },
 ];
@@ -183,6 +184,7 @@ export class NotificationPrefsPage implements OnInit {
   private readonly classesHeading = $localize`:@@notifications.prefs.group.classes:Classes and bookings`;
   // The old heading sat directly above a single row whose label was that same word.
   private readonly fromYourGymHeading = $localize`:@@notifications.prefs.group.fromYourGym:From your gym`;
+  private readonly trainingHeading = $localize`:@@notifications.prefs.group.training:Training`;
   private readonly moneyHeading = $localize`:@@notifications.prefs.group.money:Money and membership`;
   // The old heading for this staff-only group would have collided with the group above it.
   private readonly membersHeading = $localize`:@@notifications.prefs.group.members:Members`;
@@ -249,6 +251,7 @@ export class NotificationPrefsPage implements OnInit {
     switch (key) {
       case 'time-critical': return this.classesHeading;
       case 'announcements': return this.fromYourGymHeading;
+      case 'training': return this.trainingHeading;
       case 'money': return this.moneyHeading;
       case 'gym': return this.membersHeading;
       default: return this.otherHeading;
