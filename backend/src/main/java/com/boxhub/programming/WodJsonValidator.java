@@ -13,9 +13,12 @@ import java.util.List;
 public final class WodJsonValidator {
     private WodJsonValidator() {}
 
+    private static final int MAX_SCALES_PER_LINE = 6;
+
     public static void validateBlocks(WodJson.Blocks blocks) {
         if (blocks == null || blocks.blocks() == null) return;
         for (WodJson.Block b : blocks.blocks()) {
+            validateLines(b.lines());
             List<WodJson.Block> children = b.blocks();
             if (children == null) continue;
             for (WodJson.Block child : children) {
@@ -23,6 +26,26 @@ public final class WodJsonValidator {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "BLOCK_DEPTH: blocks nest at most two levels");
                 }
+                validateLines(child.lines());
+            }
+        }
+    }
+
+    private static void validateLines(List<WodJson.Line> lines) {
+        if (lines == null) return;
+        for (WodJson.Line l : lines) {
+            List<WodJson.Scale> scales = l.scales();
+            if (scales == null) continue;
+            // blocks_json is an unbounded user-controlled document, and this milestone is closing
+            // an unbounded-growth bug rather than opening a second one.
+            if (scales.size() > MAX_SCALES_PER_LINE)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "SCALE_COUNT: at most " + MAX_SCALES_PER_LINE + " scaling options per line");
+            for (WodJson.Scale sc : scales) {
+                boolean blankText = sc.text() == null || sc.text().isBlank();
+                if (blankText && sc.movementId() == null)
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "SCALE_EMPTY: a scaling option needs a movement or some text");
             }
         }
     }

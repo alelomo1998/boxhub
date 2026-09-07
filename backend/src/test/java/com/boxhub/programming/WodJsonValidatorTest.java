@@ -10,7 +10,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class WodJsonValidatorTest {
 
     private WodJson.Block leaf(String label) {
-        return new WodJson.Block(label, null, List.of(new WodJson.Line("10 squats", null, "10", null, null)), null);
+        return new WodJson.Block(label, null,
+                List.of(new WodJson.Line("10 squats", null, "10", null, null, null)), null);
     }
 
     @Test
@@ -66,5 +67,44 @@ class WodJsonValidatorTest {
     void segmentSecondsMustBePositive() {
         WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(0, "WORK", null)));
         assertThatThrownBy(() -> WodJsonValidator.validateTiming(t)).hasMessageContaining("SEGMENT_SECONDS");
+    }
+
+    @Test
+    void aLineMayCarrySeveralScalingOptions() {          // spec 5A, user-asked 2026-09-07
+        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, List.of(
+                new WodJson.Scale("Pull-up", null, "12", null),
+                new WodJson.Scale("Ring row", null, "20", null)));
+        WodJson.Block block = new WodJson.Block("A", null, List.of(line), null);
+        WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(block)));  // does not throw
+    }
+
+    @Test
+    void moreThanSixScalesIsRejected() {
+        List<WodJson.Scale> seven = java.util.stream.IntStream.range(0, 7)
+                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null)).toList();
+        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, seven);
+        WodJson.Block block = new WodJson.Block("A", null, List.of(line), null);
+        assertThatThrownBy(() -> WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(block))))
+                .hasMessageContaining("SCALE_COUNT");
+    }
+
+    @Test
+    void aScaleWithNoTextAndNoMovementIsRejected() {
+        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null,
+                List.of(new WodJson.Scale(null, null, null, null)));
+        WodJson.Block block = new WodJson.Block("A", null, List.of(line), null);
+        assertThatThrownBy(() -> WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(block))))
+                .hasMessageContaining("SCALE_EMPTY");
+    }
+
+    @Test
+    void theScaleCapAppliesInsideNestedBlocksToo() {     // the cap must walk BOTH levels
+        List<WodJson.Scale> seven = java.util.stream.IntStream.range(0, 7)
+                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null)).toList();
+        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, seven);
+        WodJson.Block inner = new WodJson.Block("inner", null, List.of(line), null);
+        WodJson.Block macro = new WodJson.Block("macro", null, List.of(), List.of(inner));
+        assertThatThrownBy(() -> WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(macro))))
+                .hasMessageContaining("SCALE_COUNT");
     }
 }

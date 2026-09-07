@@ -9,8 +9,17 @@ import java.util.UUID;
 public final class WodJson {
     private WodJson() {}
 
+    /** One alternative to the line above it, shaped like the line so it gets the same movement
+     *  picker and a later leaderboard can tell "scaled to ring rows" from "scaled to jumping
+     *  pull-ups". */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Line(String text, UUID movementId, String reps, String load, String scaling) {}
+    public record Scale(String text, UUID movementId, String reps, String load) {}
+
+    /** scaling is the legacy free-text input only and is never returned populated -- a read
+     *  normalises it into a one-entry scales list (WodService.deserialize). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Line(String text, UUID movementId, String reps, String load,
+                       String scaling, List<Scale> scales) {}
 
     /**
      * A block holds lines, sub-blocks, or both. Nesting is capped at TWO levels — a block that is

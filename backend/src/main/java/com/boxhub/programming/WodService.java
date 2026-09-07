@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -40,10 +41,40 @@ public class WodService {
 
     WodJson.Blocks deserialize(String json) {
         try {
-            return om.readValue(json, WodJson.Blocks.class);
+            return normaliseScales(om.readValue(json, WodJson.Blocks.class));
         } catch (JsonProcessingException e) {
             return WodJson.Blocks.empty();
         }
+    }
+
+    /**
+     * Reads always speak one meaning: a line's legacy free-text `scaling` becomes a one-entry
+     * `scales` list and `scaling` clears. No migration -- blocks_json is JSONB and a historical row
+     * heals itself the next time it is saved (spec 5A.2). Records are immutable, so this rebuilds
+     * the tree rather than mutating it, walking both levels of block nesting.
+     */
+    private WodJson.Blocks normaliseScales(WodJson.Blocks blocks) {
+        if (blocks == null || blocks.blocks() == null) return blocks;
+        return new WodJson.Blocks(blocks.blocks().stream().map(this::normaliseBlock).toList());
+    }
+
+    private WodJson.Block normaliseBlock(WodJson.Block b) {
+        List<WodJson.Block> children = b.blocks() == null ? null
+                : b.blocks().stream().map(this::normaliseBlock).toList();
+        return new WodJson.Block(b.label(), b.note(), normaliseLines(b.lines()), children);
+    }
+
+    private List<WodJson.Line> normaliseLines(List<WodJson.Line> lines) {
+        if (lines == null) return null;
+        return lines.stream().map(this::normaliseLine).toList();
+    }
+
+    private WodJson.Line normaliseLine(WodJson.Line l) {
+        List<WodJson.Scale> scales = l.scales();
+        if ((scales == null || scales.isEmpty()) && l.scaling() != null && !l.scaling().isBlank()) {
+            scales = List.of(new WodJson.Scale(l.scaling(), null, null, null));
+        }
+        return new WodJson.Line(l.text(), l.movementId(), l.reps(), l.load(), null, scales);
     }
 
     String serializeTiming(WodJson.Timing timing) {
@@ -65,9 +96,13 @@ public class WodService {
     }
 
     public WodController.WodDto toDto(Wod w) {
-        return new WodController.WodDto(w.getId(), w.getTitle(), WodTypeWire.toWodType(w.getMacro(), w.getTimingPreset()),
-                w.getScoreType(), w.getTimeCapSeconds(), w.getBodyText(), deserialize(w.getBlocksJson()),
-                w.getScalingNotes(), w.getBenchmarkTemplateId());
+        return new WodController.WodDto(
+                w.getId(), w.getTitle(),
+                WodTypeWire.toWodType(w.getMacro(), w.getTimingPreset()),
+                w.getMacro(), w.getTimingPreset(), deserializeTiming(w.getTimingJson()),
+                w.isLibrary(), w.getTeamSize(), w.getTeamShare(),
+                w.getScoreType(), w.getTimeCapSeconds(), w.getBodyText(),
+                deserialize(w.getBlocksJson()), w.getScalingNotes(), w.getBenchmarkTemplateId());
     }
 
     /** Clone a global benchmark template into a box WOD (tenant from TenantContext), keeping provenance. */

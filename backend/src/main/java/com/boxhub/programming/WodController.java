@@ -27,17 +27,58 @@ public class WodController {
         this.service = service;
     }
 
-    public record WodDto(UUID id, String title, String wodType, String scoreType, Integer timeCapSeconds,
-                         String bodyText, WodJson.Blocks blocks, String scalingNotes, UUID benchmarkTemplateId) {}
+    public record WodDto(UUID id, String title, String wodType,
+                         String macro, String timingPreset, WodJson.Timing timing,
+                         boolean library, int teamSize, String teamShare,
+                         String scoreType, Integer timeCapSeconds,
+                         String bodyText, WodJson.Blocks blocks, String scalingNotes,
+                         UUID benchmarkTemplateId) {}
 
     WodDto toDto(Wod w) {
         return service.toDto(w);
     }
 
-    record CreateWodRequest(@NotBlank String title, @NotBlank String wodType, @NotBlank String scoreType,
-                            Integer timeCapSeconds, String bodyText, WodJson.Blocks blocks, String scalingNotes) {}
-    record PatchWodRequest(String title, String wodType, String scoreType, Integer timeCapSeconds,
+    record CreateWodRequest(@NotBlank String title, String wodType,
+                            String macro, String timingPreset, WodJson.Timing timing,
+                            Integer teamSize, String teamShare, Boolean library,
+                            @NotBlank String scoreType, Integer timeCapSeconds,
+                            String bodyText, WodJson.Blocks blocks, String scalingNotes) {}
+
+    record PatchWodRequest(String title, String wodType,
+                           String macro, String timingPreset, WodJson.Timing timing,
+                           Integer teamSize, String teamShare, Boolean saveToLibrary,
+                           String scoreType, Integer timeCapSeconds,
                            String bodyText, WodJson.Blocks blocks, String scalingNotes) {}
+
+    /**
+     * Precedence: an explicit macro wins and is used verbatim; otherwise both axes are derived
+     * from the legacy wodType exactly as before. This is what makes the wire additive -- and it
+     * is the whole CIRCUIT/CUSTOM/SKILL fix, because the rebuilt editor sends macro and therefore
+     * never round-trips through WodTypeWire's deliberately lossy composition.
+     */
+    private void applyAxes(Wod w, String macro, String timingPreset, String wodType) {
+        if (macro != null && !macro.isBlank()) {
+            if (!Macros.ALL.contains(macro))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown macro");
+            if (timingPreset != null && !TimingPresets.ALL.contains(timingPreset))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown timing preset");
+            w.setMacro(macro);
+            w.setTimingPreset(timingPreset);
+        } else if (wodType != null && !wodType.isBlank()) {
+            if (!PieceTypes.ALL.contains(wodType))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown wod type");
+            w.setMacro(WodTypeWire.toMacro(wodType));
+            w.setTimingPreset(WodTypeWire.toTimingPreset(wodType));
+        }
+    }
+
+    /** team_share is null exactly when team_size is 1 (spec 5.1). */
+    private void applyTeam(Wod w, Integer teamSize, String teamShare) {
+        if (teamSize == null) return;
+        if (teamSize < 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Team size must be at least 1");
+        w.setTeamSize(teamSize);
+        w.setTeamShare(teamSize == 1 ? null : teamShare);
+    }
 
     @GetMapping
     public List<WodDto> list(@RequestParam(required = false) String search) {
@@ -56,15 +97,18 @@ public class WodController {
     @ResponseStatus(HttpStatus.CREATED)
     public WodDto create(@Valid @RequestBody CreateWodRequest req) {
         RoleGuard.requireStaff();
+        if (req.macro() == null && req.wodType() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Give a macro or a wodType");
         Wod w = new Wod();
         w.setTitle(req.title().trim());
-        w.setMacro(WodTypeWire.toMacro(req.wodType()));
-        w.setTimingPreset(WodTypeWire.toTimingPreset(req.wodType()));
+        applyAxes(w, req.macro(), req.timingPreset(), req.wodType());
+        applyTeam(w, req.teamSize(), req.teamShare());
+        w.setLibrary(req.library() == null || req.library()); // null -> true, preserving today's behaviour
         w.setScoreType(req.scoreType());
         w.setTimeCapSeconds(req.timeCapSeconds());
         if (req.bodyText() != null) w.setBodyText(req.bodyText());
         w.setBlocksJson(service.serialize(req.blocks()));
-        w.setTimingJson(service.serializeTiming(WodJson.Timing.empty()));
+        w.setTimingJson(service.serializeTiming(req.timing()));  // was: always Timing.empty()
         w.setScalingNotes(req.scalingNotes());
         w.setCreatedBy(TenantContext.userId());
         return toDto(wods.save(w));
@@ -75,10 +119,9 @@ public class WodController {
         RoleGuard.requireStaff();
         Wod w = wods.findById(id).orElseThrow(NoSuchElementException::new);
         if (req.title() != null) w.setTitle(req.title().trim());
-        if (req.wodType() != null) {
-            w.setMacro(WodTypeWire.toMacro(req.wodType()));
-            w.setTimingPreset(WodTypeWire.toTimingPreset(req.wodType()));
-        }
+        applyAxes(w, req.macro(), req.timingPreset(), req.wodType());
+        applyTeam(w, req.teamSize(), req.teamShare());
+        if (req.timing() != null) w.setTimingJson(service.serializeTiming(req.timing()));
         if (req.scoreType() != null) w.setScoreType(req.scoreType());
         if (req.timeCapSeconds() != null) w.setTimeCapSeconds(req.timeCapSeconds());
         if (req.bodyText() != null) w.setBodyText(req.bodyText());
