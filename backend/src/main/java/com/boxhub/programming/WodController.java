@@ -82,9 +82,11 @@ public class WodController {
 
     @GetMapping
     public List<WodDto> list(@RequestParam(required = false) String search) {
+        // library = true only: a class's own copy is not a library entry, and listing copies is
+        // how the library floods once pieces are attached by copy (spec 4, part 1).
         List<Wod> found = (search == null || search.isBlank())
-                ? wods.findByOrderByUpdatedAtDesc()
-                : wods.findByTitleContainingIgnoreCaseOrderByUpdatedAtDesc(search);
+                ? wods.findByLibraryTrueOrderByUpdatedAtDesc()
+                : wods.findByLibraryTrueAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(search);
         return found.stream().map(this::toDto).toList();
     }
 
