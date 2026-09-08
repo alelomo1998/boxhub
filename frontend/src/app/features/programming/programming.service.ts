@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 export interface Movement { id: string; name: string; category: string; modality: string | null; global: boolean; }
 
@@ -122,4 +122,9 @@ export class ProgrammingService {
 
   // athlete WOD tab
   myClassToday(): Observable<MyClass> { return this.http.get<MyClass>('/api/box/my-class-today'); }
+
+  // box weight unit, for the load field's suffix -- ATHLETE-minimum, so a coach may read it.
+  weightUnit(): Observable<'KG' | 'LB'> {
+    return this.http.get<{ weightUnit: 'KG' | 'LB' }>('/api/box/current').pipe(map(b => b.weightUnit));
+  }
 }

@@ -29,11 +29,13 @@ describe('PieceEditorPage', () => {
     TestBed.resetTestingModule();
 
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
-      ['wod', 'createWod', 'patchWod', 'movements']);
+      ['wod', 'createWod', 'patchWod', 'movements', 'weightUnit']);
     prog.wod.and.returnValue(of(BLANK_WOD));
     prog.createWod.and.returnValue(of(BLANK_WOD));
     prog.patchWod.and.returnValue(of(BLANK_WOD));
     prog.movements.and.returnValue(of([]));
+    // The load field labels itself with the box's unit; without a stub every spec dies on init.
+    prog.weightUnit.and.returnValue(of('KG' as const));
 
     TestBed.configureTestingModule({
       imports: [PieceEditorPage],
@@ -236,5 +238,58 @@ describe('PieceEditorPage', () => {
     prog.wod.and.returnValue(new Subject<Wod>());
     component.load('another-id');
     expect(component.title()).toBe('');
+  });
+
+  // ---- block outline / collapse -------------------------------------------------------------
+
+  it('a new block renders expanded', () => {
+    component.blocks.set([]);
+    component.collapsed.set([]);
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="piece-add-block"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.isCollapsed(0)).toBe(false);
+    expect(el.querySelector('[data-testid="block-toggle-0"]')!.getAttribute('aria-expanded')).toBe('true');
+    expect(el.querySelector('[data-testid="block-summary-0"]')).toBeNull();
+  });
+
+  it('toggling a block collapses it, aria-expanded follows, and shows the summary', () => {
+    component.blocks.set([{ label: '', lines: [{ text: 'Thruster' }, { text: '' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    const toggle = el.querySelector<HTMLElement>('[data-testid="block-toggle-0"]')!;
+    toggle.click();
+    fixture.detectChanges();
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    const summary = el.querySelector('[data-testid="block-summary-0"]');
+    expect(summary).toBeTruthy();
+    expect(summary!.textContent).toContain('Thruster');
+  });
+
+  it('renders a drag handle only when the block is collapsed', () => {
+    component.blocks.set([{ label: '', lines: [], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+    expect(el.querySelector('[data-sortable-handle]')).toBeNull();
+
+    component.toggleCollapse(0);
+    fixture.detectChanges();
+    expect(el.querySelector('[data-sortable-handle]')).toBeTruthy();
+  });
+
+  it('collapse state follows the block across a reorder, not the index', () => {
+    component.blocks.set([
+      { label: 'A', lines: [], blocks: [] },
+      { label: 'B', lines: [], blocks: [] },
+    ]);
+    component.collapsed.set([true, false]);
+
+    component.moveBlock({ from: 0, to: 1 });
+
+    expect(component.isCollapsed(0)).toBe(false);
+    expect(component.isCollapsed(1)).toBe(true);
   });
 });

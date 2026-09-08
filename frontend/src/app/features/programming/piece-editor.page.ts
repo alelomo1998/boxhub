@@ -160,11 +160,18 @@ type PickTarget = { block: number; line: number; scale: number | null };
           } @else {
             <bh-sortable-list [items]="blocks()" [itemLabel]="blockLabeller"
                               label="Blocks" i18n-label="@@piece.blocks.aria"
-                              handleAlign="top"
+                              handleAlign="top" [canDragItem]="canDragBlock"
                               (reordered)="moveBlock($event)">
               <ng-template let-b let-bi="index">
                 <div class="block" [attr.data-testid]="'block-' + bi">
-                  <div class="brow">
+                  <div class="bar" [class.with-handle]="isCollapsed(bi)">
+                    <button type="button" class="chevron" [class.collapsed]="isCollapsed(bi)"
+                            (click)="toggleCollapse(bi)"
+                            [attr.aria-expanded]="!isCollapsed(bi)"
+                            [attr.aria-label]="collapseLabel(bi)"
+                            [attr.data-testid]="'block-toggle-' + bi">
+                      <span class="chev" aria-hidden="true">&#x25B8;</span>
+                    </button>
                     <input class="blabel" [value]="b.label ?? ''"
                            (input)="setBlockLabel(bi, $any($event.target).value)"
                            placeholder="Block name" i18n-placeholder="@@piece.block.namePlaceholder"
@@ -173,73 +180,80 @@ type PickTarget = { block: number; line: number; scale: number | null };
                             [attr.aria-label]="removeBlockLabel(bi)">&#x2715;</button>
                   </div>
 
-                  @for (l of b.lines ?? []; track $index; let li = $index) {
-                    <div class="lrow" [attr.data-testid]="'line-' + bi + '-' + li">
-                      <button type="button" class="mv" (click)="openPick(bi, li, null)"
-                              [attr.data-testid]="'line-movement-' + bi + '-' + li">
-                        @if (l.text) {
-                          <span>{{ l.text }}</span>
-                        } @else {
-                          <span class="ph" i18n="@@piece.line.choose">Choose a movement</span>
-                        }
-                      </button>
-                      <input class="in sm r-reps" [value]="l.reps ?? ''"
-                             (input)="setLine(bi, li, { reps: $any($event.target).value })"
-                             placeholder="reps" i18n-placeholder="@@piece.line.reps"
-                             [attr.aria-label]="repsLabel(bi, li)" />
-                      <input class="in sm r-load" [value]="l.load ?? ''"
-                             (input)="setLine(bi, li, { load: $any($event.target).value })"
-                             placeholder="load" i18n-placeholder="@@piece.line.load"
-                             [attr.aria-label]="loadLabel(bi, li)" />
-                      <button type="button" class="mini r-rm" (click)="removeLine(bi, li)"
-                              [attr.aria-label]="removeLineLabel(bi, li)">&#x2715;</button>
-                    </div>
-
-                    @for (sc of scalesOf(bi, li); track $index; let si = $index) {
-                      <div class="srow" [attr.data-testid]="'scale-row-' + bi + '-' + li + '-' + si">
-                        <span class="arrow" aria-hidden="true">&#x21B3;</span>
-                        <button type="button" class="mv" (click)="openPick(bi, li, si)"
-                                [attr.data-testid]="'scale-movement-' + bi + '-' + li + '-' + si">
-                          @if (sc.text) {
-                            <span>{{ sc.text }}</span>
+                  @if (isCollapsed(bi)) {
+                    <p class="summary" [attr.data-testid]="'block-summary-' + bi">{{ blockSummary(bi) }}</p>
+                  } @else {
+                    @for (l of b.lines ?? []; track $index; let li = $index) {
+                      <div class="lrow" [attr.data-testid]="'line-' + bi + '-' + li">
+                        <button type="button" class="mv" (click)="openPick(bi, li, null)"
+                                [attr.data-testid]="'line-movement-' + bi + '-' + li">
+                          @if (l.text) {
+                            <span>{{ l.text }}</span>
                           } @else {
-                            <span class="ph" i18n="@@piece.scale.choose">Choose a scaling option</span>
+                            <span class="ph" i18n="@@piece.line.choose">Choose a movement</span>
                           }
                         </button>
-                        <input class="in sm r-reps" [value]="sc.reps ?? ''"
-                               (input)="setScale(bi, li, si, { reps: $any($event.target).value })"
-                               placeholder="reps" i18n-placeholder="@@piece.scale.reps"
-                               [attr.aria-label]="scaleRepsLabel(bi, li, si)" />
-                        <button type="button" class="mini r-rm" (click)="removeScale(bi, li, si)"
-                                [attr.aria-label]="removeScaleLabel(bi, li, si)">&#x2715;</button>
+                        <input class="in sm r-reps" [value]="l.reps ?? ''"
+                               (input)="setLine(bi, li, { reps: $any($event.target).value })"
+                               placeholder="reps" i18n-placeholder="@@piece.line.reps"
+                               [attr.aria-label]="repsLabel(bi, li)" />
+                        <div class="load-wrap">
+                          <input class="in sm r-load" [value]="l.load ?? ''"
+                                 (input)="setLine(bi, li, { load: $any($event.target).value })"
+                                 placeholder="load" i18n-placeholder="@@piece.line.load"
+                                 [attr.aria-label]="loadLabel(bi, li)" />
+                          <span class="unit-suffix">{{ weightUnit() }}</span>
+                        </div>
+                        <button type="button" class="mini r-rm" (click)="removeLine(bi, li)"
+                                [attr.aria-label]="removeLineLabel(bi, li)">&#x2715;</button>
+                      </div>
+
+                      @for (sc of scalesOf(bi, li); track $index; let si = $index) {
+                        <div class="srow" [attr.data-testid]="'scale-row-' + bi + '-' + li + '-' + si">
+                          <span class="arrow" aria-hidden="true">&#x21B3;</span>
+                          <button type="button" class="mv" (click)="openPick(bi, li, si)"
+                                  [attr.data-testid]="'scale-movement-' + bi + '-' + li + '-' + si">
+                            @if (sc.text) {
+                              <span>{{ sc.text }}</span>
+                            } @else {
+                              <span class="ph" i18n="@@piece.scale.choose">Choose a scaling option</span>
+                            }
+                          </button>
+                          <input class="in sm r-reps" [value]="sc.reps ?? ''"
+                                 (input)="setScale(bi, li, si, { reps: $any($event.target).value })"
+                                 placeholder="reps" i18n-placeholder="@@piece.scale.reps"
+                                 [attr.aria-label]="scaleRepsLabel(bi, li, si)" />
+                          <button type="button" class="mini r-rm" (click)="removeScale(bi, li, si)"
+                                  [attr.aria-label]="removeScaleLabel(bi, li, si)">&#x2715;</button>
+                        </div>
+                      }
+
+                      @if (canAddScale(bi, li)) {
+                        <button type="button" class="add" (click)="addScale(bi, li)"
+                                [attr.data-testid]="'add-scale-' + bi + '-' + li">
+                          <span i18n="@@piece.scale.add">Add a scaling option</span>
+                        </button>
+                      }
+                    }
+
+                    <!-- A piece authored elsewhere may already carry a nested part. There is no way
+                         to CREATE one here (the user could not tell what "+ part" meant), but an
+                         existing one must still render rather than silently vanish -- read-only,
+                         flat, no indent: a labelled group of its lines, nothing else. -->
+                    @for (sb of b.blocks ?? []; track $index; let sbi = $index) {
+                      <div class="subgroup" [attr.data-testid]="'sub-block-' + bi + '-' + sbi">
+                        <p class="subhead">{{ sb.label || subBlockFallback(sbi) }}</p>
+                        @for (sl of sb.lines ?? []; track $index) {
+                          <p class="subline">{{ sl.text }}</p>
+                        }
                       </div>
                     }
 
-                    @if (canAddScale(bi, li)) {
-                      <button type="button" class="add" (click)="addScale(bi, li)"
-                              [attr.data-testid]="'add-scale-' + bi + '-' + li">
-                        <span i18n="@@piece.scale.add">Add a scaling option</span>
-                      </button>
-                    }
+                    <button type="button" class="add" (click)="addLine(bi)"
+                            [attr.data-testid]="'add-line-' + bi">
+                      <span i18n="@@piece.line.add">Add line</span>
+                    </button>
                   }
-
-                  <!-- A piece authored elsewhere may already carry a nested part. There is no way
-                       to CREATE one here (the user could not tell what "+ part" meant), but an
-                       existing one must still render rather than silently vanish -- read-only,
-                       flat, no indent: a labelled group of its lines, nothing else. -->
-                  @for (sb of b.blocks ?? []; track $index; let sbi = $index) {
-                    <div class="subgroup" [attr.data-testid]="'sub-block-' + bi + '-' + sbi">
-                      <p class="subhead">{{ sb.label || subBlockFallback(sbi) }}</p>
-                      @for (sl of sb.lines ?? []; track $index) {
-                        <p class="subline">{{ sl.text }}</p>
-                      }
-                    </div>
-                  }
-
-                  <button type="button" class="add" (click)="addLine(bi)"
-                          [attr.data-testid]="'add-line-' + bi">
-                    <span i18n="@@piece.line.add">Add line</span>
-                  </button>
                 </div>
               </ng-template>
             </bh-sortable-list>
@@ -410,13 +424,30 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .rlab { font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
       letter-spacing: 0.06em; color: var(--bone-dim); }
 
-    /* No card chrome here -- bh-sortable-list's align-top rows paint no box of their own. */
-    .block { display: flex; flex-direction: column; gap: var(--sp-2); width: 100%; min-width: 0; }
-    /* Only the first row clears the handle: it rides absolutely over align-top rows' top-left, so
-       just the row sharing that line needs to step around it. Rows below sit lower and never
-       overlap it. */
-    .brow { display: grid; grid-template-columns: minmax(0, 1fr) var(--tap); gap: var(--sp-2);
-      align-items: center; padding-left: calc(var(--tap) + var(--sp-3)); }
+    /* Each block is its own outline: a surface-2 bar for the header, un-indented content on the
+       page ground below it, and --sp-5 between one block and the next so a new bar reads as
+       "a new block starts here" -- the boundary a flat card used to give for free. */
+    .block { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; min-width: 0; }
+    .work bh-sortable-list ::ng-deep .list { gap: var(--sp-5); }
+    .bar { display: grid; grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
+      gap: var(--sp-2); align-items: center; width: 100%; box-sizing: border-box;
+      min-height: var(--tap); padding: var(--sp-1) var(--sp-2);
+      background: var(--surface-2); border-radius: var(--r-ctl); }
+    /* The drag handle only exists (bh-sortable-list's canDragItem) while the block is collapsed,
+       riding absolutely over the row's top-left -- so only then does the bar need to step around
+       it. Expanded, there is no handle to clear. */
+    .bar.with-handle { padding-left: calc(var(--tap) + var(--sp-3)); }
+    .chevron { min-width: var(--tap); min-height: var(--tap); background: none; border: 0;
+      color: var(--bone); border-radius: var(--r-ctl); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; }
+    .chevron:hover { color: var(--bone-dim); }
+    .chevron:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* One glyph, rotated -- never two glyphs swapped. Right-pointing at rest, rotated to point
+       down once expanded (spec: "arrow to the right" reads as the collapsed state). */
+    .chev { display: inline-block; font-size: var(--fs-body); transform: rotate(90deg);
+      transition: transform var(--dur) var(--ease-out); }
+    .chevron.collapsed .chev { transform: rotate(0deg); }
+    @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
     /* The block's own name is a header on its card, not a form field: mono like every other
        prescribed number here, transparent until focused. */
     .blabel { min-height: var(--tap); width: 100%; min-width: 0; box-sizing: border-box;
@@ -427,6 +458,10 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .blabel::placeholder { color: var(--bone-dim); }
     .blabel:hover { border-bottom-color: var(--hairline); }
     .blabel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* Collapsed summary: quiet, mono, matching the eyebrow's register -- a measured fact about
+       the block's content, not prose. */
+    .summary { margin: 0; font-family: var(--font-mono); font-size: var(--fs-sm);
+      color: var(--bone-dim); }
     /* Mobile first: the movement is the line's subject, so at 360px it gets a full-width row of
        its own and reps/load/remove sit beneath it. Squeezing all four onto one line left the
        movement button about 40px wide -- the most important control on the row, collapsed.
@@ -437,8 +472,14 @@ type PickTarget = { block: number; line: number; scale: number | null };
       gap: var(--sp-2); align-items: center; }
     .lrow > .mv { grid-area: mv; }
     .lrow > .r-reps { grid-area: reps; }
-    .lrow > .r-load { grid-area: load; }
+    .lrow > .load-wrap { grid-area: load; }
     .lrow > .r-rm { grid-area: rm; }
+    /* The unit is a label on the control, not a value the coach types: the stored load stays just
+       the number, and this suffix sits beside the input rather than inside it. */
+    .load-wrap { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+    .load-wrap .r-load { flex: 1; min-width: 0; }
+    .unit-suffix { flex: 0 0 auto; font-family: var(--font-mono); font-size: var(--fs-meta);
+      color: var(--bone-dim); }
 
     .srow { display: grid; grid-template-columns: auto minmax(0, 1fr) var(--tap);
       grid-template-areas: "arrow mv mv" "arrow reps rm";
@@ -531,6 +572,12 @@ export class PieceEditorPage {
   rounds = signal(1);
   segments = signal<WodSegment[]>([]);
   blocks = signal<WodBlock[]>([]);
+  /** Per-block collapse state, client-only -- never sent to the server. Parallel to `blocks`, kept
+   *  in lockstep by every op that changes `blocks`' shape (including a splice inside moveBlock),
+   *  so a collapsed flag follows the block it was set on rather than staying pinned to an index. */
+  collapsed = signal<boolean[]>([]);
+  /** The box's load unit, read once on init. A failed fetch just leaves the KG default. */
+  weightUnit = signal<'KG' | 'LB'>('KG');
   scoreable = signal(true);
   scoreType = signal('TIME');
   teamSize = signal(1);
@@ -613,7 +660,7 @@ export class PieceEditorPage {
     this.scoreOptions.find(o => o.value === this.scoreChoice())?.label ?? this.scoreChoice());
 
   metaTeamLabel = computed(() => this.teamSize() === 1
-    ? $localize`:@@piece.team.chip.solo:Solo`
+    ? '1'
     : $localize`:@@piece.team.chip.value:Team of ${this.teamSize()}:count:`);
 
   // ---- pick sheet -------------------------------------------------------------------------
@@ -629,7 +676,10 @@ export class PieceEditorPage {
     if (this.standalone() && id) this.load(id);
     // Create, not edit: the page must never open on the empty state. load() resets blocks itself
     // and always wins, so seeding here only ever applies to a genuinely new piece.
-    else this.blocks.set([{ label: '', lines: [], blocks: [] }]);
+    else { this.blocks.set([{ label: '', lines: [], blocks: [] }]); this.collapsed.set([false]); }
+
+    // Read-once, best-effort: a failed fetch just leaves the KG default in place.
+    this.prog.weightUnit().subscribe({ next: u => this.weightUnit.set(u), error: () => {} });
   }
 
   openPick(block: number, line: number, scale: number | null) {
@@ -695,6 +745,7 @@ export class PieceEditorPage {
     this.rounds.set(1);
     this.segments.set([]);
     this.blocks.set([]);
+    this.collapsed.set([]);
     this.scoreable.set(true);
     this.scoreType.set('TIME');
     this.teamSize.set(1);
@@ -712,6 +763,8 @@ export class PieceEditorPage {
         this.rounds.set(w.timing?.rounds ?? 1);
         this.segments.set([...(w.timing?.segments ?? [])]);
         this.blocks.set([...(w.blocks?.blocks ?? [])]);
+        // Loaded blocks are expanded, same as a new one.
+        this.collapsed.set(this.blocks().map(() => false));
         this.scoreType.set(w.scoreType || 'TIME');
         this.teamSize.set(w.teamSize || 1);
         this.teamShare.set(w.teamShare || 'TOGETHER');
@@ -766,19 +819,61 @@ export class PieceEditorPage {
 
   addBlock() {
     this.blocks.update(list => [...list, { label: '', lines: [], blocks: [] }]);
+    // New blocks are expanded.
+    this.collapsed.update(list => [...list, false]);
   }
 
   removeBlock(i: number) {
     this.blocks.update(list => list.filter((_, idx) => idx !== i));
+    this.collapsed.update(list => list.filter((_, idx) => idx !== i));
   }
 
   setBlockLabel(i: number, label: string) {
     this.blocks.update(list => list.map((b, idx) => idx === i ? { ...b, label } : b));
   }
 
-  /** bh-sortable-list is presentational and never mutates items(), so the array is spliced here. */
+  isCollapsed(i: number): boolean {
+    return this.collapsed()[i] ?? false;
+  }
+
+  toggleCollapse(i: number) {
+    this.collapsed.update(list => list.map((c, idx) => idx === i ? !c : c));
+  }
+
+  /** A class field, not an inline arrow: reordering is only offered on a collapsed block, so an
+   *  expanded one renders no drag handle at all. */
+  canDragBlock = (_b: WodBlock, i: number) => this.isCollapsed(i);
+
+  /** Quiet mono summary shown in place of a collapsed block's content: the line count, plus the
+   *  first movement named on one of those lines, if any. */
+  blockSummary(i: number): string {
+    const lines = this.blocks()[i]?.lines ?? [];
+    const first = lines.find(l => l.text)?.text;
+    const n = lines.length;
+    return first
+      ? $localize`:@@piece.block.summaryWithMovement:${n}:count: lines · ${first}:movement:`
+      : $localize`:@@piece.block.summary:${n}:count: lines`;
+  }
+
+  collapseLabel(i: number) {
+    return this.isCollapsed(i)
+      ? $localize`:@@piece.block.expandAria:Expand block ${i + 1}:position:`
+      : $localize`:@@piece.block.collapseAria:Collapse block ${i + 1}:position:`;
+  }
+
+  /**
+   * bh-sortable-list is presentational and never mutates items(), so the array is spliced here.
+   * `collapsed` is spliced the same way in the same call, so a block's collapse state follows the
+   * block itself across a reorder rather than staying pinned to the index it used to occupy.
+   */
   moveBlock(move: { from: number; to: number }) {
     this.blocks.update(list => {
+      const next = [...list];
+      const [item] = next.splice(move.from, 1);
+      next.splice(move.to, 0, item);
+      return next;
+    });
+    this.collapsed.update(list => {
       const next = [...list];
       const [item] = next.splice(move.from, 1);
       next.splice(move.to, 0, item);
@@ -875,7 +970,7 @@ export class PieceEditorPage {
    *  from the server without a label still needs a name to render. */
   subBlockFallback(j: number) { return $localize`:@@piece.subBlock.fallback:Part ${j + 1}:position:`; }
   repsLabel(i: number, j: number) { return $localize`:@@piece.line.repsAria:Reps for line ${j + 1}:position:`; }
-  loadLabel(i: number, j: number) { return $localize`:@@piece.line.loadAria:Load for line ${j + 1}:position:`; }
+  loadLabel(i: number, j: number) { return $localize`:@@piece.line.loadAria:Load in ${this.weightUnit()}:unit: for line ${j + 1}:position:`; }
   removeLineLabel(i: number, j: number) { return $localize`:@@piece.line.removeAria:Remove line ${j + 1}:position:`; }
   scaleRepsLabel(i: number, j: number, k: number) { return $localize`:@@piece.scale.repsAria:Reps for scaling option ${k + 1}:position:`; }
   removeScaleLabel(i: number, j: number, k: number) { return $localize`:@@piece.scale.removeAria:Remove scaling option ${k + 1}:position:`; }
