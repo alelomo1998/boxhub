@@ -43,17 +43,19 @@ import { NgTemplateOutlet } from '@angular/common';
                now carries arbitrary interactive content (inputs, links) that a pointerdown on the
                whole row would swallow. aria-label is bound on the button itself because an
                attribute written on a component host never reaches the element inside. -->
-          <button #handle type="button" class="handle" data-sortable-handle
-                  [attr.aria-label]="handleLabel(item, $index)"
-                  [attr.aria-grabbed]="grabbedAt() === $index"
-                  (keydown)="onKey($event, $index)"
-                  (pointerdown)="onPointerDown($event, $index)"
-                  (pointermove)="onPointerMove($event)"
-                  (pointerup)="onPointerUp($event)"
-                  (pointercancel)="onPointerCancel()"
-                  (touchmove)="onTouchMove($event)">
-            <span class="grip" aria-hidden="true"></span>
-          </button>
+          @if (canDragItem()(item, $index)) {
+            <button #handle type="button" class="handle" data-sortable-handle
+                    [attr.aria-label]="handleLabel(item, $index)"
+                    [attr.aria-grabbed]="grabbedAt() === $index"
+                    (keydown)="onKey($event, $index)"
+                    (pointerdown)="onPointerDown($event, $index)"
+                    (pointermove)="onPointerMove($event)"
+                    (pointerup)="onPointerUp($event)"
+                    (pointercancel)="onPointerCancel()"
+                    (touchmove)="onTouchMove($event)">
+              <span class="grip" aria-hidden="true"></span>
+            </button>
+          }
           <span class="body">
             <ng-container [ngTemplateOutlet]="rowTpl() ?? null"
                           [ngTemplateOutletContext]="{ $implicit: item, index: $index }" />
@@ -124,6 +126,8 @@ export class SortableListComponent<T> {
    * a vertically-centred handle floats orphaned in the middle. Default preserves today's centred
    * handle exactly. */
   handleAlign = input<'center' | 'top'>('center');
+  /** When false for a row, that row gets no drag handle at all. Default leaves every row draggable. */
+  canDragItem = input<(item: T, index: number) => boolean>(() => true);
 
   protected readonly rowTpl = contentChild(TemplateRef);
   private rowEls = viewChildren<ElementRef<HTMLElement>>('row');

@@ -7,7 +7,7 @@ import { SortableListComponent } from './sortable-list.component';
   imports: [SortableListComponent],
   template: `
     <bh-sortable-list [items]="items()" label="Pieces" [itemLabel]="name"
-                      [handleAlign]="align()"
+                      [handleAlign]="align()" [canDragItem]="canDragItem()"
                       (reordered)="onReorder($event)">
       <ng-template let-item>{{ item }}</ng-template>
     </bh-sortable-list>`,
@@ -16,6 +16,7 @@ class Host {
   items = signal(['a', 'b', 'c']);
   name = (item: string) => item;
   align = signal<'center' | 'top'>('center');
+  canDragItem = signal<(item: string, index: number) => boolean>(() => true);
   last: { from: number; to: number } | null = null;
   onReorder(e: { from: number; to: number }) { this.last = e; }
 }
@@ -56,6 +57,18 @@ describe('SortableListComponent', () => {
   it('renders one row per item through the projected template', () => {
     expect(rows().length).toBe(3);
     expect(rows()[0].textContent).toContain('a');
+  });
+
+  // canDragItem gates the handle per row, not the drag logic: a row it rejects renders no
+  // handle at all rather than a disabled one.
+  it('omits the handle for a row canDragItem rejects', () => {
+    expect(handles().length).toBe(3);
+
+    host.canDragItem.set((_item, index) => index !== 0);
+    f.detectChanges();
+
+    expect(handles().length).toBe(2);
+    expect(rows()[0].querySelector('[data-sortable-handle]')).toBeNull();
   });
 
   // 'center' is the default and must stay the untouched, pre-existing look; 'top' is the opt-in
