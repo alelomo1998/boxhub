@@ -106,6 +106,10 @@ describe('PieceEditorPage', () => {
   // buttons were bound to an output bh-button does not have and no click did anything. Karma
   // cannot see a dead binding unless a spec actually presses the control.
   it('adds a block when the add-block control is actually pressed', () => {
+    // Section 3 seeds one block by default so a new piece never opens empty; clear it here so
+    // this asserts what the click itself adds, not the seed already present.
+    component.blocks.set([]);
+    fixture.detectChanges();
     el.querySelector<HTMLElement>('[data-testid="piece-add-block"]')!.click();
     fixture.detectChanges();
     expect(component.blocks().length).toBe(1);

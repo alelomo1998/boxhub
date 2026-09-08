@@ -86,10 +86,15 @@ const SLOP_PX = 8;
     .row.grabbed { background: var(--surface-2); border-color: var(--bone-dim);
       box-shadow: var(--shadow-float); cursor: grabbing; }
     .row.dragging { transition: none; }
-    /* Tall multi-line rows (a card, not a label) want the handle level with the first line rather
-       than floating in the vertical middle of the whole card. */
-    .row.align-top { align-items: flex-start; }
-    .row.align-top .handle { margin-top: var(--sp-1); }
+    /* Flat, full-width rows: no nested card. The handle rides on the row's own padding as an
+       absolutely-positioned overlay instead of owning a flex gutter, so .body (the only element
+       left in normal flow) fills the whole row -- no indent to explain away. The row paints
+       nothing of its own; .grabbed/.dragging still have to read as picked up, so that pair is
+       restated at higher specificity below (three classes beats the two-class rules above). */
+    .row.align-top { align-items: flex-start; position: relative; background: none; border: none; }
+    .row.align-top:hover { background: none; }
+    .row.align-top .handle { position: absolute; top: var(--sp-3); left: var(--sp-3); }
+    .row.align-top.grabbed { background: var(--surface-2); box-shadow: var(--shadow-float); }
     .body { flex: 1; min-width: 0; }
     /* Three stacked bars, drawn rather than iconised: the icon set has no grip and one more name
        in it would owe its own gallery cell. */

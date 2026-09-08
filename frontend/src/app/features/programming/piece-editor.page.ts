@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../ui/button.component';
 import { AlertComponent } from '../../ui/alert.component';
-import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
+import { SegOption } from '../../ui/segmented.component';
 import { SortableListComponent } from '../../ui/sortable-list.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { PickSheetComponent, PickRow, PickResult } from './pick-sheet.component';
@@ -69,7 +69,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
   selector: 'bh-piece-editor',
   standalone: true,
   imports: [
-    ButtonComponent, AlertComponent, SegmentedComponent,
+    ButtonComponent, AlertComponent,
     SortableListComponent, PickSheetComponent, SheetComponent,
   ],
   template: `
@@ -139,6 +139,11 @@ type PickTarget = { block: number; line: number; scale: number | null };
                             [attr.aria-label]="removeBlockLabel(bi)">&#x2715;</button>
                   </div>
 
+                  <input class="note" [value]="b.note ?? ''"
+                         (input)="setBlockNote(bi, $any($event.target).value)"
+                         placeholder="21-15-9" i18n-placeholder="@@piece.block.notePlaceholder"
+                         [attr.aria-label]="blockNoteLabel(bi)" />
+
                   @for (l of b.lines ?? []; track $index; let li = $index) {
                     <div class="lrow" [attr.data-testid]="'line-' + bi + '-' + li">
                       <button type="button" class="mv" (click)="openPick(bi, li, null)"
@@ -182,48 +187,38 @@ type PickTarget = { block: number; line: number; scale: number | null };
                     }
 
                     @if (canAddScale(bi, li)) {
-                      <button type="button" class="add sub" (click)="addScale(bi, li)"
+                      <button type="button" class="add" (click)="addScale(bi, li)"
                               [attr.data-testid]="'add-scale-' + bi + '-' + li">
                         <span i18n="@@piece.scale.add">+ scaling option</span>
                       </button>
                     }
                   }
 
+                  <!-- A piece authored elsewhere may already carry a nested part. There is no way
+                       to CREATE one here (the user could not tell what "+ part" meant), but an
+                       existing one must still render rather than silently vanish -- read-only,
+                       flat, no indent: a labelled group of its lines, nothing else. -->
                   @for (sb of b.blocks ?? []; track $index; let sbi = $index) {
-                    <div class="sub-block" [attr.data-testid]="'sub-block-' + bi + '-' + sbi">
-                      <div class="brow">
-                        <input class="blabel sub" [value]="sb.label ?? ''"
-                               (input)="setSubBlockLabel(bi, sbi, $any($event.target).value)"
-                               placeholder="Part name" i18n-placeholder="@@piece.subBlock.namePlaceholder"
-                               [attr.aria-label]="subBlockNameLabel(bi, sbi)" />
-                        <button type="button" class="mini" (click)="removeSubBlock(bi, sbi)"
-                                [attr.aria-label]="removeSubBlockLabel(bi, sbi)">&#x2715;</button>
-                      </div>
-                      <!-- Depth 2 is the floor: canAddSubBlock is false here, so no control is
-                           rendered. An affordance that produces a 400 is a defect, not a guard. -->
+                    <div class="subgroup" [attr.data-testid]="'sub-block-' + bi + '-' + sbi">
+                      <p class="subhead">{{ sb.label || subBlockFallback(sbi) }}</p>
+                      @for (sl of sb.lines ?? []; track $index) {
+                        <p class="subline">{{ sl.text }}</p>
+                      }
                     </div>
                   }
 
-                  <div class="badds">
-                    <button type="button" class="add" (click)="addLine(bi)"
-                            [attr.data-testid]="'add-line-' + bi">
-                      <span i18n="@@piece.line.add">+ line</span>
-                    </button>
-                    @if (canAddSubBlock(bi)) {
-                      <button type="button" class="add" (click)="addSubBlock(bi)"
-                              [attr.data-testid]="'add-sub-block-' + bi">
-                        <span i18n="@@piece.subBlock.add">+ part</span>
-                      </button>
-                    }
-                  </div>
+                  <button type="button" class="add" (click)="addLine(bi)"
+                          [attr.data-testid]="'add-line-' + bi">
+                    <span i18n="@@piece.line.add">+ line</span>
+                  </button>
                 </div>
               </ng-template>
             </bh-sortable-list>
           }
 
-          <bh-button variant="ghost" size="sm" (click)="addBlock()" testId="piece-add-block">
+          <button type="button" class="add" (click)="addBlock()" data-testid="piece-add-block">
             <span i18n="@@piece.block.add">+ block</span>
-          </bh-button>
+          </button>
         </section>
 
         <footer class="foot">
@@ -253,67 +248,113 @@ type PickTarget = { block: number; line: number; scale: number | null };
 
     <bh-sheet [open]="openSheet() === 'macro'" title="What it is" i18n-title="@@piece.macro.sheetTitle"
               label="What it is" i18n-label="@@piece.macro.aria" (closed)="openSheet.set(null)">
-      <bh-segmented [options]="macroOptions" [(value)]="macro" tone="bone" [wrap]="true"
-                    label="What it is" i18n-label="@@piece.macro.aria" />
+      <div class="rows">
+        @for (opt of macroOptions; track opt.value) {
+          <button type="button" class="prow" [class.sel]="macro() === opt.value"
+                  (click)="pickMacro(opt.value)">
+            <span>{{ opt.label }}</span>
+            @if (macro() === opt.value) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+          </button>
+        }
+      </div>
     </bh-sheet>
 
     <bh-sheet [open]="openSheet() === 'timing'" title="How it runs" i18n-title="@@piece.timing.sheetTitle"
               label="How it runs" i18n-label="@@piece.timing.aria" (closed)="openSheet.set(null)">
-      <bh-segmented [options]="presetOptions" [value]="timingPreset() ?? ''"
-                    (valueChange)="pickPreset($event)" tone="bone" [wrap]="true"
-                    label="How it runs" i18n-label="@@piece.timing.aria" />
+      <div class="rows">
+        <button type="button" class="prow" [class.sel]="timingPreset() === null"
+                (click)="pickTimingNone()">
+          <span i18n="@@piece.preset.none">None</span>
+          @if (timingPreset() === null) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+        </button>
+        @for (opt of presetOptions; track opt.value) {
+          <button type="button" class="prow" [class.sel]="timingPreset() === opt.value"
+                  (click)="pickPreset(opt.value)">
+            <span>{{ opt.label }}</span>
+            @if (timingPreset() === opt.value) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+          </button>
+        }
+      </div>
 
-      @if (segments().length) {
-        <ul class="segs">
-          @for (s of segments(); track $index) {
-            <li class="seg-row" [attr.data-testid]="'segment-' + $index">
-              <input class="num" type="number" min="0" inputmode="numeric"
-                     [value]="s.seconds"
-                     (change)="updateSegment($index, { seconds: +$any($event.target).value, kind: s.kind, label: s.label })"
-                     [attr.aria-label]="secondsLabel($index)" />
-              <span class="unit" i18n="@@piece.segment.seconds">sec</span>
-              <button type="button" class="kind" (click)="toggleKind($index)"
-                      [attr.data-testid]="'segment-kind-' + $index">
-                @if (s.kind === 'WORK') {
-                  <span i18n="@@piece.segment.work">WORK</span>
-                } @else {
-                  <span i18n="@@piece.segment.rest">REST</span>
-                }
-              </button>
-              <button type="button" class="mini" (click)="removeSegment($index)"
-                      [attr.aria-label]="removeSegmentLabel($index)">&#x2715;</button>
-            </li>
-          }
-        </ul>
-        <div class="rounds">
-          <label class="rlab" for="piece-rounds" i18n="@@piece.rounds.label">Rounds</label>
-          <input id="piece-rounds" class="num" type="number" min="1" inputmode="numeric"
-                 [value]="rounds()" (change)="rounds.set(+$any($event.target).value || 1)"
-                 data-testid="piece-rounds" />
-        </div>
+      <!-- The timing sheet holds two decisions: the preset (a row, closes on pick) and the
+           segment sequence it seeds (a separate disclosure that stays open while editing). -->
+      <button type="button" class="disclosure" (click)="editingSegments.set(!editingSegments())"
+              [attr.aria-expanded]="editingSegments()">
+        <span i18n="@@piece.segment.editToggle">Edit segments</span>
+        <span class="chev" [class.open]="editingSegments()" aria-hidden="true">&#x2304;</span>
+      </button>
+
+      @if (editingSegments()) {
+        @if (segments().length) {
+          <ul class="segs">
+            @for (s of segments(); track $index) {
+              <li class="seg-row" [attr.data-testid]="'segment-' + $index">
+                <input class="num" type="number" min="0" inputmode="numeric"
+                       [value]="s.seconds"
+                       (change)="updateSegment($index, { seconds: +$any($event.target).value, kind: s.kind, label: s.label })"
+                       [attr.aria-label]="secondsLabel($index)" />
+                <span class="unit" i18n="@@piece.segment.seconds">sec</span>
+                <button type="button" class="kind" (click)="toggleKind($index)"
+                        [attr.data-testid]="'segment-kind-' + $index">
+                  @if (s.kind === 'WORK') {
+                    <span i18n="@@piece.segment.work">WORK</span>
+                  } @else {
+                    <span i18n="@@piece.segment.rest">REST</span>
+                  }
+                </button>
+                <button type="button" class="mini" (click)="removeSegment($index)"
+                        [attr.aria-label]="removeSegmentLabel($index)">&#x2715;</button>
+              </li>
+            }
+          </ul>
+          <div class="rounds">
+            <label class="rlab" for="piece-rounds" i18n="@@piece.rounds.label">Rounds</label>
+            <input id="piece-rounds" class="num" type="number" min="1" inputmode="numeric"
+                   [value]="rounds()" (change)="rounds.set(+$any($event.target).value || 1)"
+                   data-testid="piece-rounds" />
+          </div>
+        }
+        <!-- Full width like every other add affordance: a small chip inside a sheet was the last
+             control still sized for a mouse. -->
+        <bh-button variant="ghost" class="full" (click)="addSegment()" testId="piece-add-segment">
+          <span i18n="@@piece.segment.add">+ segment</span>
+        </bh-button>
       }
-      <bh-button variant="ghost" size="sm" (click)="addSegment()" testId="piece-add-segment">
-        <span i18n="@@piece.segment.add">+ segment</span>
-      </bh-button>
     </bh-sheet>
 
     <bh-sheet [open]="openSheet() === 'score'" title="How it is scored" i18n-title="@@piece.score.sheetTitle"
               label="How it is scored" i18n-label="@@piece.score.aria" (closed)="openSheet.set(null)">
-      <bh-segmented [options]="scoreOptions" [value]="scoreChoice()"
-                    (valueChange)="pickScore($event)" tone="bone" [wrap]="true"
-                    label="How it is scored" i18n-label="@@piece.score.aria" />
+      <div class="rows">
+        @for (opt of scoreOptions; track opt.value) {
+          <button type="button" class="prow" [class.sel]="scoreChoice() === opt.value"
+                  (click)="pickScore(opt.value)">
+            <span>{{ opt.label }}</span>
+            @if (scoreChoice() === opt.value) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+          </button>
+        }
+      </div>
     </bh-sheet>
 
     <bh-sheet [open]="openSheet() === 'team'" title="Who does it" i18n-title="@@piece.team.sheetTitle"
               label="Who does it" i18n-label="@@piece.team.aria" (closed)="openSheet.set(null)">
-      <bh-segmented [options]="teamSizeOptions" [value]="teamSize().toString()"
-                    (valueChange)="teamSize.set(+$event)" tone="bone" [wrap]="true"
-                    label="Team size" i18n-label="@@piece.team.aria" />
+      <div class="rows">
+        @for (opt of teamSizeOptions; track opt.value) {
+          <button type="button" class="prow" [class.sel]="teamSize().toString() === opt.value"
+                  (click)="pickTeamSize(+opt.value)">
+            <span>{{ opt.label }}</span>
+            @if (teamSize().toString() === opt.value) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+          </button>
+        }
+      </div>
       @if (teamSize() > 1) {
-        <div data-testid="team-share" class="share">
-          <bh-segmented [options]="shareOptions" [(value)]="teamShare" tone="bone" [wrap]="true"
-                        label="How the team shares the work"
-                        i18n-label="@@piece.share.aria" />
+        <div data-testid="team-share" class="rows">
+          @for (opt of shareOptions; track opt.value) {
+            <button type="button" class="prow" [class.sel]="teamShare() === opt.value"
+                    (click)="pickTeamShare(opt.value)">
+              <span>{{ opt.label }}</span>
+              @if (teamShare() === opt.value) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+            </button>
+          }
         </div>
       }
     </bh-sheet>
@@ -384,11 +425,13 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .rlab { font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
       letter-spacing: 0.06em; color: var(--bone-dim); }
 
-    /* The card chrome itself (surface/hairline/radius/padding) is bh-sortable-list's own .row --
-       this is the content that sits inside it, so it carries no border of its own. */
+    /* No card chrome here -- bh-sortable-list's align-top rows paint no box of their own. */
     .block { display: flex; flex-direction: column; gap: var(--sp-2); width: 100%; min-width: 0; }
+    /* Only the first row clears the handle: it rides absolutely over align-top rows' top-left, so
+       just the row sharing that line needs to step around it. Rows below sit lower and never
+       overlap it. */
     .brow { display: grid; grid-template-columns: minmax(0, 1fr) var(--tap); gap: var(--sp-2);
-      align-items: center; }
+      align-items: center; padding-left: calc(var(--tap) + var(--sp-3)); }
     /* The block's own name is a header on its card, not a form field: mono like every other
        prescribed number here, transparent until focused. */
     .blabel { min-height: var(--tap); width: 100%; min-width: 0; box-sizing: border-box;
@@ -399,7 +442,14 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .blabel::placeholder { color: var(--bone-dim); }
     .blabel:hover { border-bottom-color: var(--hairline); }
     .blabel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .blabel.sub { font-size: var(--fs-sm); }
+    /* The rep scheme ("21-15-9") directly under the block name -- restored per user feedback,
+       full width, mono because it is a prescribed count, not prose. */
+    .note { min-height: var(--tap); width: 100%; box-sizing: border-box; padding: 0 var(--sp-3);
+      background: var(--surface); color: var(--bone); border: 1px solid var(--hairline);
+      border-radius: var(--r-ctl); font-family: var(--font-mono); font-size: var(--fs-body);
+      font-weight: 700; letter-spacing: 0.02em; }
+    .note::placeholder { color: var(--bone-dim); }
+    .note:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     /* Mobile first: the movement is the line's subject, so at 360px it gets a full-width row of
        its own and reps/load/remove sit beneath it. Squeezing all four onto one line left the
        movement button about 40px wide -- the most important control on the row, collapsed.
@@ -429,8 +479,12 @@ type PickTarget = { block: number; line: number; scale: number | null };
         grid-template-areas: "arrow mv reps rm"; }
     }
     .arrow { color: var(--faint); font-size: var(--fs-sm); }
-    .sub-block { padding-left: var(--sp-3); border-left: 1px solid var(--hairline);
-      display: flex; flex-direction: column; gap: var(--sp-2); }
+    /* A part authored elsewhere still renders, flat -- nothing indents, no border, no card. Just
+       a muted label over its lines so the content is not silently lost on screen. */
+    .subgroup { display: flex; flex-direction: column; gap: var(--sp-1); width: 100%; }
+    .subhead { margin: 0; font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
+      letter-spacing: 0.06em; color: var(--bone-dim); }
+    .subline { margin: 0; font-size: var(--fs-body); color: var(--bone); }
 
     .in, .num { min-height: var(--tap); box-sizing: border-box; width: 100%; min-width: 0;
       padding: 0 var(--sp-3); background: var(--surface); color: var(--bone);
@@ -452,17 +506,41 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .mini:hover { color: var(--bone); }
     .mini:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-    .badds { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-    .add { min-height: var(--tap); padding: 0 var(--sp-3); background: none;
+    /* +block / +line / +scaling option: full width and --tap-lg on mobile, called out by name
+       ("the button +block +line etc are too small, we are in mobile!"). */
+    .add { width: 100%; min-height: var(--tap-lg); padding: 0 var(--sp-3); background: none;
       border: 1px dashed var(--hairline); border-radius: var(--r-ctl); color: var(--bone-dim);
-      font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+      font-family: var(--font-body); font-size: var(--fs-body); font-weight: 500; cursor: pointer; }
     .add:hover { color: var(--bone); border-color: var(--bone-dim); }
     .add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .add.sub { margin-left: var(--sp-6); }
 
-    .share { width: 100%; }
     .check { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--tap);
       color: var(--bone); font-size: var(--fs-body); cursor: pointer; }
+
+    /* ---- sheet rows: replaces bh-segmented pills with full-width tappable rows (law: "not those
+       thing that are headers list"). Selected is marked by a check glyph -- no volt spent here,
+       the meta strip's WHAT chip already carries this screen's one volt element. */
+    .rows { display: flex; flex-direction: column; width: 100%; }
+    .prow { display: flex; align-items: center; justify-content: space-between; width: 100%;
+      box-sizing: border-box; min-height: var(--tap-lg); padding: 0 var(--sp-2); background: none;
+      border: none; border-bottom: 1px solid var(--hairline); color: var(--bone); text-align: left;
+      font-family: var(--font-body); font-size: var(--fs-body); cursor: pointer; }
+    .rows .prow:last-child { border-bottom: none; }
+    .prow:hover { background: var(--surface-2); }
+    .prow:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .prow.sel { font-weight: 700; }
+    .mark { color: var(--bone); font-weight: 700; }
+
+    /* Timing sheet's second decision: the segment sequence a preset seeds. Picking a preset row
+       closes the sheet; this disclosure is the one thing in it that stays open while editing. */
+    .disclosure { display: flex; align-items: center; justify-content: space-between; width: 100%;
+      box-sizing: border-box; min-height: var(--tap); padding: 0 var(--sp-2); margin-top: var(--sp-2);
+      background: none; border: none; border-top: 1px solid var(--hairline); color: var(--bone);
+      font-family: var(--font-body); font-size: var(--fs-body); font-weight: 700; cursor: pointer; }
+    .disclosure:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .disclosure .chev { transition: transform var(--dur) var(--ease-out); }
+    .disclosure .chev.open { transform: rotate(180deg); }
+    @media (prefers-reduced-motion: reduce) { .disclosure .chev { transition: none; } }
 
     /* Bottom bar: a hairline separates it from the last block card, echoing the composition's
        horizontal rule ahead of "Save piece". */
@@ -535,6 +613,10 @@ export class PieceEditorPage {
   /** Which of the four meta chips opened its sheet. bh-sheet's open is one-way, so every sheet
    *  resets this to null on (closed) instead of clearing its own flag. */
   openSheet = signal<'macro' | 'timing' | 'score' | 'team' | null>(null);
+  /** The timing sheet's one exception to "pick closes": the segment editor is a disclosure that
+   *  stays open while editing, separate from the preset rows above it. Starts expanded so the
+   *  add-segment control a custom (no-preset) piece needs is there without an extra tap. */
+  editingSegments = signal(true);
 
   setTitle(v: string) {
     this.title.set(v);
@@ -542,6 +624,21 @@ export class PieceEditorPage {
   }
 
   metaMacroLabel = computed(() => MACRO_LABELS[this.macro()] ?? this.macro());
+
+  pickMacro(v: string) {
+    this.macro.set(v);
+    this.openSheet.set(null);
+  }
+
+  pickTeamSize(n: number) {
+    this.teamSize.set(n);
+    this.openSheet.set(null);
+  }
+
+  pickTeamShare(v: string) {
+    this.teamShare.set(v);
+    this.openSheet.set(null);
+  }
 
   metaPresetLabel = computed(() => {
     const p = this.timingPreset();
@@ -581,8 +678,12 @@ export class PieceEditorPage {
 
   constructor() {
     const id = this.route.snapshot.paramMap.get('wodId') ?? this.route.snapshot.paramMap.get('id');
-    // Only a standalone wods/:id route names a wod. On the class route :id is the session.
+    // Only a standalone wods/:id route names a wod. On the class route :id is the session, so
+    // there is never a wod id there and this branch never runs for a class piece.
     if (this.standalone() && id) this.load(id);
+    // Create, not edit: the page must never open on the empty state. load() resets blocks itself
+    // and always wins, so seeding here only ever applies to a genuinely new piece.
+    else this.blocks.set([{ label: '', lines: [], blocks: [] }]);
   }
 
   openPick(block: number, line: number, scale: number | null) {
@@ -676,13 +777,26 @@ export class PieceEditorPage {
 
   // ---- timing -----------------------------------------------------------------------------
 
-  /** A preset SEEDS the sequence. It never constrains it: later edits leave the name in place. */
+  /** A preset SEEDS the sequence. It never constrains it: later edits leave the name in place.
+   *  Picking a row applies and closes the sheet -- "Edit segments" is the separate disclosure
+   *  that stays open for hand-tuning the sequence it just seeded. */
   pickPreset(preset: string) {
     this.timingPreset.set(preset);
     const seed = PRESET_SEEDS[preset];
-    if (!seed) return;
-    this.rounds.set(seed.rounds);
-    this.segments.set(seed.segments.map(s => ({ ...s })));
+    if (seed) {
+      this.rounds.set(seed.rounds);
+      this.segments.set(seed.segments.map(s => ({ ...s })));
+    }
+    this.openSheet.set(null);
+  }
+
+  /** A UI-level null, not a new preset value -- the server already models an absent preset as
+   *  null, so "None" just clears what a preset would otherwise seed. */
+  pickTimingNone() {
+    this.timingPreset.set(null);
+    this.segments.set([]);
+    this.rounds.set(1);
+    this.openSheet.set(null);
   }
 
   updateSegment(i: number, seg: WodSegment) {
@@ -714,6 +828,12 @@ export class PieceEditorPage {
 
   setBlockLabel(i: number, label: string) {
     this.blocks.update(list => list.map((b, idx) => idx === i ? { ...b, label } : b));
+  }
+
+  /** The rep scheme ("21-15-9"): `WodBlock.note`. The athlete reader already renders `blk.note`,
+   *  so restoring the field here is what gives it something to read. */
+  setBlockNote(i: number, note: string) {
+    this.blocks.update(list => list.map((b, idx) => idx === i ? { ...b, note } : b));
   }
 
   /** bh-sortable-list is presentational and never mutates items(), so the array is spliced here. */
@@ -797,10 +917,12 @@ export class PieceEditorPage {
 
   // ---- scoring ------------------------------------------------------------------------------
 
+  /** Picking a row applies the value and closes the sheet, same as every other meta sheet. */
   pickScore(choice: string) {
-    if (choice === 'NOT_SCORED') { this.scoreable.set(false); return; }
+    if (choice === 'NOT_SCORED') { this.scoreable.set(false); this.openSheet.set(null); return; }
     this.scoreable.set(true);
     this.scoreType.set(choice);
+    this.openSheet.set(null);
   }
 
   // ---- accessible names ----------------------------------------------------------------------
@@ -809,8 +931,10 @@ export class PieceEditorPage {
   removeSegmentLabel(i: number) { return $localize`:@@piece.segment.removeAria:Remove segment ${i + 1}:position:`; }
   blockNameLabel(i: number) { return $localize`:@@piece.block.nameAria:Name of block ${i + 1}:position:`; }
   removeBlockLabel(i: number) { return $localize`:@@piece.block.removeAria:Remove block ${i + 1}:position:`; }
-  subBlockNameLabel(i: number, j: number) { return $localize`:@@piece.subBlock.nameAria:Name of part ${j + 1}:position: in block ${i + 1}:parent:`; }
-  removeSubBlockLabel(i: number, j: number) { return $localize`:@@piece.subBlock.removeAria:Remove part ${j + 1}:position: from block ${i + 1}:parent:`; }
+  blockNoteLabel(i: number) { return $localize`:@@piece.block.noteAria:Rep scheme for block ${i + 1}:position:`; }
+  /** Read-only sub-block heading fallback -- there is no way to create a part, but one loaded
+   *  from the server without a label still needs a name to render. */
+  subBlockFallback(j: number) { return $localize`:@@piece.subBlock.fallback:Part ${j + 1}:position:`; }
   repsLabel(i: number, j: number) { return $localize`:@@piece.line.repsAria:Reps for line ${j + 1}:position:`; }
   loadLabel(i: number, j: number) { return $localize`:@@piece.line.loadAria:Load for line ${j + 1}:position:`; }
   removeLineLabel(i: number, j: number) { return $localize`:@@piece.line.removeAria:Remove line ${j + 1}:position:`; }
