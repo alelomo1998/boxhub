@@ -49,13 +49,12 @@ const SCORE_TYPES = ['TIME', 'ROUNDS_REPS', 'LOAD', 'NONE'];
               <input class="in note" [(ngModel)]="b.note" placeholder="Note (e.g. 21-15-9)" />
               <button class="mini danger" (click)="removeBlock($index)">✕</button>
             </div>
-            @for (l of b.lines; track $index) {
+            @for (l of b.lines ?? []; track $index) {
               <div class="lrow">
                 <input class="in mv" list="movementList" [(ngModel)]="l.text"
                        (change)="linkMovement(l)" placeholder="Movement / line" />
                 <input class="in sm" [(ngModel)]="l.reps" placeholder="reps" />
                 <input class="in sm" [(ngModel)]="l.load" placeholder="load" />
-                <input class="in sm" [(ngModel)]="l.scaling" placeholder="scaled" />
                 <button class="mini" (click)="removeLine(b, $index)">✕</button>
               </div>
             }
@@ -131,8 +130,8 @@ export class WodBuilderPage implements OnInit {
 
   addBlock() { this.blocks.update(b => [...b, { label: '', note: '', lines: [{ text: '' }] }]); }
   removeBlock(i: number) { this.blocks.update(b => b.filter((_, idx) => idx !== i)); }
-  addLine(b: WodBlock) { b.lines.push({ text: '' }); this.blocks.update(x => [...x]); }
-  removeLine(b: WodBlock, i: number) { b.lines.splice(i, 1); this.blocks.update(x => [...x]); }
+  addLine(b: WodBlock) { (b.lines ??= []).push({ text: '' }); this.blocks.update(x => [...x]); }
+  removeLine(b: WodBlock, i: number) { b.lines?.splice(i, 1); this.blocks.update(x => [...x]); }
 
   linkMovement(l: { text: string; movementId?: string }) {
     const m = this.movements().find(x => x.name.toLowerCase() === l.text.trim().toLowerCase());

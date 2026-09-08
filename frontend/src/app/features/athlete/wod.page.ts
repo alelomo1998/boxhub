@@ -39,7 +39,7 @@ import { SheetComponent } from '../../ui/sheet.component';
                       @for (blk of i.wod.blocks.blocks; track $index) {
                         <div class="block">
                           @if (blk.label) { <div class="blabel">{{ blk.label }}<span class="bnote">{{ blk.note }}</span></div> }
-                          @for (l of blk.lines; track $index) {
+                          @for (l of blk.lines ?? []; track $index) {
                             <div class="line"><span class="reps">{{ l.reps }}</span><span class="mv">{{ l.text }}</span><span class="ld">{{ l.load }}</span></div>
                           }
                         </div>
