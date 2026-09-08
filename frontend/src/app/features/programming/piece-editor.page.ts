@@ -92,10 +92,6 @@ type PickTarget = { block: number; line: number; scale: number | null };
           @if (titleError()) {
             <span class="title-err" role="alert">{{ titleError() }}</span>
           }
-          @if (timingSummary()) {
-            <p class="timing-line">{{ timingSummary() }}</p>
-          }
-
           <div class="meta-strip">
             <button type="button" class="chip volt" (click)="openSheet.set('macro')" data-testid="meta-macro">
               <span class="chip-k" i18n="@@piece.macro.chipLabel">WHAT</span>
@@ -115,6 +111,44 @@ type PickTarget = { block: number; line: number; scale: number | null };
             </button>
           </div>
         </header>
+
+        <section class="segments">
+          @if (segments().length > 0) {
+            <h2 class="eyebrow" i18n="@@piece.segments.heading">SEGMENTS</h2>
+            <ul class="segs">
+              @for (s of segments(); track $index) {
+                <li class="seg-row" [attr.data-testid]="'segment-' + $index">
+                  <input class="num" type="number" min="0" inputmode="numeric"
+                         [value]="s.seconds"
+                         (change)="updateSegment($index, { seconds: +$any($event.target).value, kind: s.kind, label: s.label })"
+                         [attr.aria-label]="secondsLabel($index)" />
+                  <span class="unit" i18n="@@piece.segment.seconds">sec</span>
+                  <button type="button" class="kind" (click)="toggleKind($index)"
+                          [attr.data-testid]="'segment-kind-' + $index">
+                    @if (s.kind === 'WORK') {
+                      <span i18n="@@piece.segment.work">WORK</span>
+                    } @else {
+                      <span i18n="@@piece.segment.rest">REST</span>
+                    }
+                  </button>
+                  <button type="button" class="mini" (click)="removeSegment($index)"
+                          [attr.aria-label]="removeSegmentLabel($index)">&#x2715;</button>
+                </li>
+              }
+            </ul>
+            <div class="rounds">
+              <label class="rlab" for="piece-rounds" i18n="@@piece.rounds.label">Rounds</label>
+              <input id="piece-rounds" class="num" type="number" min="1" inputmode="numeric"
+                     [value]="rounds()" (change)="rounds.set(+$any($event.target).value || 1)"
+                     data-testid="piece-rounds" />
+            </div>
+          }
+          <!-- Always rendered, even at zero segments: it is how a custom (no-preset) piece seeds
+               its first one. Gating this on segments().length would make it unreachable. -->
+          <button type="button" class="add" (click)="addSegment()" data-testid="piece-add-segment">
+            <span i18n="@@piece.segment.add">Add segment</span>
+          </button>
+        </section>
 
         <section class="work">
           <h2 class="eyebrow" i18n="@@piece.blocks.heading">THE WORK</h2>
@@ -138,11 +172,6 @@ type PickTarget = { block: number; line: number; scale: number | null };
                     <button type="button" class="mini" (click)="removeBlock(bi)"
                             [attr.aria-label]="removeBlockLabel(bi)">&#x2715;</button>
                   </div>
-
-                  <input class="note" [value]="b.note ?? ''"
-                         (input)="setBlockNote(bi, $any($event.target).value)"
-                         placeholder="21-15-9" i18n-placeholder="@@piece.block.notePlaceholder"
-                         [attr.aria-label]="blockNoteLabel(bi)" />
 
                   @for (l of b.lines ?? []; track $index; let li = $index) {
                     <div class="lrow" [attr.data-testid]="'line-' + bi + '-' + li">
@@ -189,7 +218,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
                     @if (canAddScale(bi, li)) {
                       <button type="button" class="add" (click)="addScale(bi, li)"
                               [attr.data-testid]="'add-scale-' + bi + '-' + li">
-                        <span i18n="@@piece.scale.add">+ scaling option</span>
+                        <span i18n="@@piece.scale.add">Add a scaling option</span>
                       </button>
                     }
                   }
@@ -209,7 +238,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
 
                   <button type="button" class="add" (click)="addLine(bi)"
                           [attr.data-testid]="'add-line-' + bi">
-                    <span i18n="@@piece.line.add">+ line</span>
+                    <span i18n="@@piece.line.add">Add line</span>
                   </button>
                 </div>
               </ng-template>
@@ -217,7 +246,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
           }
 
           <button type="button" class="add" (click)="addBlock()" data-testid="piece-add-block">
-            <span i18n="@@piece.block.add">+ block</span>
+            <span i18n="@@piece.block.add">Add block</span>
           </button>
         </section>
 
@@ -275,51 +304,6 @@ type PickTarget = { block: number; line: number; scale: number | null };
           </button>
         }
       </div>
-
-      <!-- The timing sheet holds two decisions: the preset (a row, closes on pick) and the
-           segment sequence it seeds (a separate disclosure that stays open while editing). -->
-      <button type="button" class="disclosure" (click)="editingSegments.set(!editingSegments())"
-              [attr.aria-expanded]="editingSegments()">
-        <span i18n="@@piece.segment.editToggle">Edit segments</span>
-        <span class="chev" [class.open]="editingSegments()" aria-hidden="true">&#x2304;</span>
-      </button>
-
-      @if (editingSegments()) {
-        @if (segments().length) {
-          <ul class="segs">
-            @for (s of segments(); track $index) {
-              <li class="seg-row" [attr.data-testid]="'segment-' + $index">
-                <input class="num" type="number" min="0" inputmode="numeric"
-                       [value]="s.seconds"
-                       (change)="updateSegment($index, { seconds: +$any($event.target).value, kind: s.kind, label: s.label })"
-                       [attr.aria-label]="secondsLabel($index)" />
-                <span class="unit" i18n="@@piece.segment.seconds">sec</span>
-                <button type="button" class="kind" (click)="toggleKind($index)"
-                        [attr.data-testid]="'segment-kind-' + $index">
-                  @if (s.kind === 'WORK') {
-                    <span i18n="@@piece.segment.work">WORK</span>
-                  } @else {
-                    <span i18n="@@piece.segment.rest">REST</span>
-                  }
-                </button>
-                <button type="button" class="mini" (click)="removeSegment($index)"
-                        [attr.aria-label]="removeSegmentLabel($index)">&#x2715;</button>
-              </li>
-            }
-          </ul>
-          <div class="rounds">
-            <label class="rlab" for="piece-rounds" i18n="@@piece.rounds.label">Rounds</label>
-            <input id="piece-rounds" class="num" type="number" min="1" inputmode="numeric"
-                   [value]="rounds()" (change)="rounds.set(+$any($event.target).value || 1)"
-                   data-testid="piece-rounds" />
-          </div>
-        }
-        <!-- Full width like every other add affordance: a small chip inside a sheet was the last
-             control still sized for a mouse. -->
-        <bh-button variant="ghost" class="full" (click)="addSegment()" testId="piece-add-segment">
-          <span i18n="@@piece.segment.add">+ segment</span>
-        </bh-button>
-      }
     </bh-sheet>
 
     <bh-sheet [open]="openSheet() === 'score'" title="How it is scored" i18n-title="@@piece.score.sheetTitle"
@@ -370,9 +354,9 @@ type PickTarget = { block: number; line: number; scale: number | null };
     :host { display: block; }
     .page { display: flex; flex-direction: column; gap: var(--sp-6); padding-bottom: var(--sp-8); }
     .muted { color: var(--bone-dim); font-size: var(--fs-body); margin: 0; }
-    /* Mono for an eyebrow: it is a label on prescribed content, not prose. */
+    /* Mono for an eyebrow: it is a label on prescribed content, not prose. Centred (user-ruled). */
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
-      letter-spacing: 0.08em; color: var(--bone-dim); margin: 0 0 var(--sp-3); }
+      letter-spacing: 0.08em; color: var(--bone-dim); margin: 0 0 var(--sp-3); text-align: center; }
 
     /* ---- header: title + meta strip ------------------------------------------------------- */
     .head { display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -383,9 +367,6 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .title-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px;
       border-radius: var(--r-xs); }
     .title-err { color: var(--danger); font-size: var(--fs-sm); }
-    /* Read-only summary of the sheet's own preset choice: measured, so mono, never prose. */
-    .timing-line { margin: 0; font-family: var(--font-mono); font-size: var(--fs-sm);
-      font-weight: 700; letter-spacing: 0.04em; color: var(--bone-dim); }
 
     /* One meta strip, four chips, replaces four stacked segmented groups (the single biggest
        change in this rebuild). Two-up at 360px, four-up once there is room. */
@@ -407,6 +388,10 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .chip.volt { background: var(--volt); border-color: var(--volt); }
     .chip.volt .chip-k, .chip.volt .chip-v { color: var(--on-volt); }
     .chip.volt:focus-visible { outline-color: var(--focus-inv); }
+
+    /* ---- segments: moved off the timing sheet onto the page (user-ruled: a tabata's shape is
+       drawn here, not chosen inside a picker). Same eyebrow treatment as THE WORK below it. */
+    .segments { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-3); }
 
     /* ---- the work: block cards -------------------------------------------------------------- */
     .work { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-3); }
@@ -442,14 +427,6 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .blabel::placeholder { color: var(--bone-dim); }
     .blabel:hover { border-bottom-color: var(--hairline); }
     .blabel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    /* The rep scheme ("21-15-9") directly under the block name -- restored per user feedback,
-       full width, mono because it is a prescribed count, not prose. */
-    .note { min-height: var(--tap); width: 100%; box-sizing: border-box; padding: 0 var(--sp-3);
-      background: var(--surface); color: var(--bone); border: 1px solid var(--hairline);
-      border-radius: var(--r-ctl); font-family: var(--font-mono); font-size: var(--fs-body);
-      font-weight: 700; letter-spacing: 0.02em; }
-    .note::placeholder { color: var(--bone-dim); }
-    .note:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     /* Mobile first: the movement is the line's subject, so at 360px it gets a full-width row of
        its own and reps/load/remove sit beneath it. Squeezing all four onto one line left the
        movement button about 40px wide -- the most important control on the row, collapsed.
@@ -531,17 +508,6 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .prow.sel { font-weight: 700; }
     .mark { color: var(--bone); font-weight: 700; }
 
-    /* Timing sheet's second decision: the segment sequence a preset seeds. Picking a preset row
-       closes the sheet; this disclosure is the one thing in it that stays open while editing. */
-    .disclosure { display: flex; align-items: center; justify-content: space-between; width: 100%;
-      box-sizing: border-box; min-height: var(--tap); padding: 0 var(--sp-2); margin-top: var(--sp-2);
-      background: none; border: none; border-top: 1px solid var(--hairline); color: var(--bone);
-      font-family: var(--font-body); font-size: var(--fs-body); font-weight: 700; cursor: pointer; }
-    .disclosure:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .disclosure .chev { transition: transform var(--dur) var(--ease-out); }
-    .disclosure .chev.open { transform: rotate(180deg); }
-    @media (prefers-reduced-motion: reduce) { .disclosure .chev { transition: none; } }
-
     /* Bottom bar: a hairline separates it from the last block card, echoing the composition's
        horizontal rule ahead of "Save piece". */
     .foot { display: flex; flex-direction: column; gap: var(--sp-3);
@@ -613,10 +579,6 @@ export class PieceEditorPage {
   /** Which of the four meta chips opened its sheet. bh-sheet's open is one-way, so every sheet
    *  resets this to null on (closed) instead of clearing its own flag. */
   openSheet = signal<'macro' | 'timing' | 'score' | 'team' | null>(null);
-  /** The timing sheet's one exception to "pick closes": the segment editor is a disclosure that
-   *  stays open while editing, separate from the preset rows above it. Starts expanded so the
-   *  add-segment control a custom (no-preset) piece needs is there without an extra tap. */
-  editingSegments = signal(true);
 
   setTitle(v: string) {
     this.title.set(v);
@@ -653,22 +615,6 @@ export class PieceEditorPage {
   metaTeamLabel = computed(() => this.teamSize() === 1
     ? $localize`:@@piece.team.chip.solo:Solo`
     : $localize`:@@piece.team.chip.value:Team of ${this.teamSize()}:count:`);
-
-  /** The header's read-only "8 x :20 / :10" line -- the segment list moved into the timing sheet,
-   *  so this is what stays visible without opening it. */
-  timingSummary = computed(() => {
-    const segs = this.segments();
-    if (!segs.length) return '';
-    const parts = segs.map(s => this.formatSeconds(s.seconds));
-    const rounds = this.rounds();
-    return rounds > 1 ? `${rounds} x ${parts.join(' / ')}` : parts.join(' / ');
-  });
-
-  private formatSeconds(total: number): string {
-    const m = Math.floor(total / 60);
-    const s = total % 60;
-    return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `:${s.toString().padStart(2, '0')}`;
-  }
 
   // ---- pick sheet -------------------------------------------------------------------------
 
@@ -778,8 +724,8 @@ export class PieceEditorPage {
   // ---- timing -----------------------------------------------------------------------------
 
   /** A preset SEEDS the sequence. It never constrains it: later edits leave the name in place.
-   *  Picking a row applies and closes the sheet -- "Edit segments" is the separate disclosure
-   *  that stays open for hand-tuning the sequence it just seeded. */
+   *  Picking a row applies and closes the sheet -- the segment sequence it seeds is edited in its
+   *  own section on the page, not inside the picker. */
   pickPreset(preset: string) {
     this.timingPreset.set(preset);
     const seed = PRESET_SEEDS[preset];
@@ -828,12 +774,6 @@ export class PieceEditorPage {
 
   setBlockLabel(i: number, label: string) {
     this.blocks.update(list => list.map((b, idx) => idx === i ? { ...b, label } : b));
-  }
-
-  /** The rep scheme ("21-15-9"): `WodBlock.note`. The athlete reader already renders `blk.note`,
-   *  so restoring the field here is what gives it something to read. */
-  setBlockNote(i: number, note: string) {
-    this.blocks.update(list => list.map((b, idx) => idx === i ? { ...b, note } : b));
   }
 
   /** bh-sortable-list is presentational and never mutates items(), so the array is spliced here. */
@@ -931,7 +871,6 @@ export class PieceEditorPage {
   removeSegmentLabel(i: number) { return $localize`:@@piece.segment.removeAria:Remove segment ${i + 1}:position:`; }
   blockNameLabel(i: number) { return $localize`:@@piece.block.nameAria:Name of block ${i + 1}:position:`; }
   removeBlockLabel(i: number) { return $localize`:@@piece.block.removeAria:Remove block ${i + 1}:position:`; }
-  blockNoteLabel(i: number) { return $localize`:@@piece.block.noteAria:Rep scheme for block ${i + 1}:position:`; }
   /** Read-only sub-block heading fallback -- there is no way to create a part, but one loaded
    *  from the server without a label still needs a name to render. */
   subBlockFallback(j: number) { return $localize`:@@piece.subBlock.fallback:Part ${j + 1}:position:`; }

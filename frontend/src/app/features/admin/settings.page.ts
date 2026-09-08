@@ -2,21 +2,27 @@ import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@ang
 import { FormsModule } from '@angular/forms';
 import { AdminService } from './admin.service';
 import { ButtonComponent } from '../../ui/button.component';
+import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 
 @Component({
   selector: 'bh-admin-settings',
   standalone: true,
-  imports: [FormsModule, ButtonComponent],
+  imports: [FormsModule, ButtonComponent, SegmentedComponent],
   template: `
     <section class="bh-section form">
       <h2 class="t-h2">Settings</h2>
       <form (ngSubmit)="save()">
-        <label class="f"><span>NAME</span><input class="bh-input" name="name" [(ngModel)]="name" data-testid="settings-name" /></label>
-        <label class="f"><span>TIMEZONE</span><input class="bh-input" name="timezone" [(ngModel)]="timezone" /></label>
-        <label class="f"><span>LOGO URL</span><input class="bh-input" name="logoUrl" [(ngModel)]="logoUrl" placeholder="https://…" /></label>
+        <label class="f"><span i18n="@@admin.settings.name">NAME</span><input class="bh-input" name="name" [(ngModel)]="name" data-testid="settings-name" /></label>
+        <label class="f"><span i18n="@@admin.settings.timezone">TIMEZONE</span><input class="bh-input" name="timezone" [(ngModel)]="timezone" /></label>
+        <label class="f"><span i18n="@@admin.settings.logoUrl">LOGO URL</span><input class="bh-input" name="logoUrl" [(ngModel)]="logoUrl" placeholder="https://…" /></label>
+        <div class="f">
+          <span i18n="@@admin.settings.weightUnit">WEIGHT UNIT</span>
+          <bh-segmented [options]="weightUnitOptions" [(value)]="weightUnit" tone="bone"
+                        label="Weight unit" />
+        </div>
         <div class="actions">
           <bh-button type="submit" data-testid="settings-save">Save</bh-button>
-          @if (saved()) { <span class="ok" data-testid="settings-saved">Saved ✓</span> }
+          @if (saved()) { <span class="ok" data-testid="settings-saved" i18n="@@admin.settings.saved">Saved ✓</span> }
         </div>
       </form>
     </section>
@@ -35,6 +41,11 @@ export class SettingsPage implements OnInit {
   name = '';
   timezone = '';
   logoUrl = '';
+  weightUnit = 'KG';
+  readonly weightUnitOptions: SegOption[] = [
+    { value: 'KG', label: 'KG' },
+    { value: 'LB', label: 'LB' },
+  ];
   readonly saved = signal(false);
 
   ngOnInit() {
@@ -42,12 +53,14 @@ export class SettingsPage implements OnInit {
       this.name = s.name;
       this.timezone = s.timezone;
       this.logoUrl = s.logoUrl ?? '';
+      this.weightUnit = s.weightUnit;
     });
   }
 
   save() {
     this.saved.set(false);
-    this.admin.patchSettings({ name: this.name, timezone: this.timezone, logoUrl: this.logoUrl })
+    this.admin.patchSettings({ name: this.name, timezone: this.timezone, logoUrl: this.logoUrl,
+      weightUnit: this.weightUnit as 'KG' | 'LB' })
       .subscribe(() => this.saved.set(true));
   }
 }

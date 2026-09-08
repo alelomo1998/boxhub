@@ -34,12 +34,13 @@ public class BoxController {
     // which ARE uploads, stay signed and box-members-only.
     record CurrentBoxResponse(UUID id, String name, String slug, String timezone, String logoUrl,
                               int cancelCutoffMin, int bookingHorizonWeeks, String locale, String currency,
+                              String weightUnit,
                               String role, boolean allowLateCancel, boolean lateCancelRefundsEntry,
                               boolean countWaitlistCancellations) {
         static CurrentBoxResponse of(Box b) {
             return new CurrentBoxResponse(b.getId(), b.getName(), b.getSlug(), b.getTimezone(), b.getLogoUrl(),
                     b.getCancelCutoffMin(), b.getBookingHorizonWeeks(), b.getLocale(), b.getCurrency(),
-                    TenantContext.role(),
+                    b.getWeightUnit(), TenantContext.role(),
                     b.isAllowLateCancel(), b.isLateCancelRefundsEntry(), b.isCountWaitlistCancellations());
         }
     }
@@ -51,7 +52,7 @@ public class BoxController {
 
     record PatchSettingsRequest(String name, String timezone, String logoUrl,
                                 @Min(0) Integer cancelCutoffMin, @Min(1) Integer bookingHorizonWeeks,
-                                String locale, String currency,
+                                String locale, String currency, String weightUnit,
                                 Boolean allowLateCancel, Boolean lateCancelRefundsEntry,
                                 Boolean countWaitlistCancellations) {}
 
@@ -85,6 +86,14 @@ public class BoxController {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "CURRENCY_HAS_PLANS");
             b.setCurrency(cur);
+        }
+        // Box-level weight unit: KG or LB only, validated here (not bean validation) so it runs
+        // after RoleGuard has already checked BOX_ADMIN above.
+        if (req.weightUnit() != null && !req.weightUnit().isBlank()) {
+            String unit = req.weightUnit().trim().toUpperCase();
+            if (!unit.equals("KG") && !unit.equals("LB"))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Weight unit must be KG or LB");
+            b.setWeightUnit(unit);
         }
         // M16a cancellation policy. cancelCutoffMin above is "how late is late"; these three are what
         // happens then. Nullable so a PATCH that omits them leaves them alone, like every other field here.

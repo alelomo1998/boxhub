@@ -106,4 +106,66 @@ class BoxSettingsTest extends AbstractIntegrationTest {
                         .content("{\"allowLateCancel\":true}"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void newBoxDefaultsToKgAndPatchToLbRoundTrips() throws Exception {
+        mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weightUnit").value("KG"));
+
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"weightUnit\":\"LB\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weightUnit").value("LB"));
+
+        mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.weightUnit").value("LB"));
+    }
+
+    @Test
+    void invalidWeightUnitIs400NotPersisted() throws Exception {
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"weightUnit\":\"STONE\"}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$.weightUnit").value("KG"));
+    }
+
+    @Test
+    void anAthleteCannotPatchTheWeightUnit() throws Exception {
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + athleteToken)
+                        .content("{\"weightUnit\":\"LB\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /** CROSS-TENANT-DENIED: box/settings and box/current resolve the tenant only from the JWT
+     *  (no id in the URL), so box A's admin patching weightUnit must never touch box B. */
+    @Test
+    void crossTenantAdminCannotAffectAnotherBoxsWeightUnit() throws Exception {
+        long n = System.nanoTime();
+        Box other = new Box();
+        other.setName("Other Weight Box " + n);
+        other.setSlug("owb-" + n);
+        other.setTimezone("Europe/Rome");
+        boxes.save(other);
+        User otherAdmin = authService.register("owadm-" + n + "@t.io", "correct-horse-battery", "OWAdm");
+        Membership om = new Membership();
+        om.setUser(otherAdmin); om.setBox(other); om.setRole("BOX_ADMIN");
+        memberships.save(om);
+        String otherAdminToken = tokenService.boxToken(otherAdmin, om);
+
+        mvc.perform(patch("/api/box/settings").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"weightUnit\":\"LB\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weightUnit").value("LB"));
+
+        mvc.perform(get("/api/box/current").header("Authorization", "Bearer " + otherAdminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weightUnit").value("KG"));
+    }
 }
