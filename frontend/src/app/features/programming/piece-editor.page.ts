@@ -184,6 +184,10 @@ type PickTarget = { block: number; line: number; scale: number | null };
                     <p class="summary" [attr.data-testid]="'block-summary-' + bi">{{ blockSummary(bi) }}</p>
                   } @else {
                     @for (l of b.lines ?? []; track $index; let li = $index) {
+                      <!-- One line and everything that belongs to it -- its scaling options and
+                           their add control -- inside a single bounded unit, so a scaling row
+                           reads as part of the line above it rather than as another line. -->
+                      <div class="line-unit">
                       <div class="lrow" [attr.data-testid]="'line-' + bi + '-' + li">
                         <button type="button" class="mv" (click)="openPick(bi, li, null)"
                                 [attr.data-testid]="'line-movement-' + bi + '-' + li">
@@ -229,11 +233,12 @@ type PickTarget = { block: number; line: number; scale: number | null };
                       }
 
                       @if (canAddScale(bi, li)) {
-                        <button type="button" class="add" (click)="addScale(bi, li)"
+                        <button type="button" class="add sub" (click)="addScale(bi, li)"
                                 [attr.data-testid]="'add-scale-' + bi + '-' + li">
                           <span i18n="@@piece.scale.add">Add a scaling option</span>
                         </button>
                       }
+                      </div>
                     }
 
                     <!-- A piece authored elsewhere may already carry a nested part. There is no way
@@ -405,7 +410,12 @@ type PickTarget = { block: number; line: number; scale: number | null };
 
     /* ---- segments: moved off the timing sheet onto the page (user-ruled: a tabata's shape is
        drawn here, not chosen inside a picker). Same eyebrow treatment as THE WORK below it. */
-    .segments { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-3); }
+    /* The segments area is a card for the same reason a block is one: a coach has to see where the
+       sequence starts and ends, and a bare Add button floating on the page ground said nothing
+       about what it belonged to. */
+    .segments { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-3);
+      padding: var(--sp-3); background: var(--surface); border: 1px solid var(--hairline);
+      border-radius: var(--r-card); }
 
     /* ---- the work: block cards -------------------------------------------------------------- */
     .work { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-3); }
@@ -427,12 +437,32 @@ type PickTarget = { block: number; line: number; scale: number | null };
     /* Each block is its own outline: a surface-2 bar for the header, un-indented content on the
        page ground below it, and --sp-5 between one block and the next so a new bar reads as
        "a new block starts here" -- the boundary a flat card used to give for free. */
-    .block { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; min-width: 0; }
+    /* A block IS a card, and its border is the only thing that says where it starts and ends. The
+       round-1 version was rejected not for having a border but for indenting its content behind
+       the drag handle's gutter and cramping it. That cannot happen now: the handle exists only
+       while collapsed, so an expanded block has no gutter and its content runs the full interior
+       width. Containment and full width were never in conflict. */
+    .block { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; min-width: 0;
+      box-sizing: border-box; padding: var(--sp-3); background: var(--surface);
+      border: 1px solid var(--hairline); border-radius: var(--r-card); }
+
+    /* One line plus its scaling options, bounded so the line's own extent is visible inside the
+       block. --surface-2 against the block's --surface: a step in fill, not another heavy border,
+       because three stacked 1px rules at 360px reads as noise. */
+    .line-unit { display: flex; flex-direction: column; gap: var(--sp-2); width: 100%;
+      min-width: 0; box-sizing: border-box; padding: var(--sp-2);
+      background: var(--surface-2); border: 1px solid var(--hairline);
+      border-radius: var(--r-ctl); }
     .work bh-sortable-list ::ng-deep .list { gap: var(--sp-5); }
+    /* The bar is the card's HEADER, so it runs edge to edge and pulls back over the card's own
+       padding. Inset like everything else it would have read as just another --surface-2 unit
+       alongside the line units; attached to the card's top edge it cannot be mistaken for one. */
     .bar { display: grid; grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
-      gap: var(--sp-2); align-items: center; width: 100%; box-sizing: border-box;
+      gap: var(--sp-2); align-items: center; box-sizing: border-box;
       min-height: var(--tap); padding: var(--sp-1) var(--sp-2);
-      background: var(--surface-2); border-radius: var(--r-ctl); }
+      margin: calc(var(--sp-3) * -1) calc(var(--sp-3) * -1) 0;
+      background: var(--surface-2); border-bottom: 1px solid var(--hairline);
+      border-radius: calc(var(--r-card) - 1px) calc(var(--r-card) - 1px) 0 0; }
     /* The drag handle only exists (bh-sortable-list's canDragItem) while the block is collapsed,
        riding absolutely over the row's top-left -- so only then does the bar need to step around
        it. Expanded, there is no handle to clear. */
