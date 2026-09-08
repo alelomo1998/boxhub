@@ -35,6 +35,16 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   TV). `athlete/home.page.ts`'s "Book your next session" was demoted to `--bone` for exactly this —
   it stays primary by size, weight and case. The **dock's active-tab icon is exempt**: it is
   persistent wayfinding chrome, like a focus ring, not a screen's expressive choice.
+- **THE BUILDER IS ON THE HERO LIST (user-ruled 2026-09-08).** The piece editor and the class stack
+  were built as plumbing under the rule above and came back as four grey pill groups — *"zero
+  identity, we lost all the colors"*. The reason the rule failed here: the builder is where a coach
+  spends real time writing the workout, and what they are writing IS the WOD board. **A piece being
+  authored gets the same expressive treatment as a piece being read.** So volt is available on both
+  builder screens, bounded as always by area (a row, chip, bar, badge — never a card, panel, page
+  background or sheet) and still answering only *one question per volt element*. Control chrome
+  (inputs, remove buttons, add affordances) stays `--bone`/`--surface`; the **prescription** — the
+  block the coach is writing, the selected macro/timing, the live segment — is what may carry it.
+  This does NOT reopen volt on genuinely plumbing screens (account, settings, admin forms).
 - **A screen's ONE primary action is `bh-button variant="strong"` when it has no volt to spend.**
   Volt means live / now / winning, so a plumbing screen's save never gets it — but `solid` is the
   wrong answer for a lone primary action: it is `--surface-2` on a `--surface` card, one token step

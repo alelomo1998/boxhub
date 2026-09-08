@@ -40,6 +40,7 @@ const SLOP_PX = 8;
         <div #row class="row" role="listitem" data-sortable-row
              [class.grabbed]="grabbedAt() === $index"
              [class.dragging]="dragging() && grabbedAt() === $index"
+             [class.align-top]="handleAlign() === 'top'"
              [style.touch-action]="dragging() ? 'none' : null"
              [style.transform]="dragging() && grabbedAt() === $index ? 'translateY(' + dy() + 'px)' : null"
              (pointerdown)="onPointerDown($event, $index)"
@@ -85,6 +86,10 @@ const SLOP_PX = 8;
     .row.grabbed { background: var(--surface-2); border-color: var(--bone-dim);
       box-shadow: var(--shadow-float); cursor: grabbing; }
     .row.dragging { transition: none; }
+    /* Tall multi-line rows (a card, not a label) want the handle level with the first line rather
+       than floating in the vertical middle of the whole card. */
+    .row.align-top { align-items: flex-start; }
+    .row.align-top .handle { margin-top: var(--sp-1); }
     .body { flex: 1; min-width: 0; }
     /* Three stacked bars, drawn rather than iconised: the icon set has no grip and one more name
        in it would owe its own gallery cell. */
@@ -109,6 +114,10 @@ export class SortableListComponent<T> {
   itemLabel = input<(item: T, index: number) => string>(
     (_item, i) => $localize`:@@ui.sortableList.itemFallback:item ${i + 1}:position:`);
   reordered = output<{ from: number; to: number }>();
+  /** 'top' levels the handle with the row's first line, for a tall multi-line row (a card) where
+   * a vertically-centred handle floats orphaned in the middle. Default preserves today's centred
+   * handle exactly. */
+  handleAlign = input<'center' | 'top'>('center');
 
   protected readonly rowTpl = contentChild(TemplateRef);
   private rowEls = viewChildren<ElementRef<HTMLElement>>('row');

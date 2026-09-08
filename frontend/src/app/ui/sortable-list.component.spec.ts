@@ -7,6 +7,7 @@ import { SortableListComponent } from './sortable-list.component';
   imports: [SortableListComponent],
   template: `
     <bh-sortable-list [items]="items()" label="Pieces" [itemLabel]="name"
+                      [handleAlign]="align()"
                       (reordered)="onReorder($event)">
       <ng-template let-item>{{ item }}</ng-template>
     </bh-sortable-list>`,
@@ -14,6 +15,7 @@ import { SortableListComponent } from './sortable-list.component';
 class Host {
   items = signal(['a', 'b', 'c']);
   name = (item: string) => item;
+  align = signal<'center' | 'top'>('center');
   last: { from: number; to: number } | null = null;
   onReorder(e: { from: number; to: number }) { this.last = e; }
 }
@@ -54,6 +56,16 @@ describe('SortableListComponent', () => {
   it('renders one row per item through the projected template', () => {
     expect(rows().length).toBe(3);
     expect(rows()[0].textContent).toContain('a');
+  });
+
+  // 'center' is the default and must stay the untouched, pre-existing look; 'top' is the opt-in
+  // for a tall multi-line row (a card) whose handle should not float in the vertical middle.
+  it('defaults to a centred handle and opts into a top-aligned one via handleAlign', () => {
+    expect(rows()[0].classList.contains('align-top')).toBe(false);
+
+    host.align.set('top');
+    f.detectChanges();
+    expect(rows()[0].classList.contains('align-top')).toBe(true);
   });
 
   // list/listitem, not listbox/option: this is a list of rows that each do something, not a
