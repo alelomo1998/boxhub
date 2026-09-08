@@ -102,6 +102,22 @@ describe('PieceEditorPage', () => {
     expect(component.timingPreset()).toBe('TABATA');
   });
 
+  // Every other spec here calls the handler directly, so all of them passed while the ghost
+  // buttons were bound to an output bh-button does not have and no click did anything. Karma
+  // cannot see a dead binding unless a spec actually presses the control.
+  it('adds a block when the add-block control is actually pressed', () => {
+    el.querySelector<HTMLElement>('[data-testid="piece-add-block"]')!.click();
+    fixture.detectChanges();
+    expect(component.blocks().length).toBe(1);
+  });
+
+  it('adds a segment when the add-segment control is actually pressed', () => {
+    const before = component.segments().length;
+    el.querySelector<HTMLElement>('[data-testid="piece-add-segment"]')!.click();
+    fixture.detectChanges();
+    expect(component.segments().length).toBe(before + 1);
+  });
+
   it('adds and removes scaling options on a line', () => {
     component.addBlock();
     component.addLine(0);

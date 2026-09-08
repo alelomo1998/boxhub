@@ -79,7 +79,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
       } @else if (state() === 'error') {
         <div data-testid="piece-error">
           <bh-alert tone="danger" i18n="@@piece.error">That piece could not be loaded.</bh-alert>
-          <bh-button variant="ghost" (clicked)="reload()" testId="piece-retry">
+          <bh-button variant="ghost" (click)="reload()" testId="piece-retry">
             <span i18n="@@piece.retry">Try again</span>
           </bh-button>
         </div>
@@ -129,7 +129,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
                      data-testid="piece-rounds" />
             </div>
           }
-          <bh-button variant="ghost" size="sm" (clicked)="addSegment()" testId="piece-add-segment">
+          <bh-button variant="ghost" size="sm" (click)="addSegment()" testId="piece-add-segment">
             <span i18n="@@piece.segment.add">+ segment</span>
           </bh-button>
         </section>
@@ -238,7 +238,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
             </bh-sortable-list>
           }
 
-          <bh-button variant="ghost" size="sm" (clicked)="addBlock()" testId="piece-add-block">
+          <bh-button variant="ghost" size="sm" (click)="addBlock()" testId="piece-add-block">
             <span i18n="@@piece.block.add">+ block</span>
           </bh-button>
         </section>
