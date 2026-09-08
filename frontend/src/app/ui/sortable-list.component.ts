@@ -3,14 +3,9 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 
-/** A press must be held this long before it becomes a drag rather than a scroll. */
-const LONG_PRESS_MS = 400;
-/** Movement further than this before the timer fires means the finger is scrolling, not dragging. */
-const SLOP_PX = 8;
-
 /**
- * A reorderable list. Long-press to drag with a pointer, OR grab with Space/Enter, move with the
- * arrows and drop with Space/Enter — Escape cancels and puts the item back.
+ * A reorderable list. Press the handle and drag with a pointer, OR grab it with Space/Enter, move
+ * with the arrows and drop with Space/Enter — Escape cancels and puts the item back.
  *
  * The keyboard half is not an extra: pointer drag alone fails WCAG 2.1.1, so a drag-only list is
  * unusable by anyone who cannot drag. Every move is announced through the live region, because a
@@ -42,19 +37,21 @@ const SLOP_PX = 8;
              [class.dragging]="dragging() && grabbedAt() === $index"
              [class.align-top]="handleAlign() === 'top'"
              [style.touch-action]="dragging() ? 'none' : null"
-             [style.transform]="dragging() && grabbedAt() === $index ? 'translateY(' + dy() + 'px)' : null"
-             (pointerdown)="onPointerDown($event, $index)"
-             (pointermove)="onPointerMove($event)"
-             (pointerup)="onPointerUp($event)"
-             (pointercancel)="onPointerCancel()"
-             (touchmove)="onTouchMove($event)">
-          <!-- The keyboard reorder path lives here, not on the row: a listitem is not focusable,
-               and pointer drag alone fails WCAG 2.1.1. aria-label is bound on the button itself
-               because an attribute written on a component host never reaches the element inside. -->
+             [style.transform]="dragging() && grabbedAt() === $index ? 'translateY(' + dy() + 'px)' : null">
+          <!-- The keyboard AND pointer reorder paths both live on the handle, not the row: a
+               listitem is not focusable so keyboard needs a control here regardless, and the row
+               now carries arbitrary interactive content (inputs, links) that a pointerdown on the
+               whole row would swallow. aria-label is bound on the button itself because an
+               attribute written on a component host never reaches the element inside. -->
           <button #handle type="button" class="handle" data-sortable-handle
                   [attr.aria-label]="handleLabel(item, $index)"
                   [attr.aria-grabbed]="grabbedAt() === $index"
-                  (keydown)="onKey($event, $index)">
+                  (keydown)="onKey($event, $index)"
+                  (pointerdown)="onPointerDown($event, $index)"
+                  (pointermove)="onPointerMove($event)"
+                  (pointerup)="onPointerUp($event)"
+                  (pointercancel)="onPointerCancel()"
+                  (touchmove)="onTouchMove($event)">
             <span class="grip" aria-hidden="true"></span>
           </button>
           <span class="body">
@@ -74,8 +71,12 @@ const SLOP_PX = 8;
       cursor: grab; user-select: none;
       transition: background var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
     .row:hover { background: var(--surface-2); }
+    /* touch-action none PERMANENTLY, not flipped when a drag starts: Chrome fixes touch-action at
+       contact, and the drag now begins on contact, so a flip at that same moment comes too late
+       and the browser pans the page instead of dragging. Safe to pin here because the handle is a
+       tap-sized target that exists only to be dragged; the rest of the row still scrolls. */
     .handle { flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
-      min-width: var(--tap); min-height: var(--tap);
+      min-width: var(--tap); min-height: var(--tap); touch-action: none;
       background: none; border: 0; border-radius: var(--r-ctl); color: inherit;
       cursor: grab; }
     .handle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -140,8 +141,6 @@ export class SortableListComponent<T> {
   protected readonly dy = signal(0);
   protected readonly announcement = signal('');
 
-  private pressTimer: ReturnType<typeof setTimeout> | null = null;
-  private startX = 0;
   private startY = 0;
 
   /** The display index of the moving row, or null. Drives .grabbed and aria-grabbed. */
@@ -219,29 +218,19 @@ export class SortableListComponent<T> {
   onPointerDown(ev: PointerEvent, index: number) {
     if (ev.button > 0) return;                       // right/middle press is not a drag
     if (this.to() !== null) this.reset();            // a pointer press abandons a keyboard grab
-    this.startX = ev.clientX;
     this.startY = ev.clientY;
     const el = ev.currentTarget as HTMLElement;
-    const id = ev.pointerId;
-    // Long press, not immediate drag: a list is usually taller than the screen, so a press that
-    // starts a drag on contact makes the page unscrollable with a thumb.
-    this.pressTimer = setTimeout(() => {
-      this.pressTimer = null;
-      try { el.setPointerCapture(id); } catch { /* pointer already gone; the drag just ends early */ }
-      this.from.set(index);
-      this.to.set(index);
-      this.dy.set(0);
-      this.dragging.set(true);
-      this.announce($localize`:@@ui.sortableList.lifted:Lifted item ${index + 1}:position: of ${this.items().length}:total:.`);
-    }, LONG_PRESS_MS);
+    // Captured on the handle, not the row: a press here is unambiguous (the row body is free to
+    // hold real inputs), so the drag starts on contact rather than waiting out a long-press timer.
+    try { el.setPointerCapture(ev.pointerId); } catch { /* pointer already gone; the drag just ends early */ }
+    this.from.set(index);
+    this.to.set(index);
+    this.dy.set(0);
+    this.dragging.set(true);
+    this.announce($localize`:@@ui.sortableList.lifted:Lifted item ${index + 1}:position: of ${this.items().length}:total:.`);
   }
 
   onPointerMove(ev: PointerEvent) {
-    if (this.pressTimer) {
-      if (Math.abs(ev.clientY - this.startY) > SLOP_PX || Math.abs(ev.clientX - this.startX) > SLOP_PX)
-        this.clearTimer();                           // it was a scroll all along
-      return;
-    }
     if (!this.dragging()) return;
     this.dy.set(ev.clientY - this.startY);
 
@@ -263,7 +252,6 @@ export class SortableListComponent<T> {
   }
 
   onPointerUp(ev: PointerEvent) {
-    this.clearTimer();
     if (!this.dragging()) return;
     const el = ev.currentTarget as HTMLElement;
     if (el.hasPointerCapture(ev.pointerId)) el.releasePointerCapture(ev.pointerId);
@@ -271,7 +259,6 @@ export class SortableListComponent<T> {
   }
 
   onPointerCancel() {
-    this.clearTimer();
     if (this.dragging()) this.cancel();
   }
 
@@ -286,12 +273,7 @@ export class SortableListComponent<T> {
 
   // ---- shared ------------------------------------------------------------------------------
 
-  private clearTimer() {
-    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
-  }
-
   private reset() {
-    this.clearTimer();
     this.from.set(null);
     this.to.set(null);
     this.dragging.set(false);

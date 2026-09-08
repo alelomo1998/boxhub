@@ -158,6 +158,55 @@ describe('SortableListComponent', () => {
     f.detectChanges();
     expect(host.last).toBeNull();
   });
+
+  // THE regression this component was fixed for: a press on the handle used to wait out a
+  // 400ms long-press timer before a drag would even start. Real rects require the fixture in
+  // the document, which is why this pair (and only this pair) attaches/detaches it.
+  it('drags immediately on pointerdown at the handle, no long-press wait', () => {
+    document.body.appendChild(f.nativeElement);
+    try {
+      const handle = handles()[0];
+      const r0 = rows()[0].getBoundingClientRect();
+      const r1 = rows()[1].getBoundingClientRect();
+      handle.dispatchEvent(new PointerEvent('pointerdown',
+        { bubbles: true, pointerId: 1, clientY: r0.top + r0.height / 2 }));
+      f.detectChanges();
+      // Synchronous, not deferred behind a timer: the grab is visible before any tick/wait.
+      expect(handle.getAttribute('aria-grabbed')).toBe('true');
+
+      handle.dispatchEvent(new PointerEvent('pointermove',
+        { bubbles: true, pointerId: 1, clientY: r1.top + r1.height / 2 }));
+      f.detectChanges();
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+      f.detectChanges();
+
+      expect(host.last).toEqual({ from: 0, to: 1 });
+    } finally {
+      document.body.removeChild(f.nativeElement);
+    }
+  });
+
+  // The handle is the only unambiguous press target now that a row may hold real inputs — a
+  // press anywhere else in the row must not start a drag.
+  it('does not start a drag from a pointerdown on the row body', () => {
+    document.body.appendChild(f.nativeElement);
+    try {
+      const body = rows()[0].querySelector('.body') as HTMLElement;
+      const r0 = rows()[0].getBoundingClientRect();
+      const r1 = rows()[1].getBoundingClientRect();
+      body.dispatchEvent(new PointerEvent('pointerdown',
+        { bubbles: true, pointerId: 1, clientY: r0.top + r0.height / 2 }));
+      body.dispatchEvent(new PointerEvent('pointermove',
+        { bubbles: true, pointerId: 1, clientY: r1.top + r1.height / 2 }));
+      body.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+      f.detectChanges();
+
+      expect(host.last).toBeNull();
+      expect(handles()[0].getAttribute('aria-grabbed')).toBe('false');
+    } finally {
+      document.body.removeChild(f.nativeElement);
+    }
+  });
 });
 
 // The regression that would otherwise return the moment someone "tidies" the roles back to
@@ -198,4 +247,5 @@ describe('SortableListComponent — a row may carry interactive content', () => 
     const handle = f.nativeElement.querySelector('[data-sortable-handle]');
     expect(handle.getAttribute('aria-label')).toBe('Reorder item 1');
   });
+
 });
