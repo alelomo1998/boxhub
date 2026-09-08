@@ -44,7 +44,12 @@ public class SessionDetailController {
     }
 
     public record CoachDto(String name, String avatarPath) {}
-    public record GridEntry(UUID membershipId, String name, String avatarPath, String status) {}
+    /**
+     * `me` flags the caller's own row. A team result names its members by membership id and the
+     * caller must be one of them, so the partner picker needs to know which grid entry is the
+     * person using it -- and an athlete cannot read /roster, which is COACH-only.
+     */
+    public record GridEntry(UUID membershipId, String name, String avatarPath, String status, boolean me) {}
     public record SessionDetailDto(UUID id, String name, Instant startAt, int durationMin, int capacity,
                                    String imagePath, String programmingStatus, CoachDto coach,
                                    List<GridEntry> active, List<GridEntry> queue) {}
@@ -74,25 +79,29 @@ public class SessionDetailController {
         Map<UUID, Membership> memberById = memberships.findByBoxId(TenantContext.requireBoxId()).stream()
                 .collect(Collectors.toMap(Membership::getId, m -> m, (a, b) -> a));
 
+        UUID mine = memberships.findByUserIdAndBoxId(TenantContext.userId(), TenantContext.requireBoxId())
+                .map(Membership::getId).orElse(null);
+
         List<Booking> all = bookings.findBySessionId(id);
         List<GridEntry> active = all.stream()
                 .filter(b -> "BOOKED".equals(b.getStatus()) || "CHECKED_IN".equals(b.getStatus()))
                 .sorted(Comparator.comparing(Booking::getBookedAt))
-                .map(b -> entry(b, memberById)).toList();
+                .map(b -> entry(b, memberById, mine)).toList();
         List<GridEntry> queue = all.stream()
                 .filter(b -> "WAITLIST".equals(b.getStatus()))
                 .sorted(Comparator.comparing(b -> b.getPosition() == null ? 0 : b.getPosition()))
-                .map(b -> entry(b, memberById)).toList();
+                .map(b -> entry(b, memberById, mine)).toList();
 
         return new SessionDetailDto(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
                 image, s.getProgrammingStatus(), coach, active, queue);
     }
 
-    private GridEntry entry(Booking b, Map<UUID, Membership> memberById) {
+    private GridEntry entry(Booking b, Map<UUID, Membership> memberById, UUID mine) {
         Membership m = memberById.get(b.getMembershipId());
         return new GridEntry(b.getMembershipId(),
                 m == null ? "—" : m.getUser().getName(),
                 m == null ? null : mediaSigner.sign(m.getAvatarPath()),
-                b.getStatus());
+                b.getStatus(),
+                b.getMembershipId().equals(mine));
     }
 }

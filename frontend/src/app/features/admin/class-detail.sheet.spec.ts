@@ -9,8 +9,8 @@ const DETAIL: SessionDetail = {
   id: 's1', name: 'Metcon', startAt: '2026-09-07T06:00:00Z', durationMin: 45, capacity: 12,
   imagePath: null, programmingStatus: 'PUBLISHED',
   coach: { name: 'Sam Coach', avatarPath: null },
-  active: [{ membershipId: 'm1', name: 'Anna', avatarPath: null, status: 'CHECKED_IN' }],
-  queue: [{ membershipId: 'm2', name: 'Ben', avatarPath: null, status: 'WAITLISTED' }],
+  active: [{ membershipId: 'm1', name: 'Anna', avatarPath: null, status: 'CHECKED_IN', me: false }],
+  queue: [{ membershipId: 'm2', name: 'Ben', avatarPath: null, status: 'WAITLISTED', me: false }],
 };
 
 describe('ClassDetailSheet', () => {

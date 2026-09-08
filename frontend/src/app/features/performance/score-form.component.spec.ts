@@ -97,4 +97,80 @@ describe('ScoreFormComponent', () => {
     expect(c.load()).toBe(120);
     expect(c.pending()).toBeFalse();
   });
+
+  // --- team pieces (M14c-a Task 12) ---------------------------------------------------------
+
+  /** A team fixture: the class members arrive from the athlete-visible session detail. */
+  function createTeam(teamSize: number, scoreType = 'TIME') {
+    const fixture = TestBed.createComponent(ScoreFormComponent);
+    const c = fixture.componentInstance;
+    c.itemId = 'i1'; c.scoreType = scoreType; c.teamSize = teamSize; c.sessionId = 's1';
+    fixture.detectChanges();
+    http.expectOne('/api/box/sessions/items/i1/score').flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/box/sessions/s1/detail').flush({
+      id: 's1', name: 'WOD', startAt: '2026-09-08T18:00:00Z', durationMin: 60, capacity: 12,
+      imagePath: null, programmingStatus: 'PUBLISHED', coach: null,
+      active: [
+        { membershipId: 'm1', name: 'Ada', avatarPath: null, status: 'BOOKED', me: true },
+        { membershipId: 'm2', name: 'Bo', avatarPath: null, status: 'BOOKED', me: false },
+        { membershipId: 'm3', name: 'Cy', avatarPath: null, status: 'BOOKED', me: false },
+      ],
+      queue: [],
+    });
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('seeds the caller into the team and never offers them as a partner', () => {
+    const c = createTeam(2).componentInstance;
+    expect(c.team().map(m => m.membershipId)).toEqual(['m1']);
+    expect(c.partnerRows().map(r => r.id)).toEqual(['m2', 'm3']);
+  });
+
+  it('asks for partners on a team piece and posts one team result', () => {
+    const fixture = createTeam(2);
+    const c = fixture.componentInstance;
+    c.mins.set(5); c.secs.set(0);
+    c.onPartnerPicked({ id: 'm2' });
+    c.save();
+    const req = http.expectOne('/api/box/sessions/items/i1/score/team');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.membershipIds).toEqual(['m1', 'm2']);
+    req.flush([]);
+  });
+
+  it('blocks the save until the team is complete, and says so', () => {
+    const c = createTeam(3).componentInstance;
+    c.mins.set(5); c.secs.set(0);
+    c.save();
+    http.expectNone('/api/box/sessions/items/i1/score/team');
+    expect(c.error()).toContain('3');
+  });
+
+  it('posts an individual score unchanged when the piece is not a team piece', () => {
+    const c = create('TIME').componentInstance;
+    c.mins.set(4); c.secs.set(0);
+    c.save();
+    const req = http.expectOne('/api/box/sessions/items/i1/score');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body.timeSeconds).toBe(240);
+    req.flush({});
+    http.expectNone('/api/box/sessions/items/i1/score/team');
+  });
+
+  it('will not drop the caller from their own team', () => {
+    const c = createTeam(2).componentInstance;
+    c.removePartner('m1');
+    expect(c.team().map(m => m.membershipId)).toEqual(['m1']);
+  });
+
+  it('reopens the partner sheet after a pick, because open is one-way', () => {
+    const c = createTeam(3).componentInstance;
+    c.openPartners();
+    expect(c.pickOpen()).toBeTrue();
+    c.onPartnerPicked({ id: 'm2' });
+    expect(c.pickOpen()).toBeFalse();
+    c.openPartners();
+    expect(c.pickOpen()).toBeTrue();
+  });
 });
