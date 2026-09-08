@@ -166,15 +166,15 @@ type PickTarget = { block: number; line: number; scale: number | null };
                           <span class="ph" i18n="@@piece.line.choose">Choose a movement</span>
                         }
                       </button>
-                      <input class="in sm" [value]="l.reps ?? ''"
+                      <input class="in sm r-reps" [value]="l.reps ?? ''"
                              (input)="setLine(bi, li, { reps: $any($event.target).value })"
                              placeholder="reps" i18n-placeholder="@@piece.line.reps"
                              [attr.aria-label]="repsLabel(bi, li)" />
-                      <input class="in sm" [value]="l.load ?? ''"
+                      <input class="in sm r-load" [value]="l.load ?? ''"
                              (input)="setLine(bi, li, { load: $any($event.target).value })"
                              placeholder="load" i18n-placeholder="@@piece.line.load"
                              [attr.aria-label]="loadLabel(bi, li)" />
-                      <button type="button" class="mini" (click)="removeLine(bi, li)"
+                      <button type="button" class="mini r-rm" (click)="removeLine(bi, li)"
                               [attr.aria-label]="removeLineLabel(bi, li)">&#x2715;</button>
                     </div>
 
@@ -189,11 +189,11 @@ type PickTarget = { block: number; line: number; scale: number | null };
                             <span class="ph" i18n="@@piece.scale.choose">Choose a scaling option</span>
                           }
                         </button>
-                        <input class="in sm" [value]="sc.reps ?? ''"
+                        <input class="in sm r-reps" [value]="sc.reps ?? ''"
                                (input)="setScale(bi, li, si, { reps: $any($event.target).value })"
                                placeholder="reps" i18n-placeholder="@@piece.scale.reps"
                                [attr.aria-label]="scaleRepsLabel(bi, li, si)" />
-                        <button type="button" class="mini" (click)="removeScale(bi, li, si)"
+                        <button type="button" class="mini r-rm" (click)="removeScale(bi, li, si)"
                                 [attr.aria-label]="removeScaleLabel(bi, li, si)">&#x2715;</button>
                       </div>
                     }
@@ -320,12 +320,34 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .block { display: flex; flex-direction: column; gap: var(--sp-2); width: 100%; min-width: 0; }
     .brow { display: grid; grid-template-columns: minmax(0, 1fr) var(--tap); gap: var(--sp-2);
       align-items: center; }
-    /* minmax(0, 1fr), never a bare 1fr: a grid item's automatic minimum is its min-content size,
-       so a long movement name would otherwise force the page into horizontal scroll at 360px. */
-    .lrow { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem var(--tap);
+    /* Mobile first: the movement is the line's subject, so at 360px it gets a full-width row of
+       its own and reps/load/remove sit beneath it. Squeezing all four onto one line left the
+       movement button about 40px wide -- the most important control on the row, collapsed.
+       minmax(0, 1fr) throughout, never a bare 1fr: a grid item's automatic minimum is its
+       min-content size, so a long movement name would otherwise force horizontal scroll. */
+    .lrow { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem var(--tap);
+      grid-template-areas: "mv mv mv" "reps load rm";
       gap: var(--sp-2); align-items: center; }
-    .srow { display: grid; grid-template-columns: auto minmax(0, 1fr) 4.5rem var(--tap);
+    .lrow > .mv { grid-area: mv; }
+    .lrow > .r-reps { grid-area: reps; }
+    .lrow > .r-load { grid-area: load; }
+    .lrow > .r-rm { grid-area: rm; }
+
+    .srow { display: grid; grid-template-columns: auto minmax(0, 1fr) var(--tap);
+      grid-template-areas: "arrow mv mv" "arrow reps rm";
       gap: var(--sp-2); align-items: center; padding-left: var(--sp-3); }
+    .srow > .arrow { grid-area: arrow; }
+    .srow > .mv { grid-area: mv; }
+    .srow > .r-reps { grid-area: reps; }
+    .srow > .r-rm { grid-area: rm; }
+
+    /* One line fits comfortably once there is room for it. */
+    @media (min-width: 560px) {
+      .lrow { grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem var(--tap);
+        grid-template-areas: "mv reps load rm"; }
+      .srow { grid-template-columns: auto minmax(0, 1fr) 4.5rem var(--tap);
+        grid-template-areas: "arrow mv reps rm"; }
+    }
     .arrow { color: var(--faint); font-size: var(--fs-sm); }
     .sub-block { padding-left: var(--sp-3); border-left: 1px solid var(--hairline);
       display: flex; flex-direction: column; gap: var(--sp-2); }
