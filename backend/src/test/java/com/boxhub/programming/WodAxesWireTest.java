@@ -150,8 +150,8 @@ class WodAxesWireTest extends AbstractIntegrationTest {
     @Test
     void timingSegmentsArePersisted() throws Exception {
         var timing = new WodJson.Timing(8, List.of(
-                new WodJson.Segment(20, "WORK", null),
-                new WodJson.Segment(10, "REST", null)));
+                new WodJson.Segment(20, "WORK", null, 0),
+                new WodJson.Segment(10, "REST", null, null)));
         var body = req();
         body.put("macro", "WORKOUT");
         body.put("timingPreset", "TABATA");
@@ -161,6 +161,7 @@ class WodAxesWireTest extends AbstractIntegrationTest {
         var read = getWod(created.id());
         assertThat(read.timing().rounds()).isEqualTo(8);
         assertThat(read.timing().segments()).hasSize(2);
+        assertThat(read.timing().segments().get(0).blockIndex()).isEqualTo(0);
         assertThat(read.timing().segments().get(1).kind()).isEqualTo("REST");
     }
 

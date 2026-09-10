@@ -33,9 +33,11 @@ public final class WodJson {
         public static Blocks empty() { return new Blocks(List.of()); }
     }
 
-    /** WHEN a piece runs. Independent of Block, which is WHAT it prescribes (spec decision 7). */
+    /** WHEN a piece runs. Independent of Block, which is WHAT it prescribes (spec decision 7).
+     *  blockIndex is a zero-based index into the piece's own blocks.blocks() list, naming which
+     *  block a WORK segment shows on the TV. A REST segment carries none (null). */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Segment(int seconds, String kind, String label) {}
+    public record Segment(int seconds, String kind, String label, Integer blockIndex) {}
 
     public record Timing(int rounds, List<Segment> segments) {
         public static Timing empty() { return new Timing(1, List.of()); }

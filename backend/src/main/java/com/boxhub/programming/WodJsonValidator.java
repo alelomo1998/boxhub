@@ -64,6 +64,16 @@ public final class WodJsonValidator {
             if (s.seconds() <= 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SEGMENT_SECONDS: must be positive");
             }
+            // ponytail: upper bound is unchecked here; the editor keeps the reference in step, and
+            // the TV must tolerate an index it cannot resolve.
+            if (s.blockIndex() != null && s.blockIndex() < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "SEGMENT_BLOCK: blockIndex must not be negative");
+            }
+            if ("REST".equals(s.kind()) && s.blockIndex() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "SEGMENT_BLOCK: a rest segment names no block");
+            }
         }
     }
 }

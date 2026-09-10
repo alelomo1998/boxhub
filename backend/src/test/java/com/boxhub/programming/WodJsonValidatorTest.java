@@ -42,8 +42,8 @@ class WodJsonValidatorTest {
     @Test
     void tabataRoundTrips() {                       // the tour's own table, verbatim
         WodJson.Timing t = new WodJson.Timing(8, List.of(
-                new WodJson.Segment(20, "WORK", null),
-                new WodJson.Segment(10, "REST", null)));
+                new WodJson.Segment(20, "WORK", null, 0),
+                new WodJson.Segment(10, "REST", null, null)));
         WodJsonValidator.validateTiming(t);
         assertThat(t.segments()).hasSize(2);
     }
@@ -51,22 +51,46 @@ class WodJsonValidatorTest {
     @Test
     void theCoachesMixedIntervalRoundTrips() {
         WodJson.Timing t = new WodJson.Timing(5, List.of(
-                new WodJson.Segment(30, "WORK", "squat"),
-                new WodJson.Segment(15, "REST", null),
-                new WodJson.Segment(30, "WORK", "burpees")));
+                new WodJson.Segment(30, "WORK", "squat", 0),
+                new WodJson.Segment(15, "REST", null, null),
+                new WodJson.Segment(30, "WORK", "burpees", 1)));
         WodJsonValidator.validateTiming(t);
     }
 
     @Test
     void aSegmentKindMustBeWorkOrRest() {
-        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(60, "SLEEP", null)));
+        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(60, "SLEEP", null, null)));
         assertThatThrownBy(() -> WodJsonValidator.validateTiming(t)).hasMessageContaining("SEGMENT_KIND");
     }
 
     @Test
     void segmentSecondsMustBePositive() {
-        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(0, "WORK", null)));
+        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(0, "WORK", null, null)));
         assertThatThrownBy(() -> WodJsonValidator.validateTiming(t)).hasMessageContaining("SEGMENT_SECONDS");
+    }
+
+    @Test
+    void aWorkSegmentWithABlockIndexValidates() {
+        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(20, "WORK", null, 0)));
+        WodJsonValidator.validateTiming(t);            // does not throw
+    }
+
+    @Test
+    void aWorkSegmentWithNoBlockIndexValidates() {      // unassigned is legal, coach hasn't picked yet
+        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(20, "WORK", null, null)));
+        WodJsonValidator.validateTiming(t);            // does not throw
+    }
+
+    @Test
+    void aNegativeBlockIndexIsRejected() {
+        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(20, "WORK", null, -1)));
+        assertThatThrownBy(() -> WodJsonValidator.validateTiming(t)).hasMessageContaining("SEGMENT_BLOCK");
+    }
+
+    @Test
+    void aRestSegmentNamingABlockIsRejected() {
+        WodJson.Timing t = new WodJson.Timing(1, List.of(new WodJson.Segment(10, "REST", null, 0)));
+        assertThatThrownBy(() -> WodJsonValidator.validateTiming(t)).hasMessageContaining("SEGMENT_BLOCK");
     }
 
     @Test
