@@ -133,9 +133,20 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
         return new WaitlistSeed(boxId, sessionId, booked, waitlisted);
     }
 
+    /**
+     * Real now, rounded up to the next hour. NOT a hardcoded instant: every session these tests
+     * seed goes through BookingService.book, which rejects a class in the past with 409 PAST. This
+     * file was pinned to 2026-09-10T05:00:00Z, so all eight of its tests began failing the moment
+     * that date passed -- a date bomb, not a flake. Every offset here is a forward one measured
+     * from this base, so the assertions stay exactly as deterministic as they were.
+     */
+    private static Instant testNow() {
+        return Instant.now().truncatedTo(ChronoUnit.HOURS).plus(1, ChronoUnit.HOURS);
+    }
+
     @Test
     void aClassStartingInTheLeadTimeRemindsItsBookedMembers() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         var seeded = seedBookedSessionStartingAt(now.plus(60, ChronoUnit.MINUTES)); // default lead 60
 
         scheduler.sweepBox(seeded.boxId(), now);
@@ -148,7 +159,7 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
 
     @Test
     void runningEveryMinuteRemindsOnce() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         var seeded = seedBookedSessionStartingAt(now.plus(60, ChronoUnit.MINUTES));
 
         // The overlapping window re-covers this session on each of the next few sweeps.
@@ -161,7 +172,7 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
 
     @Test
     void aWaitlistedMemberIsNotReminded() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         var seeded = seedSessionStartingAtWithBookedAndWaitlisted(now.plus(60, ChronoUnit.MINUTES));
 
         scheduler.sweepBox(seeded.boxId(), now);
@@ -174,7 +185,7 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
 
     @Test
     void aClassOutsideTheWindowIsNotReminded() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         var seeded = seedBookedSessionStartingAt(now.plus(4, ChronoUnit.HOURS));
 
         scheduler.sweepBox(seeded.boxId(), now);
@@ -184,7 +195,7 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
 
     @Test
     void aCancelledClassIsNotReminded() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         var seeded = seedCancelledSessionStartingAt(now.plus(60, ChronoUnit.MINUTES));
 
         scheduler.sweepBox(seeded.boxId(), now);
@@ -194,7 +205,7 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
 
     @Test
     void theLeadTimeIsPerBox() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         var seeded = seedBoxWithReminderMinutesAndBookedSessionAt(30, now.plus(30, ChronoUnit.MINUTES));
 
         scheduler.sweepBox(seeded.boxId(), now);
@@ -204,7 +215,7 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
 
     @Test
     void aMissedSweepIsStillCaughtByTheOverlapAndNotDoubleFired() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         Instant startAt = now.plus(60, ChronoUnit.MINUTES); // default lead 60
         var seeded = seedBookedSessionStartingAt(startAt);
 
@@ -221,7 +232,7 @@ class ClassReminderSchedulerTest extends AbstractIntegrationTest {
 
     @Test
     void theseRowsNeverReachTheFeed() {
-        Instant now = Instant.parse("2026-09-10T05:00:00Z");
+        Instant now = testNow();
         var seeded = seedBookedSessionStartingAt(now.plus(60, ChronoUnit.MINUTES));
         scheduler.sweepBox(seeded.boxId(), now);
 
