@@ -11,7 +11,7 @@ class WodJsonValidatorTest {
 
     private WodJson.Block leaf(String label) {
         return new WodJson.Block(label, null,
-                List.of(new WodJson.Line("10 squats", null, "10", null, null, null)), null);
+                List.of(new WodJson.Line("10 squats", null, "10", null, null, null, null)), null);
     }
 
     @Test
@@ -96,8 +96,8 @@ class WodJsonValidatorTest {
     @Test
     void aLineMayCarrySeveralScalingOptions() {          // spec 5A, user-asked 2026-09-07
         WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, List.of(
-                new WodJson.Scale("Pull-up", null, "12", null),
-                new WodJson.Scale("Ring row", null, "20", null)));
+                new WodJson.Scale("Pull-up", null, "12", null, null),
+                new WodJson.Scale("Ring row", null, "20", null, null)), null);
         WodJson.Block block = new WodJson.Block("A", null, List.of(line), null);
         WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(block)));  // does not throw
     }
@@ -105,8 +105,8 @@ class WodJsonValidatorTest {
     @Test
     void moreThanSixScalesIsRejected() {
         List<WodJson.Scale> seven = java.util.stream.IntStream.range(0, 7)
-                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null)).toList();
-        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, seven);
+                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null, null)).toList();
+        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, seven, null);
         WodJson.Block block = new WodJson.Block("A", null, List.of(line), null);
         assertThatThrownBy(() -> WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(block))))
                 .hasMessageContaining("SCALE_COUNT");
@@ -115,7 +115,7 @@ class WodJsonValidatorTest {
     @Test
     void aScaleWithNoTextAndNoMovementIsRejected() {
         WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null,
-                List.of(new WodJson.Scale(null, null, null, null)));
+                List.of(new WodJson.Scale(null, null, null, null, null)), null);
         WodJson.Block block = new WodJson.Block("A", null, List.of(line), null);
         assertThatThrownBy(() -> WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(block))))
                 .hasMessageContaining("SCALE_EMPTY");
@@ -124,11 +124,32 @@ class WodJsonValidatorTest {
     @Test
     void theScaleCapAppliesInsideNestedBlocksToo() {     // the cap must walk BOTH levels
         List<WodJson.Scale> seven = java.util.stream.IntStream.range(0, 7)
-                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null)).toList();
-        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, seven);
+                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null, null)).toList();
+        WodJson.Line line = new WodJson.Line("Muscle-up", null, "6", null, null, seven, null);
         WodJson.Block inner = new WodJson.Block("inner", null, List.of(line), null);
         WodJson.Block macro = new WodJson.Block("macro", null, List.of(), List.of(inner));
         assertThatThrownBy(() -> WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(macro))))
                 .hasMessageContaining("SCALE_COUNT");
+    }
+
+    @Test
+    void aLineWithAKnownUnitValidates() {
+        WodJson.Line line = new WodJson.Line("Assault Bike", null, null, null, null, null, "CAL");
+        WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(
+                new WodJson.Block("A", null, List.of(line), null))));  // does not throw
+    }
+
+    @Test
+    void aLineWithNoUnitValidates() {
+        WodJson.Line line = new WodJson.Line("Air Squat", null, "10", null, null, null, null);
+        WodJsonValidator.validateBlocks(new WodJson.Blocks(List.of(
+                new WodJson.Block("A", null, List.of(line), null))));  // does not throw
+    }
+
+    @Test
+    void aLineWithAnUnknownUnitIsRejected() {
+        WodJson.Line line = new WodJson.Line("Assault Bike", null, null, null, null, null, "BANANAS");
+        WodJson.Blocks blocks = new WodJson.Blocks(List.of(new WodJson.Block("A", null, List.of(line), null)));
+        assertThatThrownBy(() -> WodJsonValidator.validateBlocks(blocks)).hasMessageContaining("LINE_UNIT");
     }
 }

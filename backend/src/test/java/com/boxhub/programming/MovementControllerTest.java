@@ -108,4 +108,43 @@ class MovementControllerTest extends AbstractIntegrationTest {
                         .content("{\"name\":\"Nope\",\"category\":\"OTHER\"}"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void unitsAndLoadableRoundTrip() throws Exception {
+        mvc.perform(post("/api/box/movements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + aAdmin)
+                        .content("{\"name\":\"Bike Test\",\"category\":\"MONOSTRUCTURAL\","
+                                + "\"units\":[\"CAL\",\"M\"],\"loadable\":true}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.units", contains("CAL", "M")))
+                .andExpect(jsonPath("$.loadable", is(true)));
+    }
+
+    @Test
+    void missingUnitsDefaultsToReps() throws Exception {
+        mvc.perform(post("/api/box/movements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + aAdmin)
+                        .content("{\"name\":\"No Units Test\",\"category\":\"BARBELL\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.units", contains("REPS")))
+                .andExpect(jsonPath("$.loadable", is(false)));
+    }
+
+    @Test
+    void unknownUnitIs400() throws Exception {
+        mvc.perform(post("/api/box/movements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + aAdmin)
+                        .content("{\"name\":\"Bad Unit Test\",\"category\":\"BARBELL\",\"units\":[\"BANANAS\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("MOVEMENT_UNIT")));
+    }
+
+    @Test
+    void emptyUnitsListIs400() throws Exception {
+        mvc.perform(post("/api/box/movements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + aAdmin)
+                        .content("{\"name\":\"Empty Unit Test\",\"category\":\"BARBELL\",\"units\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("MOVEMENT_UNIT")));
+    }
 }

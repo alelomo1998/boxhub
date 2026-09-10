@@ -13,13 +13,14 @@ public final class WodJson {
      *  picker and a later leaderboard can tell "scaled to ring rows" from "scaled to jumping
      *  pull-ups". */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Scale(String text, UUID movementId, String reps, String load) {}
+    public record Scale(String text, UUID movementId, String reps, String load, String unit) {}
 
     /** scaling is the legacy free-text input only and is never returned populated -- a read
-     *  normalises it into a one-entry scales list (WodService.deserialize). */
+     *  normalises it into a one-entry scales list (WodService.deserialize). unit is null until a
+     *  coach picks one; null reads as REPS, and existing rows are never backfilled. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Line(String text, UUID movementId, String reps, String load,
-                       String scaling, List<Scale> scales) {}
+                       String scaling, List<Scale> scales, String unit) {}
 
     /**
      * A block holds lines, sub-blocks, or both. Nesting is capped at TWO levels — a block that is

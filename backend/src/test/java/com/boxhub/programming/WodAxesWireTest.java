@@ -182,7 +182,7 @@ class WodAxesWireTest extends AbstractIntegrationTest {
     @Test
     void twoLevelBlocksSurviveTheRoundTrip() throws Exception {
         var inner = new WodJson.Block("21-15-9", null,
-                List.of(new WodJson.Line("Thruster", null, "21", "42kg", null, null)), null);
+                List.of(new WodJson.Line("Thruster", null, "21", "42kg", null, null, null)), null);
         var outer = new WodJson.Block("Fran", null, null, List.of(inner));
         var body = req();
         body.put("macro", "WORKOUT");
@@ -199,8 +199,8 @@ class WodAxesWireTest extends AbstractIntegrationTest {
     @Test
     void aLineCarriesSeveralScalingOptions() throws Exception {
         var line = new WodJson.Line("Muscle-up", null, "6", null, null, List.of(
-                new WodJson.Scale("Pull-up", null, "12", null),
-                new WodJson.Scale("Ring row", null, "20", null)));
+                new WodJson.Scale("Pull-up", null, "12", null, null),
+                new WodJson.Scale("Ring row", null, "20", null, null)), null);
         var body = req();
         body.put("macro", "WORKOUT");
         body.put("scoreType", "TIME");
@@ -230,8 +230,8 @@ class WodAxesWireTest extends AbstractIntegrationTest {
     @Test
     void aSeventhScaleIsRefused() throws Exception {
         var seven = java.util.stream.IntStream.range(0, 7)
-                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null)).toList();
-        var line = new WodJson.Line("Muscle-up", null, "6", null, null, seven);
+                .mapToObj(i -> new WodJson.Scale("alt " + i, null, "1", null, null)).toList();
+        var line = new WodJson.Line("Muscle-up", null, "6", null, null, seven, null);
         var body = req();
         body.put("macro", "WORKOUT");
         body.put("scoreType", "TIME");
@@ -242,7 +242,7 @@ class WodAxesWireTest extends AbstractIntegrationTest {
     @Test
     void aScaleSayingNothingIsRefused() throws Exception {
         var line = new WodJson.Line("Muscle-up", null, "6", null, null,
-                List.of(new WodJson.Scale(null, null, null, null)));
+                List.of(new WodJson.Scale(null, null, null, null, null)), null);
         var body = req();
         body.put("macro", "WORKOUT");
         body.put("scoreType", "TIME");

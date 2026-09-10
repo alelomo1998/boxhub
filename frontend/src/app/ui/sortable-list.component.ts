@@ -1,5 +1,6 @@
 import {
-  Component, ElementRef, TemplateRef, computed, contentChild, input, output, signal, viewChildren,
+  Component, ElementRef, TemplateRef, computed, contentChild, input, output, signal, viewChild,
+  viewChildren,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 
@@ -30,14 +31,14 @@ import { NgTemplateOutlet } from '@angular/common';
   standalone: true,
   imports: [NgTemplateOutlet],
   template: `
-    <div class="list" role="list" [attr.aria-label]="label() || null">
-      @for (item of view(); track $index) {
+    <div class="list" #list role="list" [attr.aria-label]="label() || null">
+      @for (item of items(); track $index) {
         <div #row class="row" role="listitem" data-sortable-row
              [class.grabbed]="grabbedAt() === $index"
              [class.dragging]="dragging() && grabbedAt() === $index"
              [class.align-top]="handleAlign() === 'top'"
              [style.touch-action]="dragging() ? 'none' : null"
-             [style.transform]="dragging() && grabbedAt() === $index ? 'translateY(' + dy() + 'px)' : null">
+             [style.transform]="rowTransform($index)">
           <!-- The keyboard AND pointer reorder paths both live on the handle, not the row: a
                listitem is not focusable so keyboard needs a control here regardless, and the row
                now carries arbitrary interactive content (inputs, links) that a pointerdown on the
@@ -132,6 +133,7 @@ export class SortableListComponent<T> {
   protected readonly rowTpl = contentChild(TemplateRef);
   private rowEls = viewChildren<ElementRef<HTMLElement>>('row');
   private handleEls = viewChildren<ElementRef<HTMLElement>>('handle');
+  private listEl = viewChild.required<ElementRef<HTMLElement>>('list');
 
   protected handleLabel(item: T, index: number): string {
     return $localize`:@@ui.sortableList.handle:Reorder ${this.itemLabel()(item, index)}:item:`;
@@ -147,23 +149,21 @@ export class SortableListComponent<T> {
 
   private startY = 0;
 
-  /** The display index of the moving row, or null. Drives .grabbed and aria-grabbed. */
-  protected readonly grabbedAt = computed(() => this.to());
+  /** Untransformed geometry of every row, cached at grab time (pointer or keyboard) rather than
+   * read live: a row mid-drag carries a transform, and getBoundingClientRect() on a transformed
+   * element reports the transformed box, which would make the target index oscillate. */
+  private cachedTops: number[] = [];
+  private cachedHeights: number[] = [];
+  private cachedMids: number[] = [];
+  private gap = 0;
+  /** The dragged row's own height plus the list gap. One value covers every displaced row even
+   * when rows differ in height: lifting the dragged item out of its slot and dropping it
+   * elsewhere shifts each row in between by exactly that item's height plus one gap. */
+  private stepPx = 0;
 
-  /**
-   * The items in their CURRENT visual order: the moving one lifted out of `from` and dropped back
-   * at `to`. Rendered with `track $index` on purpose — the DOM nodes stay put and their content
-   * shifts, so the handle's focus survives a move (Angular's reorder detaches a node, and a
-   * detached node is blurred) and every slot keeps a stable box to hit-test against.
-   */
-  protected readonly view = computed<readonly T[]>(() => {
-    const f = this.from(), t = this.to();
-    const arr = [...this.items()];
-    if (f === null || t === null || f === t) return arr;
-    const [moved] = arr.splice(f, 1);
-    arr.splice(t, 0, moved);
-    return arr;
-  });
+  /** The row that is being moved never changes DOM slot (track $index, nothing reorders), so it
+   * is always the one at `from`. Drives .grabbed and aria-grabbed. */
+  protected readonly grabbedAt = computed(() => this.from());
 
   // ---- keyboard ----------------------------------------------------------------------------
 
@@ -185,6 +185,7 @@ export class SortableListComponent<T> {
   }
 
   private grab(index: number) {
+    this.cacheGeometry(index);
     this.from.set(index);
     this.to.set(index);
     this.announce($localize`:@@ui.sortableList.grabbed:Grabbed item ${index + 1}:position: of ${this.items().length}:total:. Use the arrow keys to move it, then space to drop it.`);
@@ -198,8 +199,8 @@ export class SortableListComponent<T> {
     if (next === t) return;
     this.to.set(next);
     this.announce($localize`:@@ui.sortableList.moved:Moved to position ${next + 1}:position: of ${this.items().length}:total:.`);
-    // The nodes are positional (track $index), so focus follows the item into its new slot.
-    this.handleEls()[next]?.nativeElement.focus();
+    // Nothing re-renders (track $index, nothing reorders), so the grabbed row's handle already
+    // has focus and keeps it — no focus() call needed here.
   }
 
   private drop() {
@@ -227,6 +228,7 @@ export class SortableListComponent<T> {
     // Captured on the handle, not the row: a press here is unambiguous (the row body is free to
     // hold real inputs), so the drag starts on contact rather than waiting out a long-press timer.
     try { el.setPointerCapture(ev.pointerId); } catch { /* pointer already gone; the drag just ends early */ }
+    this.cacheGeometry(index);
     this.from.set(index);
     this.to.set(index);
     this.dy.set(0);
@@ -236,22 +238,13 @@ export class SortableListComponent<T> {
 
   onPointerMove(ev: PointerEvent) {
     if (!this.dragging()) return;
-    this.dy.set(ev.clientY - this.startY);
+    const dy = ev.clientY - this.startY;
+    this.dy.set(dy);
 
-    const t = this.to();
-    const rows = this.rowEls();
-    for (let j = 0; j < rows.length; j++) {
-      if (j === t) continue;                         // the moving row is translated; skip its box
-      const b = rows[j].nativeElement.getBoundingClientRect();
-      if (ev.clientY < b.top || ev.clientY > b.bottom) continue;
-      this.to.set(j);
-      // ponytail: re-anchor to the slot just entered rather than tracking a running offset, so
-      // the row snaps into it. Ceiling: a small jump at each swap. Upgrade path if it reads badly
-      // is measuring the new slot's own top, which costs a layout read per move.
-      this.startY = ev.clientY;
-      this.dy.set(0);
-      this.announce($localize`:@@ui.sortableList.moved:Moved to position ${j + 1}:position: of ${this.items().length}:total:.`);
-      break;
+    const target = this.computeTarget(dy);
+    if (target !== this.to()) {
+      this.to.set(target);
+      this.announce($localize`:@@ui.sortableList.moved:Moved to position ${target + 1}:position: of ${this.items().length}:total:.`);
     }
   }
 
@@ -276,6 +269,62 @@ export class SortableListComponent<T> {
   }
 
   // ---- shared ------------------------------------------------------------------------------
+
+  /** Reads every row's untransformed box once, at grab time. Nothing after this point may read
+   * getBoundingClientRect() again until the gesture ends — a transformed row reports its
+   * transformed box, not its slot. */
+  private cacheGeometry(index: number) {
+    const rects = this.rowEls().map(r => r.nativeElement.getBoundingClientRect());
+    this.cachedTops = rects.map(r => r.top);
+    this.cachedHeights = rects.map(r => r.height);
+    this.cachedMids = rects.map(r => r.top + r.height / 2);
+    this.gap = parseFloat(getComputedStyle(this.listEl().nativeElement).rowGap) || 0;
+    this.stepPx = this.cachedHeights[index] + this.gap;
+  }
+
+  /** Hit-test against the cached midpoints, never a live rect: the dragged row's visual centre
+   * vs. every other row's home midpoint. */
+  private computeTarget(dy: number): number {
+    const f = this.from();
+    if (f === null) return 0;
+    const centre = this.cachedTops[f] + dy + this.cachedHeights[f] / 2;
+    for (let j = 0; j < f; j++) {
+      if (this.cachedMids[j] >= centre) return j;
+    }
+    let target = f;
+    for (let j = f + 1; j < this.cachedMids.length; j++) {
+      if (this.cachedMids[j] <= centre) target = j; else break;
+    }
+    return target;
+  }
+
+  /** The keyboard path has no pointer dy, so the grabbed row's own travel is the summed heights
+   * (each plus a gap) of the rows it has passed — those rows differ in height (blocks
+   * collapse/expand), unlike stepPx which is fixed per gesture. */
+  private keyboardOffset(): number {
+    const f = this.from(), t = this.to();
+    if (f === null || t === null || f === t) return 0;
+    let sum = 0;
+    if (t > f) {
+      for (let j = f + 1; j <= t; j++) sum += this.cachedHeights[j] + this.gap;
+    } else {
+      for (let j = t; j < f; j++) sum += this.cachedHeights[j] + this.gap;
+      sum = -sum;
+    }
+    return sum;
+  }
+
+  /** Every row stays in its home slot and is translated into its apparent position — see the
+   * table in the class-level move contract. Only the pointer-dragged row (`dragging()`) tracks
+   * the finger exactly; the keyboard-grabbed row and every displaced row tween via CSS. */
+  protected rowTransform(j: number): string | null {
+    const f = this.from(), t = this.to();
+    if (f === null || t === null) return null;
+    if (j === f) return `translateY(${this.dragging() ? this.dy() : this.keyboardOffset()}px)`;
+    if (f < j && j <= t) return `translateY(${-this.stepPx}px)`;
+    if (t <= j && j < f) return `translateY(${this.stepPx}px)`;
+    return null;
+  }
 
   private reset() {
     this.from.set(null);

@@ -72,9 +72,9 @@ public class WodService {
     private WodJson.Line normaliseLine(WodJson.Line l) {
         List<WodJson.Scale> scales = l.scales();
         if ((scales == null || scales.isEmpty()) && l.scaling() != null && !l.scaling().isBlank()) {
-            scales = List.of(new WodJson.Scale(l.scaling(), null, null, null));
+            scales = List.of(new WodJson.Scale(l.scaling(), null, null, null, null));
         }
-        return new WodJson.Line(l.text(), l.movementId(), l.reps(), l.load(), null, scales);
+        return new WodJson.Line(l.text(), l.movementId(), l.reps(), l.load(), null, scales, l.unit());
     }
 
     String serializeTiming(WodJson.Timing timing) {

@@ -34,6 +34,11 @@ public final class WodJsonValidator {
     private static void validateLines(List<WodJson.Line> lines) {
         if (lines == null) return;
         for (WodJson.Line l : lines) {
+            // ponytail: not cross-checked against the movement's own allowed units -- this validator
+            // is a pure function with no movement repository, and staying that way is the point.
+            // The editor is what keeps the line's unit and the movement's allowed list in step.
+            if (l.unit() != null && !Movement.UNITS.contains(l.unit()))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "LINE_UNIT: unknown unit");
             List<WodJson.Scale> scales = l.scales();
             if (scales == null) continue;
             // blocks_json is an unbounded user-controlled document, and this milestone is closing
