@@ -8,14 +8,21 @@ import { PickResult, PickRow, PickSheetComponent } from './pick-sheet.component'
   standalone: true,
   imports: [PickSheetComponent],
   template: `<bh-pick-sheet [open]="open()" [rows]="rows()" [allowFreeText]="allowFreeText()"
+                            [allowCreate]="allowCreate()" [createPending]="createPending()"
+                            [createError]="createError()"
                             title="Pick something"
-                            (picked)="picked = $event" (closed)="closedCount = closedCount + 1" />`,
+                            (picked)="picked = $event" (create)="created = $event"
+                            (closed)="closedCount = closedCount + 1" />`,
 })
 class Host {
   open = signal(true);
   rows = signal<PickRow[]>([]);
   allowFreeText = signal(true);
+  allowCreate = signal(false);
+  createPending = signal(false);
+  createError = signal('');
   picked: PickResult | null = null;
+  created: { name: string; units: string[]; loadable: boolean } | null = null;
   closedCount = 0;
 }
 
@@ -126,5 +133,102 @@ describe('PickSheetComponent', () => {
 
     expect(host.closedCount).toBe(1);
     expect(freeRow()).toBeNull();
+  });
+
+  // ---- allowCreate: the free-text row's second step ----------------------------------------
+
+  it('without allowCreate, the free-text row still emits picked directly', () => {
+    setSearch('kettlebell thing');
+    freeRow()!.click();
+    f.detectChanges();
+    expect(host.picked).toEqual({ freeText: 'kettlebell thing' });
+    expect(el.querySelector('[data-testid="pick-create-step"]')).toBeNull();
+  });
+
+  it('with allowCreate, tapping the free-text row opens a create step instead of picking', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('assault bike thing');
+    freeRow()!.click();
+    f.detectChanges();
+    expect(host.picked).toBeNull();
+    expect(el.querySelector('[data-testid="pick-create-step"]')).toBeTruthy();
+  });
+
+  it('the create step shows the typed name, REPS preselected and No preselected', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('Wall Walk');
+    freeRow()!.click();
+    f.detectChanges();
+    expect(el.querySelector('[data-testid="pick-create-step"]')!.textContent).toContain('Wall Walk');
+    expect(el.querySelector('[data-testid="pick-create-unit-REPS"]')!.classList).toContain('sel');
+    expect(el.querySelector('[data-testid="pick-create-loadable-no"]')!.classList).toContain('sel');
+  });
+
+  it('keeps at least one unit selected -- tapping the only selected unit is a no-op', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('Wall Walk');
+    freeRow()!.click();
+    f.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-unit-REPS"]')!.click();
+    f.detectChanges();
+    expect(el.querySelector('[data-testid="pick-create-unit-REPS"]')!.classList).toContain('sel');
+  });
+
+  it('confirming the create step emits create with the chosen units and loadable flag', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('Wall Walk');
+    freeRow()!.click();
+    f.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-unit-CAL"]')!.click();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-loadable-yes"]')!.click();
+    f.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-confirm"]')!.click();
+    f.detectChanges();
+    expect(host.created).toEqual({ name: 'Wall Walk', units: ['REPS', 'CAL'], loadable: true });
+  });
+
+  it('back returns to the search step', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('Wall Walk');
+    freeRow()!.click();
+    f.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-back"]')!.click();
+    f.detectChanges();
+    expect(el.querySelector('[data-testid="pick-create-step"]')).toBeNull();
+    expect(freeRow()).toBeTruthy();
+  });
+
+  it('shows a create error passed in and keeps the choices on screen', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('Wall Walk');
+    freeRow()!.click();
+    f.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-unit-CAL"]')!.click();
+    f.detectChanges();
+    host.createError.set('That did not create.');
+    f.detectChanges();
+    expect(el.querySelector('[data-testid="pick-create-error"]')!.textContent).toContain('That did not create.');
+    expect(el.querySelector('[data-testid="pick-create-unit-CAL"]')!.classList).toContain('sel');
+  });
+
+  it('resets to the search step when the sheet closes', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('Wall Walk');
+    freeRow()!.click();
+    f.detectChanges();
+
+    const dlg: HTMLDialogElement = el.querySelector('dialog')!;
+    dlg.close();
+    dlg.dispatchEvent(new Event('close'));
+    f.detectChanges();
+
+    expect(el.querySelector('[data-testid="pick-create-step"]')).toBeNull();
   });
 });

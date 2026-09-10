@@ -8,8 +8,8 @@ import { SheetComponent } from '../../ui/sheet.component';
 import { PickSheetComponent, PickRow, PickResult } from './pick-sheet.component';
 import { NumberStepperComponent } from './number-stepper.component';
 import {
-  ProgrammingService, MACROS, TIMING_PRESETS, TEAM_SHARES,
-  WodBlock, WodLine, WodScale, WodSegment, WodInput,
+  ProgrammingService, MACROS, TIMING_PRESETS, TEAM_SHARES, MOVEMENT_UNITS,
+  Movement, WodBlock, WodLine, WodScale, WodSegment, WodInput,
 } from './programming.service';
 
 /** The server rejects a third level with BLOCK_DEPTH, so the UI must never offer one. */
@@ -221,15 +221,18 @@ type PickTarget = { block: number; line: number; scale: number | null };
                             <span class="ph" i18n="@@piece.line.choose">Choose a movement</span>
                           }
                         </button>
-                        <bh-number-stepper class="r-reps" label="REPS" i18n-label="@@piece.line.repsStepperLabel"
+                        <bh-number-stepper class="r-reps" [label]="unitOf(l)" [labelInteractive]="unitsOf(l).length > 1"
+                               (labelAction)="openUnitPick(bi, li, null)"
                                [value]="l.reps ?? ''" (valueChange)="setLine(bi, li, { reps: $event })"
                                [min]="0" [ariaLabel]="repsLabel(bi, li)"
                                [testId]="'line-reps-' + bi + '-' + li" />
+                        @if (loadableOf(l)) {
                         <bh-number-stepper class="r-load" label="LOAD" i18n-label="@@piece.line.loadStepperLabel"
                                [value]="l.load ?? ''" (valueChange)="setLine(bi, li, { load: $event })"
                                [min]="0" [allowDecimal]="true" [suffix]="weightUnit()"
                                [ariaLabel]="loadLabel(bi, li)"
                                [testId]="'line-load-' + bi + '-' + li" />
+                        }
                         <button type="button" class="mini r-rm" (click)="removeLine(bi, li)"
                                 [attr.aria-label]="removeLineLabel(bi, li)">&#x2715;</button>
                       </div>
@@ -245,15 +248,18 @@ type PickTarget = { block: number; line: number; scale: number | null };
                               <span class="ph" i18n="@@piece.scale.choose">Choose a scaling option</span>
                             }
                           </button>
-                          <bh-number-stepper class="r-reps" label="REPS" i18n-label="@@piece.scale.repsStepperLabel"
+                          <bh-number-stepper class="r-reps" [label]="unitOf(sc)" [labelInteractive]="unitsOf(sc).length > 1"
+                                 (labelAction)="openUnitPick(bi, li, si)"
                                  [value]="sc.reps ?? ''" (valueChange)="setScale(bi, li, si, { reps: $event })"
                                  [min]="0" [ariaLabel]="scaleRepsLabel(bi, li, si)"
                                  [testId]="'scale-reps-' + bi + '-' + li + '-' + si" />
+                          @if (loadableOf(sc)) {
                           <bh-number-stepper class="r-load" label="LOAD" i18n-label="@@piece.scale.loadStepperLabel"
                                  [value]="sc.load ?? ''" (valueChange)="setScale(bi, li, si, { load: $event })"
                                  [min]="0" [allowDecimal]="true" [suffix]="weightUnit()"
                                  [ariaLabel]="scaleLoadLabel(bi, li, si)"
                                  [testId]="'scale-load-' + bi + '-' + li + '-' + si" />
+                          }
                           <button type="button" class="mini r-rm" (click)="removeScale(bi, li, si)"
                                   [attr.aria-label]="removeScaleLabel(bi, li, si)">&#x2715;</button>
                         </div>
@@ -413,11 +419,25 @@ type PickTarget = { block: number; line: number; scale: number | null };
       </div>
     </bh-sheet>
 
+    <bh-sheet [open]="unitPick() !== null" title="Unit" i18n-title="@@piece.unitPick.sheetTitle"
+              label="Unit" i18n-label="@@piece.unitPick.aria" (closed)="unitPick.set(null)">
+      <div class="rows">
+        @for (u of unitPickOptions(); track u) {
+          <button type="button" class="prow" [class.sel]="unitPickCurrent() === u"
+                  [attr.data-testid]="'unit-pick-' + u" (click)="pickUnit(u)">
+            <span>{{ u }}</span>
+            @if (unitPickCurrent() === u) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+          </button>
+        }
+      </div>
+    </bh-sheet>
+
     <bh-pick-sheet [open]="pickOpen()" [rows]="movementRows()"
                    title="Movement" i18n-title="@@piece.pick.title"
                    searchLabel="Search movements" i18n-searchLabel="@@piece.pick.searchLabel"
                    searchPlaceholder="Search movements" i18n-searchPlaceholder="@@piece.pick.searchPlaceholder"
-                   (search)="searchMovements($event)"
+                   [allowCreate]="true" [createPending]="createPending()" [createError]="createError()"
+                   (search)="searchMovements($event)" (create)="onCreateMovement($event)"
                    (picked)="onPicked($event)" (closed)="closePick()" />
   `,
   styles: [`
@@ -770,6 +790,44 @@ export class PieceEditorPage {
   movementRows = signal<PickRow[]>([]);
   private pickTarget: PickTarget | null = null;
 
+  /**
+   * Indexed once on init (spec: "122 rows, one request, no per-line lookups") and topped up by
+   * every search result and every create, since a movement found only through search or created
+   * just now is not yet in the initial fetch. A saved line carries movementId + text only, never
+   * the movement record, so this is the only way a line finds out what it is measured in.
+   * A failed fetch just leaves the map empty -- every line then degrades to the free-text case
+   * below rather than breaking.
+   */
+  movementsById = signal<Map<string, Movement>>(new Map());
+  createPending = signal(false);
+  createError = signal('');
+
+  private mergeMovements(ms: Movement[]) {
+    this.movementsById.update(map => {
+      const next = new Map(map);
+      for (const m of ms) next.set(m.id, m);
+      return next;
+    });
+  }
+
+  private resolveMovement(entry: { movementId?: string }): Movement | null {
+    return entry.movementId ? this.movementsById().get(entry.movementId) ?? null : null;
+  }
+
+  /** No id, or an id this session hasn't resolved yet: the FULL vocabulary, and loadable -- the
+   *  editor cannot know better, and hiding a control the coach might need is worse than an unused one. */
+  unitsOf(entry: { movementId?: string }): readonly string[] {
+    return this.resolveMovement(entry)?.units ?? MOVEMENT_UNITS;
+  }
+
+  loadableOf(entry: { movementId?: string }): boolean {
+    return this.resolveMovement(entry)?.loadable ?? true;
+  }
+
+  unitOf(entry: { movementId?: string; unit?: string }): string {
+    return entry.unit || this.unitsOf(entry)[0] || 'REPS';
+  }
+
   constructor() {
     const id = this.route.snapshot.paramMap.get('wodId') ?? this.route.snapshot.paramMap.get('id');
     // Only a standalone wods/:id route names a wod. On the class route :id is the session, so
@@ -781,23 +839,30 @@ export class PieceEditorPage {
 
     // Read-once, best-effort: a failed fetch just leaves the KG default in place.
     this.prog.weightUnit().subscribe({ next: u => this.weightUnit.set(u), error: () => {} });
+    // Read-once catalogue fetch for unit/loadable metadata -- see movementsById's doc comment.
+    this.prog.movements().subscribe({ next: ms => this.mergeMovements(ms), error: () => {} });
   }
 
   openPick(block: number, line: number, scale: number | null) {
     this.pickTarget = { block, line, scale };
     this.movementRows.set([]);
+    this.createError.set('');
+    this.createPending.set(false);
     this.pickOpen.set(true);
     this.searchMovements('');
   }
 
   /**
    * The sheet does not filter — it hands back the debounced term and the server does the matching,
-   * so an alias the server knows about is not hidden by a second filter on this side.
+   * so an alias the server knows about is not hidden by a second filter on this side. Every result
+   * is also merged into movementsById so a movement found only through search still resolves.
    */
   searchMovements(term: string) {
     this.prog.movements(term).subscribe({
-      next: ms => this.movementRows.set(
-        ms.map(m => ({ id: m.id, primary: m.name, secondary: m.category }))),
+      next: ms => {
+        this.mergeMovements(ms);
+        this.movementRows.set(ms.map(m => ({ id: m.id, primary: m.name, secondary: m.category })));
+      },
       error: () => this.movementRows.set([]),
     });
   }
@@ -810,14 +875,23 @@ export class PieceEditorPage {
     if (!t) return;
 
     if ('freeText' in result) {
-      const patch = { text: result.freeText, movementId: undefined };
+      // Free text has no movement behind it: full vocabulary, loadable, default unit REPS. The
+      // pick REPLACES whatever the line had, per spec (swapping movements must not leave a stale unit).
+      const patch: Partial<WodLine> = { text: result.freeText, movementId: undefined, unit: 'REPS' };
       if (t.scale === null) this.setLine(t.block, t.line, patch);
       else this.setScale(t.block, t.line, t.scale, patch);
       return;
     }
 
+    const m = this.movementsById().get(result.id);
     const row = this.movementRows().find(r => r.id === result.id);
-    const patch = { text: row?.primary ?? '', movementId: result.id };
+    const patch: Partial<WodLine> = {
+      text: m?.name ?? row?.primary ?? '',
+      movementId: result.id,
+      unit: m?.units[0] ?? 'REPS',
+    };
+    // Clear a stored load only on an explicit pick, never silently on load of an existing piece.
+    if (!(m?.loadable ?? true)) patch.load = undefined;
     if (t.scale === null) this.setLine(t.block, t.line, patch);
     else this.setScale(t.block, t.line, t.scale, patch);
   }
@@ -825,6 +899,68 @@ export class PieceEditorPage {
   closePick() {
     this.pickOpen.set(false);
     this.pickTarget = null;
+    this.createError.set('');
+    this.createPending.set(false);
+  }
+
+  /** bh-pick-sheet's create step posts { name, units, loadable }; category has no UI here, so the
+   *  editor -- which owns the call -- fills in the catalogue's catch-all. */
+  onCreateMovement(payload: { name: string; units: string[]; loadable: boolean }) {
+    this.createPending.set(true);
+    this.createError.set('');
+    this.prog.createMovement({ name: payload.name, category: 'OTHER', units: payload.units, loadable: payload.loadable })
+      .subscribe({
+        next: m => {
+          this.createPending.set(false);
+          this.mergeMovements([m]);
+          const t = this.pickTarget;
+          this.closePick();
+          if (!t) return;
+          const patch: Partial<WodLine> = { text: m.name, movementId: m.id, unit: m.units[0] ?? 'REPS' };
+          if (!m.loadable) patch.load = undefined;
+          if (t.scale === null) this.setLine(t.block, t.line, patch);
+          else this.setScale(t.block, t.line, t.scale, patch);
+        },
+        error: () => {
+          this.createPending.set(false);
+          // Stay on step two: a failed create must never cost the coach what they typed.
+          this.createError.set($localize`:@@piece.pick.createError:That did not create — try again.`);
+        },
+      });
+  }
+
+  // ---- unit picker sheet --------------------------------------------------------------------
+
+  /** Which line/scale's unit sheet is open. Own signal, same pattern as segPick -- openSheet is a
+   *  fixed string union and must not be widened for this. */
+  unitPick = signal<PickTarget | null>(null);
+
+  openUnitPick(block: number, line: number, scale: number | null) {
+    this.unitPick.set({ block, line, scale });
+  }
+
+  private unitPickEntry(): WodLine | WodScale | undefined {
+    const t = this.unitPick();
+    if (!t) return undefined;
+    return t.scale === null ? this.blocks()[t.block]?.lines?.[t.line] : this.scalesOf(t.block, t.line)[t.scale];
+  }
+
+  unitPickOptions = computed<readonly string[]>(() => {
+    const entry = this.unitPickEntry();
+    return entry ? this.unitsOf(entry) : [];
+  });
+
+  unitPickCurrent = computed<string | null>(() => {
+    const entry = this.unitPickEntry();
+    return entry ? this.unitOf(entry) : null;
+  });
+
+  pickUnit(u: string) {
+    const t = this.unitPick();
+    if (!t) return;
+    if (t.scale === null) this.setLine(t.block, t.line, { unit: u });
+    else this.setScale(t.block, t.line, t.scale, { unit: u });
+    this.unitPick.set(null);
   }
 
   // ---- load -------------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { of, throwError, Subject } from 'rxjs';
 import { PieceEditorPage } from './piece-editor.page';
-import { ProgrammingService, Wod } from './programming.service';
+import { Movement, ProgrammingService, Wod } from './programming.service';
 
 // A fully-formed Wod so every field a load() can copy from is present; individual specs override
 // just the fields they care about via loadWod's partial.
@@ -12,6 +12,15 @@ const BLANK_WOD: Wod = {
   library: true, teamSize: 1, teamShare: null,
   scoreType: 'TIME', timeCapSeconds: null,
   bodyText: '', blocks: { blocks: [] }, scalingNotes: null, benchmarkTemplateId: null,
+};
+
+const ASSAULT_BIKE: Movement = {
+  id: 'mv-bike', name: 'Assault Bike', category: 'MONOSTRUCTURAL', modality: null,
+  global: true, units: ['CAL', 'M'], loadable: false,
+};
+const BURPEE: Movement = {
+  id: 'mv-burpee', name: 'Burpee', category: 'GYMNASTICS', modality: null,
+  global: true, units: ['REPS'], loadable: true,
 };
 
 describe('PieceEditorPage', () => {
@@ -29,11 +38,15 @@ describe('PieceEditorPage', () => {
     TestBed.resetTestingModule();
 
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
-      ['wod', 'createWod', 'patchWod', 'movements', 'weightUnit']);
+      ['wod', 'createWod', 'patchWod', 'movements', 'weightUnit', 'createMovement']);
     prog.wod.and.returnValue(of(BLANK_WOD));
     prog.createWod.and.returnValue(of(BLANK_WOD));
     prog.patchWod.and.returnValue(of(BLANK_WOD));
     prog.movements.and.returnValue(of([]));
+    // Unused unless a spec exercises the create step; a safe default so an accidental call doesn't
+    // throw "no return value configured" in an unrelated spec.
+    prog.createMovement.and.returnValue(of(
+      { id: 'mv-default', name: '', category: 'OTHER', modality: null, global: false, units: ['REPS'], loadable: false } as Movement));
     // The load field labels itself with the box's unit; without a stub every spec dies on init.
     prog.weightUnit.and.returnValue(of('KG' as const));
 
@@ -510,5 +523,158 @@ describe('PieceEditorPage', () => {
 
     expect(input.value).toBe('12');
     expect(component.blocks()[0].lines![0].reps).toBe('12');
+  });
+
+  // ---- movement units / loadable (M14c-a follow-on) ----------------------------------------
+
+  function openMovementPick(bi: number, li: number) {
+    el.querySelector<HTMLElement>(`[data-testid="line-movement-${bi}-${li}"]`)!.click();
+    fixture.detectChanges();
+  }
+
+  it('picking a movement with two units sets the line unit to the first and makes the caption a button', () => {
+    component.blocks.set([{ label: '', lines: [{ text: '' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+    prog.movements.and.returnValue(of([ASSAULT_BIKE]));
+
+    openMovementPick(0, 0);
+    el.querySelector<HTMLElement>('[data-testid="pick-row-mv-bike"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks()[0].lines![0].unit).toBe('CAL');
+    const label = el.querySelector('[data-testid="line-reps-0-0-label"]');
+    expect(label).toBeTruthy();
+    expect(label!.tagName).toBe('BUTTON');
+  });
+
+  it('picking a movement with one unit renders a caption that is not a button', () => {
+    component.blocks.set([{ label: '', lines: [{ text: '' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+    prog.movements.and.returnValue(of([BURPEE]));
+
+    openMovementPick(0, 0);
+    el.querySelector<HTMLElement>('[data-testid="pick-row-mv-burpee"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks()[0].lines![0].unit).toBe('REPS');
+    expect(el.querySelector('[data-testid="line-reps-0-0-label"]')).toBeNull();
+  });
+
+  it("tapping the caption opens a sheet; choosing another unit updates the line and the caption", () => {
+    component.blocks.set([{ label: '', lines: [{ text: 'Assault Bike', movementId: 'mv-bike', unit: 'CAL' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    component.movementsById.set(new Map([[ASSAULT_BIKE.id, ASSAULT_BIKE]]));
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="line-reps-0-0-label"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="unit-pick-M"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks()[0].lines![0].unit).toBe('M');
+    expect(el.querySelector('[data-testid="line-reps-0-0-label"]')!.textContent).toContain('M');
+  });
+
+  it('a non-loadable movement renders no load stepper on the line', () => {
+    component.blocks.set([{ label: '', lines: [{ text: 'Assault Bike', movementId: 'mv-bike', unit: 'CAL' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    component.movementsById.set(new Map([[ASSAULT_BIKE.id, ASSAULT_BIKE]]));
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="line-load-0-0"]')).toBeNull();
+  });
+
+  it('picking a non-loadable movement over a line that had a load clears the stored load', () => {
+    component.blocks.set([{ label: '', lines: [{ text: 'Old', load: '40' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+    prog.movements.and.returnValue(of([ASSAULT_BIKE]));
+
+    openMovementPick(0, 0);
+    el.querySelector<HTMLElement>('[data-testid="pick-row-mv-bike"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks()[0].lines![0].load).toBeUndefined();
+  });
+
+  it('opening an existing piece with a load on a non-loadable movement does NOT clear it', () => {
+    loadWod({ blocks: { blocks: [{ label: '', lines: [{ text: 'Assault Bike', movementId: 'mv-bike', load: '40', unit: 'CAL' }] }] } });
+    expect(component.blocks()[0].lines![0].load).toBe('40');
+  });
+
+  it('a free-text movement offers all seven units and keeps its load control', () => {
+    component.blocks.set([{ label: '', lines: [{ text: 'Random thing' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="line-load-0-0"]')).toBeTruthy();
+    el.querySelector<HTMLElement>('[data-testid="line-reps-0-0-label"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelectorAll('[data-testid^="unit-pick-"]').length).toBe(7);
+  });
+
+  it('the chosen unit reaches the save payload on the line and on a scale', () => {
+    component.blocks.set([{
+      label: '', lines: [{ text: 'A', unit: 'CAL', scales: [{ text: 'B', unit: 'M' }] }], blocks: [],
+    }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    component.submit(new Event('submit'));
+    const sentBlocks = saveSpy.calls.mostRecent().args[0].blocks!.blocks;
+    expect(sentBlocks[0].lines![0].unit).toBe('CAL');
+    expect(sentBlocks[0].lines![0].scales![0].unit).toBe('M');
+  });
+
+  function goToCreateStep(name: string) {
+    openMovementPick(0, 0);
+    const search = el.querySelector<HTMLInputElement>('[data-testid="pick-search"]')!;
+    search.value = name;
+    search.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-free-text"]')!.click();
+    fixture.detectChanges();
+  }
+
+  it('confirming the create step posts { name, units, loadable } and lands the result on the line', () => {
+    component.blocks.set([{ label: '', lines: [{ text: '' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+    const created: Movement = {
+      id: 'mv-new', name: 'Wall Walk', category: 'GYMNASTICS', modality: null,
+      global: false, units: ['REPS', 'CAL'], loadable: true,
+    };
+    prog.createMovement.and.returnValue(of(created));
+
+    goToCreateStep('Wall Walk');
+    el.querySelector<HTMLElement>('[data-testid="pick-create-unit-CAL"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-confirm"]')!.click();
+    fixture.detectChanges();
+
+    expect(prog.createMovement).toHaveBeenCalledWith(
+      { name: 'Wall Walk', category: 'OTHER', units: ['REPS', 'CAL'], loadable: false });
+    expect(component.blocks()[0].lines![0].movementId).toBe('mv-new');
+    expect(component.blocks()[0].lines![0].unit).toBe('REPS');
+  });
+
+  it('a failed create keeps the coach on step two with the name and choices intact', () => {
+    component.blocks.set([{ label: '', lines: [{ text: '' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+    prog.createMovement.and.returnValue(throwError(() => new Error('boom')));
+
+    goToCreateStep('Wall Walk');
+    el.querySelector<HTMLElement>('[data-testid="pick-create-unit-CAL"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-confirm"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="pick-create-step"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="pick-create-error"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="pick-create-unit-CAL"]')!.classList).toContain('sel');
+    expect(component.blocks()[0].lines![0].movementId).toBeUndefined();
   });
 });

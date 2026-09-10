@@ -7,6 +7,7 @@ import {
   inject,
   input,
   model,
+  output,
 } from '@angular/core';
 
 /**
@@ -33,7 +34,14 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wrap">
-      @if (label()) { <span class="label">{{ label() }}</span> }
+      @if (label()) {
+        @if (labelInteractive()) {
+          <button type="button" class="label-btn" [attr.data-testid]="testId() ? testId() + '-label' : null"
+                  (click)="labelAction.emit()">{{ label() }}</button>
+        } @else {
+          <span class="label">{{ label() }}</span>
+        }
+      }
       <div class="row">
         <button type="button" class="btn" [attr.data-testid]="testId() ? testId() + '-dec' : null"
                 [attr.aria-label]="decreaseAriaLabel()" [disabled]="disabled() || decDisabled()"
@@ -55,6 +63,14 @@ import {
     .wrap { min-width: 0; }
     .label { display: block; font-family: var(--font-mono); font-size: var(--fs-meta);
       color: var(--bone-dim); letter-spacing: 0.06em; margin-bottom: var(--sp-1); }
+    /* The tappable form: reads as a control the coach can open, not a caption. */
+    .label-btn { display: inline-flex; align-items: center; min-height: var(--tap);
+      padding: 0 var(--sp-2); margin-bottom: var(--sp-1); background: var(--surface-2);
+      border: 1px solid var(--hairline); border-radius: var(--r-ctl); color: var(--bone-dim);
+      font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
+      letter-spacing: 0.06em; cursor: pointer; }
+    .label-btn:hover { color: var(--bone); border-color: var(--bone-dim); }
+    .label-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .row { display: flex; align-items: stretch; gap: var(--sp-2); min-width: 0; }
     .btn { flex: 0 0 auto; min-width: var(--tap); min-height: var(--tap);
       background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
@@ -80,6 +96,11 @@ export class NumberStepperComponent implements OnDestroy {
   allowDecimal = input(false);
   suffix = input('');
   label = input('');
+  /** When true the label renders as a `type="button"` control emitting `labelAction`, e.g. to open
+   *  a unit-choice sheet -- for a movement with only one unit there is nothing to choose, so it
+   *  stays the plain caption it always was. */
+  labelInteractive = input(false);
+  labelAction = output<void>();
   ariaLabel = input.required<string>();
   testId = input('');
   disabled = input(false);

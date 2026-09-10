@@ -9,6 +9,8 @@ import { NumberStepperComponent } from './number-stepper.component';
   imports: [NumberStepperComponent],
   template: `<bh-number-stepper [(value)]="value" [min]="min()" [max]="max()" [step]="step()"
                                  [allowDecimal]="allowDecimal()" [suffix]="suffix()"
+                                 [label]="label()" [labelInteractive]="labelInteractive()"
+                                 (labelAction)="onLabelAction()"
                                  ariaLabel="Reps" testId="reps" />`,
 })
 class Host {
@@ -18,6 +20,10 @@ class Host {
   step = signal(1);
   allowDecimal = signal(false);
   suffix = signal('');
+  label = signal('');
+  labelInteractive = signal(false);
+  labelActionCount = 0;
+  onLabelAction() { this.labelActionCount++; }
 }
 
 describe('NumberStepperComponent', () => {
@@ -128,5 +134,34 @@ describe('NumberStepperComponent', () => {
     const suffixEl = el.querySelector('.suffix')!;
     // DOCUMENT_POSITION_FOLLOWING on inc() relative to suffixEl means suffixEl comes first.
     expect(suffixEl.compareDocumentPosition(inc()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // ---- interactive label (movement units) --------------------------------------------------
+
+  it('renders a plain, non-interactive span for the label by default', () => {
+    host.label.set('REPS');
+    f.detectChanges();
+    const span = el.querySelector('.label')!;
+    expect(span.textContent).toBe('REPS');
+    expect(el.querySelector('.label-btn')).toBeNull();
+  });
+
+  it('renders the label as a button and emits labelAction when pressed, when interactive', () => {
+    host.label.set('CAL');
+    host.labelInteractive.set(true);
+    f.detectChanges();
+    const btn = el.querySelector('.label-btn') as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toBe('CAL');
+    btn.click();
+    expect(host.labelActionCount).toBe(1);
+  });
+
+  it('gives the interactive label button type="button" so it never submits the form it lives in', () => {
+    host.label.set('CAL');
+    host.labelInteractive.set(true);
+    f.detectChanges();
+    const btn = el.querySelector('.label-btn') as HTMLButtonElement;
+    expect(btn.getAttribute('type')).toBe('button');
   });
 });

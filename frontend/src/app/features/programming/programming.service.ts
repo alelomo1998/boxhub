@@ -2,18 +2,22 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
-export interface Movement { id: string; name: string; category: string; modality: string | null; global: boolean; }
+export interface Movement { id: string; name: string; category: string; modality: string | null;
+                            global: boolean; units: string[]; loadable: boolean; }
+
+/** Order matters: index 0 is a movement's (or free text's) default unit. */
+export const MOVEMENT_UNITS = ['REPS', 'CAL', 'M', 'KM', 'MI', 'FT', 'SEC'] as const;
 
 export const MACROS = ['WARMUP', 'STRENGTH', 'GYMNASTIC', 'WORKOUT'] as const;
 export const TIMING_PRESETS = ['FOR_TIME', 'AMRAP', 'EMOM', 'TABATA', 'INTERVAL'] as const;
 export const TEAM_SHARES = ['TOGETHER', 'SPLIT', 'RELAY'] as const;
 
-export interface WodScale { text?: string; movementId?: string; reps?: string; load?: string; }
+export interface WodScale { text?: string; movementId?: string; reps?: string; load?: string; unit?: string; }
 
 // `scaling` is legacy input only and never comes back populated: the server normalises an old
 // free-text value into a one-entry `scales` list on read (spec 5A.2).
 export interface WodLine {
-  text: string; movementId?: string; reps?: string; load?: string; scales?: WodScale[];
+  text: string; movementId?: string; reps?: string; load?: string; unit?: string; scales?: WodScale[];
 }
 
 export interface WodSegment { seconds: number; kind: 'WORK' | 'REST'; label?: string; blockIndex?: number; }
@@ -72,7 +76,7 @@ export class ProgrammingService {
     if (category) params = params.set('category', category);
     return this.http.get<Movement[]>('/api/box/movements', { params });
   }
-  createMovement(m: { name: string; category: string; modality?: string }): Observable<Movement> {
+  createMovement(m: { name: string; category: string; modality?: string; units?: string[]; loadable?: boolean }): Observable<Movement> {
     return this.http.post<Movement>('/api/box/movements', m);
   }
   patchMovement(id: string, patch: Partial<Movement>): Observable<Movement> {
