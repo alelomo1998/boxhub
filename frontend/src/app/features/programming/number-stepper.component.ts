@@ -33,7 +33,7 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="wrap">
+    <div class="row">
       @if (label()) {
         @if (labelInteractive()) {
           <button type="button" class="label-btn" [attr.data-testid]="testId() ? testId() + '-label' : null"
@@ -42,30 +42,27 @@ import {
           <span class="label">{{ label() }}</span>
         }
       }
-      <div class="row">
-        <button type="button" class="btn" [attr.data-testid]="testId() ? testId() + '-dec' : null"
-                [attr.aria-label]="decreaseAriaLabel()" [disabled]="disabled() || decDisabled()"
-                (pointerdown)="onPointerDown(-1)" (pointerup)="stopRepeat()"
-                (pointercancel)="stopRepeat()" (pointerleave)="stopRepeat()">&minus;</button>
-        <input class="in" type="text" [attr.inputmode]="allowDecimal() ? 'decimal' : 'numeric'"
-               [value]="value()" [disabled]="disabled()"
-               [attr.aria-label]="ariaLabel()" [attr.data-testid]="testId() || null"
-               (input)="onInput($event)" />
-        @if (suffix()) { <span class="suffix">{{ suffix() }}</span> }
-        <button type="button" class="btn" [attr.data-testid]="testId() ? testId() + '-inc' : null"
-                [attr.aria-label]="increaseAriaLabel()" [disabled]="disabled() || incDisabled()"
-                (pointerdown)="onPointerDown(1)" (pointerup)="stopRepeat()"
-                (pointercancel)="stopRepeat()" (pointerleave)="stopRepeat()">+</button>
-      </div>
+      <button type="button" class="btn" [attr.data-testid]="testId() ? testId() + '-dec' : null"
+              [attr.aria-label]="decreaseAriaLabel()" [disabled]="disabled() || decDisabled()"
+              (pointerdown)="onPointerDown(-1)" (pointerup)="stopRepeat()"
+              (pointercancel)="stopRepeat()" (pointerleave)="stopRepeat()">&minus;</button>
+      <input class="in" type="text" [attr.inputmode]="allowDecimal() ? 'decimal' : 'numeric'"
+             [value]="value()" [disabled]="disabled()"
+             [attr.aria-label]="ariaLabel()" [attr.data-testid]="testId() || null"
+             (input)="onInput($event)" />
+      @if (suffix()) { <span class="suffix">{{ suffix() }}</span> }
+      <button type="button" class="btn" [attr.data-testid]="testId() ? testId() + '-inc' : null"
+              [attr.aria-label]="increaseAriaLabel()" [disabled]="disabled() || incDisabled()"
+              (pointerdown)="onPointerDown(1)" (pointerup)="stopRepeat()"
+              (pointercancel)="stopRepeat()" (pointerleave)="stopRepeat()">+</button>
     </div>`,
   styles: [`
     :host { display: block; }
-    .wrap { min-width: 0; }
-    .label { display: block; font-family: var(--font-mono); font-size: var(--fs-meta);
-      color: var(--bone-dim); letter-spacing: 0.06em; margin-bottom: var(--sp-1); }
+    .label { align-self: center; min-width: 3.5rem; font-family: var(--font-mono);
+      font-size: var(--fs-meta); color: var(--bone-dim); letter-spacing: 0.06em; }
     /* The tappable form: reads as a control the coach can open, not a caption. */
-    .label-btn { display: inline-flex; align-items: center; min-height: var(--tap);
-      padding: 0 var(--sp-2); margin-bottom: var(--sp-1); background: var(--surface-2);
+    .label-btn { display: inline-flex; align-items: center; min-width: 3.5rem; min-height: var(--tap);
+      padding: 0 var(--sp-2); background: var(--surface-2);
       border: 1px solid var(--hairline); border-radius: var(--r-ctl); color: var(--bone-dim);
       font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
       letter-spacing: 0.06em; cursor: pointer; }

@@ -366,6 +366,42 @@ describe('SortableListComponent — rows translate instead of reordering', () =>
     }
   });
 
+  // THE regression this round is fixed for: a swap used to need a full half-neighbour of travel
+  // (its midpoint) before anything moved. SWAP_THRESHOLD = 0.35 means a drag covering just over
+  // 35% of the neighbour's height, measured from its leading (top) edge, is enough.
+  it('swaps at just over 35% into the neighbour, not at its midpoint, and not at 25%', () => {
+    document.body.appendChild(f.nativeElement);
+    try {
+      const handle = handles()[0];
+      const r0 = rows()[0].getBoundingClientRect();
+      const r1 = rows()[1].getBoundingClientRect();
+      handle.dispatchEvent(new PointerEvent('pointerdown',
+        { bubbles: true, pointerId: 1, clientY: r0.top + r0.height / 2 }));
+      f.detectChanges();
+
+      // The dragged row's centre tracks the pointer's clientY exactly (dy = clientY - startY,
+      // startY = row 0's own centre), so clientY IS the centre for this assertion.
+      handle.dispatchEvent(new PointerEvent('pointermove',
+        { bubbles: true, pointerId: 1, clientY: r1.top + r1.height * 0.25 }));
+      f.detectChanges();
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+      f.detectChanges();
+      expect(host.last).toBeNull(); // 25%: below threshold, no swap
+
+      handle.dispatchEvent(new PointerEvent('pointerdown',
+        { bubbles: true, pointerId: 2, clientY: r0.top + r0.height / 2 }));
+      f.detectChanges();
+      handle.dispatchEvent(new PointerEvent('pointermove',
+        { bubbles: true, pointerId: 2, clientY: r1.top + r1.height * 0.35 + 1 }));
+      f.detectChanges();
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2 }));
+      f.detectChanges();
+      expect(host.last).toEqual({ from: 0, to: 1 }); // just over 35%: swaps
+    } finally {
+      document.body.removeChild(f.nativeElement);
+    }
+  });
+
   it('keyboard: after two ArrowDowns, focus is still on the moving item\'s handle', () => {
     document.body.appendChild(f.nativeElement);
     try {

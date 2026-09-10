@@ -146,6 +146,14 @@ describe('NumberStepperComponent', () => {
     expect(el.querySelector('.label-btn')).toBeNull();
   });
 
+  // The label sits inline with the control, left of the buttons -- not stacked above it.
+  it('puts the plain label as the first child of the control row, in line with the buttons', () => {
+    host.label.set('REPS');
+    f.detectChanges();
+    const row = el.querySelector('.row')!;
+    expect(row.firstElementChild!.classList.contains('label')).toBeTrue();
+  });
+
   it('renders the label as a button and emits labelAction when pressed, when interactive', () => {
     host.label.set('CAL');
     host.labelInteractive.set(true);
@@ -163,5 +171,13 @@ describe('NumberStepperComponent', () => {
     f.detectChanges();
     const btn = el.querySelector('.label-btn') as HTMLButtonElement;
     expect(btn.getAttribute('type')).toBe('button');
+  });
+
+  it('puts the interactive label button as the first child of the control row too', () => {
+    host.label.set('CAL');
+    host.labelInteractive.set(true);
+    f.detectChanges();
+    const row = el.querySelector('.row')!;
+    expect(row.firstElementChild!.classList.contains('label-btn')).toBeTrue();
   });
 });

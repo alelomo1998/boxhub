@@ -4,6 +4,11 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 
+/** Share of a neighbour's height a dragged row must cover, measured from the neighbour's leading
+ * edge, before the two trade places. 0.5 (the neighbour's midpoint) was the old behaviour the
+ * user rejected -- it made a coach drag a row a full half-neighbour before anything visibly moved. */
+const SWAP_THRESHOLD = 0.35;
+
 /**
  * A reorderable list. Press the handle and drag with a pointer, OR grab it with Space/Enter, move
  * with the arrows and drop with Space/Enter — Escape cancels and puts the item back.
@@ -72,7 +77,7 @@ import { NgTemplateOutlet } from '@angular/common';
       padding: var(--sp-3); background: var(--surface); color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       cursor: grab; user-select: none;
-      transition: background var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
+      transition: background var(--dur) var(--ease-out), transform var(--dur-move) var(--ease-out); }
     .row:hover { background: var(--surface-2); }
     /* touch-action none PERMANENTLY, not flipped when a drag starts: Chrome fixes touch-action at
        contact, and the drag now begins on contact, so a flip at that same moment comes too late
@@ -98,7 +103,7 @@ import { NgTemplateOutlet } from '@angular/common';
     .row.align-top { align-items: flex-start; position: relative; background: none; border: none; }
     .row.align-top:hover { background: none; }
     .row.align-top .handle { position: absolute; top: var(--sp-3); left: var(--sp-3); }
-    .row.align-top.grabbed { background: var(--surface-2); box-shadow: var(--shadow-float); }
+    .row.align-top.grabbed { box-shadow: var(--shadow-float); }
     .body { flex: 1; min-width: 0; }
     /* Three stacked bars, drawn rather than iconised: the icon set has no grip and one more name
        in it would owe its own gallery cell. */
@@ -154,7 +159,7 @@ export class SortableListComponent<T> {
    * element reports the transformed box, which would make the target index oscillate. */
   private cachedTops: number[] = [];
   private cachedHeights: number[] = [];
-  private cachedMids: number[] = [];
+  private cachedBottoms: number[] = [];
   private gap = 0;
   /** The dragged row's own height plus the list gap. One value covers every displaced row even
    * when rows differ in height: lifting the dragged item out of its slot and dropping it
@@ -277,23 +282,27 @@ export class SortableListComponent<T> {
     const rects = this.rowEls().map(r => r.nativeElement.getBoundingClientRect());
     this.cachedTops = rects.map(r => r.top);
     this.cachedHeights = rects.map(r => r.height);
-    this.cachedMids = rects.map(r => r.top + r.height / 2);
+    this.cachedBottoms = rects.map(r => r.bottom);
     this.gap = parseFloat(getComputedStyle(this.listEl().nativeElement).rowGap) || 0;
     this.stepPx = this.cachedHeights[index] + this.gap;
   }
 
-  /** Hit-test against the cached midpoints, never a live rect: the dragged row's visual centre
-   * vs. every other row's home midpoint. */
+  /** Hit-test against the cached geometry, never a live rect: the dragged row's visual centre vs.
+   * a threshold fraction into each neighbour, measured from that neighbour's leading edge -- not
+   * its midpoint (0.5 was the old, rejected behaviour: half a neighbour's travel before a swap
+   * even registered). Geometry is captured once at grab and never re-read mid-drag, so there is no
+   * feedback loop here; a lower threshold makes a swap trigger earlier, it cannot make the target
+   * oscillate, because nothing this function reads changes as a result of its own answer. */
   private computeTarget(dy: number): number {
     const f = this.from();
     if (f === null) return 0;
     const centre = this.cachedTops[f] + dy + this.cachedHeights[f] / 2;
     for (let j = 0; j < f; j++) {
-      if (this.cachedMids[j] >= centre) return j;
+      if (centre <= this.cachedBottoms[j] - SWAP_THRESHOLD * this.cachedHeights[j]) return j;
     }
     let target = f;
-    for (let j = f + 1; j < this.cachedMids.length; j++) {
-      if (this.cachedMids[j] <= centre) target = j; else break;
+    for (let j = f + 1; j < this.cachedTops.length; j++) {
+      if (centre >= this.cachedTops[j] + SWAP_THRESHOLD * this.cachedHeights[j]) target = j; else break;
     }
     return target;
   }
