@@ -45,6 +45,7 @@ const SWAP_THRESHOLD = 0.18;
         <div #row class="row" role="listitem" data-sortable-row
              [class.grabbed]="grabbedAt() === $index"
              [class.dragging]="dragging() && grabbedAt() === $index"
+             [class.settling]="settling()"
              [class.align-top]="handleAlign() === 'top'"
              [style.touch-action]="dragging() ? 'none' : null"
              [style.transform]="rowTransform($index)">
@@ -103,6 +104,14 @@ const SWAP_THRESHOLD = 0.18;
     .row.grabbed { position: relative; z-index: 1; background: var(--surface-2);
       border-color: var(--bone-dim); box-shadow: var(--shadow-float); cursor: grabbing; }
     .row.dragging { transition: none; }
+    /* Only a REORDERING drop sets this (never Escape, never a drop that lands back where it
+       started — both of those still need to travel, so they keep the transition). At the instant
+       a reorder drops, the consumer re-renders items() in the new order, which puts every item's
+       content exactly where its transform was already showing it -- the row that WAS at slot 0
+       displaying "GAMMA" via transform IS slot 0 once GAMMA becomes the DOM content there. So
+       clearing the transform and swapping the content must land in the same paint, or the browser
+       tweens the transform back to zero and the row visibly slides from the wrong place. */
+    .row.settling { transition: none; }
     /* Flat, full-width rows: no nested card. The handle rides on the row's own padding as an
        absolutely-positioned overlay instead of owning a flex gutter, so .body (the only element
        left in normal flow) fills the whole row -- no indent to explain away. The row paints
@@ -165,6 +174,10 @@ export class SortableListComponent<T> {
   protected readonly dragging = signal(false);
   protected readonly dy = signal(0);
   protected readonly announcement = signal('');
+  /** True for exactly the frame a REORDERING drop clears every row's transform. See the .settling
+   * CSS comment for why: only that case needs the transition suppressed. Escape and a drop that
+   * lands back where it started both keep their tween. */
+  protected readonly settling = signal(false);
 
   private startY = 0;
 
@@ -224,10 +237,22 @@ export class SortableListComponent<T> {
 
   private drop() {
     const f = this.from(), t = this.to();
+    const reordering = f !== null && t !== null && f !== t;
+    // Set BEFORE clearing state/emitting: settling has to already be true in the same
+    // change-detection pass that removes the inline transform, or that removal is still governed
+    // by the row's normal transition and tweens instead of jumping.
+    if (reordering) this.settling.set(true);
     this.reset();
     if (f === null || t === null) return;
     this.announce($localize`:@@ui.sortableList.dropped:Dropped at position ${t + 1}:position: of ${this.items().length}:total:.`);
-    if (f !== t) this.reordered.emit({ from: f, to: t });
+    if (reordering) {
+      this.reordered.emit({ from: f, to: t });
+      // Two rAFs, not one and not setTimeout(0): the first is scheduled before the browser has
+      // painted the "transition: none" frame, so it can still fire pre-paint. The second is
+      // guaranteed to run only after that paint has happened, which is the actual boundary we need
+      // before handing the transition back.
+      requestAnimationFrame(() => requestAnimationFrame(() => this.settling.set(false)));
+    }
   }
 
   private cancel() {

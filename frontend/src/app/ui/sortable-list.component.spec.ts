@@ -366,6 +366,54 @@ describe('SortableListComponent — rows translate instead of reordering', () =>
     }
   });
 
+  // THE bug this round is fixed for: the content swap is instant but the transform reset used to
+  // be a tweened 500ms transition, so every row visibly teleported to the wrong place and slid
+  // home. settling suppresses that transition for exactly the frame the transforms clear -- but
+  // ONLY on a reordering drop, never Escape and never a drop that lands back where it started.
+  it('a reordering drop carries the settling class in the same tick the transforms clear', () => {
+    document.body.appendChild(f.nativeElement);
+    try {
+      const handle = dragRow0PastRow1();
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+      f.detectChanges();
+      for (const row of rows()) expect(row.classList.contains('settling')).toBe(true);
+    } finally {
+      document.body.removeChild(f.nativeElement);
+    }
+  });
+
+  it('Escape does not set settling -- the return trip keeps its animation', () => {
+    document.body.appendChild(f.nativeElement);
+    try {
+      const handle = handles()[0];
+      key(handle, ' ');
+      key(handle, 'ArrowDown');
+      f.detectChanges();
+      key(handle, 'Escape');
+      f.detectChanges();
+      for (const row of rows()) expect(row.classList.contains('settling')).toBe(false);
+    } finally {
+      document.body.removeChild(f.nativeElement);
+    }
+  });
+
+  it('a drop where nothing moved does not set settling -- the spring-back keeps its animation', () => {
+    document.body.appendChild(f.nativeElement);
+    try {
+      const handle = handles()[0];
+      const r0 = rows()[0].getBoundingClientRect();
+      handle.dispatchEvent(new PointerEvent('pointerdown',
+        { bubbles: true, pointerId: 1, clientY: r0.top + r0.height / 2 }));
+      f.detectChanges();
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+      f.detectChanges();
+      expect(host.last).toBeNull();
+      for (const row of rows()) expect(row.classList.contains('settling')).toBe(false);
+    } finally {
+      document.body.removeChild(f.nativeElement);
+    }
+  });
+
   // THE regression this round is fixed for: a swap used to need a full half-neighbour of travel
   // (its midpoint) before anything moved. Rejected again at 0.35 as still too late. SWAP_THRESHOLD
   // = 0.18 means a drag covering just over 18% of the neighbour's height, measured from its
