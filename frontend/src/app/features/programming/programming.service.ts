@@ -16,7 +16,7 @@ export interface WodLine {
   text: string; movementId?: string; reps?: string; load?: string; scales?: WodScale[];
 }
 
-export interface WodSegment { seconds: number; kind: 'WORK' | 'REST'; label?: string; }
+export interface WodSegment { seconds: number; kind: 'WORK' | 'REST'; label?: string; blockIndex?: number; }
 export interface WodTiming { rounds: number; segments: WodSegment[]; }
 
 // A block holds lines, sub-blocks, or both. EXACTLY two levels deep: a nested block must not

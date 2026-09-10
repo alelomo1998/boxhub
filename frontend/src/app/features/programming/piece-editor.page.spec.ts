@@ -90,9 +90,11 @@ describe('PieceEditorPage', () => {
   });
 
   it('picking a timing preset seeds the segments and keeps the preset name', () => {
+    // The default fixture (class-build route) opens with one seeded block, so the seeded WORK
+    // segment points at it: a piece should not open already incomplete.
     component.pickPreset('TABATA');
     expect(component.segments()).toEqual([
-      { seconds: 20, kind: 'WORK' }, { seconds: 10, kind: 'REST' },
+      { seconds: 20, kind: 'WORK', blockIndex: 0 }, { seconds: 10, kind: 'REST' },
     ]);
     expect(component.rounds()).toBe(8);
     expect(component.timingPreset()).toBe('TABATA');
@@ -118,6 +120,10 @@ describe('PieceEditorPage', () => {
   });
 
   it('adds a segment when the add-segment control is actually pressed', () => {
+    // Segments only exist for a segmented preset (EMOM/Tabata/Interval): For time and AMRAP get
+    // the cap/duration control instead, not a segments section at all.
+    component.timingPreset.set('TABATA');
+    fixture.detectChanges();
     const before = component.segments().length;
     el.querySelector<HTMLElement>('[data-testid="piece-add-segment"]')!.click();
     fixture.detectChanges();
@@ -291,5 +297,202 @@ describe('PieceEditorPage', () => {
 
     expect(component.isCollapsed(0)).toBe(false);
     expect(component.isCollapsed(1)).toBe(true);
+  });
+
+  // ---- segments gated on a timing preset; a WORK segment names a block ----------------------
+
+  it('with no timing preset, piece-add-segment is absent from the DOM', () => {
+    expect(component.timingPreset()).toBeNull();
+    expect(el.querySelector('[data-testid="piece-add-segment"]')).toBeNull();
+  });
+
+  // Every bh-sheet's content is always in the DOM (open only toggles the native dialog), so the
+  // timing sheet's rows are found by scoping to its dialog, not a global .prow query.
+  // Row order follows TIMING_PRESETS: 0 None, 1 For time, 2 AMRAP, 3 EMOM, 4 Tabata, 5 Interval.
+  function openTimingSheet(): HTMLElement {
+    el.querySelector<HTMLElement>('[data-testid="meta-timing"]')!.click();
+    fixture.detectChanges();
+    return el.querySelector('dialog[aria-label="How it runs"]')!;
+  }
+
+  function pickPresetRow(rowIndex: number) {
+    openTimingSheet().querySelectorAll<HTMLElement>('.prow')[rowIndex].click();
+    fixture.detectChanges();
+  }
+
+  it('after picking a segmented preset, the segments section renders', () => {
+    pickPresetRow(4); // Tabata
+    expect(el.querySelector('[data-testid="piece-add-segment"]')).toBeTruthy();
+  });
+
+  // ---- preset shape: segments vs. cap/duration (user-ruled 2026-09-10) ----------------------
+
+  it('picking For time renders the cap stepper and no segments list', () => {
+    pickPresetRow(1); // For time
+    expect(el.querySelector('[data-testid="piece-time-cap"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="piece-add-segment"]')).toBeNull();
+  });
+
+  it('picking AMRAP renders the duration stepper, seeded to 20', () => {
+    pickPresetRow(2); // AMRAP
+    const input = el.querySelector<HTMLInputElement>('[data-testid="piece-time-cap"]')!;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe('20');
+  });
+
+  it('picking Tabata renders the segments list and no cap stepper', () => {
+    pickPresetRow(4); // Tabata
+    expect(el.querySelector('[data-testid="piece-add-segment"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="piece-time-cap"]')).toBeNull();
+  });
+
+  it('picking None renders neither the segments list nor the cap stepper', () => {
+    pickPresetRow(4); // Tabata, so None is a real transition
+    pickPresetRow(0); // None
+    expect(el.querySelector('[data-testid="piece-add-segment"]')).toBeNull();
+    expect(el.querySelector('[data-testid="piece-time-cap"]')).toBeNull();
+  });
+
+  it('switching from Tabata to For time empties segments -- the regression that made the 400 possible', () => {
+    pickPresetRow(4); // Tabata
+    expect(component.segments().length).toBeGreaterThan(0);
+    pickPresetRow(1); // For time
+    expect(component.segments()).toEqual([]);
+  });
+
+  it('saving a For time piece with a cap of 20 puts timeCapSeconds 1200 on the payload', () => {
+    pickPresetRow(1); // For time
+    const input = el.querySelector<HTMLInputElement>('[data-testid="piece-time-cap"]')!;
+    input.value = '20';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    component.submit(new Event('submit'));
+    expect(saveSpy.calls.mostRecent().args[0].timeCapSeconds).toBe(1200);
+  });
+
+  it('saving an EMOM puts timeCapSeconds null on the payload', () => {
+    pickPresetRow(3); // EMOM
+    component.submit(new Event('submit'));
+    expect(saveSpy.calls.mostRecent().args[0].timeCapSeconds).toBeNull();
+  });
+
+  it('loading a wod with a 900-second cap and For time preset shows 15 in the stepper', () => {
+    loadWod({ timingPreset: 'FOR_TIME', timeCapSeconds: 900 });
+    expect(el.querySelector<HTMLInputElement>('[data-testid="piece-time-cap"]')!.value).toBe('15');
+  });
+
+  it("pressing a segment's picker, then a block row in the sheet, puts that block's index on the segment and the button then reads the block's name", () => {
+    component.timingPreset.set('TABATA');
+    component.blocks.set([{ label: 'Buy-in', lines: [], blocks: [] }]);
+    component.segments.set([{ seconds: 60, kind: 'WORK' }]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="segment-pick-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="seg-pick-block-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.segments()[0].blockIndex).toBe(0);
+    expect(el.querySelector('[data-testid="segment-pick-0"]')!.textContent).toContain('Buy-in');
+  });
+
+  it('picking REST clears blockIndex', () => {
+    component.timingPreset.set('TABATA');
+    component.blocks.set([{ label: 'Buy-in', lines: [], blocks: [] }]);
+    component.segments.set([{ seconds: 60, kind: 'WORK', blockIndex: 0 }]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="segment-pick-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="seg-pick-rest"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.segments()[0].kind).toBe('REST');
+    expect(component.segments()[0].blockIndex).toBeUndefined();
+  });
+
+  // ---- copy / paste a block -------------------------------------------------------------------
+
+  it('pressing copy, then paste, adds a block whose lines equal the source, not the same reference', () => {
+    component.blocks.set([{ label: 'Buy-in', lines: [{ text: 'Row' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-copy-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="piece-paste-block"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks().length).toBe(2);
+    expect(component.blocks()[1].lines).toEqual(component.blocks()[0].lines);
+    expect(component.blocks()[1]).not.toBe(component.blocks()[0]);
+    expect(component.blocks()[1].lines).not.toBe(component.blocks()[0].lines);
+  });
+
+  it('collapsed grows with blocks on paste', () => {
+    component.blocks.set([{ label: 'Buy-in', lines: [], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-copy-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="piece-paste-block"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.collapsed().length).toBe(2);
+    expect(component.collapsed()[1]).toBe(false);
+  });
+
+  // ---- keeping a segment's blockIndex true across block delete and reorder -------------------
+
+  it('removing a block a segment points at clears that reference; removing one below decrements it', () => {
+    component.blocks.set([
+      { label: 'A', lines: [], blocks: [] },
+      { label: 'B', lines: [], blocks: [] },
+      { label: 'C', lines: [], blocks: [] },
+    ]);
+    component.collapsed.set([false, false, false]);
+    component.segments.set([
+      { seconds: 10, kind: 'WORK', blockIndex: 0 },
+      { seconds: 10, kind: 'WORK', blockIndex: 2 },
+    ]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-remove-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.segments()[0].kind).toBe('WORK');
+    expect(component.segments()[0].blockIndex).toBeUndefined();
+    expect(component.segments()[1].blockIndex).toBe(1);
+  });
+
+  it('reordering blocks moves the segment reference with the block', () => {
+    component.blocks.set([
+      { label: 'A', lines: [], blocks: [] },
+      { label: 'B', lines: [], blocks: [] },
+    ]);
+    component.collapsed.set([false, false]);
+    component.segments.set([{ seconds: 10, kind: 'WORK', blockIndex: 0 }]);
+
+    component.moveBlock({ from: 0, to: 1 });
+
+    // Block A moved from index 0 to index 1; the segment still names A.
+    expect(component.segments()[0].blockIndex).toBe(1);
+  });
+
+  // ---- reps / load steppers ---------------------------------------------------------------
+
+  it('typing letters into the reps stepper leaves digits only', () => {
+    component.blocks.set([{ label: '', lines: [{ text: 'Thruster' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    const input = el.querySelector<HTMLInputElement>('[data-testid="line-reps-0-0"]')!;
+    input.value = 'ab12cd';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(input.value).toBe('12');
+    expect(component.blocks()[0].lines![0].reps).toBe('12');
   });
 });

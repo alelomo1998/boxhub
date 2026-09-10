@@ -6,6 +6,7 @@ import { SegOption } from '../../ui/segmented.component';
 import { SortableListComponent } from '../../ui/sortable-list.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { PickSheetComponent, PickRow, PickResult } from './pick-sheet.component';
+import { NumberStepperComponent } from './number-stepper.component';
 import {
   ProgrammingService, MACROS, TIMING_PRESETS, TEAM_SHARES,
   WodBlock, WodLine, WodScale, WodSegment, WodInput,
@@ -18,12 +19,16 @@ const MAX_SCALES_PER_LINE = 6;
 
 /** What each preset seeds. A preset SEEDS and never constrains: edits afterwards leave the name. */
 const PRESET_SEEDS: Record<string, { rounds: number; segments: WodSegment[] }> = {
-  FOR_TIME: { rounds: 1, segments: [{ seconds: 0, kind: 'WORK' }] },
-  AMRAP: { rounds: 1, segments: [{ seconds: 1200, kind: 'WORK' }] },
   EMOM: { rounds: 12, segments: [{ seconds: 60, kind: 'WORK' }] },
   TABATA: { rounds: 8, segments: [{ seconds: 20, kind: 'WORK' }, { seconds: 10, kind: 'REST' }] },
   INTERVAL: { rounds: 5, segments: [{ seconds: 60, kind: 'WORK' }, { seconds: 60, kind: 'REST' }] },
 };
+
+/** These three are a repeating work-rest pattern -- a segment means "a block plus a duration,"
+ *  which only means anything when the pattern repeats. FOR_TIME and AMRAP are one number (a cap,
+ *  a duration), not a sequence, so they get the time-cap/duration control instead of a segments
+ *  list (user-ruled 2026-09-10). Named once, here, rather than scattered through the template. */
+const SEGMENTED_PRESETS = ['EMOM', 'TABATA', 'INTERVAL'];
 
 const MACRO_LABELS: Record<string, string> = {
   WARMUP: $localize`:@@piece.macro.warmup:Warm-up`,
@@ -70,7 +75,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
   standalone: true,
   imports: [
     ButtonComponent, AlertComponent,
-    SortableListComponent, PickSheetComponent, SheetComponent,
+    SortableListComponent, PickSheetComponent, SheetComponent, NumberStepperComponent,
   ],
   template: `
     <form class="page" (submit)="submit($event)" novalidate data-testid="piece-form">
@@ -112,43 +117,52 @@ type PickTarget = { block: number; line: number; scale: number | null };
           </div>
         </header>
 
-        <section class="segments">
-          @if (segments().length > 0) {
-            <h2 class="eyebrow" i18n="@@piece.segments.heading">SEGMENTS</h2>
-            <ul class="segs">
-              @for (s of segments(); track $index) {
-                <li class="seg-row" [attr.data-testid]="'segment-' + $index">
-                  <input class="num" type="number" min="0" inputmode="numeric"
-                         [value]="s.seconds"
-                         (change)="updateSegment($index, { seconds: +$any($event.target).value, kind: s.kind, label: s.label })"
-                         [attr.aria-label]="secondsLabel($index)" />
-                  <span class="unit" i18n="@@piece.segment.seconds">sec</span>
-                  <button type="button" class="kind" (click)="toggleKind($index)"
-                          [attr.data-testid]="'segment-kind-' + $index">
-                    @if (s.kind === 'WORK') {
-                      <span i18n="@@piece.segment.work">WORK</span>
-                    } @else {
-                      <span i18n="@@piece.segment.rest">REST</span>
-                    }
-                  </button>
-                  <button type="button" class="mini" (click)="removeSegment($index)"
-                          [attr.aria-label]="removeSegmentLabel($index)">&#x2715;</button>
-                </li>
-              }
-            </ul>
-            <div class="rounds">
-              <label class="rlab" for="piece-rounds" i18n="@@piece.rounds.label">Rounds</label>
-              <input id="piece-rounds" class="num" type="number" min="1" inputmode="numeric"
-                     [value]="rounds()" (change)="rounds.set(+$any($event.target).value || 1)"
-                     data-testid="piece-rounds" />
-            </div>
-          }
-          <!-- Always rendered, even at zero segments: it is how a custom (no-preset) piece seeds
-               its first one. Gating this on segments().length would make it unreachable. -->
-          <button type="button" class="add" (click)="addSegment()" data-testid="piece-add-segment">
-            <span i18n="@@piece.segment.add">Add segment</span>
-          </button>
-        </section>
+        @if (hasSegments()) {
+          <section class="segments">
+            @if (segments().length > 0) {
+              <h2 class="eyebrow" i18n="@@piece.segments.heading">SEGMENTS</h2>
+              <ul class="segs">
+                @for (s of segments(); track $index) {
+                  <li class="seg-row" [attr.data-testid]="'segment-' + $index">
+                    <input class="num" type="number" min="0" inputmode="numeric"
+                           [value]="s.seconds"
+                           (change)="updateSegment($index, { seconds: +$any($event.target).value, kind: s.kind, label: s.label, blockIndex: s.blockIndex })"
+                           [attr.aria-label]="secondsLabel($index)" />
+                    <span class="unit" i18n="@@piece.segment.seconds">sec</span>
+                    <button type="button" class="kind" (click)="openSegPick($index)"
+                            [attr.data-testid]="'segment-pick-' + $index">
+                      @if (s.kind === 'REST') {
+                        <span i18n="@@piece.segment.rest">REST</span>
+                      } @else if (segmentBlockLabel(s); as label) {
+                        <span>{{ label }}</span>
+                      } @else {
+                        <span class="ph" i18n="@@piece.segment.chooseBlock">Choose a block</span>
+                      }
+                    </button>
+                    <button type="button" class="mini" (click)="removeSegment($index)"
+                            [attr.aria-label]="removeSegmentLabel($index)">&#x2715;</button>
+                  </li>
+                }
+              </ul>
+              <div class="rounds">
+                <label class="rlab" for="piece-rounds" i18n="@@piece.rounds.label">Rounds</label>
+                <input id="piece-rounds" class="num" type="number" min="1" inputmode="numeric"
+                       [value]="rounds()" (change)="rounds.set(+$any($event.target).value || 1)"
+                       data-testid="piece-rounds" />
+              </div>
+            }
+            <button type="button" class="add" (click)="addSegment()" data-testid="piece-add-segment">
+              <span i18n="@@piece.segment.add">Add segment</span>
+            </button>
+          </section>
+        } @else if (hasCap()) {
+          <section class="segments">
+            <bh-number-stepper [label]="capLabel()" [value]="timeCapMinutes()"
+                   (valueChange)="timeCapMinutes.set($event)"
+                   [min]="0" [step]="1" [allowDecimal]="false" [suffix]="capUnit"
+                   [ariaLabel]="capAriaLabel()" testId="piece-time-cap" />
+          </section>
+        }
 
         <section class="work">
           <h2 class="eyebrow" i18n="@@piece.blocks.heading">THE WORK</h2>
@@ -176,8 +190,18 @@ type PickTarget = { block: number; line: number; scale: number | null };
                            (input)="setBlockLabel(bi, $any($event.target).value)"
                            placeholder="Block name" i18n-placeholder="@@piece.block.namePlaceholder"
                            [attr.aria-label]="blockNameLabel(bi)" />
+                    <button type="button" class="mini" (click)="copyBlock(bi)"
+                            [attr.aria-label]="copyBlockLabel(bi)"
+                            [attr.data-testid]="'block-copy-' + bi">
+                      <svg width="1em" height="1em" viewBox="0 0 16 16" fill="none"
+                           stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <rect x="2" y="4" width="9" height="9" rx="1.5" />
+                        <rect x="5" y="1" width="9" height="9" rx="1.5" />
+                      </svg>
+                    </button>
                     <button type="button" class="mini" (click)="removeBlock(bi)"
-                            [attr.aria-label]="removeBlockLabel(bi)">&#x2715;</button>
+                            [attr.aria-label]="removeBlockLabel(bi)"
+                            [attr.data-testid]="'block-remove-' + bi">&#x2715;</button>
                   </div>
 
                   @if (isCollapsed(bi)) {
@@ -197,17 +221,15 @@ type PickTarget = { block: number; line: number; scale: number | null };
                             <span class="ph" i18n="@@piece.line.choose">Choose a movement</span>
                           }
                         </button>
-                        <input class="in sm r-reps" [value]="l.reps ?? ''"
-                               (input)="setLine(bi, li, { reps: $any($event.target).value })"
-                               placeholder="reps" i18n-placeholder="@@piece.line.reps"
-                               [attr.aria-label]="repsLabel(bi, li)" />
-                        <div class="load-wrap">
-                          <input class="in sm r-load" [value]="l.load ?? ''"
-                                 (input)="setLine(bi, li, { load: $any($event.target).value })"
-                                 placeholder="load" i18n-placeholder="@@piece.line.load"
-                                 [attr.aria-label]="loadLabel(bi, li)" />
-                          <span class="unit-suffix">{{ weightUnit() }}</span>
-                        </div>
+                        <bh-number-stepper class="r-reps" label="REPS" i18n-label="@@piece.line.repsStepperLabel"
+                               [value]="l.reps ?? ''" (valueChange)="setLine(bi, li, { reps: $event })"
+                               [min]="0" [ariaLabel]="repsLabel(bi, li)"
+                               [testId]="'line-reps-' + bi + '-' + li" />
+                        <bh-number-stepper class="r-load" label="LOAD" i18n-label="@@piece.line.loadStepperLabel"
+                               [value]="l.load ?? ''" (valueChange)="setLine(bi, li, { load: $event })"
+                               [min]="0" [allowDecimal]="true" [suffix]="weightUnit()"
+                               [ariaLabel]="loadLabel(bi, li)"
+                               [testId]="'line-load-' + bi + '-' + li" />
                         <button type="button" class="mini r-rm" (click)="removeLine(bi, li)"
                                 [attr.aria-label]="removeLineLabel(bi, li)">&#x2715;</button>
                       </div>
@@ -223,10 +245,10 @@ type PickTarget = { block: number; line: number; scale: number | null };
                               <span class="ph" i18n="@@piece.scale.choose">Choose a scaling option</span>
                             }
                           </button>
-                          <input class="in sm r-reps" [value]="sc.reps ?? ''"
-                                 (input)="setScale(bi, li, si, { reps: $any($event.target).value })"
-                                 placeholder="reps" i18n-placeholder="@@piece.scale.reps"
-                                 [attr.aria-label]="scaleRepsLabel(bi, li, si)" />
+                          <bh-number-stepper class="r-reps" label="REPS" i18n-label="@@piece.scale.repsStepperLabel"
+                                 [value]="sc.reps ?? ''" (valueChange)="setScale(bi, li, si, { reps: $event })"
+                                 [min]="0" [ariaLabel]="scaleRepsLabel(bi, li, si)"
+                                 [testId]="'scale-reps-' + bi + '-' + li + '-' + si" />
                           <button type="button" class="mini r-rm" (click)="removeScale(bi, li, si)"
                                   [attr.aria-label]="removeScaleLabel(bi, li, si)">&#x2715;</button>
                         </div>
@@ -267,6 +289,11 @@ type PickTarget = { block: number; line: number; scale: number | null };
           <button type="button" class="add" (click)="addBlock()" data-testid="piece-add-block">
             <span i18n="@@piece.block.add">Add block</span>
           </button>
+          @if (clipboard()) {
+            <button type="button" class="add" (click)="pasteBlock()" data-testid="piece-paste-block">
+              <span>{{ pasteButtonLabel() }}</span>
+            </button>
+          }
         </section>
 
         <footer class="foot">
@@ -360,6 +387,25 @@ type PickTarget = { block: number; line: number; scale: number | null };
           }
         </div>
       }
+    </bh-sheet>
+
+    <bh-sheet [open]="segPick() !== null" title="What runs here" i18n-title="@@piece.segPick.sheetTitle"
+              label="What runs here" i18n-label="@@piece.segPick.aria" (closed)="segPick.set(null)">
+      <div class="rows">
+        @for (b of blocks(); track $index) {
+          <button type="button" class="prow" [class.sel]="segPickTarget()?.blockIndex === $index"
+                  [attr.data-testid]="'seg-pick-block-' + $index"
+                  (click)="pickSegBlock($index)">
+            <span>{{ blockLabeller(b, $index) }}</span>
+            @if (segPickTarget()?.blockIndex === $index) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+          </button>
+        }
+        <button type="button" class="prow rest-row" [class.sel]="segPickTarget()?.kind === 'REST'"
+                data-testid="seg-pick-rest" (click)="pickSegRest()">
+          <span i18n="@@piece.segment.rest">REST</span>
+          @if (segPickTarget()?.kind === 'REST') { <span class="mark" aria-hidden="true">&#x2713;</span> }
+        </button>
+      </div>
     </bh-sheet>
 
     <bh-pick-sheet [open]="pickOpen()" [rows]="movementRows()"
@@ -457,7 +503,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
     /* The bar is the card's HEADER, so it runs edge to edge and pulls back over the card's own
        padding. Inset like everything else it would have read as just another --surface-2 unit
        alongside the line units; attached to the card's top edge it cannot be mistaken for one. */
-    .bar { display: grid; grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
+    .bar { display: grid; grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap) var(--tap);
       gap: var(--sp-2); align-items: center; box-sizing: border-box;
       min-height: var(--tap); padding: var(--sp-1) var(--sp-2);
       margin: calc(var(--sp-3) * -1) calc(var(--sp-3) * -1) 0;
@@ -493,26 +539,26 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .summary { margin: 0; font-family: var(--font-mono); font-size: var(--fs-sm);
       color: var(--bone-dim); }
     /* Mobile first: the movement is the line's subject, so at 360px it gets a full-width row of
-       its own and reps/load/remove sit beneath it. Squeezing all four onto one line left the
-       movement button about 40px wide -- the most important control on the row, collapsed.
-       minmax(0, 1fr) throughout, never a bare 1fr: a grid item's automatic minimum is its
-       min-content size, so a long movement name would otherwise force horizontal scroll. */
-    .lrow { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem var(--tap);
-      grid-template-areas: "mv mv mv" "reps load rm";
+       its own, with reps and load each getting one too and remove staying up on the movement
+       row. Squeezing all four onto one line left the movement button about 40px wide -- the most
+       important control on the row, collapsed. Putting reps and load side by side on a second
+       row was no better, measured (not estimated) on the real render: two --tap steppers need
+       --tap + input + --tap plus two --sp-2 gaps each, 104px of chrome apiece, before a single
+       digit is visible -- in a 260px row that left the reps input 6px wide and squeezed load's kg
+       suffix out of the row entirely. So each stepper gets its own full-width row: a line runs
+       four rows tall instead of three, and that is the trade -- a legible, tappable control over
+       a dense one. minmax(0, 1fr) throughout, never a bare 1fr: a grid item's automatic minimum
+       is its min-content size, so a long movement name would otherwise force horizontal scroll. */
+    .lrow { display: grid; grid-template-columns: minmax(0, 1fr) var(--tap);
+      grid-template-areas: "mv rm" "reps reps" "load load";
       gap: var(--sp-2); align-items: center; }
     .lrow > .mv { grid-area: mv; }
     .lrow > .r-reps { grid-area: reps; }
-    .lrow > .load-wrap { grid-area: load; }
+    .lrow > .r-load { grid-area: load; }
     .lrow > .r-rm { grid-area: rm; }
-    /* The unit is a label on the control, not a value the coach types: the stored load stays just
-       the number, and this suffix sits beside the input rather than inside it. */
-    .load-wrap { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
-    .load-wrap .r-load { flex: 1; min-width: 0; }
-    .unit-suffix { flex: 0 0 auto; font-family: var(--font-mono); font-size: var(--fs-meta);
-      color: var(--bone-dim); }
 
     .srow { display: grid; grid-template-columns: auto minmax(0, 1fr) var(--tap);
-      grid-template-areas: "arrow mv mv" "arrow reps rm";
+      grid-template-areas: "arrow mv rm" "arrow reps reps";
       gap: var(--sp-2); align-items: center; padding-left: var(--sp-3); }
     .srow > .arrow { grid-area: arrow; }
     .srow > .mv { grid-area: mv; }
@@ -534,13 +580,13 @@ type PickTarget = { block: number; line: number; scale: number | null };
       letter-spacing: 0.06em; color: var(--bone-dim); }
     .subline { margin: 0; font-size: var(--fs-body); color: var(--bone); }
 
-    .in, .num { min-height: var(--tap); box-sizing: border-box; width: 100%; min-width: 0;
+    .num { min-height: var(--tap); box-sizing: border-box; width: 100%; min-width: 0;
       padding: 0 var(--sp-3); background: var(--surface); color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--r-ctl);
-      font-family: var(--font-body); font-size: var(--fs-body); }
-    /* Numbers are tabular and prescribed, so they read in mono. */
-    .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
-    .in:focus-visible, .num:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+      /* Numbers are tabular and prescribed, so they read in mono. */
+      font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right;
+      font-size: var(--fs-body); }
+    .num:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
     .mv { min-height: var(--tap); min-width: 0; padding: 0 var(--sp-3); text-align: left;
       background: var(--surface); color: var(--bone); border: 1px solid var(--hairline);
@@ -578,6 +624,9 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .prow:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .prow.sel { font-weight: 700; }
     .mark { color: var(--bone); font-weight: 700; }
+    /* REST is a different kind of answer than a block, not another block: a top hairline separates
+       it, same as .free in pick-sheet.component.ts. */
+    .rest-row { border-top: 1px solid var(--hairline); }
 
     /* Bottom bar: a hairline separates it from the last block card, echoing the composition's
        horizontal rule ahead of "Save piece". */
@@ -601,11 +650,21 @@ export class PieceEditorPage {
   timingPreset = signal<string | null>(null);
   rounds = signal(1);
   segments = signal<WodSegment[]>([]);
+  /** Minutes on screen, seconds on the wire (timeCapSeconds) -- the runner already reads the cap
+   *  in seconds. Whole minutes only: a 90-second cap cannot be expressed.
+   *  ponytail: deliberate ceiling, not an oversight -- add sub-minute precision if a coach asks. */
+  timeCapMinutes = signal<string>('');
   blocks = signal<WodBlock[]>([]);
   /** Per-block collapse state, client-only -- never sent to the server. Parallel to `blocks`, kept
    *  in lockstep by every op that changes `blocks`' shape (including a splice inside moveBlock),
    *  so a collapsed flag follows the block it was set on rather than staying pinned to an index. */
   collapsed = signal<boolean[]>([]);
+  /** Copy fills this; paste appends a clone of it. Component state only -- never sent to the
+   *  server, does not survive a reload. There is deliberately no replace and no cut. */
+  clipboard = signal<WodBlock | null>(null);
+  private clipboardLabel = signal('');
+  pasteButtonLabel = computed(() =>
+    $localize`:@@piece.block.paste:Paste "${this.clipboardLabel()}:name:"`);
   /** The box's load unit, read once on init. A failed fetch just leaves the KG default. */
   weightUnit = signal<'KG' | 'LB'>('KG');
   scoreable = signal(true);
@@ -774,6 +833,7 @@ export class PieceEditorPage {
     this.timingPreset.set(null);
     this.rounds.set(1);
     this.segments.set([]);
+    this.timeCapMinutes.set('');
     this.blocks.set([]);
     this.collapsed.set([]);
     this.scoreable.set(true);
@@ -792,6 +852,7 @@ export class PieceEditorPage {
         this.timingPreset.set(w.timingPreset);
         this.rounds.set(w.timing?.rounds ?? 1);
         this.segments.set([...(w.timing?.segments ?? [])]);
+        this.timeCapMinutes.set(w.timeCapSeconds != null ? String(Math.round(w.timeCapSeconds / 60)) : '');
         this.blocks.set([...(w.blocks?.blocks ?? [])]);
         // Loaded blocks are expanded, same as a new one.
         this.collapsed.set(this.blocks().map(() => false));
@@ -806,6 +867,18 @@ export class PieceEditorPage {
 
   // ---- timing -----------------------------------------------------------------------------
 
+  /** EMOM / Tabata / Interval are a repeating work-rest pattern; the other two are one number. */
+  hasSegments = computed(() => SEGMENTED_PRESETS.includes(this.timingPreset() ?? ''));
+  hasCap = computed(() => this.timingPreset() === 'FOR_TIME' || this.timingPreset() === 'AMRAP');
+
+  capLabel = computed(() => this.timingPreset() === 'AMRAP'
+    ? $localize`:@@piece.cap.durationLabel:DURATION`
+    : $localize`:@@piece.cap.timeCapLabel:TIME CAP`);
+  capAriaLabel = computed(() => this.timingPreset() === 'AMRAP'
+    ? $localize`:@@piece.cap.durationAria:Duration in minutes`
+    : $localize`:@@piece.cap.timeCapAria:Time cap in minutes`);
+  capUnit = $localize`:@@piece.cap.unit:min`;
+
   /** A preset SEEDS the sequence. It never constrains it: later edits leave the name in place.
    *  Picking a row applies and closes the sheet -- the segment sequence it seeds is edited in its
    *  own section on the page, not inside the picker. */
@@ -814,8 +887,21 @@ export class PieceEditorPage {
     const seed = PRESET_SEEDS[preset];
     if (seed) {
       this.rounds.set(seed.rounds);
-      this.segments.set(seed.segments.map(s => ({ ...s })));
+      // A piece opens with one block, so the common case should not open already incomplete: seed
+      // each WORK segment pointing at block 0 when a block already exists. Seeded REST gets none.
+      const hasBlock = this.blocks().length > 0;
+      this.segments.set(seed.segments.map(s =>
+        s.kind === 'WORK' && hasBlock ? { ...s, blockIndex: 0 } : { ...s }));
+    } else {
+      // FOR_TIME and AMRAP carry no segment sequence -- a preset written before today may still
+      // have one stored (data written under the old rule), so clear it rather than leave it
+      // invisible-but-saveable, same as pickTimingNone already does.
+      this.segments.set([]);
+      this.rounds.set(1);
     }
+    // AMRAP defaults to 20 minutes; a for-time cap is optional and often has none; every other
+    // preset has no cap/duration control at all, so it never carries a stale value.
+    this.timeCapMinutes.set(preset === 'AMRAP' ? '20' : '');
     this.openSheet.set(null);
   }
 
@@ -825,6 +911,7 @@ export class PieceEditorPage {
     this.timingPreset.set(null);
     this.segments.set([]);
     this.rounds.set(1);
+    this.timeCapMinutes.set('');
     this.openSheet.set(null);
   }
 
@@ -832,9 +919,47 @@ export class PieceEditorPage {
     this.segments.update(list => list.map((s, idx) => idx === i ? seg : s));
   }
 
-  toggleKind(i: number) {
-    const s = this.segments()[i];
-    if (s) this.updateSegment(i, { ...s, kind: s.kind === 'WORK' ? 'REST' : 'WORK' });
+  private setSegment(i: number, patch: Partial<WodSegment>) {
+    this.segments.update(list => list.map((s, idx) => idx === i ? { ...s, ...patch } : s));
+  }
+
+  // ---- segment -> block picker --------------------------------------------------------------
+
+  /** Which segment's picker sheet is open. openSheet is a fixed string union and cannot carry
+   *  this, so it gets its own signal -- reset to null on (closed), same contract as openSheet. */
+  segPick = signal<number | null>(null);
+
+  segPickTarget = computed<WodSegment | null>(() => {
+    const i = this.segPick();
+    return i === null ? null : (this.segments()[i] ?? null);
+  });
+
+  /** null when the segment is REST, or WORK with no (or a dangling) blockIndex -- both cases
+   *  render the "Choose a block" placeholder in the template. */
+  segmentBlockLabel(seg: WodSegment): string | null {
+    if (seg.kind !== 'WORK' || seg.blockIndex == null) return null;
+    const b = this.blocks()[seg.blockIndex];
+    return b ? this.blockLabeller(b, seg.blockIndex) : null;
+  }
+
+  openSegPick(i: number) {
+    this.segPick.set(i);
+  }
+
+  pickSegBlock(blockIndex: number) {
+    const i = this.segPick();
+    if (i === null) return;
+    this.setSegment(i, { kind: 'WORK', blockIndex });
+    this.segPick.set(null);
+  }
+
+  /** The backend rejects a REST segment that still names a block with SEGMENT_BLOCK, so blockIndex
+   *  must be cleared, not just kind flipped. */
+  pickSegRest() {
+    const i = this.segPick();
+    if (i === null) return;
+    this.setSegment(i, { kind: 'REST', blockIndex: undefined });
+    this.segPick.set(null);
   }
 
   addSegment() {
@@ -856,6 +981,36 @@ export class PieceEditorPage {
   removeBlock(i: number) {
     this.blocks.update(list => list.filter((_, idx) => idx !== i));
     this.collapsed.update(list => list.filter((_, idx) => idx !== i));
+    // A segment pointing AT the removed block loses its reference (falls back to "Choose a
+    // block"); one pointing above it shifts down to follow the block it named.
+    this.segments.update(list => list.map(s => {
+      if (s.kind !== 'WORK' || s.blockIndex == null) return s;
+      if (s.blockIndex === i) return { ...s, blockIndex: undefined };
+      if (s.blockIndex > i) return { ...s, blockIndex: s.blockIndex - 1 };
+      return s;
+    }));
+  }
+
+  copyBlock(i: number) {
+    const b = this.blocks()[i];
+    if (!b) return;
+    // Clone on copy so later edits to the source never leak into the clipboard.
+    this.clipboard.set(structuredClone(b));
+    this.clipboardLabel.set(this.blockLabeller(b, i));
+  }
+
+  pasteBlock() {
+    const c = this.clipboard();
+    if (!c) return;
+    // Clone again on paste, so pasting twice never hands the same object to two blocks. The
+    // clipboard itself survives -- paste is not a move.
+    this.blocks.update(list => [...list, structuredClone(c)]);
+    this.collapsed.update(list => [...list, false]);
+  }
+
+  copyBlockLabel(i: number) {
+    const b = this.blocks()[i];
+    return $localize`:@@piece.block.copyAria:Copy ${b ? this.blockLabeller(b, i) : ''}:block:`;
   }
 
   setBlockLabel(i: number, label: string) {
@@ -897,6 +1052,15 @@ export class PieceEditorPage {
    * block itself across a reorder rather than staying pinned to the index it used to occupy.
    */
   moveBlock(move: { from: number; to: number }) {
+    // Build the permutation once, the same way blocks itself is spliced, rather than hand-deriving
+    // the three-case arithmetic. perm[newPos] = oldIndex once spliced, so inverting it gives
+    // oldToNew[oldIndex] = newPos -- what a segment's blockIndex needs to follow the move.
+    const perm = this.blocks().map((_, idx) => idx);
+    const [movedIdx] = perm.splice(move.from, 1);
+    perm.splice(move.to, 0, movedIdx);
+    const oldToNew = new Array<number>(perm.length);
+    perm.forEach((oldIdx, newPos) => { oldToNew[oldIdx] = newPos; });
+
     this.blocks.update(list => {
       const next = [...list];
       const [item] = next.splice(move.from, 1);
@@ -909,6 +1073,11 @@ export class PieceEditorPage {
       next.splice(move.to, 0, item);
       return next;
     });
+    this.segments.update(list => list.map(s => {
+      if (s.kind !== 'WORK' || s.blockIndex == null) return s;
+      const mapped = oldToNew[s.blockIndex];
+      return mapped === undefined ? s : { ...s, blockIndex: mapped };
+    }));
   }
 
   addSubBlock(i: number) {
@@ -1030,7 +1199,12 @@ export class PieceEditorPage {
       title,
       macro: this.macro(),
       timingPreset: this.timingPreset(),
-      timing: { rounds: this.rounds(), segments: this.segments() },
+      // An invisible segment sequence (e.g. one stored under an old FOR_TIME/AMRAP preset) must
+      // never be re-saved: it never renders, so it can never have been reviewed.
+      timing: { rounds: this.rounds(), segments: this.hasSegments() ? this.segments() : [] },
+      timeCapSeconds: this.hasCap() && this.timeCapMinutes() !== ''
+        ? Number(this.timeCapMinutes()) * 60
+        : null,
       blocks: { blocks: this.blocks() },
       scoreType: this.scoreType(),
       teamSize: this.teamSize(),
