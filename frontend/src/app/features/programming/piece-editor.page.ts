@@ -524,6 +524,17 @@ type PickTarget = { block: number; line: number; scale: number | null };
       min-width: 0; box-sizing: border-box; padding: var(--sp-2);
       background: var(--surface-2); border: 1px solid var(--hairline);
       border-radius: var(--r-ctl); }
+    /* Below 360px the stacked layout's own chrome (the srow arrow column, this padding) starts
+       eating into the steppers' 40px floor -- measured, not estimated. Dropped rather than shrunk:
+       the arrow is decorative (an indent already carries its meaning) and --sp-1 still separates
+       the unit from the block around it. */
+    @media (max-width: 360px) {
+      .line-unit { padding: var(--sp-1); }
+      /* line-unit's padding alone (measured) still left the load steppers at 38.8px, 1.2px under
+         the 40px floor -- the block's own padding is the next thing spent on chrome instead of
+         the control, so it gives up 4px/side here too. */
+      .block { padding: var(--sp-2); }
+    }
     .work bh-sortable-list ::ng-deep .list { gap: var(--sp-5); }
     /* The bar is the card's HEADER, so it runs edge to edge and pulls back over the card's own
        padding. Inset like everything else it would have read as just another --surface-2 unit
@@ -590,15 +601,31 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .srow > .r-reps { grid-area: reps; }
     .srow > .r-load { grid-area: load; }
     .srow > .r-rm { grid-area: rm; }
+    /* Below 360px the arrow column costs width the steppers need more than its indent is worth.
+       A zero-width track still keeps its grid-gap, so the fix drops the track (and the glyph)
+       entirely rather than shrinking it -- measured: a zero-width column left the load steppers at
+       38.8px/30.8px, 1-9px under the 40px floor, because the gap survived. The element stays in
+       the DOM (aria-hidden already, so nothing is lost for a11y) for the wider breakpoints below. */
+    @media (max-width: 360px) {
+      .srow { grid-template-columns: minmax(0, 1fr) var(--tap); padding-left: 0;
+        grid-template-areas: "mv rm" "reps reps" "load load"; }
+      .srow > .arrow { display: none; }
+    }
 
-    /* One line fits comfortably once there is room for it. A stepper spends --tap + --tap = 88px
-       on its own buttons before the input, the gaps or the suffix, so the column has to be wide
-       enough to clear that plus a readable input -- 4.5rem (72px) was written for plain text
-       inputs and left the digits unreadable once these became steppers (user-ruled 2026-09-10). */
-    @media (min-width: 760px) {
-      .lrow { grid-template-columns: minmax(0, 1fr) 12rem 12rem var(--tap);
+    /* One line fits comfortably once there is room for it. A stepper's label moved inline with its
+       buttons (user-ruled 2026-09-10): 3.5rem label + gap + two --tap buttons + suffix now share
+       the same column that used to hold only the input, so 12rem -- sized when the label sat above
+       the control -- collapses the input to a sliver. Reps and load are budgeted separately because
+       load also carries the unit suffix:
+       reps: 56 (label) + 8 + 44 (minus) + 8 + 64 (input) + 8 + 44 (plus) = 232px -> 15rem
+       load: reps + ~29px suffix + gap                                    = 272px -> 17rem
+       and the breakpoint moves with them -- 760px was measured for the old 12rem/12rem budget and
+       collapses the new one just as badly. 1080px is where reps(240) + load(272) + remove(44) +
+       3 gaps + the movement control's own minimum actually fit. */
+    @media (min-width: 1080px) {
+      .lrow { grid-template-columns: minmax(0, 1fr) 15rem 17rem var(--tap);
         grid-template-areas: "mv reps load rm"; }
-      .srow { grid-template-columns: auto minmax(0, 1fr) 12rem 12rem var(--tap);
+      .srow { grid-template-columns: auto minmax(0, 1fr) 15rem 17rem var(--tap);
         grid-template-areas: "arrow mv reps load rm"; }
     }
     .arrow { color: var(--faint); font-size: var(--fs-sm); }
