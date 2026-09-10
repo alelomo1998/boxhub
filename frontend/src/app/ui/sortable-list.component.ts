@@ -5,9 +5,13 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 
 /** Share of a neighbour's height a dragged row must cover, measured from the neighbour's leading
- * edge, before the two trade places. 0.5 (the neighbour's midpoint) was the old behaviour the
- * user rejected -- it made a coach drag a row a full half-neighbour before anything visibly moved. */
-const SWAP_THRESHOLD = 0.35;
+ * edge, before the two trade places. Path so far: 0.5 (the neighbour's midpoint, the original
+ * behaviour) rejected -- a coach had to drag a row a full half-neighbour before anything visibly
+ * moved. 0.35 rejected too -- still too late. Now 0.18. Do not "restore" 0.5 or 0.35; both were
+ * tried and both were rejected by the user. Geometry is cached once at grab and never re-read
+ * mid-drag (see cacheGeometry/computeTarget), so there is no feedback loop between a row moving
+ * and the hit test -- lowering this value cannot make the target oscillate. */
+const SWAP_THRESHOLD = 0.18;
 
 /**
  * A reorderable list. Press the handle and drag with a pointer, OR grab it with Space/Enter, move
@@ -77,7 +81,7 @@ const SWAP_THRESHOLD = 0.35;
       padding: var(--sp-3); background: var(--surface); color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       cursor: grab; user-select: none;
-      transition: background var(--dur) var(--ease-out), transform var(--dur-move) var(--ease-out); }
+      transition: background var(--dur) var(--ease-out), transform var(--dur-move) var(--ease-move); }
     .row:hover { background: var(--surface-2); }
     /* touch-action none PERMANENTLY, not flipped when a drag starts: Chrome fixes touch-action at
        contact, and the drag now begins on contact, so a flip at that same moment comes too late
@@ -91,9 +95,13 @@ const SWAP_THRESHOLD = 0.35;
     .row.grabbed .handle { cursor: grabbing; }
     /* A grabbed row genuinely floats above the others, which is the one case design law allows a
        shadow on a flat surface. Not volt: reordering a list is plumbing, and the shell's box
-       switcher has already spent this screen's volt budget. */
-    .row.grabbed { background: var(--surface-2); border-color: var(--bone-dim);
-      box-shadow: var(--shadow-float); cursor: grabbing; }
+       switcher has already spent this screen's volt budget.
+       position+z-index here (not only on .align-top) because paint order is otherwise DOM order:
+       a later sibling paints over an earlier one, so dragging a row DOWN put it under the rows
+       below it while dragging UP happened to look right -- the "sometimes" a coach reported.
+       z-index does nothing on a statically-positioned element, hence position: relative too. */
+    .row.grabbed { position: relative; z-index: 1; background: var(--surface-2);
+      border-color: var(--bone-dim); box-shadow: var(--shadow-float); cursor: grabbing; }
     .row.dragging { transition: none; }
     /* Flat, full-width rows: no nested card. The handle rides on the row's own padding as an
        absolutely-positioned overlay instead of owning a flex gutter, so .body (the only element
@@ -103,7 +111,13 @@ const SWAP_THRESHOLD = 0.35;
     .row.align-top { align-items: flex-start; position: relative; background: none; border: none; }
     .row.align-top:hover { background: none; }
     .row.align-top .handle { position: absolute; top: var(--sp-3); left: var(--sp-3); }
-    .row.align-top.grabbed { box-shadow: var(--shadow-float); }
+    /* No shadow here (unlike the plain .row.grabbed above): --shadow-float's 28px blur bleeds
+       ~20px above the element's top edge, and while dragging upward the row that used to sit
+       above has already moved away, so that upward bleed lands on empty ground and reads as a
+       smudge over the block rather than a lift under it. The affordance is the row moving, the
+       grabbing cursor, and z-index putting it on top -- not this shadow. Scoped to .align-top
+       only; the plain flat-row presentation above is a different consumer and keeps its shadow. */
+    .row.align-top.grabbed { box-shadow: none; }
     .body { flex: 1; min-width: 0; }
     /* Three stacked bars, drawn rather than iconised: the icon set has no grip and one more name
        in it would owe its own gallery cell. */

@@ -367,9 +367,10 @@ describe('SortableListComponent — rows translate instead of reordering', () =>
   });
 
   // THE regression this round is fixed for: a swap used to need a full half-neighbour of travel
-  // (its midpoint) before anything moved. SWAP_THRESHOLD = 0.35 means a drag covering just over
-  // 35% of the neighbour's height, measured from its leading (top) edge, is enough.
-  it('swaps at just over 35% into the neighbour, not at its midpoint, and not at 25%', () => {
+  // (its midpoint) before anything moved. Rejected again at 0.35 as still too late. SWAP_THRESHOLD
+  // = 0.18 means a drag covering just over 18% of the neighbour's height, measured from its
+  // leading (top) edge, is enough.
+  it('swaps at just over 18% into the neighbour, not at its midpoint, and not at just under 18%', () => {
     document.body.appendChild(f.nativeElement);
     try {
       const handle = handles()[0];
@@ -382,21 +383,41 @@ describe('SortableListComponent — rows translate instead of reordering', () =>
       // The dragged row's centre tracks the pointer's clientY exactly (dy = clientY - startY,
       // startY = row 0's own centre), so clientY IS the centre for this assertion.
       handle.dispatchEvent(new PointerEvent('pointermove',
-        { bubbles: true, pointerId: 1, clientY: r1.top + r1.height * 0.25 }));
+        { bubbles: true, pointerId: 1, clientY: r1.top + r1.height * 0.18 - 1 }));
       f.detectChanges();
       handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
       f.detectChanges();
-      expect(host.last).toBeNull(); // 25%: below threshold, no swap
+      expect(host.last).toBeNull(); // just under 18%: below threshold, no swap
 
       handle.dispatchEvent(new PointerEvent('pointerdown',
         { bubbles: true, pointerId: 2, clientY: r0.top + r0.height / 2 }));
       f.detectChanges();
       handle.dispatchEvent(new PointerEvent('pointermove',
-        { bubbles: true, pointerId: 2, clientY: r1.top + r1.height * 0.35 + 1 }));
+        { bubbles: true, pointerId: 2, clientY: r1.top + r1.height * 0.18 + 1 }));
       f.detectChanges();
       handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2 }));
       f.detectChanges();
-      expect(host.last).toEqual({ from: 0, to: 1 }); // just over 35%: swaps
+      expect(host.last).toEqual({ from: 0, to: 1 }); // just over 18%: swaps
+    } finally {
+      document.body.removeChild(f.nativeElement);
+    }
+  });
+
+  // z-index does nothing on a statically-positioned element, and with no z-index at all paint
+  // order is DOM order -- a later sibling paints over an earlier one, so dragging a row DOWN put
+  // it under the rows below it while dragging UP happened to look right. Guards against that
+  // silently regressing; a unit test can't see paint order directly, so it asserts the computed
+  // style that drives it.
+  it('the grabbed row paints above its siblings', () => {
+    document.body.appendChild(f.nativeElement);
+    try {
+      const handle = dragRow0PastRow1();
+      const grabbedRow = rows()[0];
+      const siblingRow = rows()[1];
+      expect(getComputedStyle(grabbedRow).zIndex).toBe('1');
+      expect(getComputedStyle(siblingRow).zIndex).toBe('auto');
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+      f.detectChanges();
     } finally {
       document.body.removeChild(f.nativeElement);
     }
