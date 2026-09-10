@@ -1,26 +1,44 @@
-# Next session — **M14c-a is IN PROGRESS on `m14c-a-builder`. The piece editor awaits the USER'S LOOK.**
+# Next session — **M14c-a is IN PROGRESS on `m14c-a-builder`. The piece editor is DONE and signed off. Task 11 is next and needs a SHAPE PASS first.**
 
 | | |
 |---|---|
-| Branch | **`m14c-a-builder`**, pushed, HEAD `5251fe4`. `main` at `ee19a35`. |
+| Branch | **`m14c-a-builder`**, pushed, HEAD `3d86910`. `main` at `ee19a35`. |
 | Spec | `docs/superpowers/specs/2026-09-07-m14c-a-builder-design.md` |
 | Plan | `docs/superpowers/plans/2026-09-07-m14c-a-builder.md` — **17 tasks; 1–10 and 12 done** |
-| Backend | **804 / 0 / 0 / 0**, `BUILD SUCCESS` |
-| Karma | **712 SUCCESS** |
+| Backend | **819 / 0 / 0 / 0**, `BUILD SUCCESS` |
+| Karma | **783 SUCCESS** |
 | Production build | clean, **zero warnings** |
-| Playwright | **not run yet this milestone** — Task 13 |
+| Playwright | **STILL not run this milestone** — Task 13. See the warning below. |
 | Visual baselines | `sortable-list` still has **no snapshot**. Task 13 Step 0. |
+| Piece editor | **signed off by the user.** `audit` **19/20** (gate 16), `critique` **35/40** (gate 32). |
 
 ---
 
-## THE ONE THING BLOCKING PROGRESS
+## What is actually left
 
-**The piece editor has never been signed off by the user, and `audit`/`critique` must NOT run until
-it is.** It has been through six rounds of the user looking and rejecting. Do not score it, do not
-start Task 11, until they say the composition is right.
+**Task 11 — the class stack.** The only substantial build remaining. A new screen at
+`coach/classes/:id/build` replacing `instance-builder.page.ts`. **The user's rule: a new screen gets
+3–4 real layout options to choose from BEFORE it is built.** Skipping that on the piece editor cost
+six rounds of rework. Do not skip it again. Read `instance-builder.page.ts`'s `seedFromSkeleton`
+before deleting the file — the skeleton pre-seed (a standard class type produces empty labelled
+slots the coach fills) is behaviour the user validated on the tour and it carries across.
 
-Click path: **http://localhost/app/coach/wods/new**, sign in `coach@demo.io` / `boxhub-demo-2026`.
-Rebuild the frontend image first — it does not rebuild itself.
+**Task 13 — e2e.** Step 0 regenerates the `sortable-list` visual baseline via `e2e/visual.sh` (the
+Linux container — **never Playwright locally**, or you compare against baselines your renderer never
+wrote). Then the wiring Karma structurally cannot see: open a class → tap a piece → edit → save →
+**reload** → confirm it persisted.
+
+**Task 14 — close the records.** `docs/BACKLOG.md`, `docs/ROADMAP-AT-A-GLANCE.md` row 10,
+`.superpowers/sdd/progress.md`, and rewrite this file.
+
+---
+
+## ⚠️ The e2e suite has not run once this milestone
+
+Task 13 expects a baseline of **91 passed**. Since that baseline was set, this milestone has changed
+a **shared `ui/` component** (`bh-sortable-list`, substantially — see below), **two forms**, and the
+**wod JSON model**. If any of that broke another screen's selectors, nobody knows yet. Budget for
+it; do not assume Task 13 is a formality.
 
 ---
 
@@ -30,43 +48,51 @@ Rebuild the frontend image first — it does not rebuild itself.
 Read .superpowers/sdd/NEXT-SESSION.md and CONTINUE M14c-a.
 
 cd ~/dev/boxhub && git checkout m14c-a-builder && git status
-# expect a CLEAN tree at 5251fe4, branch pushed
+# expect a CLEAN tree at 3d86910, branch pushed
 
-Do NOT re-plan and do NOT re-spec. Tasks 1-10 and 12 are committed and
-independently verified by the orchestrator, not by their executors.
+Do NOT re-plan and do NOT re-spec. Tasks 1-10 and 12 are committed and were
+verified by the orchestrator, not by their executors. THE PIECE EDITOR IS DONE
+AND SIGNED OFF -- audit 19/20, critique 35/40. Do not reopen it, do not re-score
+it, do not "improve" it unless the user asks.
 
-FIRST ACTION: bring up the stack, rebuild the frontend image, and give the
-user a click path to the piece editor. Then WAIT. The screen has never been
-signed off. Do NOT run audit or critique until they approve the composition.
-  cd ~/dev/boxhub && docker compose -f docker/docker-compose.yml up -d
-  docker compose -f docker/docker-compose.yml build frontend
-  docker compose -f docker/docker-compose.yml up -d frontend
-  # http://localhost/app/coach/wods/new  as coach@demo.io / boxhub-demo-2026
+FIRST ACTION: confirm the baselines yourself, then START TASK 11 WITH A SHAPE
+PASS -- 3-4 real layout options with little ASCII previews, presented to the
+user for a choice, BEFORE any code. That step was skipped on the piece editor
+and cost six rounds of rework. It is not optional.
 
-Remaining: the user's sign-off -> audit (>=16/20) -> critique (>=32/40) ->
-fix every P0/P1 -> re-score BOTH. Then 11 (class stack), 13 (e2e), 14 (records).
+  cd ~/dev/boxhub && docker compose -f docker/docker-compose.yml up -d --build
+  # http://localhost/app/coach/wods/new   as coach@demo.io / boxhub-demo-2026
 
-ALWAYS SUBAGENT. One executor per task. The orchestrator reviews every diff,
-runs every gate itself, and commits. NEVER accept an executor's reported test
-numbers -- run the suite yourself and read the real line.
+Task 11 is the class stack at coach/classes/:id/build, replacing
+instance-builder.page.ts. Read its seedFromSkeleton BEFORE deleting it -- the
+skeleton pre-seed is behaviour the user validated on the tour.
 
-SUBAGENTS STALL ON THIS REPO. Seven times last session: the agent starts,
-goes silent, writes nothing, and the only cure is TaskStop and re-dispatch.
-What survives: a SHORT brief naming ONE file, with the detail in a contract
-file on disk that the brief points at. What stalls: long inline briefs. Write
-the contract to $CLAUDE_JOB_DIR/tmp/<name>.md and keep the brief under a page.
-Tell every executor to IGNORE the graphify PreToolUse hook -- it orders them
-to run `graphify query` before reading, and they burn whole turns obeying it.
+Then Task 13 (e2e) and Task 14 (records).
 
-TELL EVERY EXECUTOR: run maven and npm in the FOREGROUND with timeout 900000.
-One backgrounded a test run and ended its turn to wait for it, costing a full
-round-trip.
+ALWAYS SUBAGENT. One executor per task. The orchestrator dispatches, reviews
+every diff, runs every gate ITSELF, and commits. NEVER accept an executor's
+reported test numbers -- run the suite yourself and read the real line. That
+rule paid out this session: the handoff's backend number was stale and the
+suite was actually RED.
+
+SUBAGENTS STALL ON THIS REPO. What survives is a SHORT brief naming ONE file
+with the detail in a contract file on disk that the brief points at. Long
+inline briefs stall. Write the contract to $CLAUDE_JOB_DIR/tmp/<name>.md.
+Tell every executor to IGNORE the graphify PreToolUse hook -- it orders them to
+run `graphify query` before reading and they burn whole turns obeying it.
+Tell them to run maven and npm in the FOREGROUND with timeout 900000.
+Tell them to leave the docker stack UP -- one tore it down and the user could
+not open the page.
+
+MEASURE AT MORE THAN ONE WIDTH. Three separate defects shipped this session
+because a change was verified at a single viewport. Any layout change gets
+measured at 320 / 360 / 393 / 768 / 1024 / 1280 before it is called done.
 
 Baselines to confirm before building on them:
-  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 804/0/0/0
+  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 819/0/0/0
   cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless
   cd frontend && env -u NODE_OPTIONS npm run build                 # 0 warnings
-Expect 804/0/0/0, TOTAL: 712 SUCCESS, zero warnings. The "Mailer ... port:
+Expect 819/0/0/0, TOTAL: 783 SUCCESS, zero warnings. The "Mailer ... port:
 localhost, 1025" ERROR lines are pre-existing SMTP noise -- judge only by
 "Tests run:" and "BUILD SUCCESS".
 
@@ -74,6 +100,9 @@ Environment: NODE_OPTIONS is poisoned, always `env -u NODE_OPTIONS`. There is
 no ./mvnw; JAVA_HOME=/opt/homebrew/opt/openjdk@21. NEVER chain a grep gate
 with && -- a grep that correctly finds nothing exits 1 and aborts the chain.
 Compose from the repo root (docker/docker-compose.yml), Playwright from e2e/.
+THE BACKEND IMAGE NEEDS `up -d --build` -- the jar is baked in with no source
+mount, so a new migration does NOT reach a running container otherwise. This
+cost a debugging detour when the box weight unit came back undefined.
 
 A backtick inside a comment in an Angular `template:`/`styles:` literal closes
 the string, and a backtick in a bash -m commit message runs command
@@ -84,72 +113,117 @@ substitution. Write commit messages through a quoted heredoc.
 
 ## What the user ruled on the builder — binding, do not relitigate
 
-1. **The builder is on the HERO list** (2026-09-08). `CLAUDE.md` was updated. A coach writing the
-   workout is writing the WOD board, so volt is available here — bounded by area, one question per
-   element. Today exactly one element uses it: the macro chip.
+Carried forward from the previous handoff, still binding:
+
+1. **The builder is on the HERO list** (2026-09-08). Volt is available here, bounded by area, one
+   question per element.
 2. **Shape: header strip + block canvas.** Title, then ONE meta strip of four chips
-   (WHAT / HOW / SCORE / WHO) each opening a sheet, then the segments card, then THE WORK, then save.
+   (WHAT / HOW / SCORE / WHO) each opening a sheet, then segments, then THE WORK, then save.
 3. **Sheets are full-width rows at `--tap-lg`, and close on pick.** No segmented pills in a sheet.
-4. **`HOW` has a `None` row** — a warm-up has no timing preset.
+4. **`HOW` has a `None` row.**
 5. **The segment sequence is drawn on the PAGE, not inside the picker.**
 6. **Add affordances are full width, plain verbs**, no `+` glyph.
 7. **A new piece opens with one block already.**
-8. **No rep-scheme field.** A line's `reps` is free text, so Fran is `Thruster 21-15-9`. The user
-   corrected the modelling: Fran is ONE block with two movements, not three sub-blocks.
-9. **`+ part` (the second nesting level) is removed from the UI.** The model, its methods and the
-   athlete reader keep it, and existing sub-blocks still render read-only.
-10. **Reorder ONLY when a block is collapsed.** Expanded renders no handle.
+8. ~~No rep-scheme field; reps is free text.~~ **SUPERSEDED 2026-09-10 — see ruling 13.**
+9. **`+ part` (the second nesting level) is removed from the UI.** The model and the athlete reader
+   keep it; existing sub-blocks still render read-only.
+10. **Reorder ONLY when a block is collapsed.**
 11. **`WHO` reads `1`**, not `SOLO`.
-12. **Weight unit is box-level** (V34, `boxes.weight_unit`, KG default), shown as a suffix on load.
+12. **Weight unit is box-level** (V34, `boxes.weight_unit`, KG default).
 
-## Three defects found by LOOKING, that every gate passed
+New this session:
 
-- **`bh-button` has NO output.** The screen bound `(clicked)`, which binds a DOM event that never
-  fires, so every ghost button was dead. **All 18 specs passed** because each called the handler
-  directly. Two specs now press real controls.
-- **Drag did not work.** Measured in the page: press-and-drag did nothing, press + 450ms + drag
-  worked. A 400ms long-press gate, plus `pointerdown` bound to the whole row (which now holds text
-  inputs). Handlers moved to the handle and it lifts on contact. `touch-action` also had to be
-  pinned on the handle permanently — Chrome fixes it at first contact, so flipping it when the drag
-  starts is too late and a phone pans instead.
-- **The movement control collapsed to ~40px at 360px**, squeezed by fixed reps/load columns.
+13. **Reps and load take NUMBERS ONLY, entered through a stepper** (2026-09-10). This reverses
+    ruling 8 — the user chose it knowing Fran's `21-15-9` then lives in the movement text. The
+    stepper's value is a raw STRING so a library wod carrying free-text reps still renders instead
+    of silently blanking on open. Load allows one decimal; reps does not.
+14. **Only EMOM, Tabata and Interval get a segments list.** A segment means *a block plus a
+    duration*, so it only means anything for a repeating pattern. For time and AMRAP get a
+    cap/duration written to `timeCapSeconds` instead — a field the live class runner already read
+    and this screen had never set.
+15. **A WORK segment names the block it runs** (`blockIndex`), so the TV can show the right
+    prescription. The index is remapped by every op that changes the shape of `blocks`.
+16. **Copy a block, paste it as a new one. No replace, no cut.** The clipboard is ONE slot and is
+    **cleared on paste** — pasting the same block twice means pressing copy twice (user-ruled).
+17. **A movement declares which units it may be measured in, and whether it takes a load.**
+    Assault bike offers CAL, a burpee offers REPS only and no load at all. Imperial lives in the
+    unit list itself (`M,KM,MI,FT`), **not** a box-wide toggle — a box-level switch would relabel a
+    500 m row as 500 ft without converting it.
+18. **Every picker is a `bh-sheet`, never a native select or combo.** Creating a movement is a
+    SECOND STEP INSIDE the same sheet, not a sheet stacked on a sheet.
+19. **The WHAT chip keeps volt** (ruled by the orchestrator 2026-09-10, user delegated). The
+    design law's "taxonomy does not qualify" line excludes labels *about* a subject; the macro IS
+    the subject, and it is the first question the screen answers.
+20. **Reorder motion: 500ms, symmetric ease-in-out, swap fires at 18% of a neighbour.** The user
+    tuned all three by eye and said to leave the duration alone.
 
-**The pattern: the gates catch "broken", never "absent" or "wrong-looking". Karma cannot see a dead
-binding unless a spec presses the actual control.**
+---
 
-## The containment mistake, so it is not repeated
+## `bh-sortable-list` was substantially rewritten — read this before touching it
 
-Round 1 the block was a card and the user rejected it. I offered "cards" vs "flat rows, no nested
-boxes" — **a badly framed choice.** The defect was never the border; it was that content sat
-indented behind the drag handle's flex gutter, cramped, in a card inside a card. Choosing flat rows
-removed the cramping and the boundary together, and the user then (correctly) reported they could
-not see where a block started or ended.
+It no longer reorders rows during a drag. Rows hold their slots and are **translated**; the
+consumer's array is only reordered on drop. Consequences a future change must respect:
 
-They are compatible: since reordering is offered only when collapsed, an **expanded block has no
-handle and therefore no gutter**. `5251fe4` makes a block a card whose header bar is pulled out over
-the card padding, a line plus its scaling options one bounded unit, and the segments area a card.
-**THE WORK gets no card of its own** — a card around a set of cards is the original mud.
+- **Hit-testing reads geometry cached at grab**, never live `getBoundingClientRect()`. A
+  transformed element reports its *transformed* box, so live reads describe the animation and make
+  the target index oscillate.
+- **The drop clears transforms with transitions suppressed for one frame** (a `settling` class, a
+  double `requestAnimationFrame`). This is the whole trick: the consumer's re-render puts each
+  item's content exactly where its transform was already showing it, so an instant reset produces
+  no visible movement. Tween that reset and every row animates away from where the coach dropped
+  it — which is precisely the bug the user reported as "the switch is fake".
+- **Escape and a no-op drop deliberately KEEP their tween.** Nothing reordered there, so the rows
+  genuinely do have to travel back.
+- The grabbed row carries `position: relative; z-index: 1`. Without it, paint order is DOM order and
+  a block dragged *downward* slides underneath the ones it passes.
+
+---
 
 ## Open, filed, NOT fixed
 
-- **The screen is unscored.** `audit` then `critique`, browser-connected, after the user's sign-off.
-- **Collapse state is a parallel `boolean[]`**, spliced alongside `blocks` in every shape-changing
-  op. Correct today, but it breaks silently if someone mutates `blocks` without touching it.
-- **A collapsed block still shows its name input**, so the row is chevron · field · ✕ · summary.
-  Possibly one control too many for a row whose job is "drag me".
+- **A collapsed block's name field is 38px wide at 320px** (78px at 360), against ~175px of typical
+  content. It got *worse* in the critique-P1 fix, which widened the bar's gap and gave remove a
+  border. **The user was offered the fix and has not answered:** when collapsed, render the name as
+  plain text rather than an editable field, and keep it editable only when expanded — one fewer
+  control in a row whose job is "drag me", and the name gets the full width.
+- **The hero title still clips** past ~16 characters at 360px (measured: 693px of content in a
+  328px field). Stepped down a type size below 360px, which helps and does not solve. A real fix is
+  wrapping to two lines, which is a shape change and therefore the user's call.
+- **Help/documentation heuristic scored 2** — there is none anywhere on the screen. Acceptable for
+  an expert tool; recorded because it was scored as observed.
+- **A movement created from the pick sheet gets `category: 'OTHER'`**, invented by an executor
+  because the create step asks for units and load but not a category. Nothing validates categories
+  server-side so it saves, but OTHER is a seventh category that exists nowhere else in the seed.
+- **`WodJsonValidator` does not cross-check `blockIndex` against the block list**, and does not
+  check a scale's unit against its movement's allowed list. Both are deliberate and carry
+  `ponytail:` comments — the validator is a pure function with no repository. **The TV must
+  tolerate an index it cannot resolve.**
+- **Weight unit does not convert on switch.** KG→LB relabels rather than converts. Deliberate.
 - **`ScoreDto` does not echo `teamId`/`teamName`.**
-- **`sortable-list` has no visual baseline.** Task 13 Step 0 — run `e2e/visual.sh` (Linux
-  container), never Playwright locally. The component's DEFAULT rendering is unchanged by this
-  milestone (verified: the dev gallery still shows 4 rows / 4 handles / 0 `align-top`).
-- **Weight unit does not convert on switch.** KG→LB relabels existing numbers rather than
-  converting them. Deliberate; file it if a pilot box needs otherwise.
+- **Collapse state is a parallel `boolean[]`**, spliced alongside `blocks` in every shape-changing
+  op. Correct today; breaks silently if someone mutates `blocks` without touching it.
 - Everything in spec §10: timer auto-arm → M34, admin entry point → M15b, library/benchmarks/types
   pages → M14c-b, roster team-splitting → Project 2, the seven remaining `wodType` consumers.
 
-## Task 11 has not started, and needs a shape pass FIRST
+---
 
-The class stack at `coach/classes/:id/build`. **The user's rule: a new screen gets 3–4 real layout
-options to choose from BEFORE it is built.** That step was skipped on the piece editor and cost six
-rounds of rework. Do not skip it again. `instance-builder.page.ts` is still routed and still the
-live screen; read its `seedFromSkeleton` before deleting it — the skeleton pre-seed is behaviour the
-user validated on the tour.
+## What this session cost, so it is not repeated
+
+**Three defects shipped because a change was measured at ONE viewport width.** The reps input
+rendered 6px wide at 360; then, after that was fixed, 24px and 6px at *every* width from 760 up,
+which `audit` caught only because it measures at four. A single width is not a verification.
+
+**The backend suite was RED and the handoff said green.** `ClassReminderSchedulerTest` hardcoded
+`2026-09-10T05:00:00Z` and every session it seeds goes through `BookingService.book`, which rejects
+a past class — so all eight tests began erroring the moment that date passed. Nothing in this
+milestone touched the file; `main` carries the same bomb. Fixed to a relative base. **This is the
+argument for running the suite yourself rather than quoting the last number you saw.**
+
+**The backend container does not pick up a new migration from `up -d`.** The jar is baked into the
+image with no source mount. It served a pre-migration schema for a while, which surfaced as the box
+weight unit arriving `undefined` and rendering "Load in undefined for line 1" — invisible to every
+green test. Use `up -d --build`.
+
+**`bh-button` has no output**, so `(clicked)` binds a DOM event that never fires. All 18 specs
+passed while every ghost button was dead. **Karma cannot see a dead binding unless a spec presses
+the real control.** Specs on this screen now press real controls; keep it that way.

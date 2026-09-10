@@ -2838,3 +2838,76 @@ frontend Docker image is stale (predates T9).
 
 **Open, deliberately unfixed:** `admin.schedule.blocked.title` does not pluralise — one blocking
 date renders "1 classes". Left for the critique pass, since ICU plural is a copy decision.
+
+---
+
+# M14c-a — the builder (branch `m14c-a-builder`, 2026-09-07)
+
+Tasks 1–10 and 12 landed in earlier sessions. This entry covers the session ending 2026-09-11:
+the piece editor's sign-off round, `audit` and `critique`, and the movement-units work.
+
+## The loop that produced this
+
+The user sat in front of the screen and reported defects in their own words; each round was one
+executor with a contract file on disk, gates run by the orchestrator, and a look at the real page
+before handing back. Seven rounds. Every round found something the green suites did not.
+
+## Task log
+
+- **Round 1** `97bbed7` — segments scoped to repeating presets, a WORK segment names its block,
+  block copy/paste, reps and load through `bh-number-stepper`. Killed a live 400: `FOR_TIME` seeded
+  a zero-second segment and the validator rejects it, so saving a for-time piece failed with the
+  generic try-again message.
+- **Round 2** `82ae5e3` — five defects from looking: the 560px breakpoint (steppers spend 88px on
+  tap targets before the input exists), unit moved before the plus so stacked steppers align, paste
+  clears the clipboard, scaling options gained a load, add affordances got a visible border.
+- **Round 3** `5388c81` — unit label inline, grabbed block sheds its background, swap threshold
+  0.5 → 0.35, motion 200 → 340ms.
+- **Round 4** `846c805` — `z-index` on the grabbed row (paint order was DOM order, so a block
+  dragged *down* slid under its neighbours — the user's "sometimes"), float shadow removed (28px
+  blur behind an 8px offset bleeds ~20px *above* the top edge), threshold → 0.18, motion → 500ms
+  on a symmetric ease.
+- **Round 5** `b5d29d9` — **the drop.** The user diagnosed it correctly: the content swap was real
+  and visible because the transform reset inherited the 500ms tween, so every row teleported and
+  slid home. Measured: 30ms after release the dropped block sat at y=185 instead of 45. Reset now
+  happens in one frame with transitions suppressed.
+- **`audit`** 15/20 → fix `514b28e` → **19/20**. Found the reps input at 24px and load at 6px at
+  **every width ≥760** — a regression from round 3's inline label, which ate 64px out of a column
+  sized when the label sat above the control.
+- **`critique`** 31/40 → fix `f12d1c3` → **35/40**. P0: segment seconds and Rounds still opened the
+  OS keyboard, contradicting the stepper's own doc comment. P1: block delete sat beside copy, same
+  size, same colour, no confirm.
+- **`a0dc1d0`** — `ClassReminderSchedulerTest` date bomb (see below).
+
+## Found while dispatching, not inherited
+
+- **The backend suite was RED while the handoff said 819 green.**
+  `ClassReminderSchedulerTest` hardcoded `2026-09-10T05:00:00Z`; every session it seeds goes
+  through `BookingService.book`, which rejects a past class with 409 PAST. All eight tests began
+  erroring the moment that date passed. Nothing in this milestone touched the file — `main` carries
+  the same bomb. **This is the case for running the suite yourself instead of quoting the last
+  number you saw.**
+- **The backend container does not pick up a new migration from `up -d`.** The jar is baked into
+  the image with no source mount. It served a pre-migration schema, which surfaced as the box
+  weight unit arriving `undefined` and rendering "Load in undefined for line 1" — invisible to
+  every green suite, and only found by reading the DOM of the live page.
+- **`.rounds` wrapped its child in a flex**, and a flex item's default `min-width: auto` will not
+  shrink below its content — so 320px genuinely overflowed at `scrollWidth 389`. The grid columns
+  in the same file already guard against exactly this with `minmax(0, 1fr)`.
+
+## Watch for
+
+- **Measure at more than one width.** Three separate defects shipped because a change was verified
+  at a single viewport. 320 / 360 / 393 / 768 / 1024 / 1280 before anything is called done.
+- **The e2e suite has not run once this milestone**, against a baseline of 91. A shared `ui/`
+  component, two forms and the wod JSON model have all changed since.
+
+## Open, deliberately unfixed
+
+- A collapsed block's name field is **38px** at 320px against ~175px of content, and got worse in
+  the critique-P1 fix. The user was offered the fix (render the name as text while collapsed) and
+  has not answered.
+- The hero title still clips past ~16 characters at 360px. A real fix wraps to two lines, which is
+  a shape change and therefore the user's call.
+- A movement created from the pick sheet gets `category: 'OTHER'`, a seventh category that exists
+  nowhere else in the seed.
