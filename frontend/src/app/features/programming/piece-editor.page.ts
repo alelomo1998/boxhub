@@ -249,6 +249,11 @@ type PickTarget = { block: number; line: number; scale: number | null };
                                  [value]="sc.reps ?? ''" (valueChange)="setScale(bi, li, si, { reps: $event })"
                                  [min]="0" [ariaLabel]="scaleRepsLabel(bi, li, si)"
                                  [testId]="'scale-reps-' + bi + '-' + li + '-' + si" />
+                          <bh-number-stepper class="r-load" label="LOAD" i18n-label="@@piece.scale.loadStepperLabel"
+                                 [value]="sc.load ?? ''" (valueChange)="setScale(bi, li, si, { load: $event })"
+                                 [min]="0" [allowDecimal]="true" [suffix]="weightUnit()"
+                                 [ariaLabel]="scaleLoadLabel(bi, li, si)"
+                                 [testId]="'scale-load-' + bi + '-' + li + '-' + si" />
                           <button type="button" class="mini r-rm" (click)="removeScale(bi, li, si)"
                                   [attr.aria-label]="removeScaleLabel(bi, li, si)">&#x2715;</button>
                         </div>
@@ -558,19 +563,23 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .lrow > .r-rm { grid-area: rm; }
 
     .srow { display: grid; grid-template-columns: auto minmax(0, 1fr) var(--tap);
-      grid-template-areas: "arrow mv rm" "arrow reps reps";
+      grid-template-areas: "arrow mv rm" "arrow reps reps" "arrow load load";
       gap: var(--sp-2); align-items: center; padding-left: var(--sp-3); }
     .srow > .arrow { grid-area: arrow; }
     .srow > .mv { grid-area: mv; }
     .srow > .r-reps { grid-area: reps; }
+    .srow > .r-load { grid-area: load; }
     .srow > .r-rm { grid-area: rm; }
 
-    /* One line fits comfortably once there is room for it. */
-    @media (min-width: 560px) {
-      .lrow { grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem var(--tap);
+    /* One line fits comfortably once there is room for it. A stepper spends --tap + --tap = 88px
+       on its own buttons before the input, the gaps or the suffix, so the column has to be wide
+       enough to clear that plus a readable input -- 4.5rem (72px) was written for plain text
+       inputs and left the digits unreadable once these became steppers (user-ruled 2026-09-10). */
+    @media (min-width: 760px) {
+      .lrow { grid-template-columns: minmax(0, 1fr) 12rem 12rem var(--tap);
         grid-template-areas: "mv reps load rm"; }
-      .srow { grid-template-columns: auto minmax(0, 1fr) 4.5rem var(--tap);
-        grid-template-areas: "arrow mv reps rm"; }
+      .srow { grid-template-columns: auto minmax(0, 1fr) 12rem 12rem var(--tap);
+        grid-template-areas: "arrow mv reps load rm"; }
     }
     .arrow { color: var(--faint); font-size: var(--fs-sm); }
     /* A part authored elsewhere still renders, flat -- nothing indents, no border, no card. Just
@@ -603,8 +612,11 @@ type PickTarget = { block: number; line: number; scale: number | null };
     /* +block / +line / +scaling option: full width and --tap-lg on mobile, called out by name
        ("the button +block +line etc are too small, we are in mobile!"). */
     .add { width: 100%; min-height: var(--tap-lg); padding: 0 var(--sp-3); background: none;
-      border: 1px dashed var(--hairline); border-radius: var(--r-ctl); color: var(--bone-dim);
+      border: 1px dashed var(--faint); border-radius: var(--r-ctl); color: var(--bone-dim);
       font-family: var(--font-body); font-size: var(--fs-body); font-weight: 500; cursor: pointer; }
+    /* Nested inside .line-unit (--surface-2): a step DOWN in fill separates it from its container
+       without a second border weight. */
+    .add.sub { background: var(--surface); }
     .add:hover { color: var(--bone); border-color: var(--bone-dim); }
     .add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -1002,10 +1014,13 @@ export class PieceEditorPage {
   pasteBlock() {
     const c = this.clipboard();
     if (!c) return;
-    // Clone again on paste, so pasting twice never hands the same object to two blocks. The
-    // clipboard itself survives -- paste is not a move.
+    // Clone on paste even though the clipboard is about to be cleared -- costs nothing, and keeps
+    // this honest if the clipboard ever survives a paste again (user-ruled 2026-09-10: it doesn't
+    // today. Paste the block, then press copy again to paste it a second time).
     this.blocks.update(list => [...list, structuredClone(c)]);
     this.collapsed.update(list => [...list, false]);
+    this.clipboard.set(null);
+    this.clipboardLabel.set('');
   }
 
   copyBlockLabel(i: number) {
@@ -1172,6 +1187,7 @@ export class PieceEditorPage {
   loadLabel(i: number, j: number) { return $localize`:@@piece.line.loadAria:Load in ${this.weightUnit()}:unit: for line ${j + 1}:position:`; }
   removeLineLabel(i: number, j: number) { return $localize`:@@piece.line.removeAria:Remove line ${j + 1}:position:`; }
   scaleRepsLabel(i: number, j: number, k: number) { return $localize`:@@piece.scale.repsAria:Reps for scaling option ${k + 1}:position:`; }
+  scaleLoadLabel(i: number, j: number, k: number) { return $localize`:@@piece.scale.loadAria:Load in ${this.weightUnit()}:unit: for scaling option ${k + 1}:position:`; }
   removeScaleLabel(i: number, j: number, k: number) { return $localize`:@@piece.scale.removeAria:Remove scaling option ${k + 1}:position:`; }
 
   // ---- save ----------------------------------------------------------------------------------

@@ -43,11 +43,11 @@ import {
                [value]="value()" [disabled]="disabled()"
                [attr.aria-label]="ariaLabel()" [attr.data-testid]="testId() || null"
                (input)="onInput($event)" />
+        @if (suffix()) { <span class="suffix">{{ suffix() }}</span> }
         <button type="button" class="btn" [attr.data-testid]="testId() ? testId() + '-inc' : null"
                 [attr.aria-label]="increaseAriaLabel()" [disabled]="disabled() || incDisabled()"
                 (pointerdown)="onPointerDown(1)" (pointerup)="stopRepeat()"
                 (pointercancel)="stopRepeat()" (pointerleave)="stopRepeat()">+</button>
-        @if (suffix()) { <span class="suffix">{{ suffix() }}</span> }
       </div>
     </div>`,
   styles: [`

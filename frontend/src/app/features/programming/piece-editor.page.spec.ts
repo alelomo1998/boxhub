@@ -443,6 +443,22 @@ describe('PieceEditorPage', () => {
     expect(component.collapsed()[1]).toBe(false);
   });
 
+  it('the paste button disappears after a single paste -- press copy again to paste the same block twice', () => {
+    component.blocks.set([{ label: 'Buy-in', lines: [], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-copy-0"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="piece-paste-block"]')).not.toBeNull();
+
+    el.querySelector<HTMLElement>('[data-testid="piece-paste-block"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="piece-paste-block"]')).toBeNull();
+    expect(component.clipboard()).toBeNull();
+  });
+
   // ---- keeping a segment's blockIndex true across block delete and reorder -------------------
 
   it('removing a block a segment points at clears that reference; removing one below decrements it', () => {

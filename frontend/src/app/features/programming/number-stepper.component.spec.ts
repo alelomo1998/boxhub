@@ -8,7 +8,8 @@ import { NumberStepperComponent } from './number-stepper.component';
   standalone: true,
   imports: [NumberStepperComponent],
   template: `<bh-number-stepper [(value)]="value" [min]="min()" [max]="max()" [step]="step()"
-                                 [allowDecimal]="allowDecimal()" ariaLabel="Reps" testId="reps" />`,
+                                 [allowDecimal]="allowDecimal()" [suffix]="suffix()"
+                                 ariaLabel="Reps" testId="reps" />`,
 })
 class Host {
   value = signal('');
@@ -16,6 +17,7 @@ class Host {
   max = signal<number | null>(null);
   step = signal(1);
   allowDecimal = signal(false);
+  suffix = signal('');
 }
 
 describe('NumberStepperComponent', () => {
@@ -118,5 +120,13 @@ describe('NumberStepperComponent', () => {
   it('gives both buttons type="button" so they never submit a form', () => {
     expect(dec().getAttribute('type')).toBe('button');
     expect(inc().getAttribute('type')).toBe('button');
+  });
+
+  it('puts the suffix before the increment button, so a suffixed and unsuffixed stepper both end flush right on +', () => {
+    host.suffix.set('kg');
+    f.detectChanges();
+    const suffixEl = el.querySelector('.suffix')!;
+    // DOCUMENT_POSITION_FOLLOWING on inc() relative to suffixEl means suffixEl comes first.
+    expect(suffixEl.compareDocumentPosition(inc()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
