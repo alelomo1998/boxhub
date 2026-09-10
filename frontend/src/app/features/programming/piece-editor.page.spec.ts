@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { of, throwError, Subject } from 'rxjs';
 import { PieceEditorPage } from './piece-editor.page';
@@ -676,5 +676,139 @@ describe('PieceEditorPage', () => {
     expect(el.querySelector('[data-testid="pick-create-error"]')).toBeTruthy();
     expect(el.querySelector('[data-testid="pick-create-unit-CAL"]')!.classList).toContain('sel');
     expect(component.blocks()[0].lines![0].movementId).toBeUndefined();
+  });
+
+  // ---- critique fixes: steppers on segment seconds / rounds ----------------------------------
+
+  it('renders segment seconds and rounds as steppers, and no input[type="number"] survives', () => {
+    component.timingPreset.set('TABATA');
+    component.segments.set([{ seconds: 20, kind: 'WORK' }]);
+    fixture.detectChanges();
+
+    expect(el.querySelector('input[type="number"]')).toBeNull();
+
+    const secs = el.querySelector<HTMLInputElement>('[data-testid="segment-secs-0"]');
+    expect(secs).toBeTruthy();
+    expect(secs!.value).toBe('20');
+
+    const rounds = el.querySelector<HTMLInputElement>('[data-testid="piece-rounds"]');
+    expect(rounds).toBeTruthy();
+    expect(rounds!.value).toBe(String(component.rounds()));
+  });
+
+  it("the seconds stepper's decrease button is disabled at the floor of 1, and a typed 0 clamps to 1", () => {
+    component.timingPreset.set('TABATA');
+    component.segments.set([{ seconds: 1, kind: 'WORK' }]);
+    fixture.detectChanges();
+
+    const dec = el.querySelector<HTMLButtonElement>('[data-testid="segment-secs-0-dec"]');
+    expect(dec).toBeTruthy();
+    expect(dec!.disabled).toBe(true);
+
+    dec!.click();
+    fixture.detectChanges();
+    expect(component.segments()[0].seconds).toBe(1);
+
+    component.onSegSecondsChange(0, '0');
+    expect(component.segments()[0].seconds).toBe(1);
+  });
+
+  // ---- critique fixes: two-step block remove --------------------------------------------------
+
+  it('removing a block with lines arms the confirm pair instead of removing immediately', () => {
+    component.blocks.set([{ label: 'Buy-in', lines: [{ text: 'Row' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-remove-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks().length).toBe(1);
+    expect(el.querySelector('[data-testid="block-remove-confirm-0"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="block-remove-cancel-0"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="block-remove-0"]')).toBeNull();
+  });
+
+  it('confirming the armed remove deletes the block; cancelling leaves it and clears the armed state', () => {
+    component.blocks.set([{ label: 'Buy-in', lines: [{ text: 'Row' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-remove-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="block-remove-cancel-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks().length).toBe(1);
+    expect(component.confirmRemove()).toBeNull();
+    expect(el.querySelector('[data-testid="block-remove-0"]')).toBeTruthy();
+
+    el.querySelector<HTMLElement>('[data-testid="block-remove-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="block-remove-confirm-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks().length).toBe(0);
+  });
+
+  it('removing an empty block still takes one press', () => {
+    component.blocks.set([{ label: 'Empty', lines: [], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-remove-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.blocks().length).toBe(0);
+    expect(component.confirmRemove()).toBeNull();
+  });
+
+  it('arming a confirm on one block and pressing remove on another leaves only the second armed', () => {
+    component.blocks.set([
+      { label: 'A', lines: [{ text: 'Row' }], blocks: [] },
+      { label: 'B', lines: [{ text: 'Run' }], blocks: [] },
+    ]);
+    component.collapsed.set([false, false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-remove-0"]')!.click();
+    fixture.detectChanges();
+    expect(component.confirmRemove()).toBe(0);
+
+    el.querySelector<HTMLElement>('[data-testid="block-remove-1"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.confirmRemove()).toBe(1);
+    expect(el.querySelector('[data-testid="block-remove-confirm-0"]')).toBeNull();
+    expect(el.querySelector('[data-testid="block-remove-confirm-1"]')).toBeTruthy();
+  });
+
+  // ---- critique fixes: saved moment, plural summary -------------------------------------------
+
+  it('a successful save shows the saved state before navigating', fakeAsync(() => {
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate');
+
+    component.submit(new Event('submit'));
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="piece-save"]')!.textContent).toContain('Saved');
+    expect(navSpy).not.toHaveBeenCalled();
+
+    tick(600);
+    expect(navSpy).toHaveBeenCalled();
+  }));
+
+  it('a one-line block summary reads "1 line", not "1 lines"', () => {
+    component.blocks.set([{ label: '', lines: [{ text: '' }], blocks: [] }]);
+    component.collapsed.set([false]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="block-toggle-0"]')!.click();
+    fixture.detectChanges();
+
+    const summary = el.querySelector('[data-testid="block-summary-0"]')!;
+    expect(summary.textContent).toContain('1 line');
+    expect(summary.textContent).not.toContain('1 lines');
   });
 });

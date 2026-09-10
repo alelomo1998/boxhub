@@ -124,11 +124,10 @@ type PickTarget = { block: number; line: number; scale: number | null };
               <ul class="segs">
                 @for (s of segments(); track $index) {
                   <li class="seg-row" [attr.data-testid]="'segment-' + $index">
-                    <input class="num" type="number" min="0" inputmode="numeric"
-                           [value]="s.seconds"
-                           (change)="updateSegment($index, { seconds: +$any($event.target).value, kind: s.kind, label: s.label, blockIndex: s.blockIndex })"
-                           [attr.aria-label]="secondsLabel($index)" />
-                    <span class="unit" i18n="@@piece.segment.seconds">sec</span>
+                    <bh-number-stepper class="seg-secs" [label]="SEG_SEC_LABEL"
+                           [value]="segSecondsStr($index)" (valueChange)="onSegSecondsChange($index, $event)"
+                           [min]="1" [step]="5" [allowDecimal]="false"
+                           [ariaLabel]="secondsLabel($index)" [testId]="'segment-secs-' + $index" />
                     <button type="button" class="kind" (click)="openSegPick($index)"
                             [attr.data-testid]="'segment-pick-' + $index">
                       @if (s.kind === 'REST') {
@@ -145,10 +144,9 @@ type PickTarget = { block: number; line: number; scale: number | null };
                 }
               </ul>
               <div class="rounds">
-                <label class="rlab" for="piece-rounds" i18n="@@piece.rounds.label">Rounds</label>
-                <input id="piece-rounds" class="num" type="number" min="1" inputmode="numeric"
-                       [value]="rounds()" (change)="rounds.set(+$any($event.target).value || 1)"
-                       data-testid="piece-rounds" />
+                <bh-number-stepper [label]="ROUNDS_LABEL" [value]="roundsStr()"
+                       (valueChange)="onRoundsChange($event)" [min]="1" [step]="1" [allowDecimal]="false"
+                       [ariaLabel]="ROUNDS_LABEL" testId="piece-rounds" />
               </div>
             }
             <button type="button" class="add" (click)="addSegment()" data-testid="piece-add-segment">
@@ -178,7 +176,8 @@ type PickTarget = { block: number; line: number; scale: number | null };
                               (reordered)="moveBlock($event)">
               <ng-template let-b let-bi="index">
                 <div class="block" [attr.data-testid]="'block-' + bi">
-                  <div class="bar" [class.with-handle]="isCollapsed(bi)">
+                  <div class="bar" [class.with-handle]="isCollapsed(bi)"
+                       [class.confirming]="confirmRemove() === bi">
                     <button type="button" class="chevron" [class.collapsed]="isCollapsed(bi)"
                             (click)="toggleCollapse(bi)"
                             [attr.aria-expanded]="!isCollapsed(bi)"
@@ -190,18 +189,29 @@ type PickTarget = { block: number; line: number; scale: number | null };
                            (input)="setBlockLabel(bi, $any($event.target).value)"
                            placeholder="Block name" i18n-placeholder="@@piece.block.namePlaceholder"
                            [attr.aria-label]="blockNameLabel(bi)" />
-                    <button type="button" class="mini" (click)="copyBlock(bi)"
-                            [attr.aria-label]="copyBlockLabel(bi)"
-                            [attr.data-testid]="'block-copy-' + bi">
-                      <svg width="1em" height="1em" viewBox="0 0 16 16" fill="none"
-                           stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                        <rect x="2" y="4" width="9" height="9" rx="1.5" />
-                        <rect x="5" y="1" width="9" height="9" rx="1.5" />
-                      </svg>
-                    </button>
-                    <button type="button" class="mini" (click)="removeBlock(bi)"
-                            [attr.aria-label]="removeBlockLabel(bi)"
-                            [attr.data-testid]="'block-remove-' + bi">&#x2715;</button>
+                    @if (confirmRemove() === bi) {
+                      <bh-button variant="ghost" size="sm" (click)="cancelRemoveBlock()"
+                                 [testId]="'block-remove-cancel-' + bi">
+                        <span i18n="@@piece.block.removeCancel">Cancel</span>
+                      </bh-button>
+                      <bh-button variant="danger" size="sm" (click)="confirmRemoveBlock(bi)"
+                                 [testId]="'block-remove-confirm-' + bi">
+                        <span i18n="@@piece.block.removeConfirm">Remove</span>
+                      </bh-button>
+                    } @else {
+                      <button type="button" class="mini" (click)="copyBlock(bi)"
+                              [attr.aria-label]="copyBlockLabel(bi)"
+                              [attr.data-testid]="'block-copy-' + bi">
+                        <svg width="1em" height="1em" viewBox="0 0 16 16" fill="none"
+                             stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                          <rect x="2" y="4" width="9" height="9" rx="1.5" />
+                          <rect x="5" y="1" width="9" height="9" rx="1.5" />
+                        </svg>
+                      </button>
+                      <button type="button" class="mini danger" (click)="onRemoveBlockClick(bi)"
+                              [attr.aria-label]="removeBlockLabel(bi)"
+                              [attr.data-testid]="'block-remove-' + bi">&#x2715;</button>
+                    }
                   </div>
 
                   @if (isCollapsed(bi)) {
@@ -324,6 +334,8 @@ type PickTarget = { block: number; line: number; scale: number | null };
                      [loading]="pending()" testId="piece-save">
             @if (pending()) {
               <span i18n="@@piece.save.pending">Saving…</span>
+            } @else if (saved()) {
+              <span i18n="@@piece.save.saved">Saved</span>
             } @else {
               <span i18n="@@piece.save.default">Save piece</span>
             }
@@ -456,6 +468,11 @@ type PickTarget = { block: number; line: number; scale: number | null };
     .title-input::placeholder { color: var(--bone-dim); }
     .title-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px;
       border-radius: var(--r-xs); }
+    /* Measured: a 32-character title needs 693px of content in a 328px field at --fs-hero, so well
+       under half is visible once it loses focus. Token-only step-down, not a clamp() or px size --
+       a long title still clips, but less. Converting the input to a wrapping element is a shape
+       change to the screen's most identity-bearing control and is not this fix's call to make. */
+    @media (max-width: 360px) { .title-input { font-size: var(--fs-h2); } }
     .title-err { color: var(--danger); font-size: var(--fs-sm); }
 
     /* One meta strip, four chips, replaces four stacked segmented groups (the single biggest
@@ -493,17 +510,32 @@ type PickTarget = { block: number; line: number; scale: number | null };
 
     .segs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
       gap: var(--sp-2); width: 100%; }
-    .seg-row { display: grid; grid-template-columns: 5rem auto minmax(0, 1fr) var(--tap);
-      align-items: center; gap: var(--sp-2); }
-    .unit { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); }
+    /* A stepper is far wider than the narrow number field it replaces (measured: it no longer
+       fits beside the kind picker and remove button in one row at 360px), so mobile-first this
+       stacks -- the stepper gets its own full-width row, kind+remove share the second. Widens
+       back to one row once there is room; see the min-width breakpoint below (measured). */
+    .seg-row { display: grid; grid-template-columns: minmax(0, 1fr) var(--tap);
+      grid-template-areas: "secs secs" "kind rm"; gap: var(--sp-2); align-items: center; }
+    .seg-row > .seg-secs { grid-area: secs; }
+    .seg-row > .kind { grid-area: kind; }
+    .seg-row > .mini { grid-area: rm; }
     .kind { min-height: var(--tap); padding: 0 var(--sp-3); background: var(--surface-2);
       border: 1px solid var(--hairline); border-radius: var(--r-ctl); color: var(--bone);
       font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
       letter-spacing: 0.06em; cursor: pointer; }
     .kind:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .rounds { display: flex; align-items: center; gap: var(--sp-3); }
-    .rlab { font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
-      letter-spacing: 0.06em; color: var(--bone-dim); }
+    /* No flex: it wrapped a label+input pair before the stepper, and a flex item's automatic
+       min-width is its content's min-content size (unlike a grid track sized minmax(0, 1fr),
+       which the seg-row/lrow/srow columns rely on for exactly this shrink) -- with flex still on,
+       the stepper refused to shrink below ~360px and overflowed a 320px viewport (measured). Block
+       lets the stepper's own :host{display:block} fill 100% and shrink from there. */
+    .rounds { width: 100%; }
+    /* Same budget as a reps stepper (label 56 + gap 8 + minus 44 + gap 8 + input 64 + gap 8 +
+       plus 44 = 232px -> 15rem, no suffix here) -- measured, matches .lrow's own comment below. */
+    @media (min-width: 480px) {
+      .seg-row { grid-template-columns: 15rem minmax(0, 1fr) var(--tap);
+        grid-template-areas: "secs kind rm"; }
+    }
 
     /* Each block is its own outline: a surface-2 bar for the header, un-indented content on the
        page ground below it, and --sp-5 between one block and the next so a new bar reads as
@@ -539,12 +571,19 @@ type PickTarget = { block: number; line: number; scale: number | null };
     /* The bar is the card's HEADER, so it runs edge to edge and pulls back over the card's own
        padding. Inset like everything else it would have read as just another --surface-2 unit
        alongside the line units; attached to the card's top edge it cannot be mistaken for one. */
+    /* --sp-3, not --sp-2: copy and remove were the same size, same colour, adjacent, and a P1
+       finding called reaching for one and hitting the other "half the defect" -- a wider gap
+       between every pair (chevron/name included, harmless) is the cheap fix that separates them
+       without a spacer column. */
     .bar { display: grid; grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap) var(--tap);
-      gap: var(--sp-2); align-items: center; box-sizing: border-box;
+      gap: var(--sp-3); align-items: center; box-sizing: border-box;
       min-height: var(--tap); padding: var(--sp-1) var(--sp-2);
       margin: calc(var(--sp-3) * -1) calc(var(--sp-3) * -1) 0;
       background: var(--surface-2); border-bottom: 1px solid var(--hairline);
       border-radius: calc(var(--r-card) - 1px) calc(var(--r-card) - 1px) 0 0; }
+    /* Cancel/Remove are text buttons (bh-button), far wider than the tap-square icons they
+       replace -- the trailing two columns size to content instead of a fixed --tap. */
+    .bar.confirming { grid-template-columns: var(--tap) minmax(0, 1fr) auto auto; }
     /* The drag handle only exists (bh-sortable-list's canDragItem) while the block is collapsed,
        riding absolutely over the row's top-left -- so only then does the bar need to step around
        it. Expanded, there is no handle to clear. */
@@ -636,14 +675,6 @@ type PickTarget = { block: number; line: number; scale: number | null };
       letter-spacing: 0.06em; color: var(--bone-dim); }
     .subline { margin: 0; font-size: var(--fs-body); color: var(--bone); }
 
-    .num { min-height: var(--tap); box-sizing: border-box; width: 100%; min-width: 0;
-      padding: 0 var(--sp-3); background: var(--surface); color: var(--bone);
-      border: 1px solid var(--hairline); border-radius: var(--r-ctl);
-      /* Numbers are tabular and prescribed, so they read in mono. */
-      font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right;
-      font-size: var(--fs-body); }
-    .num:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-
     .mv { min-height: var(--tap); min-width: 0; padding: 0 var(--sp-3); text-align: left;
       background: var(--surface); color: var(--bone); border: 1px solid var(--hairline);
       border-radius: var(--r-ctl); font-family: var(--font-body); font-size: var(--fs-body);
@@ -655,6 +686,12 @@ type PickTarget = { block: number; line: number; scale: number | null };
       color: var(--bone-dim); border-radius: var(--r-ctl); cursor: pointer; }
     .mini:hover { color: var(--bone); }
     .mini:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* The block-remove control is a delete affordance -- danger-bordered ghost, same rule bh-button
+       gives ghost-danger, distinguishing it from copy's plain --bone-dim glyph. It fires
+       immediately on an empty block or arms the confirm pair otherwise; either way it opens (or
+       is) the destructive action, never the fill law reserves for the control that executes one. */
+    .mini.danger { border: 1px solid var(--danger); color: var(--danger); }
+    .mini.danger:hover { color: var(--danger); background: var(--surface-2); }
 
     /* +block / +line / +scaling option: full width and --tap-lg on mobile, called out by name
        ("the button +block +line etc are too small, we are in mobile!"). */
@@ -722,6 +759,10 @@ export class PieceEditorPage {
    *  server, does not survive a reload. There is deliberately no replace and no cut. */
   clipboard = signal<WodBlock | null>(null);
   private clipboardLabel = signal('');
+  /** The block armed for a two-step remove, or null. Only one block at a time: cancelling,
+   *  collapsing that block, or arming a different one all clear it -- an armed confirm left on a
+   *  block the coach has navigated away from is a trap. */
+  confirmRemove = signal<number | null>(null);
   pasteButtonLabel = computed(() =>
     $localize`:@@piece.block.paste:Paste "${this.clipboardLabel()}:name:"`);
   /** The box's load unit, read once on init. A failed fetch just leaves the KG default. */
@@ -735,6 +776,10 @@ export class PieceEditorPage {
   titleError = signal('');
   formError = signal('');
   pending = signal(false);
+  /** A visible "Saved" moment before navigating away -- router.navigate() right after success left
+   *  the only feedback as "you are already elsewhere," which is silent on gym wifi, the moment
+   *  reassurance matters most. */
+  saved = signal(false);
 
   private wodId = signal<string | null>(null);
 
@@ -1046,6 +1091,10 @@ export class PieceEditorPage {
   hasSegments = computed(() => SEGMENTED_PRESETS.includes(this.timingPreset() ?? ''));
   hasCap = computed(() => this.timingPreset() === 'FOR_TIME' || this.timingPreset() === 'AMRAP');
 
+  /** The steppers' own inline labels -- constant text, so no need to be a computed. */
+  readonly SEG_SEC_LABEL = $localize`:@@piece.segment.secLabel:SEC`;
+  readonly ROUNDS_LABEL = $localize`:@@piece.rounds.label:Rounds`;
+
   capLabel = computed(() => this.timingPreset() === 'AMRAP'
     ? $localize`:@@piece.cap.durationLabel:DURATION`
     : $localize`:@@piece.cap.timeCapLabel:TIME CAP`);
@@ -1096,6 +1145,31 @@ export class PieceEditorPage {
 
   private setSegment(i: number, patch: Partial<WodSegment>) {
     this.segments.update(list => list.map((s, idx) => idx === i ? { ...s, ...patch } : s));
+  }
+
+  /** bh-number-stepper's value is a raw string; segments carry seconds as a number. */
+  segSecondsStr(i: number): string {
+    return String(this.segments()[i]?.seconds ?? '');
+  }
+
+  /** The server rejects a segment at zero or below with SEGMENT_SECONDS, so a value the stepper
+   *  produced (or the coach typed straight into its input) below 1 is clamped here, not just
+   *  guarded by the stepper's own decrease button. */
+  onSegSecondsChange(i: number, v: string) {
+    if (!this.segments()[i]) return;
+    const n = Number(v);
+    this.setSegment(i, { seconds: v !== '' && Number.isFinite(n) && n >= 1 ? n : 1 });
+  }
+
+  /** Same reasoning as onSegSecondsChange: the stepper's own min blocks the buttons, but a typed
+   *  value still needs clamping before it reaches the rounds signal. */
+  onRoundsChange(v: string) {
+    const n = Number(v);
+    this.rounds.set(v !== '' && Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1);
+  }
+
+  roundsStr(): string {
+    return String(this.rounds());
   }
 
   // ---- segment -> block picker --------------------------------------------------------------
@@ -1166,6 +1240,29 @@ export class PieceEditorPage {
     }));
   }
 
+  /** Whether block i has anything a remove would cost -- a confirm on nothing is friction for its
+   *  own sake, so an empty block keeps the one-tap remove it always had. */
+  private blockHasContent(i: number): boolean {
+    const b = this.blocks()[i];
+    return !!b && ((b.lines?.length ?? 0) > 0 || (b.blocks?.length ?? 0) > 0);
+  }
+
+  /** The bar's remove control: arms the confirm pair for a block with something to lose, or
+   *  removes an empty one immediately. */
+  onRemoveBlockClick(i: number) {
+    if (this.blockHasContent(i)) this.confirmRemove.set(i);
+    else this.removeBlock(i);
+  }
+
+  cancelRemoveBlock() {
+    this.confirmRemove.set(null);
+  }
+
+  confirmRemoveBlock(i: number) {
+    this.confirmRemove.set(null);
+    this.removeBlock(i);
+  }
+
   copyBlock(i: number) {
     const b = this.blocks()[i];
     if (!b) return;
@@ -1201,6 +1298,9 @@ export class PieceEditorPage {
 
   toggleCollapse(i: number) {
     this.collapsed.update(list => list.map((c, idx) => idx === i ? !c : c));
+    // A confirm armed on the block being collapsed is a trap otherwise -- it would sit hidden
+    // behind the collapsed summary, still live.
+    if (this.confirmRemove() === i) this.confirmRemove.set(null);
   }
 
   /** A class field, not an inline arrow: reordering is only offered on a collapsed block, so an
@@ -1209,13 +1309,21 @@ export class PieceEditorPage {
 
   /** Quiet mono summary shown in place of a collapsed block's content: the line count, plus the
    *  first movement named on one of those lines, if any. */
+  /** Split one/other rather than interpolating a bare count -- a raw `${n} lines` reads "1 lines"
+   *  on a one-line block, and a plural rule other than English's needs the branch anyway, same
+   *  pattern as messages-envelope.component.ts's linkAriaLabel. */
   blockSummary(i: number): string {
     const lines = this.blocks()[i]?.lines ?? [];
     const first = lines.find(l => l.text)?.text;
     const n = lines.length;
-    return first
-      ? $localize`:@@piece.block.summaryWithMovement:${n}:count: lines · ${first}:movement:`
-      : $localize`:@@piece.block.summary:${n}:count: lines`;
+    if (first) {
+      return n === 1
+        ? $localize`:@@piece.block.summaryWithMovement.one:1 line · ${first}:movement:`
+        : $localize`:@@piece.block.summaryWithMovement.many:${n}:count: lines · ${first}:movement:`;
+    }
+    return n === 1
+      ? $localize`:@@piece.block.summary.one:1 line`
+      : $localize`:@@piece.block.summary.many:${n}:count: lines`;
   }
 
   collapseLabel(i: number) {
@@ -1361,7 +1469,7 @@ export class PieceEditorPage {
    */
   submit(event?: Event) {
     event?.preventDefault();
-    if (this.pending()) return;
+    if (this.pending() || this.saved()) return;
 
     this.titleError.set('');
     this.formError.set('');
@@ -1397,9 +1505,15 @@ export class PieceEditorPage {
     const save$ = id ? this.prog.patchWod(id, payload) : this.prog.createWod(payload);
     save$.subscribe({
       next: () => {
+        // pending false, saved true: the button reads "Saved" rather than fighting a spinner. The
+        // delay is the feature, not a cost -- "you are already elsewhere" is silent, and on gym
+        // wifi this is the moment reassurance matters most.
         this.pending.set(false);
-        if (this.standalone()) this.router.navigate(['/coach/wods']);
-        else this.router.navigate(['/coach/classes', this.sessionId, 'build']);
+        this.saved.set(true);
+        setTimeout(() => {
+          if (this.standalone()) this.router.navigate(['/coach/wods']);
+          else this.router.navigate(['/coach/classes', this.sessionId, 'build']);
+        }, 600);
       },
       error: () => {
         this.pending.set(false);
