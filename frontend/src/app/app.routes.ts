@@ -87,7 +87,7 @@ export const routes: Routes = [
       { path: 'classes/:id/checkin', title: $localize`:@@route.coach.checkin:Check-in`, loadComponent: () => import('./features/coach/checkin.page').then(m => m.CheckinPage) },
       { path: 'classes/:id/run', title: $localize`:@@route.coach.run:Run class`, loadComponent: () => import('./features/coach/runner.page').then(m => m.RunnerPage) },
       { path: 'classes/:id/build', title: $localize`:@@route.coach.build:Build class`, canDeactivate: [unsavedGuard],
-        loadComponent: () => import('./features/coach/instance-builder.page').then(m => m.InstanceBuilderPage) },
+        loadComponent: () => import('./features/coach/class-builder.page').then(m => m.ClassBuilderPage) },
       { path: 'classes/:id/build/piece/:index', title: $localize`:@@route.coach.piece:Edit piece`,
         loadComponent: () => import('./features/programming/piece-editor.page').then(m => m.PieceEditorPage) },
       { path: 'types', title: $localize`:@@route.coach.types:Class types`, loadComponent: () => import('./features/programming/types.page').then(m => m.TypesPage) },

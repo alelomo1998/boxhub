@@ -62,5 +62,26 @@ describe('ClassDraftStore', () => {
       expect(store.sessionId()).toBeNull();
       expect(store.drafts()).toEqual([]);
     });
+
+    it('resets the baseline', () => {
+      store.open('s1', [draft('Warmup')]);
+      store.clear();
+      expect(store.baseline()).toBe('[]');
+    });
+  });
+
+  describe('baseline', () => {
+    it('open() sets it to a snapshot of the drafts', () => {
+      const drafts = [draft('Warmup')];
+      store.open('s1', drafts);
+      expect(store.baseline()).toBe(JSON.stringify(drafts));
+    });
+
+    it('put() does not move it, so a round trip through the piece editor is detectable as unsaved', () => {
+      store.open('s1', [draft('Warmup')]);
+      const before = store.baseline();
+      store.put(0, draft('Warmup (edited)'));
+      expect(store.baseline()).toBe(before);
+    });
   });
 });

@@ -37,6 +37,9 @@ export class ClassDraftStore {
   /** Which class the drafts belong to. A different session id means these drafts are stale. */
   readonly sessionId = signal<string | null>(null);
   readonly drafts = signal<PieceDraft[]>([]);
+  /** JSON snapshot of `drafts` as last opened/saved. Lives here, not on the page, so a round trip
+   *  through the piece editor (a different route) doesn't reset it to "no unsaved work". */
+  readonly baseline = signal('[]');
 
   /** True when the store already holds this class, i.e. we came back from the piece editor. */
   holds(sessionId: string): boolean {
@@ -46,6 +49,7 @@ export class ClassDraftStore {
   open(sessionId: string, drafts: PieceDraft[]) {
     this.sessionId.set(sessionId);
     this.drafts.set(drafts);
+    this.baseline.set(JSON.stringify(drafts));
   }
 
   /** Replace one draft in place. Used by the piece editor on save. */
@@ -60,5 +64,6 @@ export class ClassDraftStore {
   clear() {
     this.sessionId.set(null);
     this.drafts.set([]);
+    this.baseline.set('[]');
   }
 }
