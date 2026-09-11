@@ -282,6 +282,51 @@ describe('ClassBuilderPage', () => {
     expect(component.hasUnsaved()).toBe(true);
   });
 
+  it('the guard is suppressed for the "Write a new piece" hop, and restored if the navigation is cancelled', async () => {
+    setup();
+    store.open('sess1', [emptyDraft('Warmup', 'WARMUP')]);
+    fixture.detectChanges();
+    component.appendSlot('STRENGTH');
+    fixture.detectChanges();
+    expect(component.hasUnsaved()).toBe(true);
+
+    let resolveNav!: (ok: boolean) => void;
+    const navSpy = spyOn(router, 'navigate')
+      .and.returnValue(new Promise<boolean>(res => { resolveNav = res; }));
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-1"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="slot-write-new"]')!.click();
+    fixture.detectChanges();
+
+    expect(navSpy).toHaveBeenCalled();
+    expect(component.hasUnsaved()).toBe(false);
+
+    resolveNav(false);
+    await fixture.whenStable();
+
+    expect(component.hasUnsaved()).toBe(true);
+  });
+
+  it('pressing "Edit this piece" suppresses the guard for that hop', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+    // Mirrors the piece editor's write-back so the draft diverges from the baseline.
+    store.put(0, filledDraft('item1', { ...BLANK_WOD, title: 'Edited' }));
+    fixture.detectChanges();
+    expect(component.hasUnsaved()).toBe(true);
+
+    const navSpy = spyOn(router, 'navigate').and.returnValue(Promise.resolve(true));
+    el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="piece-edit-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(navSpy).toHaveBeenCalled();
+    expect(component.hasUnsaved()).toBe(false);
+  });
+
   it('an empty slot survives a save alongside a filled one, at its own index', () => {
     setup();
     store.open('sess1', [filledDraft('item1', BLANK_WOD), emptyDraft('Warmup', 'WARMUP')]);

@@ -166,10 +166,10 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                               }
                             }
                             <div class="expanded-foot">
-                              <a class="editlink" [routerLink]="editRoute(i)"
-                                 [attr.data-testid]="'piece-edit-' + i">
+                              <button type="button" class="editlink" (click)="editPiece(i)"
+                                      [attr.data-testid]="'piece-edit-' + i">
                                 <span i18n="@@class.piece.edit">Edit this piece</span> &#x203A;
-                              </a>
+                              </button>
                               <bh-button variant="danger" size="sm" (click)="removeAt(i)"
                                          [testId]="'piece-remove-' + i">
                                 <span i18n="@@class.piece.remove">Remove</span>
@@ -288,7 +288,8 @@ function wodMatchesText(w: Wod, needle: string): boolean {
     .expanded-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
       flex-wrap: wrap; }
     .editlink { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap);
-      color: var(--bone-dim); text-decoration: none; font-size: var(--fs-sm); }
+      padding: 0; background: none; border: none; color: var(--bone-dim); text-decoration: none;
+      font-family: var(--font-body); font-size: var(--fs-sm); cursor: pointer; }
     .editlink:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 
     .addslot { width: 100%; min-height: var(--tap-lg); margin: var(--sp-3) 0; background: none;
@@ -381,11 +382,19 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
       }));
   });
 
+  /** Navigating INTO the piece editor is part of editing this class, not leaving it: the drafts
+   *  travel in the store, so the guard's "leave and lose them?" would be a lie and its Cancel
+   *  would block the flow outright. The shared guard only ever sees hasUnsaved(), so the page
+   *  suppresses it for exactly that hop. */
+  private toEditor = false;
+
   @HostListener('window:beforeunload', ['$event'])
   onBeforeUnload(ev: BeforeUnloadEvent) { if (this.hasUnsaved()) ev.preventDefault(); }
 
   private snapshot(): string { return JSON.stringify(this.store.drafts()); }
-  hasUnsaved(): boolean { return this.state() === 'ready' && this.snapshot() !== this.store.baseline(); }
+  hasUnsaved(): boolean {
+    return !this.toEditor && this.state() === 'ready' && this.snapshot() !== this.store.baseline();
+  }
 
   ngOnInit() {
     this.sessionId = this.route.snapshot.paramMap.get('id')!;
@@ -577,7 +586,17 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     const i = this.slotIndex();
     this.slotSheetOpen.set(false);
     if (i === null) return;
-    this.router.navigate(['/coach', 'classes', this.sessionId, 'build', 'piece', i]);
+    this.goToEditor(['/coach', 'classes', this.sessionId, 'build', 'piece', i]);
+  }
+
+  editPiece(i: number) {
+    this.goToEditor(this.editRoute(i));
+  }
+
+  /** The one route both entrances into the piece editor share -- see `toEditor` above. */
+  private goToEditor(commands: unknown[]) {
+    this.toEditor = true;
+    this.router.navigate(commands).then(ok => { if (!ok) this.toEditor = false; });
   }
 
   // ---- add a slot -----------------------------------------------------------------------------
