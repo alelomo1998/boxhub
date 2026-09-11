@@ -8,7 +8,8 @@ import { SheetComponent } from '../../ui/sheet.component';
 import { PickSheetComponent, PickRow, PickResult } from './pick-sheet.component';
 import { NumberStepperComponent } from './number-stepper.component';
 import {
-  ProgrammingService, MACROS, TIMING_PRESETS, TEAM_SHARES, MOVEMENT_UNITS,
+  ProgrammingService, MACROS, TIMING_PRESETS, TEAM_SHARES,
+  movementCategoryLabel, MOVEMENT_UNITS,
   Movement, WodBlock, WodLine, WodScale, WodSegment, WodInput,
 } from './programming.service';
 
@@ -933,7 +934,7 @@ export class PieceEditorPage {
     this.prog.movements(term).subscribe({
       next: ms => {
         this.mergeMovements(ms);
-        this.movementRows.set(ms.map(m => ({ id: m.id, primary: m.name, secondary: m.category })));
+        this.movementRows.set(ms.map(m => ({ id: m.id, primary: m.name, secondary: movementCategoryLabel(m.category) })));
       },
       error: () => this.movementRows.set([]),
     });

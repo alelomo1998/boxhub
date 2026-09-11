@@ -4,7 +4,7 @@ import { ButtonComponent } from '../../ui/button.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { SearchBarComponent } from '../../ui/search-bar.component';
 import { SheetComponent } from '../../ui/sheet.component';
-import { MOVEMENT_CATEGORIES, MOVEMENT_UNITS } from './programming.service';
+import { MOVEMENT_CATEGORIES, MOVEMENT_UNITS, movementCategoryLabel } from './programming.service';
 
 /** One offered option, whatever the domain object behind it is. */
 export interface PickRow { id: string; primary: string; secondary?: string }
@@ -110,7 +110,7 @@ export type PickResult = { id: string } | { freeText: string };
             @for (c of categories; track c) {
               <button type="button" class="prow" [class.sel]="createCategory() === c"
                       [attr.data-testid]="'pick-create-category-' + c" (click)="createCategory.set(c)">
-                <span>{{ c }}</span>
+                <span>{{ categoryLabel(c) }}</span>
                 @if (createCategory() === c) { <span class="mark" aria-hidden="true">&#x2713;</span> }
               </button>
             }
@@ -199,6 +199,8 @@ export class PickSheetComponent {
 
   readonly units = MOVEMENT_UNITS;
   readonly categories = MOVEMENT_CATEGORIES;
+  /** A class field, not an inline arrow: an arrow in the template mints a new identity each cycle. */
+  readonly categoryLabel = movementCategoryLabel;
   readonly term = signal('');
   readonly showFreeText = computed(() => this.allowFreeText() && this.term().trim().length > 0);
 

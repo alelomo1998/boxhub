@@ -13,6 +13,31 @@ export const MOVEMENT_UNITS = ['REPS', 'CAL', 'M', 'KM', 'MI', 'FT', 'SEC'] as c
 export const MOVEMENT_CATEGORIES =
   ['BARBELL', 'DUMBBELL', 'GYMNASTICS', 'KETTLEBELL', 'MONOSTRUCTURAL', 'ODD_OBJECT'] as const;
 
+/**
+ * What a coach reads. The values above are database constants and had been rendering raw on every
+ * picker row -- the user asked what "ODD_OBJECT" was, which is the whole argument for this map.
+ * Screaming snake case is a storage detail and is never user-facing copy.
+ *
+ * Monostructural and odd object are kept rather than softened to "cardio" and "strongman": both are
+ * the words a CrossFit coach actually uses, and PRODUCT.md's first design principle is to match
+ * that vocabulary.
+ */
+export const MOVEMENT_CATEGORY_LABELS: Record<string, string> = {
+  BARBELL: $localize`:@@movement.category.barbell:Barbell`,
+  DUMBBELL: $localize`:@@movement.category.dumbbell:Dumbbell`,
+  GYMNASTICS: $localize`:@@movement.category.gymnastics:Gymnastics`,
+  KETTLEBELL: $localize`:@@movement.category.kettlebell:Kettlebell`,
+  MONOSTRUCTURAL: $localize`:@@movement.category.monostructural:Monostructural`,
+  ODD_OBJECT: $localize`:@@movement.category.oddObject:Odd object`,
+};
+
+/** Falls back to the raw value rather than rendering blank: an unlabelled category is a missing
+ *  label, and hiding it makes that impossible to notice. */
+export function movementCategoryLabel(category: string | null | undefined): string {
+  if (!category) return '';
+  return MOVEMENT_CATEGORY_LABELS[category] ?? category;
+}
+
 export const MACROS = ['WARMUP', 'STRENGTH', 'GYMNASTIC', 'WORKOUT'] as const;
 export const TIMING_PRESETS = ['FOR_TIME', 'AMRAP', 'EMOM', 'TABATA', 'INTERVAL'] as const;
 export const TEAM_SHARES = ['TOGETHER', 'SPLIT', 'RELAY'] as const;

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Branch | **`m14c-a-builder`**, pushed, HEAD `04c04e9`. `main` at `ee19a35`. |
+| Branch | **`m14c-a-builder`**, pushed, HEAD `8b5d526`. `main` at `ee19a35`. |
 | Spec | `docs/superpowers/specs/2026-09-07-m14c-a-builder-design.md` |
 | Plan | `docs/superpowers/plans/2026-09-07-m14c-a-builder.md` — **17 tasks; 1–10 and 12 done** |
 | Backend | **821 / 0 / 0 / 0**, `BUILD SUCCESS` |
@@ -48,7 +48,7 @@ it; do not assume Task 13 is a formality.
 Read .superpowers/sdd/NEXT-SESSION.md and CONTINUE M14c-a.
 
 cd ~/dev/boxhub && git checkout m14c-a-builder && git status
-# expect a CLEAN tree at 04c04e9, branch pushed
+# expect a CLEAN tree at 8b5d526, branch pushed
 
 Do NOT re-plan and do NOT re-spec. Tasks 1-10 and 12 are committed and were
 verified by the orchestrator, not by their executors. THE PIECE EDITOR IS DONE
