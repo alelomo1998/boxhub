@@ -12,6 +12,7 @@ import {
   movementCategoryLabel, MOVEMENT_UNITS,
   Movement, WodBlock, WodLine, WodScale, WodSegment, WodInput,
 } from './programming.service';
+import { ClassDraftStore } from './class-draft.store';
 
 /** The server rejects a third level with BLOCK_DEPTH, so the UI must never offer one. */
 const MAX_BLOCK_DEPTH = 2;
@@ -792,6 +793,10 @@ export class PieceEditorPage {
   private routeIndex = this.route.snapshot.paramMap.get('index');
   private sessionId = this.route.snapshot.paramMap.get('id');
 
+  private drafts = inject(ClassDraftStore);
+  /** The draft this route is editing, or null in standalone mode / when the store is cold. */
+  private draft = this.routeIndex !== null ? this.drafts.at(Number(this.routeIndex)) : null;
+
   macroOptions: SegOption[] = MACROS.map(m => ({ value: m, label: MACRO_LABELS[m] }));
   presetOptions: SegOption[] = TIMING_PRESETS.map(p => ({ value: p, label: PRESET_LABELS[p] }));
   shareOptions: SegOption[] = TEAM_SHARES.map(s => ({ value: s, label: SHARE_LABELS[s] }));
@@ -903,12 +908,22 @@ export class PieceEditorPage {
 
   constructor() {
     const id = this.route.snapshot.paramMap.get('wodId') ?? this.route.snapshot.paramMap.get('id');
+    const classWodId = this.draft?.wod?.id ?? null;
     // Only a standalone wods/:id route names a wod. On the class route :id is the session, so
     // there is never a wod id there and this branch never runs for a class piece.
     if (this.standalone() && id) this.load(id);
+    // A class piece that already has content is EDITED, not recreated. Without this branch,
+    // opening build/piece/2 showed a blank page and saving minted a second wod.
+    else if (classWodId) this.load(classWodId);
     // Create, not edit: the page must never open on the empty state. load() resets blocks itself
     // and always wins, so seeding here only ever applies to a genuinely new piece.
-    else { this.blocks.set([{ label: '', lines: [], blocks: [] }]); this.collapsed.set([false]); }
+    else {
+      this.blocks.set([{ label: '', lines: [], blocks: [] }]);
+      this.collapsed.set([false]);
+      // A slot carries its category; a piece written into it starts there rather than at the
+      // default. The coach can still change it from the WHAT chip.
+      if (this.draft?.macro) this.macro.set(this.draft.macro);
+    }
 
     // Read-once, best-effort: a failed fetch just leaves the KG default in place.
     this.prog.weightUnit().subscribe({ next: u => this.weightUnit.set(u), error: () => {} });
@@ -1505,7 +1520,18 @@ export class PieceEditorPage {
     const id = this.wodId();
     const save$ = id ? this.prog.patchWod(id, payload) : this.prog.createWod(payload);
     save$.subscribe({
-      next: () => {
+      next: (saved) => {
+        // The stack owns the item list; this is how a piece written here reaches it. Without
+        // it the new wod exists on the server and nothing ever attaches it to the class.
+        if (!this.standalone() && this.routeIndex !== null && this.draft) {
+          this.drafts.put(Number(this.routeIndex), {
+            ...this.draft,
+            wod: saved,
+            // The piece now has its own content; it is no longer a pending library copy.
+            fromLibraryWodId: null,
+            scoreType: null,
+          });
+        }
         // pending false, saved true: the button reads "Saved" rather than fighting a spinner. The
         // delay is the feature, not a cost -- "you are already elsewhere" is silent, and on gym
         // wifi this is the moment reassurance matters most.
