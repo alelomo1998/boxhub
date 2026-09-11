@@ -26,6 +26,51 @@ class Host {
   closedCount = 0;
 }
 
+// The two projection slots: a caller that fills both, and the ordering they must land in.
+@Component({
+  standalone: true,
+  imports: [PickSheetComponent],
+  template: `<bh-pick-sheet [open]="open()" [rows]="rows()" title="Pick something">
+    <div sheetFilters data-testid="slot-filters">filters</div>
+    <div sheetLead data-testid="slot-lead">lead</div>
+  </bh-pick-sheet>`,
+})
+class SlotHost {
+  open = signal(true);
+  rows = signal<PickRow[]>([{ id: 'm1', primary: 'Thruster' }]);
+}
+
+describe('PickSheetComponent projection slots', () => {
+  let f: any, el: HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [SlotHost] }).compileComponents();
+    f = TestBed.createComponent(SlotHost);
+    el = f.nativeElement;
+    f.detectChanges();
+  });
+
+  afterEach(() => {
+    const dlg: HTMLDialogElement | null = el.querySelector('dialog');
+    if (dlg?.open) dlg.close();
+  });
+
+  it('renders sheetFilters above the results list', () => {
+    const filters = el.querySelector('[data-testid="slot-filters"]')!;
+    const rowsList = el.querySelector('.rows')!;
+    // DOCUMENT_POSITION_FOLLOWING on rowsList means filters comes BEFORE it in document order.
+    expect(filters.compareDocumentPosition(rowsList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders sheetLead as the first row inside .rows, above the first pick row', () => {
+    const lead = el.querySelector('[data-testid="slot-lead"]')!;
+    const rowsList = el.querySelector('.rows')!;
+    expect(rowsList.firstElementChild).toBe(lead);
+    const firstPickRow = el.querySelector('[data-testid^="pick-row-"]')!;
+    expect(lead.compareDocumentPosition(firstPickRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('PickSheetComponent', () => {
   let f: any, host: Host, el: HTMLElement;
 

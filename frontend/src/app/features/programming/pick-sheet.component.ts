@@ -36,6 +36,11 @@ export type PickResult = { id: string } | { freeText: string };
  * `{ name, units, loadable }`) and feeds `createPending`/`createError` back in, because bh-sheet's
  * `open` is one-way and so is `step` here -- reset in `onClosed()`, same as `term`, so a reopened
  * sheet never resumes mid-create. Other consumers never set `allowCreate`, so they see no change.
+ *
+ * Two projection slots, search step only: `[sheetFilters]` sits above the results (below the
+ * search bar) and `[sheetLead]` renders as the first row inside them. The caller owns whatever
+ * fills these -- this component stays domain-agnostic. Projecting neither leaves the sheet
+ * identical to before either slot existed.
  */
 @Component({
   selector: 'bh-pick-sheet',
@@ -50,7 +55,10 @@ export type PickResult = { id: string } | { freeText: string };
                          (search)="search.emit($event)" testId="pick-search" />
         </div>
 
+        <ng-content select="[sheetFilters]" />
+
         <div class="rows" aria-live="polite">
+          <ng-content select="[sheetLead]" />
           @for (r of rows(); track r.id) {
             <button type="button" class="row" [attr.data-testid]="'pick-row-' + r.id"
                     (click)="picked.emit({ id: r.id })">
@@ -135,6 +143,8 @@ export type PickResult = { id: string } | { freeText: string };
   styles: [`
     :host { display: contents; }
     .tools { margin-bottom: var(--sp-3); }
+    :host ::ng-deep [sheetFilters] { display: flex; flex-direction: column; gap: var(--sp-2);
+      padding: 0 var(--sp-3) var(--sp-3); }
     .rows { display: flex; flex-direction: column; }
     .row { display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
       gap: var(--sp-1); width: 100%; min-height: var(--tap); box-sizing: border-box;
