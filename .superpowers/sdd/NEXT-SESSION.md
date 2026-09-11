@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Branch | **`m14c-a-builder`**, pushed, HEAD `3d86910`. `main` at `ee19a35`. |
+| Branch | **`m14c-a-builder`**, pushed, HEAD `04c04e9`. `main` at `ee19a35`. |
 | Spec | `docs/superpowers/specs/2026-09-07-m14c-a-builder-design.md` |
 | Plan | `docs/superpowers/plans/2026-09-07-m14c-a-builder.md` — **17 tasks; 1–10 and 12 done** |
-| Backend | **819 / 0 / 0 / 0**, `BUILD SUCCESS` |
-| Karma | **783 SUCCESS** |
+| Backend | **821 / 0 / 0 / 0**, `BUILD SUCCESS` |
+| Karma | **784 SUCCESS** |
 | Production build | clean, **zero warnings** |
 | Playwright | **STILL not run this milestone** — Task 13. See the warning below. |
 | Visual baselines | `sortable-list` still has **no snapshot**. Task 13 Step 0. |
@@ -48,7 +48,7 @@ it; do not assume Task 13 is a formality.
 Read .superpowers/sdd/NEXT-SESSION.md and CONTINUE M14c-a.
 
 cd ~/dev/boxhub && git checkout m14c-a-builder && git status
-# expect a CLEAN tree at 3d86910, branch pushed
+# expect a CLEAN tree at 04c04e9, branch pushed
 
 Do NOT re-plan and do NOT re-spec. Tasks 1-10 and 12 are committed and were
 verified by the orchestrator, not by their executors. THE PIECE EDITOR IS DONE
@@ -89,10 +89,10 @@ because a change was verified at a single viewport. Any layout change gets
 measured at 320 / 360 / 393 / 768 / 1024 / 1280 before it is called done.
 
 Baselines to confirm before building on them:
-  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 819/0/0/0
+  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 821/0/0/0
   cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless
   cd frontend && env -u NODE_OPTIONS npm run build                 # 0 warnings
-Expect 819/0/0/0, TOTAL: 783 SUCCESS, zero warnings. The "Mailer ... port:
+Expect 821/0/0/0, TOTAL: 784 SUCCESS, zero warnings. The "Mailer ... port:
 localhost, 1025" ERROR lines are pre-existing SMTP noise -- judge only by
 "Tests run:" and "BUILD SUCCESS".
 
@@ -191,9 +191,12 @@ consumer's array is only reordered on drop. Consequences a future change must re
   wrapping to two lines, which is a shape change and therefore the user's call.
 - **Help/documentation heuristic scored 2** — there is none anywhere on the screen. Acceptable for
   an expert tool; recorded because it was scored as observed.
-- **A movement created from the pick sheet gets `category: 'OTHER'`**, invented by an executor
-  because the create step asks for units and load but not a category. Nothing validates categories
-  server-side so it saves, but OTHER is a seventh category that exists nowhere else in the seed.
+- **The create-movement step inside the picker was never opened by a review pass.** Both `audit`
+  and `critique` targeted the piece editor, and the review agent built its piece by picking an
+  existing movement, so the free-text path — a second screen inside a sheet, reachable only after a
+  search misses — was never walked. It had three defects: a 403 for coaches, mismatched action
+  buttons, and an invented `OTHER` category. All fixed in `04c04e9`. **The lesson: a surface that
+  only appears after a miss needs to be named as its own target, or a scored pass will skip it.**
 - **`WodJsonValidator` does not cross-check `blockIndex` against the block list**, and does not
   check a scale's unit against its movement's allowed list. Both are deliberate and carry
   `ponytail:` comments — the validator is a pure function with no repository. **The TV must
