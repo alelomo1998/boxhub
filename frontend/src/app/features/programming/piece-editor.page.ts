@@ -975,12 +975,12 @@ export class PieceEditorPage {
     this.createPending.set(false);
   }
 
-  /** bh-pick-sheet's create step posts { name, units, loadable }; category has no UI here, so the
-   *  editor -- which owns the call -- fills in the catalogue's catch-all. */
-  onCreateMovement(payload: { name: string; units: string[]; loadable: boolean }) {
+  /** bh-pick-sheet's create step posts { name, units, loadable, category }; the editor just
+   *  forwards it, it owns the actual call. */
+  onCreateMovement(payload: { name: string; units: string[]; loadable: boolean; category: string }) {
     this.createPending.set(true);
     this.createError.set('');
-    this.prog.createMovement({ name: payload.name, category: 'OTHER', units: payload.units, loadable: payload.loadable })
+    this.prog.createMovement({ name: payload.name, category: payload.category, units: payload.units, loadable: payload.loadable })
       .subscribe({
         next: m => {
           this.createPending.set(false);

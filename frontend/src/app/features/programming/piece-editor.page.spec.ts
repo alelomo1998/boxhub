@@ -46,7 +46,7 @@ describe('PieceEditorPage', () => {
     // Unused unless a spec exercises the create step; a safe default so an accidental call doesn't
     // throw "no return value configured" in an unrelated spec.
     prog.createMovement.and.returnValue(of(
-      { id: 'mv-default', name: '', category: 'OTHER', modality: null, global: false, units: ['REPS'], loadable: false } as Movement));
+      { id: 'mv-default', name: '', category: 'ODD_OBJECT', modality: null, global: false, units: ['REPS'], loadable: false } as Movement));
     // The load field labels itself with the box's unit; without a stub every spec dies on init.
     prog.weightUnit.and.returnValue(of('KG' as const));
 
@@ -638,7 +638,7 @@ describe('PieceEditorPage', () => {
     fixture.detectChanges();
   }
 
-  it('confirming the create step posts { name, units, loadable } and lands the result on the line', () => {
+  it('confirming the create step posts { name, units, loadable, category } and lands the result on the line', () => {
     component.blocks.set([{ label: '', lines: [{ text: '' }], blocks: [] }]);
     component.collapsed.set([false]);
     fixture.detectChanges();
@@ -655,7 +655,7 @@ describe('PieceEditorPage', () => {
     fixture.detectChanges();
 
     expect(prog.createMovement).toHaveBeenCalledWith(
-      { name: 'Wall Walk', category: 'OTHER', units: ['REPS', 'CAL'], loadable: false });
+      { name: 'Wall Walk', category: 'ODD_OBJECT', units: ['REPS', 'CAL'], loadable: false });
     expect(component.blocks()[0].lines![0].movementId).toBe('mv-new');
     expect(component.blocks()[0].lines![0].unit).toBe('REPS');
   });

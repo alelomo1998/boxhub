@@ -8,6 +8,11 @@ export interface Movement { id: string; name: string; category: string; modality
 /** Order matters: index 0 is a movement's (or free text's) default unit. */
 export const MOVEMENT_UNITS = ['REPS', 'CAL', 'M', 'KM', 'MI', 'FT', 'SEC'] as const;
 
+/** The seeded 122's six categories -- a hand-typed movement must land in a real one, never a
+ *  synthesized catch-all (there is no seventh). */
+export const MOVEMENT_CATEGORIES =
+  ['BARBELL', 'DUMBBELL', 'GYMNASTICS', 'KETTLEBELL', 'MONOSTRUCTURAL', 'ODD_OBJECT'] as const;
+
 export const MACROS = ['WARMUP', 'STRENGTH', 'GYMNASTIC', 'WORKOUT'] as const;
 export const TIMING_PRESETS = ['FOR_TIME', 'AMRAP', 'EMOM', 'TABATA', 'INTERVAL'] as const;
 export const TEAM_SHARES = ['TOGETHER', 'SPLIT', 'RELAY'] as const;

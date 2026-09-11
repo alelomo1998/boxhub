@@ -22,7 +22,7 @@ class Host {
   createPending = signal(false);
   createError = signal('');
   picked: PickResult | null = null;
-  created: { name: string; units: string[]; loadable: boolean } | null = null;
+  created: { name: string; units: string[]; loadable: boolean; category: string } | null = null;
   closedCount = 0;
 }
 
@@ -164,6 +164,7 @@ describe('PickSheetComponent', () => {
     expect(el.querySelector('[data-testid="pick-create-step"]')!.textContent).toContain('Wall Walk');
     expect(el.querySelector('[data-testid="pick-create-unit-REPS"]')!.classList).toContain('sel');
     expect(el.querySelector('[data-testid="pick-create-loadable-no"]')!.classList).toContain('sel');
+    expect(el.querySelector('[data-testid="pick-create-category-ODD_OBJECT"]')!.classList).toContain('sel');
   });
 
   it('keeps at least one unit selected -- tapping the only selected unit is a no-op', () => {
@@ -177,7 +178,7 @@ describe('PickSheetComponent', () => {
     expect(el.querySelector('[data-testid="pick-create-unit-REPS"]')!.classList).toContain('sel');
   });
 
-  it('confirming the create step emits create with the chosen units and loadable flag', () => {
+  it('confirming the create step emits create with the chosen units, loadable flag and category', () => {
     host.allowCreate.set(true);
     f.detectChanges();
     setSearch('Wall Walk');
@@ -185,10 +186,22 @@ describe('PickSheetComponent', () => {
     f.detectChanges();
     el.querySelector<HTMLElement>('[data-testid="pick-create-unit-CAL"]')!.click();
     el.querySelector<HTMLElement>('[data-testid="pick-create-loadable-yes"]')!.click();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-category-BARBELL"]')!.click();
     f.detectChanges();
     el.querySelector<HTMLElement>('[data-testid="pick-create-confirm"]')!.click();
     f.detectChanges();
-    expect(host.created).toEqual({ name: 'Wall Walk', units: ['REPS', 'CAL'], loadable: true });
+    expect(host.created).toEqual({ name: 'Wall Walk', units: ['REPS', 'CAL'], loadable: true, category: 'BARBELL' });
+  });
+
+  it('defaults the category to ODD_OBJECT when none is chosen', () => {
+    host.allowCreate.set(true);
+    f.detectChanges();
+    setSearch('Wall Walk');
+    freeRow()!.click();
+    f.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-create-confirm"]')!.click();
+    f.detectChanges();
+    expect(host.created!.category).toBe('ODD_OBJECT');
   });
 
   it('back returns to the search step', () => {

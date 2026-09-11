@@ -31,7 +31,7 @@ class MovementControllerTest extends AbstractIntegrationTest {
     @Autowired MovementRepository movements;
     @Autowired ObjectMapper om;
 
-    String aAdmin, aAthlete, bAdmin;
+    String aAdmin, aCoach, aAthlete, bAdmin;
     String globalName;
 
     @BeforeEach
@@ -40,6 +40,7 @@ class MovementControllerTest extends AbstractIntegrationTest {
         Box boxA = newBox("Mv Box A " + n, "mvc-a-" + n);
         Box boxB = newBox("Mv Box B " + n, "mvc-b-" + n);
         aAdmin = boxToken("mva-" + n + "@t.io", boxA, "BOX_ADMIN");
+        aCoach = boxToken("mvcoach-" + n + "@t.io", boxA, "COACH");
         aAthlete = boxToken("mvath-" + n + "@t.io", boxA, "ATHLETE");
         bAdmin = boxToken("mvb-" + n + "@t.io", boxB, "BOX_ADMIN");
         globalName = "Global Snatch " + n;
@@ -106,6 +107,30 @@ class MovementControllerTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/box/movements").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + aAthlete)
                         .content("{\"name\":\"Nope\",\"category\":\"OTHER\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void coachCanCreateMovement() throws Exception {
+        mvc.perform(post("/api/box/movements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + aCoach)
+                        .content("{\"name\":\"Coach Added Lift\",\"category\":\"BARBELL\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name", is("Coach Added Lift")));
+    }
+
+    @Test
+    void coachCannotPatchMovement() throws Exception {
+        String body = mvc.perform(post("/api/box/movements").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + aAdmin)
+                        .content("{\"name\":\"Coach Patch Target\",\"category\":\"BARBELL\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = om.readTree(body).get("id").asText();
+
+        mvc.perform(patch("/api/box/movements/" + id).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + aCoach)
+                        .content("{\"name\":\"Renamed\"}"))
                 .andExpect(status().isForbidden());
     }
 

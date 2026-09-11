@@ -63,7 +63,8 @@ public class MovementController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MovementDto create(@Valid @RequestBody CreateMovementRequest req) {
-        RoleGuard.requireBoxAdmin();
+        // coach-or-admin: adding to the catalogue is programming work, done from the coach WOD builder
+        RoleGuard.requireStaff();
         Movement m = new Movement();
         m.setBoxId(TenantContext.requireBoxId());
         m.setName(req.name().trim());
