@@ -29,7 +29,8 @@ import { RouterLink } from '@angular/router';
          [class]="'btn ' + variant() + ' ' + size()"
          [attr.aria-busy]="loading()"
          [attr.aria-disabled]="inert() ? 'true' : null"
-         [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
+         [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null"
+         [attr.aria-describedby]="describedBy() || null">
         @if (loading()) { <span class="spin" aria-hidden="true"></span> }
         @if (!(loading() && variant() === 'icon')) { <ng-container [ngTemplateOutlet]="body" /> }
       </a>
@@ -44,7 +45,8 @@ import { RouterLink } from '@angular/router';
          [class]="'btn ' + variant() + ' ' + size()"
          [attr.aria-busy]="loading()"
          [attr.aria-disabled]="inert() ? 'true' : null"
-         [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
+         [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null"
+         [attr.aria-describedby]="describedBy() || null">
         @if (loading()) { <span class="spin" aria-hidden="true"></span> }
         @if (!(loading() && variant() === 'icon')) { <ng-container [ngTemplateOutlet]="body" /> }
       </a>
@@ -52,7 +54,8 @@ import { RouterLink } from '@angular/router';
       <button [type]="type()" [class]="'btn ' + variant() + ' ' + size()"
               [disabled]="disabled() || loading()" [attr.aria-busy]="loading()"
               [attr.aria-disabled]="ariaDisabled() ? 'true' : null"
-              [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null">
+              [attr.aria-label]="label() || null" [attr.data-testid]="testId() || null"
+              [attr.aria-describedby]="describedBy() || null">
         @if (loading()) { <span class="spin" aria-hidden="true"></span> }
         @if (!(loading() && variant() === 'icon')) { <ng-container [ngTemplateOutlet]="body" /> }
       </button>
@@ -166,6 +169,10 @@ export class ButtonComponent {
    *  /app/app/coach/classes and 404. The gallery's own sample shipped with exactly that bug. */
   route = input<string | unknown[] | null>(null);
   testId = input('');
+  /** An attribute on the component's host does not reach the element inside it -- same trap as
+   *  `testId` (CLAUDE.md, four prior fixes). Bind the id of an element describing this control's
+   *  state (e.g. a disabled-reason line), not the reason text itself. */
+  describedBy = input('');
 
   /** An anchor honours disabled/loading by losing its href, which is the only way to make one
    *  genuinely unactivatable. The <button> branch uses the native attribute instead. */

@@ -588,6 +588,50 @@ describe('ClassBuilderPage', () => {
     expect(ids).toContain('w-random');
   });
 
+  describe('the fill-slot sheet\'s library fetch', () => {
+    it('shows a distinct error state (never "nothing found"), and retry refetches', () => {
+      setup();
+      prog.wods.and.returnValue(throwError(() => new Error('boom')));
+      store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="slot-library-error"]')).toBeTruthy();
+      expect(el.querySelector('bh-empty')).toBeNull();
+      expect(el.querySelector('[data-testid="pick-search"]')).toBeNull();
+
+      prog.wods.and.returnValue(of([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]));
+      el.querySelector<HTMLElement>('[data-testid="slot-library-retry"]')!.click();
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="slot-library-error"]')).toBeNull();
+      expect(el.querySelector('[data-testid="pick-row-lib-1"]')).toBeTruthy();
+    });
+
+    it('shows a loading state, distinct from pick-sheet\'s own empty state', () => {
+      setup();
+      const pending = new Subject<Wod[]>();
+      prog.wods.and.returnValue(pending.asObservable());
+      store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="slot-library-loading"]')).toBeTruthy();
+      expect(el.querySelector('bh-empty')).toBeNull();
+
+      pending.next([]);
+      pending.complete();
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="slot-library-loading"]')).toBeNull();
+      expect(el.querySelector('bh-empty')).toBeTruthy();
+    });
+  });
+
   it('loading / error / empty states each render their testid', () => {
     // loading: sessionDetail never resolves
     setup();
@@ -1110,6 +1154,84 @@ describe('ClassBuilderPage', () => {
       fixture.detectChanges();
 
       expect(component.copyTargets()[0].checked).toBe(false);
+    });
+
+    it('a failed day-sessions fetch never claims there are no other classes, and its retry refetches', () => {
+      setup();
+      booking.listSessions.and.returnValue(throwError(() => new Error('boom')));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      const reason = el.querySelector('[data-testid="copy-day-reason"]')!;
+      expect(reason.textContent).not.toContain('No other classes');
+      const retryBtn = el.querySelector<HTMLButtonElement>('[data-testid="copy-day-retry"]');
+      expect(retryBtn).toBeTruthy();
+
+      booking.listSessions.and.returnValue(of([sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z')]));
+      retryBtn!.click();
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="copy-day-retry"]')).toBeNull();
+      expect(el.querySelector<HTMLButtonElement>('[data-testid="copy-day"]')!.disabled).toBe(false);
+    });
+
+    it('the disabled-reason line under the copy button is associated with it via aria-describedby', () => {
+      setup();
+      booking.listSessions.and.returnValue(of([sessionView('sess1', 'CrossFit 60', DETAIL.startAt)]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      const btn = el.querySelector<HTMLButtonElement>('[data-testid="copy-day"]')!;
+      const reason = el.querySelector('[data-testid="copy-day-reason"]')!;
+      expect(reason.id).toBe('copy-day-reason');
+      expect(btn.getAttribute('aria-describedby')).toBe('copy-day-reason');
+    });
+
+    it('the confirm button reads an instruction at zero, and the counted wording above zero', () => {
+      setup();
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[])); // empty -> auto-ticked
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+
+      const confirm = el.querySelector<HTMLButtonElement>('[data-testid="copy-confirm"]')!;
+      expect(confirm.textContent).toContain('Copy to 1 class');
+
+      el.querySelector<HTMLElement>('[data-testid="copy-target-sess2"]')!.click(); // untick -> zero
+      fixture.detectChanges();
+
+      expect(confirm.textContent).toContain('Select a class to copy to');
+      expect(confirm.disabled).toBe(true);
+    });
+
+    it('the confirm button stays disabled while a target is still resolving, and says so', () => {
+      setup();
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      const pending = new Subject<SessionItem[]>();
+      prog.sessionItems.and.returnValue(pending.asObservable());
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="copy-target-sess2"]')!.click(); // tick the resolving row
+      fixture.detectChanges();
+
+      const confirm = el.querySelector<HTMLButtonElement>('[data-testid="copy-confirm"]')!;
+      expect(confirm.disabled).toBe(true);
+      expect(el.querySelector('[data-testid="copy-confirm-checking"]')).toBeTruthy();
+
+      pending.next([]);
+      pending.complete();
+      fixture.detectChanges();
+
+      expect(confirm.disabled).toBe(false);
+      expect(el.querySelector('[data-testid="copy-confirm-checking"]')).toBeNull();
     });
   });
 });

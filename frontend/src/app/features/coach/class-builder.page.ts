@@ -235,17 +235,25 @@ function wodMatchesText(w: Wod, needle: string): boolean {
 
               <div class="copyaction">
                 <bh-button type="button" variant="solid" size="lg" class="full"
-                           [disabled]="!!copyDisabledReason()" testId="copy-day" (click)="openCopySheet()">
+                           [disabled]="!!copyDisabledReason()"
+                           [describedBy]="copyDisabledReason() ? 'copy-day-reason' : ''"
+                           testId="copy-day" (click)="openCopySheet()">
                   <span i18n="@@class.copyDay.button">Copy to the day's other classes</span>
                 </bh-button>
                 @if (copyDisabledReason(); as reason) {
-                  <p class="copy-reason" data-testid="copy-day-reason">{{ reason }}</p>
+                  <p class="copy-reason" id="copy-day-reason" data-testid="copy-day-reason">{{ reason }}</p>
+                }
+                @if (dayTargetsState() === 'error') {
+                  <bh-button variant="ghost" size="sm" testId="copy-day-retry" (click)="retryDayTargets()">
+                    <span i18n="@@class.copyDay.retry">Try again</span>
+                  </bh-button>
                 }
               </div>
             </form>
 
             <bh-pick-sheet [open]="slotSheetOpen()" [rows]="filteredLibraryRows()"
-                           [allowFreeText]="false" [overlay]="slotStep() !== 'search'"
+                           [allowFreeText]="false"
+                           [overlay]="slotStep() !== 'search' || libraryState() !== 'ready'"
                            title="Fill this slot" i18n-title="@@class.slot.sheetTitle"
                            (search)="onLibrarySearch($event)" (picked)="onSlotPicked($event)"
                            (closed)="closeSlotSheet()">
@@ -266,6 +274,25 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                 <span i18n="@@class.slot.writeNew">＋ Write a new piece</span>
               </button>
 
+              <!-- Library loading/error, search step only. pick-sheet stays domain-agnostic (it
+                   only knows [rows] and renders its own "Nothing found" from an empty array) so
+                   this can't live there -- it reuses the existing [sheetOverlay] slot the
+                   category/type/detail steps already use, rather than teaching pick-sheet a new
+                   concept for one caller. -->
+              @if (slotStep() === 'search' && libraryState() === 'loading') {
+                <div sheetOverlay class="stepbody" data-testid="slot-library-loading">
+                  <p class="stateline" i18n="@@class.slot.libraryLoading">Loading the library…</p>
+                </div>
+              }
+              @if (slotStep() === 'search' && libraryState() === 'error') {
+                <div sheetOverlay class="stepbody" data-testid="slot-library-error">
+                  <bh-alert tone="danger" i18n="@@class.slot.libraryError">Couldn't load the library.</bh-alert>
+                  <bh-button variant="ghost" size="lg" class="full" testId="slot-library-retry"
+                             (click)="retryLibrary()">
+                    <span i18n="@@class.slot.libraryRetry">Try again</span>
+                  </bh-button>
+                </div>
+              }
               @if (slotStep() === 'category') {
                 <div sheetOverlay class="stepbody" data-testid="slot-category-step">
                   <div class="rows">
@@ -401,9 +428,14 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                   <bh-alert tone="danger" data-testid="copy-day-error">{{ copyError() }}</bh-alert>
                 }
                 <bh-button type="button" variant="strong" size="lg" class="full" [loading]="copyBusy()"
-                           [disabled]="checkedCopyCount() === 0" testId="copy-confirm" (click)="confirmCopy()">
-                  <span i18n="@@class.copyDay.confirm">{checkedCopyCount(), plural, =1 {Copy to 1 class} other {Copy to {{ checkedCopyCount() }} classes}}</span>
+                           [disabled]="checkedCopyCount() === 0 || anyTargetResolving()"
+                           testId="copy-confirm" (click)="confirmCopy()">
+                  <span i18n="@@class.copyDay.confirm">{checkedCopyCount(), plural, =0 {Select a class to copy to} =1 {Copy to 1 class} other {Copy to {{ checkedCopyCount() }} classes}}</span>
                 </bh-button>
+                @if (anyTargetResolving()) {
+                  <p class="copy-reason" data-testid="copy-confirm-checking"
+                     i18n="@@class.copyDay.stillChecking">Still checking the day's other classes…</p>
+                }
               </div>
             </bh-sheet>
           }
@@ -594,6 +626,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   state = signal<'loading' | 'error' | 'ready'>('loading');
   published = signal(false);
   library = signal<Wod[]>([]);
+  /** The library fetch's own state -- an empty `library` used to mean either "empty" or "failed"
+   *  indistinguishably, and the fill-slot sheet rendered pick-sheet's "Nothing found" for both. */
+  libraryState = signal<'loading' | 'ready' | 'error'>('loading');
 
   drafts = this.store.drafts;
   expanded = signal<number | null>(null);
@@ -620,6 +655,10 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
    *  A real limitation (two differently-scheduled class types sharing a name would collide), not
    *  an oversight. */
   dayTargets = signal<SessionView[]>([]);
+  /** Distinguishes "no other classes today" (ready, empty) from "couldn't check" (error) -- an
+   *  empty `dayTargets` used to mean both, and the copy button's reason line reported the former
+   *  as fact even when the fetch had failed. */
+  dayTargetsState = signal<'loading' | 'ready' | 'error'>('loading');
   copyOpen = signal(false);
   copyTargets = signal<CopyTarget[]>([]);
   copyBusy = signal(false);
@@ -648,6 +687,12 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
    *  disabled, rendered as a --faint meta line under the button, never a tooltip -- there is no
    *  tooltip on touch. Empty string means enabled. */
   copyDisabledReason = computed(() => {
+    if (this.dayTargetsState() === 'error') {
+      return $localize`:@@class.copyDay.loadError:Couldn't check for the day's other classes.`;
+    }
+    if (this.dayTargetsState() === 'loading') {
+      return $localize`:@@class.copyDay.checkingDay:Checking for other classes today…`;
+    }
     if (!this.dayTargets().length) {
       return $localize`:@@class.copyDay.noTargets:No other classes of this type today.`;
     }
@@ -658,6 +703,10 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   });
 
   checkedCopyCount = computed(() => this.copyTargets().filter(t => t.checked).length);
+  /** A row stays `itemCount === null` until its own fetch resolves OR fails (`failed`) -- "still
+   *  resolving" is neither yet. Confirming while any row is in this state would silently commit
+   *  without it (contract 14a finding 4). */
+  anyTargetResolving = computed(() => this.copyTargets().some(t => t.itemCount === null && !t.failed));
 
   itemLabel = (d: PieceDraft, i: number) =>
     d.wod?.title || d.label || $localize`:@@class.piece.fallback:piece ${i + 1}:position:`;
@@ -711,13 +760,25 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   ngOnInit() {
     this.sessionId = this.route.snapshot.paramMap.get('id')!;
-    this.prog.wods().subscribe({ next: w => this.library.set(w), error: () => {} });
+    this.loadLibrary();
     this.load();
   }
 
   retry() {
     this.state.set('loading');
     this.load();
+  }
+
+  private loadLibrary() {
+    this.libraryState.set('loading');
+    this.prog.wods().subscribe({
+      next: w => { this.library.set(w); this.libraryState.set('ready'); },
+      error: () => this.libraryState.set('error'),
+    });
+  }
+
+  retryLibrary() {
+    this.loadLibrary();
   }
 
   private load() {
@@ -736,15 +797,24 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     });
   }
 
-  /** Never fails the screen: a failed fetch just leaves the copy button hidden (fail closed),
-   *  not a broken control. */
+  /** Never fails the SCREEN -- the copy button stays put either way -- but a failed fetch must
+   *  say so rather than silently reporting "no other classes today" as fact. */
   private loadDayTargets(d: SessionDetail) {
+    this.dayTargetsState.set('loading');
     const from = new Date(d.startAt); from.setHours(0, 0, 0, 0); // LOCAL midnight, not UTC
     const to = new Date(from); to.setDate(to.getDate() + 1);
     this.booking.listSessions(from.toISOString(), to.toISOString()).subscribe({
-      next: sessions => this.dayTargets.set(sessions.filter(s => s.name === d.name && s.id !== this.sessionId)),
-      error: () => this.dayTargets.set([]),
+      next: sessions => {
+        this.dayTargets.set(sessions.filter(s => s.name === d.name && s.id !== this.sessionId));
+        this.dayTargetsState.set('ready');
+      },
+      error: () => this.dayTargetsState.set('error'),
     });
+  }
+
+  retryDayTargets() {
+    const d = this.detail();
+    if (d) this.loadDayTargets(d);
   }
 
   private loadItems(d: SessionDetail) {
@@ -1091,7 +1161,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   }
 
   confirmCopy() {
-    if (this.copyBusy()) return;
+    if (this.copyBusy() || this.anyTargetResolving()) return;
     const ticked = this.copyTargets().filter(t => t.checked);
     if (!ticked.length) return;
     const items: ItemInput[] = this.store.drafts()

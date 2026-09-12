@@ -201,10 +201,24 @@ class TestIdLinkHost {}
 })
 class TestIdButtonHost {}
 
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button describedBy="reason-1" testId="described-btn">Save</bh-button>`,
+})
+class DescribedByButtonHost {}
+
+@Component({
+  standalone: true,
+  imports: [ButtonComponent],
+  template: `<bh-button describedBy="reason-1" href="/oauth2/authorization/google">Google</bh-button>`,
+})
+class DescribedByLinkHost {}
+
 describe('ButtonComponent as a link', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LinkHost, PlainHost, TestIdLinkHost, TestIdButtonHost],
+      imports: [LinkHost, PlainHost, TestIdLinkHost, TestIdButtonHost, DescribedByButtonHost, DescribedByLinkHost],
     }).compileComponents();
   });
 
@@ -259,6 +273,23 @@ describe('ButtonComponent as a link', () => {
     const plain = TestBed.createComponent(PlainHost);
     plain.detectChanges();
     expect(plain.nativeElement.querySelector('button').getAttribute('data-testid')).toBeNull();
+  });
+
+  it('puts describedBy on the inner control as aria-describedby, never the host', () => {
+    const btnHost = TestBed.createComponent(DescribedByButtonHost);
+    btnHost.detectChanges();
+    const btn: HTMLButtonElement = btnHost.nativeElement.querySelector('button');
+    expect(btn.getAttribute('aria-describedby')).toBe('reason-1');
+    expect(btnHost.nativeElement.getAttribute('aria-describedby')).toBeNull();
+
+    const linkHost = TestBed.createComponent(DescribedByLinkHost);
+    linkHost.detectChanges();
+    const a: HTMLAnchorElement = linkHost.nativeElement.querySelector('a');
+    expect(a.getAttribute('aria-describedby')).toBe('reason-1');
+
+    const plain = TestBed.createComponent(PlainHost);
+    plain.detectChanges();
+    expect(plain.nativeElement.querySelector('button').getAttribute('aria-describedby')).toBeNull();
   });
 });
 
