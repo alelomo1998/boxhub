@@ -1,11 +1,11 @@
 import {
-  ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, computed, inject, signal,
+  ChangeDetectionStrategy, Component, ElementRef, HostListener, LOCALE_ID, OnInit, computed, inject, signal,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, formatDate } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { of } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import { BookingService, SessionDetail } from '../booking/booking.service';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
+import { BookingService, SessionDetail, SessionView } from '../booking/booking.service';
 import {
   ProgrammingService, Wod, MACROS, TIMING_PRESETS, ItemInput, SessionItem,
 } from '../programming/programming.service';
@@ -46,6 +46,16 @@ const PRESET_LABELS: Record<string, string> = {
 
 const NOT_SCORED = $localize`:@@class.score.notScored:not scored`;
 const ANY_LABEL = $localize`:@@class.filter.any:Any`;
+
+/** One row of the "copy to the day's other classes" sheet. `itemCount === null` means the fetch
+ *  for that target's existing pieces hasn't resolved yet (or failed -- see `failed`); never
+ *  treated as "empty" until it actually resolves to zero. */
+interface CopyTarget {
+  session: SessionView;
+  itemCount: number | null;
+  failed: boolean;
+  checked: boolean;
+}
 
 /** One row's worth of content snippet, ~80 chars: long enough to tell pieces apart, short enough
  *  to never wrap a result row to three lines at 360px. */
@@ -190,6 +200,17 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                 <span i18n="@@class.addSlot">Add a slot</span>
               </button>
 
+              @if (dayTargets().length) {
+                <button type="button" class="addslot" data-testid="copy-day"
+                        [disabled]="!hasSavedPieces()" (click)="openCopySheet()">
+                  <span i18n="@@class.copyDay.button">Copy to the day's other classes</span>
+                </button>
+                @if (copiedCount()) {
+                  <p class="copied" role="status" data-testid="copy-day-ok"
+                     i18n="@@class.copyDay.ok">{copiedCount(), plural, =1 {Copied to 1 class} other {Copied to {{ copiedCount() }} classes}}</p>
+                }
+              }
+
               <footer class="foot">
                 @if (formError()) {
                   <bh-alert tone="danger" data-testid="stack-save-error">{{ formError() }}</bh-alert>
@@ -326,6 +347,48 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                 }
               </div>
             </bh-sheet>
+
+            <bh-sheet [open]="copyOpen()" title="Copy to the day's other classes"
+                      i18n-title="@@class.copyDay.sheetTitle" label="Copy to the day's other classes"
+                      i18n-label="@@class.copyDay.aria" (closed)="closeCopySheet()">
+              <div class="ctrows">
+                @for (t of copyTargets(); track t.session.id) {
+                  <button type="button" class="ctrow" role="checkbox" [attr.aria-checked]="t.checked"
+                          [attr.data-testid]="'copy-target-' + t.session.id"
+                          (click)="toggleCopyTarget(t.session.id)">
+                    <span class="ct-text">
+                      <span class="ct-top">
+                        <span class="ct-time">{{ t.session.startAt | date:'HH:mm' }}</span>
+                        <span class="ct-name">{{ t.session.name }}</span>
+                      </span>
+                      <span class="ct-state">
+                        @if (t.failed) {
+                          <span i18n="@@class.copyDay.unknown">Couldn't check — skipped</span>
+                        } @else if (t.itemCount === null) {
+                          <span i18n="@@class.copyDay.checking">Checking…</span>
+                        } @else if (t.itemCount === 0) {
+                          <span i18n="@@class.copyDay.empty">Empty</span>
+                        } @else {
+                          <span i18n="@@class.copyDay.hasPieces">{t.itemCount, plural, =1 {1 piece already — will be replaced} other {{{ t.itemCount }} pieces already — will be replaced}}</span>
+                        }
+                      </span>
+                    </span>
+                    <span class="ct-box" [class.checked]="t.checked" aria-hidden="true">
+                      @if (t.checked) { <span class="mark">&#x2713;</span> }
+                    </span>
+                  </button>
+                }
+              </div>
+              <div class="ctfoot">
+                @if (copyError()) {
+                  <bh-alert tone="danger" data-testid="copy-day-error">{{ copyError() }}</bh-alert>
+                }
+                <bh-button type="button" variant="strong" size="lg" class="full" [loading]="copyBusy()"
+                           [disabled]="checkedCopyCount() === 0" testId="copy-confirm" (click)="confirmCopy()">
+                  <span i18n="@@class.copyDay.confirm">{checkedCopyCount(), plural, =1 {Copy to 1 class} other {Copy to {{ checkedCopyCount() }} classes}}</span>
+                </bh-button>
+              </div>
+            </bh-sheet>
           }
         }
       }
@@ -454,6 +517,29 @@ function wodMatchesText(w: Wod, needle: string): boolean {
     .slotrows .macrorow:last-child { border-bottom: none; }
     .macrorow:hover { background: var(--surface-2); }
     .macrorow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+    /* ---- copy-to-day sheet: same tap/divider idiom as .prow, two-line meta + a checkbox mark
+       -- plumbing, no volt. ------------------------------------------------------------------ */
+    .ctrows { display: flex; flex-direction: column; }
+    .ctrow { display: flex; align-items: center; gap: var(--sp-3); width: 100%; box-sizing: border-box;
+      min-height: var(--tap-lg); padding: var(--sp-2) 0; background: none; border: none;
+      border-bottom: 1px solid var(--hairline); color: var(--bone); text-align: left; cursor: pointer; }
+    .ctrows .ctrow:last-child { border-bottom: none; }
+    .ctrow:hover { background: var(--surface-2); }
+    .ctrow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .ct-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .ct-top { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; }
+    .ct-time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700;
+      font-size: var(--fs-sm); color: var(--bone-dim); flex-shrink: 0; }
+    .ct-name { font-family: var(--font-body); font-weight: 600; font-size: var(--fs-body);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ct-state { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); }
+    .ct-box { flex-shrink: 0; width: 22px; height: 22px; box-sizing: border-box;
+      border: 1px solid var(--hairline); border-radius: var(--r-xs); display: grid; place-items: center; }
+    .ct-box.checked { border-color: var(--bone); }
+    .ctfoot { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
+    .copied { margin: var(--sp-2) 0 0; font-family: var(--font-mono); font-size: var(--fs-meta);
+      letter-spacing: 0.06em; text-transform: uppercase; color: var(--good); }
   `],
 })
 export class ClassBuilderPage implements OnInit, HasUnsaved {
@@ -463,6 +549,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   private router = inject(Router);
   private store = inject(ClassDraftStore);
   private host: ElementRef<HTMLElement> = inject(ElementRef);
+  private locale = inject(LOCALE_ID);
 
   readonly macros = MACROS;
 
@@ -488,6 +575,21 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   addSlotOpen = signal(false);
 
+  /** Other sessions on this class's own LOCAL calendar day, same name, excluding itself -- the
+   *  copy button's candidate list. A session carries no link to its class type, so "same class
+   *  type" is matched on name, exactly like `seedFromSkeleton`'s `ts.find(x => x.name === d.name)`.
+   *  A real limitation (two differently-scheduled class types sharing a name would collide), not
+   *  an oversight. */
+  dayTargets = signal<SessionView[]>([]);
+  copyOpen = signal(false);
+  copyTargets = signal<CopyTarget[]>([]);
+  copyBusy = signal(false);
+  copyError = signal('');
+  /** How many classes the last copy wrote, for the confirmation. The copy lands in OTHER
+   *  classes the coach is not looking at, so a silent close is the one case where "it
+   *  worked" genuinely cannot be seen. */
+  copiedCount = signal(0);
+
   saving = signal(false);
   savedOk = signal(false);
   formError = signal('');
@@ -497,6 +599,14 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   categoryFilterLabel = computed(() => this.categoryFilter() ? this.macroLabel(this.categoryFilter()) : ANY_LABEL);
   typeFilterLabel = computed(() => this.typeFilter() ? this.presetLabel(this.typeFilter()) : ANY_LABEL);
+
+  /** The last-SAVED state, not the current (possibly unsaved) drafts -- `store.baseline()` is
+   *  exactly that snapshot. Drives the copy button's disabled state: copying an unsaved stack
+   *  would copy nothing. */
+  hasSavedPieces = computed(() =>
+    (JSON.parse(this.store.baseline()) as PieceDraft[]).some(d => !this.isEmpty(d)));
+
+  checkedCopyCount = computed(() => this.copyTargets().filter(t => t.checked).length);
 
   itemLabel = (d: PieceDraft, i: number) =>
     d.wod?.title || d.label || $localize`:@@class.piece.fallback:piece ${i + 1}:position:`;
@@ -564,6 +674,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
       next: d => {
         this.detail.set(d);
         this.published.set(d.programmingStatus === 'PUBLISHED');
+        this.loadDayTargets(d);
         if (this.store.holds(this.sessionId)) {
           this.state.set('ready');
         } else {
@@ -571,6 +682,17 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
         }
       },
       error: () => this.state.set('error'),
+    });
+  }
+
+  /** Never fails the screen: a failed fetch just leaves the copy button hidden (fail closed),
+   *  not a broken control. */
+  private loadDayTargets(d: SessionDetail) {
+    const from = new Date(d.startAt); from.setHours(0, 0, 0, 0); // LOCAL midnight, not UTC
+    const to = new Date(from); to.setDate(to.getDate() + 1);
+    this.booking.listSessions(from.toISOString(), to.toISOString()).subscribe({
+      next: sessions => this.dayTargets.set(sessions.filter(s => s.name === d.name && s.id !== this.sessionId)),
+      error: () => this.dayTargets.set([]),
     });
   }
 
@@ -798,7 +920,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   saveDraft() { this.doSave(false); }
 
-  private doSave(publish: boolean) {
+  /** `onSaved` runs only on a successful save -- the copy sheet's "save first" path (below) hooks
+   *  in here rather than duplicating this save. */
+  private doSave(publish: boolean, onSaved?: () => void) {
     if (this.saving()) return;
     const drafts = this.store.drafts();
     if (drafts.every(d => d.wod === null && d.fromLibraryWodId === null)) {
@@ -837,11 +961,91 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
         this.saving.set(false);
         this.savedOk.set(true);
         setTimeout(() => this.savedOk.set(false), 2500);
+        onSaved?.();
       },
       error: () => {
         this.saving.set(false);
         this.formError.set($localize`:@@class.save.error:Couldn't save — your pieces are still here, try again.`);
       },
+    });
+  }
+
+  // ---- copy to the day's other classes -----------------------------------------------------
+
+  /** The disabled attribute guards one path only (Enter still submits a form regardless of a
+   *  button's [disabled]) -- this guard is what actually stops the copy. */
+  openCopySheet() {
+    if (!this.hasSavedPieces()) return;
+    if (this.hasUnsaved()) {
+      // Copying now would copy the last SAVED state, silently dropping whatever's unsaved --
+      // save first (this class's own publish state, unchanged), then open on the fresh content.
+      this.doSave(this.published(), () => this.beginCopySheet());
+    } else {
+      this.beginCopySheet();
+    }
+  }
+
+  private beginCopySheet() {
+    const targets = this.dayTargets();
+    if (!targets.length) return;
+    this.copyError.set('');
+    this.copyTargets.set(targets.map(session => ({ session, itemCount: null, failed: false, checked: false })));
+    this.copyOpen.set(true);
+    for (const session of targets) {
+      this.prog.sessionItems(session.id).subscribe({
+        next: items => this.copyTargets.update(ts => ts.map(t =>
+          t.session.id === session.id ? { ...t, itemCount: items.length, checked: items.length === 0 } : t)),
+        // Unknown stays unticked and says so -- never silently treated as empty.
+        error: () => this.copyTargets.update(ts => ts.map(t =>
+          t.session.id === session.id ? { ...t, failed: true, checked: false } : t)),
+      });
+    }
+  }
+
+  toggleCopyTarget(sessionId: string) {
+    this.copyTargets.update(ts => ts.map(t => (t.session.id === sessionId ? { ...t, checked: !t.checked } : t)));
+  }
+
+  closeCopySheet() {
+    this.copyOpen.set(false);
+    this.copyTargets.set([]);
+    this.copyError.set('');
+  }
+
+  confirmCopy() {
+    if (this.copyBusy()) return;
+    const ticked = this.copyTargets().filter(t => t.checked);
+    if (!ticked.length) return;
+    const items: ItemInput[] = this.store.drafts()
+      .filter(d => !this.isEmpty(d))
+      .map(d => ({ id: null, wodId: null, fromLibraryWodId: d.wod!.id, scoreable: d.scoreable, scoreType: d.scoreType ?? undefined }));
+    if (!items.length) return;
+    const publish = this.published();
+
+    this.copyBusy.set(true);
+    this.copyError.set('');
+    this.copiedCount.set(0);
+
+    const writes = ticked.map(t => this.prog.putItems(t.session.id, items).pipe(
+      switchMap(() => (publish ? this.prog.publishProgramming(t.session.id, 'PUBLISHED') : of(null))),
+      map(() => ({ target: t, ok: true as const })),
+      catchError(() => of({ target: t, ok: false as const })),
+    ));
+
+    forkJoin(writes).subscribe(results => {
+      this.copyBusy.set(false);
+      const succeeded = new Set(results.filter(r => r.ok).map(r => r.target.session.id));
+      // Only the ones that actually wrote leave the list -- a failure stays so the coach can retry it.
+      this.copyTargets.update(ts => ts.filter(t => !succeeded.has(t.session.id)));
+      const failed = results.filter(r => !r.ok);
+      if (failed.length) {
+        const names = failed.map(r => formatDate(r.target.session.startAt, 'HH:mm', this.locale)).join(', ');
+        this.copyError.set($localize`:@@class.copyDay.partialFail:Couldn't copy to ${names}:times: — try again.`);
+      } else {
+        this.copiedCount.set(results.length);
+        setTimeout(() => this.copiedCount.set(0), 4000);
+        this.closeCopySheet();
+      }
     });
   }
 }

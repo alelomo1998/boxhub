@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { formatDate } from '@angular/common';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { of, throwError, Subject } from 'rxjs';
 import { ClassBuilderPage } from './class-builder.page';
-import { BookingService, ClassTemplate, SessionDetail } from '../booking/booking.service';
+import { BookingService, ClassTemplate, SessionDetail, SessionView } from '../booking/booking.service';
 import { ProgrammingService, SessionItem, SkeletonPiece, Wod } from '../programming/programming.service';
 import { ClassDraftStore, PieceDraft } from '../programming/class-draft.store';
 
@@ -28,6 +29,17 @@ function filledDraft(itemId: string | null, wod: Wod, scoreable = true): PieceDr
 function sessionItem(id: string, wod: Wod, scoreable = true): SessionItem {
   return { id, wodId: wod.id, wod, sortOrder: 0, scoreable, scoreType: wod.scoreType, myScoreLogged: false };
 }
+/** Local time, same as the row's own `date:'HH:mm'` pipe -- avoids hardcoding a UTC hour that a
+ *  runner in a non-UTC timezone would render differently. */
+function hhmm(iso: string): string { return formatDate(iso, 'HH:mm', 'en-US'); }
+
+function sessionView(id: string, name: string, startAt: string): SessionView {
+  return {
+    id, name, startAt, durationMin: 60, capacity: 20, coachId: null, coachName: null,
+    status: 'SCHEDULED', programmingStatus: 'DRAFT', bookedCount: 0, waitlistCount: 0, booked: [],
+    myBookingStatus: null, myPosition: null,
+  };
+}
 
 describe('ClassBuilderPage', () => {
   let fixture: ComponentFixture<ClassBuilderPage>;
@@ -41,12 +53,13 @@ describe('ClassBuilderPage', () => {
   function setup(routeParams: Record<string, string> = { id: 'sess1' }) {
     TestBed.resetTestingModule();
 
-    booking = jasmine.createSpyObj<BookingService>('BookingService', ['sessionDetail', 'listTemplates']);
+    booking = jasmine.createSpyObj<BookingService>('BookingService', ['sessionDetail', 'listTemplates', 'listSessions']);
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
       ['sessionItems', 'putItems', 'publishProgramming', 'skeleton', 'wods']);
 
     booking.sessionDetail.and.returnValue(of(DETAIL));
     booking.listTemplates.and.returnValue(of([] as ClassTemplate[]));
+    booking.listSessions.and.returnValue(of([] as SessionView[]));
     prog.sessionItems.and.returnValue(of([] as SessionItem[]));
     prog.putItems.and.returnValue(of([] as SessionItem[]));
     prog.publishProgramming.and.returnValue(of({ programmingStatus: 'PUBLISHED' }));
@@ -593,5 +606,220 @@ describe('ClassBuilderPage', () => {
     fixture.detectChanges();
 
     expect(el.scrollWidth).toBeLessThanOrEqual(360);
+  });
+
+  describe('copy to the day\'s other classes', () => {
+    it('the button is absent when the day holds no other class of this name', () => {
+      setup();
+      booking.listSessions.and.returnValue(of([sessionView('sess1', 'CrossFit 60', DETAIL.startAt)]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="copy-day"]')).toBeNull();
+    });
+
+    it('the button is present when it does, and the sheet lists each target with its time and name', () => {
+      setup();
+      const other = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([sessionView('sess1', 'CrossFit 60', DETAIL.startAt), other]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      const btn = el.querySelector<HTMLElement>('[data-testid="copy-day"]');
+      expect(btn).toBeTruthy();
+      btn!.click();
+      fixture.detectChanges();
+
+      const row = el.querySelector('[data-testid="copy-target-sess2"]')!;
+      expect(row.textContent).toContain(hhmm(other.startAt));
+      expect(row.textContent).toContain('CrossFit 60');
+    });
+
+    it('a target that already has pieces starts unticked and says so; an empty one starts ticked', () => {
+      setup();
+      const withPieces = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      const empty = sessionView('sess3', 'CrossFit 60', '2026-09-12T19:00:00Z');
+      booking.listSessions.and.returnValue(of([withPieces, empty]));
+      prog.sessionItems.and.callFake((id: string) =>
+        of(id === 'sess2' ? [sessionItem('x', BLANK_WOD)] : []) as ReturnType<typeof prog.sessionItems>);
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+
+      const rowWith = el.querySelector('[data-testid="copy-target-sess2"]')!;
+      const rowEmpty = el.querySelector('[data-testid="copy-target-sess3"]')!;
+      expect(rowWith.getAttribute('aria-checked')).toBe('false');
+      expect(rowWith.textContent).toContain('1');
+      expect(rowEmpty.getAttribute('aria-checked')).toBe('true');
+      expect(rowEmpty.textContent!.toLowerCase()).toContain('empty');
+    });
+
+    it('confirming calls putItems once per ticked target, with fromLibraryWodId set and id null on every item, empty slots omitted', () => {
+      setup();
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD), emptyDraft('Warmup', 'WARMUP')]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      prog.putItems.and.returnValue(of([] as SessionItem[]));
+      el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
+      fixture.detectChanges();
+
+      expect(prog.putItems).toHaveBeenCalledTimes(1);
+      expect(prog.putItems).toHaveBeenCalledWith('sess2', [
+        { id: null, wodId: null, fromLibraryWodId: 'w1', scoreable: true, scoreType: undefined },
+      ]);
+    });
+
+    it('a successful copy confirms how many classes were written', () => {
+      setup();
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      prog.putItems.and.returnValue(of([] as SessionItem[]));
+      el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
+      fixture.detectChanges();
+
+      // The copy lands in another class the coach cannot see, so the confirmation is the only
+      // evidence it happened.
+      const ok = el.querySelector('[data-testid="copy-day-ok"]');
+      expect(ok).toBeTruthy();
+      expect(ok!.getAttribute('role')).toBe('status');
+      expect(ok!.textContent).toContain('1');
+    });
+
+    it('a partial failure confirms nothing', () => {
+      setup();
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      prog.putItems.and.returnValue(throwError(() => new Error('boom')));
+      el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="copy-day-ok"]')).toBeNull();
+      expect(el.querySelector('[data-testid="copy-day-error"]')).toBeTruthy();
+    });
+
+    it('an unticked target is not written', () => {
+      setup();
+      const withPieces = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      const empty = sessionView('sess3', 'CrossFit 60', '2026-09-12T19:00:00Z');
+      booking.listSessions.and.returnValue(of([withPieces, empty]));
+      prog.sessionItems.and.callFake((id: string) =>
+        of(id === 'sess2' ? [sessionItem('x', BLANK_WOD)] : []) as ReturnType<typeof prog.sessionItems>);
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      prog.putItems.and.returnValue(of([] as SessionItem[]));
+      el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
+      fixture.detectChanges();
+
+      expect(prog.putItems).toHaveBeenCalledTimes(1);
+      expect(prog.putItems.calls.mostRecent().args[0]).toBe('sess3');
+    });
+
+    it('a published class also calls publishProgramming for each target; a draft does not', () => {
+      setup();
+      booking.sessionDetail.and.returnValue(of({ ...DETAIL, programmingStatus: 'PUBLISHED' }));
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      prog.putItems.and.returnValue(of([] as SessionItem[]));
+      el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
+      fixture.detectChanges();
+
+      expect(prog.publishProgramming).toHaveBeenCalledWith('sess2', 'PUBLISHED');
+    });
+
+    it('a draft class does not call publishProgramming for its targets', () => {
+      setup();
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      prog.putItems.and.returnValue(of([] as SessionItem[]));
+      el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
+      fixture.detectChanges();
+
+      expect(prog.publishProgramming).not.toHaveBeenCalled();
+    });
+
+    it('one target failing leaves an alert naming it, and does not claim success', () => {
+      setup();
+      const good = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      const bad = sessionView('sess3', 'CrossFit 60', '2026-09-12T19:00:00Z');
+      booking.listSessions.and.returnValue(of([good, bad]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      prog.putItems.and.callFake((id: string) =>
+        (id === 'sess3' ? throwError(() => new Error('boom')) : of([] as SessionItem[])) as ReturnType<typeof prog.putItems>);
+      el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
+      fixture.detectChanges();
+
+      const alert = el.querySelector('[role="alert"]');
+      expect(alert).toBeTruthy();
+      expect(alert!.textContent).toContain(hhmm(bad.startAt));
+      expect(component.copyOpen()).toBe(true);
+      expect(el.querySelector('[data-testid="copy-target-sess2"]')).toBeNull();
+      expect(el.querySelector('[data-testid="copy-target-sess3"]')).toBeTruthy();
+    });
+
+    it('the sheet reopens on the row list, never on a stale tick state', () => {
+      setup();
+      const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([t2]));
+      prog.sessionItems.and.returnValue(of([sessionItem('x', BLANK_WOD)])); // has pieces -> starts unticked
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="copy-target-sess2"]')!.click();
+      fixture.detectChanges();
+      expect(component.copyTargets()[0].checked).toBe(true);
+
+      const dlg = Array.from(el.querySelectorAll<HTMLDialogElement>('dialog'))
+        .find(d => (d.getAttribute('aria-label') ?? '').includes('Copy'))!;
+      dlg.close();
+      dlg.dispatchEvent(new Event('close'));
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="copy-day"]')!.click();
+      fixture.detectChanges();
+
+      expect(component.copyTargets()[0].checked).toBe(false);
+    });
   });
 });
