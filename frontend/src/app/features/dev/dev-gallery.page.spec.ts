@@ -44,7 +44,7 @@ describe('DevGalleryPage', () => {
       .sort();
 
     expect(sections).toEqual(
-      ['alert', 'auth-layout', 'avatar', 'benchmark-board', 'button', 'data-table', 'dock', 'empty',
+      ['alert', 'auth-layout', 'avatar', 'banner', 'benchmark-board', 'button', 'data-table', 'dock', 'empty',
         'field', 'icon', 'notification-bell', 'panel', 'pill', 'search-bar', 'segmented', 'select', 'sheet',
         'shell-header', 'sortable-list', 'switch', 'week-calendar',
         'wordmark'].sort(),

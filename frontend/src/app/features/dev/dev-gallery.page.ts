@@ -3,6 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 import { AvatarComponent } from '../../ui/avatar.component';
+import { BannerComponent } from '../../ui/banner.component';
 import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
@@ -92,7 +93,7 @@ export class GalleryNotificationBellComponent implements OnInit {
     NgTemplateOutlet,
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
-    PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
+    PanelComponent, AlertComponent, BannerComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent, SortableListComponent,
     AvatarComponent, PillComponent, WeekCalendarComponent, SheetComponent, AuthLayoutComponent,
     BenchmarkBoardComponent, GalleryNotificationBellComponent,
@@ -530,6 +531,41 @@ export class GalleryNotificationBellComponent implements OnInit {
           info line doesn't.
         </p>
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'alert' }" />
+      </section>
+
+      <section class="gsec" id="banner" data-gallery="banner">
+        <h2 class="t-h2" i18n="@@dev.gallery.banner.heading">Banner</h2>
+        <p class="note" i18n="@@dev.gallery.banner.note.interactiveOnly">
+          Interactive-only — bh-banner mounts with &#64;if, so it can't render statically; each
+          sample below auto-dismisses on its own dwell, re-open it to see it again. Shown here in
+          a contained box that neutralises its real position: fixed (the same contain: paint trick
+          the dock section below uses) — clearing a real dock and the safe-area inset is only
+          checkable on a real screen.
+        </p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.banner.trigger.good">Good</span>
+            <bh-button variant="primary" size="sm" (click)="bannerDemo.set('good')"
+                       i18n="@@dev.gallery.banner.openGood">Show confirmation</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.banner.trigger.danger">Danger, with action</span>
+            <bh-button variant="primary" size="sm" (click)="bannerDemo.set('danger')"
+                       i18n="@@dev.gallery.banner.openDanger">Show failure</bh-button>
+          </div>
+        </div>
+        <div class="bannerwrap">
+          @if (bannerDemo() === 'good') {
+            <bh-banner tone="good" message="Changes saved." i18n-message="@@dev.gallery.banner.sample.good"
+                       (dismissed)="bannerDemo.set('none')" />
+          }
+          @if (bannerDemo() === 'danger') {
+            <bh-banner tone="danger" message="Couldn't save your changes." i18n-message="@@dev.gallery.banner.sample.danger"
+                       actionLabel="Retry" i18n-actionLabel="@@dev.gallery.banner.retry"
+                       (action)="onBannerRetry()" (dismissed)="bannerDemo.set('none')" />
+          }
+        </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'banner' }" />
       </section>
 
       <section class="gsec" id="empty" data-gallery="empty">
@@ -1077,6 +1113,12 @@ export class GalleryNotificationBellComponent implements OnInit {
     @media (max-width: 719px) {
       .dockwrap { min-height: 96px; }
     }
+    /* Same contain: paint trick as .dockwrap above, sized for bh-banner's own bottom offset
+       instead of the dock's — see banner.component.ts for where each number comes from. */
+    .bannerwrap { position: relative; min-height: 120px; contain: paint; }
+    @media (max-width: 719px) {
+      .bannerwrap { min-height: 240px; }
+    }
 
     /* Demo-only layout geometry (fixed widths, margin resets) that used to live in inline style=""
        attributes — blocked by the app's strict CSP (no unsafe-inline). Moved here as classes. */
@@ -1216,6 +1258,15 @@ export class DevGalleryPage {
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.loading:renders synchronously from the text it is given` },
       { state: 'error', how: 'rendered' },
     ],
+    banner: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.banner.active:no press state of its own; the optional projected action button carries its own, shown in the button section` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.banner.disabled:a standing message, not a control — it has no disabled state of its own` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.banner.loading:renders synchronously from the message it's given; it fetches nothing` },
+      { state: 'error', how: 'rendered' },
+    ],
     empty: [
       { state: 'default', how: 'rendered' },
       { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.hover:a static placeholder — nothing in it responds to a pointer` },
@@ -1314,6 +1365,13 @@ export class DevGalleryPage {
   // it, so this page must reset its own signal on (closed) or the sheet could never reopen.
   protected readonly sheetOpen = signal(false);
   protected readonly sheetConfirmOpen = signal(false);
+  /** Which bh-banner sample is mounted, mutually exclusive. bh-banner has no `open` input (its
+   *  own doc: mount/unmount with @if or the role announcement can silently not fire), so this
+   *  page owns the same @if-driven pattern every real caller must use. */
+  protected readonly bannerDemo = signal<'none' | 'good' | 'danger'>('none');
+  /** Demo no-op — a real caller retries whatever failed and dismisses only once that resolves;
+   *  this page has nothing to retry. */
+  protected onBannerRetry() {}
   protected readonly dockSample: DockTab[] = [
     { link: '.', label: 'Home', icon: 'house' },
     { link: '.', label: 'Book', icon: 'calendar-plus' },

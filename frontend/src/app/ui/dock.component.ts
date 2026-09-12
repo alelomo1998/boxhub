@@ -44,6 +44,7 @@ export interface DockTab { link: string; label: string; icon: IconName; exact?: 
         display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px;
         background: var(--surface); border: 1px solid var(--hairline);
         border-radius: var(--r-full); padding: 6px; box-shadow: var(--shadow-float);
+        min-height: var(--dock-h); box-sizing: border-box;
         max-width: 480px; margin: 0 auto; }
       .item, ::ng-deep .dock > button { display: flex; flex-direction: column; align-items: center;
         justify-content: center; gap: 3px; min-height: 56px; border-radius: var(--r-full);
