@@ -157,8 +157,10 @@ export type PickResult = { id: string } | { freeText: string };
   styles: [`
     :host { display: contents; }
     .tools { margin-bottom: var(--sp-3); }
-    :host ::ng-deep [sheetFilters] { display: flex; flex-direction: column; gap: var(--sp-2);
-      padding: 0 var(--sp-3) var(--sp-3); }
+    /* Spacing only. The slot must NOT impose a layout: it did (a flex column), and it silently
+       beat the consumer's own grid on specificity, stacking two filter buttons that were meant to
+       sit side by side. The caller owns how its filters are arranged. */
+    :host ::ng-deep [sheetFilters] { padding: 0 var(--sp-3) var(--sp-3); }
     .rows { display: flex; flex-direction: column; }
     .row { display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
       gap: var(--sp-1); width: 100%; min-height: var(--tap); box-sizing: border-box;
