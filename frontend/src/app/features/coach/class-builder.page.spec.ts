@@ -131,14 +131,203 @@ describe('ClassBuilderPage', () => {
     fixture.detectChanges();
     const picked = { ...BLANK_WOD, id: 'lib-1', title: 'Grace' };
     component.library.set([picked]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-row-lib-1"]')!.click();
+    fixture.detectChanges();
+    // Tapping the row only opens the detail step -- nothing is filled yet.
+    expect(store.drafts()[0].wod).toBeNull();
+    expect(component.slotSheetOpen()).toBe(true);
+
+    el.querySelector<HTMLElement>('[data-testid="slot-detail-select"]')!.click();
+    fixture.detectChanges();
+
+    expect(store.drafts()[0].fromLibraryWodId).toBe('lib-1');
+    expect(store.drafts()[0].wod).toBe(picked);
+    expect(component.slotSheetOpen()).toBe(false);
+  });
+
+  it('pressing the category button shows the category step and hides the results list', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="pick-row-lib-1"]')).toBeTruthy();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-category"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="slot-category-step"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="pick-row-lib-1"]')).toBeNull();
+  });
+
+  it('choosing a category returns to the search step and applies the filter', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-category"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-category-STRENGTH"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="slot-category-step"]')).toBeNull();
+    expect(component.categoryFilter()).toBe('STRENGTH');
+  });
+
+  it('Back from the category step returns to search with the typed term still in place', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+
+    const input: HTMLInputElement = el.querySelector('[data-testid="pick-search"]')!;
+    input.value = 'grace';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-category"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="slot-category-step"]')).toBeTruthy();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-category-back"]')!.click();
+    fixture.detectChanges();
+
+    const inputAfter: HTMLInputElement = el.querySelector('[data-testid="pick-search"]')!;
+    expect(inputAfter.value).toBe('grace');
+  });
+
+  it("pressing a result row opens the detail step showing that piece's prescription, and does NOT fill the slot", () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    const picked: Wod = {
+      ...BLANK_WOD, id: 'lib-1', title: 'Grace', bodyText: '',
+      blocks: { blocks: [{ label: '', lines: [{ text: 'Clean and Jerk', reps: '30' }] }] },
+    };
+    component.library.set([picked]);
+    fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
     fixture.detectChanges();
     el.querySelector<HTMLElement>('[data-testid="pick-row-lib-1"]')!.click();
     fixture.detectChanges();
 
-    expect(store.drafts()[0].fromLibraryWodId).toBe('lib-1');
-    expect(store.drafts()[0].wod).toBe(picked);
+    const step = el.querySelector('[data-testid="slot-detail-step"]')!;
+    expect(step).toBeTruthy();
+    expect(step.textContent).toContain('Grace');
+    expect(step.textContent).toContain('Clean and Jerk');
+    expect(store.drafts()[0].wod).toBeNull();
+  });
+
+  it('Back from the detail step returns to search, slot still empty', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-row-lib-1"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="slot-detail-back"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="slot-detail-step"]')).toBeNull();
+    expect(el.querySelector('[data-testid="pick-row-lib-1"]')).toBeTruthy();
+    expect(store.drafts()[0].wod).toBeNull();
+  });
+
+  it('reopening the sheet afterwards starts on the search step, not on detail', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-row-lib-1"]')!.click();
+    fixture.detectChanges();
+    expect(component.slotStep()).toBe('detail');
+
+    const dlg: HTMLDialogElement = el.querySelector('dialog')!;
+    dlg.close();
+    dlg.dispatchEvent(new Event('close'));
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(component.slotStep()).toBe('search');
+    expect(el.querySelector('[data-testid="slot-detail-step"]')).toBeNull();
+    expect(el.querySelector('[data-testid="pick-search"]')).toBeTruthy();
+  });
+
+  it('a row whose wod has blocks renders its movement text in the result row', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    const w: Wod = {
+      ...BLANK_WOD, id: 'lib-1', title: 'Fran', bodyText: '',
+      blocks: { blocks: [{
+        label: '', lines: [{ text: 'Thruster', reps: '21-15-9' }, { text: 'Pull-up', reps: '21-15-9' }],
+      }] },
+    };
+    component.library.set([w]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+
+    const detail = el.querySelector('[data-testid="pick-row-lib-1"] .d');
+    expect(detail?.textContent).toContain('Thruster');
+    expect(detail?.textContent).toContain('Pull-up');
+  });
+
+  it('a row with no blocks and no bodyText renders no third line at all', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    const w: Wod = { ...BLANK_WOD, id: 'lib-1', title: 'Blank', bodyText: '', blocks: { blocks: [] } };
+    component.library.set([w]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="pick-row-lib-1"] .d')).toBeNull();
+  });
+
+  it('a very long prescription is truncated rather than wrapping', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    const longText = 'Movement number one that has a very long name and keeps going, '.repeat(3).trim();
+    const w: Wod = {
+      ...BLANK_WOD, id: 'lib-1', title: 'Long', bodyText: '',
+      blocks: { blocks: [{ label: '', lines: [{ text: longText }] }] },
+    };
+    component.library.set([w]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+
+    const text = el.querySelector('[data-testid="pick-row-lib-1"] .d')!.textContent!;
+    expect(text.length).toBeLessThanOrEqual(80);
+    expect(text.endsWith('…')).toBe(true);
   });
 
   it('re-saving an edited class sends the existing item ids', () => {

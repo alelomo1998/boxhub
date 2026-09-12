@@ -6,8 +6,11 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { MOVEMENT_CATEGORIES, MOVEMENT_UNITS, movementCategoryLabel } from './programming.service';
 
-/** One offered option, whatever the domain object behind it is. */
-export interface PickRow { id: string; primary: string; secondary?: string }
+/** One offered option, whatever the domain object behind it is. `detail` is an optional third
+ *  line -- a one-line content snippet -- rendered dimmer and smaller than `secondary`. Domain
+ *  content (a prescription, a movement list) belongs to the caller; this component just renders
+ *  a string. */
+export interface PickRow { id: string; primary: string; secondary?: string; detail?: string }
 
 /** Either an option was chosen, or the coach kept what they typed. */
 export type PickResult = { id: string } | { freeText: string };
@@ -41,6 +44,12 @@ export type PickResult = { id: string } | { freeText: string };
  * search bar) and `[sheetLead]` renders as the first row inside them. The caller owns whatever
  * fills these -- this component stays domain-agnostic. Projecting neither leaves the sheet
  * identical to before either slot existed.
+ *
+ * `overlay`, search step only: when true, the search UI (tools, filters, rows -- including
+ * [sheetFilters] and [sheetLead]) is replaced by whatever the caller projects into
+ * [sheetOverlay]. The caller owns that step's content, its heading and its way back -- this
+ * component only yields the space. Keeps a sheet-on-a-sheet from ever being needed. A consumer
+ * that never sets it sees exactly today's sheet.
  */
 @Component({
   selector: 'bh-pick-sheet',
@@ -50,40 +59,45 @@ export type PickResult = { id: string } | { freeText: string };
   template: `
     <bh-sheet [open]="open()" [title]="title()" [label]="title()" (closed)="onClosed()">
       @if (step() === 'search') {
-        <div class="tools">
-          <bh-search-bar [(value)]="term" [label]="searchLabel()" [placeholder]="searchPlaceholder()"
-                         (search)="search.emit($event)" testId="pick-search" />
-        </div>
+        @if (!overlay()) {
+          <div class="tools">
+            <bh-search-bar [(value)]="term" [label]="searchLabel()" [placeholder]="searchPlaceholder()"
+                           (search)="search.emit($event)" testId="pick-search" />
+          </div>
 
-        <ng-content select="[sheetFilters]" />
+          <ng-content select="[sheetFilters]" />
 
-        <div class="rows" aria-live="polite">
-          <ng-content select="[sheetLead]" />
-          @for (r of rows(); track r.id) {
-            <button type="button" class="row" [attr.data-testid]="'pick-row-' + r.id"
-                    (click)="picked.emit({ id: r.id })">
-              <span class="p">{{ r.primary }}</span>
-              @if (r.secondary) { <span class="s">{{ r.secondary }}</span> }
-            </button>
-          }
+          <div class="rows" aria-live="polite">
+            <ng-content select="[sheetLead]" />
+            @for (r of rows(); track r.id) {
+              <button type="button" class="row" [attr.data-testid]="'pick-row-' + r.id"
+                      (click)="picked.emit({ id: r.id })">
+                <span class="p">{{ r.primary }}</span>
+                @if (r.secondary) { <span class="s">{{ r.secondary }}</span> }
+                @if (r.detail) { <span class="d">{{ r.detail }}</span> }
+              </button>
+            }
 
-          <!-- Last, and only once something has been typed: a movement outside the library must
-               never be a dead end, but an empty free-text row offers nothing. -->
-          @if (showFreeText()) {
-            <button type="button" class="row free" data-testid="pick-free-text"
-                    (click)="onFreeText()">
-              <span class="p" i18n="@@pickSheet.freeText">Use "{{ term().trim() }}"</span>
-              <span class="s" i18n="@@pickSheet.freeTextHint">NOT IN THE LIBRARY</span>
-            </button>
-          }
+            <!-- Last, and only once something has been typed: a movement outside the library must
+                 never be a dead end, but an empty free-text row offers nothing. -->
+            @if (showFreeText()) {
+              <button type="button" class="row free" data-testid="pick-free-text"
+                      (click)="onFreeText()">
+                <span class="p" i18n="@@pickSheet.freeText">Use "{{ term().trim() }}"</span>
+                <span class="s" i18n="@@pickSheet.freeTextHint">NOT IN THE LIBRARY</span>
+              </button>
+            }
 
-          @if (rows().length === 0 && !showFreeText()) {
-            <bh-empty icon="search"
-                      i18n-title="@@pickSheet.emptyTitle" title="Nothing found"
-                      i18n-message="@@pickSheet.emptyMessage"
-                      message="No option matches that search." />
-          }
-        </div>
+            @if (rows().length === 0 && !showFreeText()) {
+              <bh-empty icon="search"
+                        i18n-title="@@pickSheet.emptyTitle" title="Nothing found"
+                        i18n-message="@@pickSheet.emptyMessage"
+                        message="No option matches that search." />
+            }
+          </div>
+        } @else {
+          <ng-content select="[sheetOverlay]" />
+        }
       } @else {
         <div class="create-step" data-testid="pick-create-step">
           <h3 class="create-name">{{ term().trim() }}</h3>
@@ -160,6 +174,12 @@ export type PickResult = { id: string } | { freeText: string };
     /* Mono because a secondary line is meta (category, modality, preset), never prose. */
     .s { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
       letter-spacing: 0.04em; }
+    /* The content snippet, one step down from .s: --fs-meta is already the smallest type-scale
+       token (ponytail: no smaller step exists, so the demotion is carried by color -- --faint is
+       dimmer than .s's --bone-dim). Never wraps -- a long prescription would otherwise grow the
+       row to three lines at 360px. */
+    .d { width: 100%; font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* ---- create step: same picker-row language as the editor's own meta sheets ------------- */
     .create-step { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -197,6 +217,10 @@ export class PickSheetComponent {
   allowCreate = input(false);
   createPending = input(false);
   createError = input('');
+  /** When set, the search UI (tools, filters, rows) is replaced by whatever the caller projects
+   *  into [sheetOverlay]. The caller owns the step's content, its heading and its way back --
+   *  this component only yields the space. Keeps a sheet-on-a-sheet from ever being needed. */
+  overlay = input(false);
   searchLabel = input($localize`:@@pickSheet.searchLabel:Search`);
   searchPlaceholder = input($localize`:@@pickSheet.searchPlaceholder:Search`);
 

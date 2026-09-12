@@ -83,7 +83,12 @@ const SWAP_THRESHOLD = 0.18;
       border: 1px solid var(--hairline); border-radius: var(--r-ctl);
       cursor: grab; user-select: none;
       transition: background var(--dur) var(--ease-out), transform var(--dur-move) var(--ease-move); }
-    .row:hover { background: var(--surface-2); }
+    /* No hover fill on the row. After a pointer drop the pointer is left sitting over the row
+       at the drop position, so a hover fill there reads as "this one is selected" for as long
+       as the hand stays put -- and on touch it sticks until something else is tapped. The
+       handle carries the affordance (cursor: grab), and a consumer whose row is itself a
+       control styles that control. Reported after a coach dragged a piece and the row it
+       landed on stayed lit. */
     /* touch-action none PERMANENTLY, not flipped when a drag starts: Chrome fixes touch-action at
        contact, and the drag now begins on contact, so a flip at that same moment comes too late
        and the browser pans the page instead of dragging. Safe to pin here because the handle is a
@@ -118,7 +123,6 @@ const SWAP_THRESHOLD = 0.18;
        nothing of its own; .grabbed/.dragging still have to read as picked up, so that pair is
        restated at higher specificity below (three classes beats the two-class rules above). */
     .row.align-top { align-items: flex-start; position: relative; background: none; border: none; }
-    .row.align-top:hover { background: none; }
     .row.align-top .handle { position: absolute; top: var(--sp-3); left: var(--sp-3); }
     /* No shadow here (unlike the plain .row.grabbed above): --shadow-float's 28px blur bleeds
        ~20px above the element's top edge, and while dragging upward the row that used to sit

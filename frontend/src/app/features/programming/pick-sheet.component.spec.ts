@@ -40,6 +40,55 @@ class SlotHost {
   rows = signal<PickRow[]>([{ id: 'm1', primary: 'Thruster' }]);
 }
 
+// The overlay slot: a caller that swaps the whole search step for its own content.
+@Component({
+  standalone: true,
+  imports: [PickSheetComponent],
+  template: `<bh-pick-sheet [open]="open()" [rows]="rows()" [overlay]="overlay()" title="Pick something">
+    <div sheetFilters data-testid="slot-filters">filters</div>
+    <div sheetOverlay data-testid="slot-overlay">overlay content</div>
+  </bh-pick-sheet>`,
+})
+class OverlayHost {
+  open = signal(true);
+  overlay = signal(false);
+  rows = signal<PickRow[]>([{ id: 'm1', primary: 'Thruster' }]);
+}
+
+describe('PickSheetComponent overlay slot', () => {
+  let f: any, el: HTMLElement, host: OverlayHost;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [OverlayHost] }).compileComponents();
+    f = TestBed.createComponent(OverlayHost);
+    host = f.componentInstance;
+    el = f.nativeElement;
+    f.detectChanges();
+  });
+
+  afterEach(() => {
+    const dlg: HTMLDialogElement | null = el.querySelector('dialog');
+    if (dlg?.open) dlg.close();
+  });
+
+  it('with overlay unset, the sheet renders exactly as before -- search bar, filters and rows', () => {
+    expect(el.querySelector('[data-testid="pick-search"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="slot-filters"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="pick-row-m1"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="slot-overlay"]')).toBeNull();
+  });
+
+  it('with overlay true, the projected [sheetOverlay] renders and the results list does not', () => {
+    host.overlay.set(true);
+    f.detectChanges();
+
+    expect(el.querySelector('[data-testid="slot-overlay"]')!.textContent).toContain('overlay content');
+    expect(el.querySelector('[data-testid="pick-search"]')).toBeNull();
+    expect(el.querySelector('[data-testid="slot-filters"]')).toBeNull();
+    expect(el.querySelector('[data-testid="pick-row-m1"]')).toBeNull();
+  });
+});
+
 describe('PickSheetComponent projection slots', () => {
   let f: any, el: HTMLElement;
 
@@ -105,6 +154,15 @@ describe('PickSheetComponent', () => {
     expect(r.textContent).toContain('Thruster');
     expect(r.textContent).toContain('BARBELL');
     expect(el.querySelectorAll('[data-testid^="pick-row-"]').length).toBe(1);
+  });
+
+  it('renders an optional third detail line, and omits it when not set', () => {
+    setRows([
+      { id: 'm1', primary: 'Fran', secondary: 'WORKOUT · for time', detail: '21-15-9 Thruster, Pull-up' },
+      { id: 'm2', primary: 'Cindy', secondary: 'WORKOUT · AMRAP' },
+    ]);
+    expect(row('m1')!.querySelector('.d')?.textContent).toContain('21-15-9 Thruster, Pull-up');
+    expect(row('m2')!.querySelector('.d')).toBeNull();
   });
 
   it('emits the picked id', () => {

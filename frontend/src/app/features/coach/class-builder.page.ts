@@ -15,7 +15,6 @@ import { ButtonComponent } from '../../ui/button.component';
 import { AlertComponent } from '../../ui/alert.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { SheetComponent } from '../../ui/sheet.component';
-import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SortableListComponent } from '../../ui/sortable-list.component';
 import { HasUnsaved } from '../../core/unsaved.guard';
 
@@ -47,6 +46,10 @@ const PRESET_LABELS: Record<string, string> = {
 
 const NOT_SCORED = $localize`:@@class.score.notScored:not scored`;
 const ANY_LABEL = $localize`:@@class.filter.any:Any`;
+
+/** One row's worth of content snippet, ~80 chars: long enough to tell pieces apart, short enough
+ *  to never wrap a result row to three lines at 360px. */
+const SNIPPET_CAP = 80;
 
 /** One printable row of an expanded piece's body, flattened from `wod.blocks` (two levels deep,
  *  the server rejects a third). Built once per render by `expandedRows` so the template stays a
@@ -80,7 +83,7 @@ function wodMatchesText(w: Wod, needle: string): boolean {
   standalone: true,
   imports: [
     DatePipe, RouterLink, ButtonComponent, AlertComponent, EmptyComponent, SheetComponent,
-    SegmentedComponent, SortableListComponent, PickSheetComponent,
+    SortableListComponent, PickSheetComponent,
   ],
   template: `
     <section class="page">
@@ -146,7 +149,7 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                         </button>
                         @if (expanded() === i) {
                           <div class="expanded" [attr.data-testid]="'piece-expanded-' + i">
-                            @if (expandedRows(d); as rows) {
+                            @if (expandedRows(d.wod); as rows) {
                               @if (rows.length) {
                                 @for (r of rows; track $index) {
                                   @if (r.kind === 'label') {
@@ -206,20 +209,110 @@ function wodMatchesText(w: Wod, needle: string): boolean {
             </form>
 
             <bh-pick-sheet [open]="slotSheetOpen()" [rows]="filteredLibraryRows()"
-                           [allowFreeText]="false"
+                           [allowFreeText]="false" [overlay]="slotStep() !== 'search'"
                            title="Fill this slot" i18n-title="@@class.slot.sheetTitle"
                            (search)="onLibrarySearch($event)" (picked)="onSlotPicked($event)"
                            (closed)="closeSlotSheet()">
-              <div sheetFilters>
-                <bh-segmented [options]="categoryOptions" [(value)]="categoryFilter" tone="bone"
-                               [wrap]="true" label="Category" i18n-label="@@class.slot.filterCategory" />
-                <bh-segmented [options]="typeOptions" [(value)]="typeFilter" tone="bone"
-                               [wrap]="true" label="Type" i18n-label="@@class.slot.filterType" />
+              <div sheetFilters class="filterbtns">
+                <button type="button" class="filterbtn" data-testid="filter-category"
+                        (click)="slotStep.set('category')">
+                  <span class="filter-k" i18n="@@class.slot.filterCategory">CATEGORY</span>
+                  <span class="filter-v">{{ categoryFilterLabel() }}</span>
+                </button>
+                <button type="button" class="filterbtn" data-testid="filter-type"
+                        (click)="slotStep.set('type')">
+                  <span class="filter-k" i18n="@@class.slot.filterType">TYPE</span>
+                  <span class="filter-v">{{ typeFilterLabel() }}</span>
+                </button>
               </div>
               <button type="button" sheetLead class="writenew" data-testid="slot-write-new"
                       (click)="writeNewPiece()">
                 <span i18n="@@class.slot.writeNew">＋ Write a new piece</span>
               </button>
+
+              @if (slotStep() === 'category') {
+                <div sheetOverlay class="stepbody" data-testid="slot-category-step">
+                  <button type="button" class="backrow" data-testid="slot-category-back"
+                          (click)="slotStep.set('search')">
+                    <span aria-hidden="true">&#x2039;</span>
+                    <span i18n="@@class.slot.back">Back</span>
+                  </button>
+                  <div class="rows">
+                    <button type="button" class="prow" [class.sel]="categoryFilter() === ''"
+                            data-testid="filter-category-ANY" (click)="pickCategory('')">
+                      <span>{{ anyLabel }}</span>
+                      @if (categoryFilter() === '') { <span class="mark" aria-hidden="true">&#x2713;</span> }
+                    </button>
+                    @for (m of macros; track m) {
+                      <button type="button" class="prow" [class.sel]="categoryFilter() === m"
+                              [attr.data-testid]="'filter-category-' + m" (click)="pickCategory(m)">
+                        <span>{{ macroLabel(m) }}</span>
+                        @if (categoryFilter() === m) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+              @if (slotStep() === 'type') {
+                <div sheetOverlay class="stepbody" data-testid="slot-type-step">
+                  <button type="button" class="backrow" data-testid="slot-type-back"
+                          (click)="slotStep.set('search')">
+                    <span aria-hidden="true">&#x2039;</span>
+                    <span i18n="@@class.slot.back">Back</span>
+                  </button>
+                  <div class="rows">
+                    <button type="button" class="prow" [class.sel]="typeFilter() === ''"
+                            data-testid="filter-type-ANY" (click)="pickType('')">
+                      <span>{{ anyLabel }}</span>
+                      @if (typeFilter() === '') { <span class="mark" aria-hidden="true">&#x2713;</span> }
+                    </button>
+                    @for (p of timingPresets; track p) {
+                      <button type="button" class="prow" [class.sel]="typeFilter() === p"
+                              [attr.data-testid]="'filter-type-' + p" (click)="pickType(p)">
+                        <span>{{ presetLabel(p) }}</span>
+                        @if (typeFilter() === p) { <span class="mark" aria-hidden="true">&#x2713;</span> }
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+              @if (slotStep() === 'detail' && detailWod(); as w) {
+                <div sheetOverlay class="stepbody" data-testid="slot-detail-step">
+                  <h3 class="detail-title">{{ w.title }}</h3>
+                  <p class="detail-meta">{{ libMeta(w) }}</p>
+                  <div class="detail-rx">
+                    @if (expandedRows(w); as rows) {
+                      @if (rows.length) {
+                        @for (r of rows; track $index) {
+                          @if (r.kind === 'label') {
+                            <p class="blocklabel" [class.sub]="r.sub">{{ r.text }}</p>
+                          } @else {
+                            <p class="rxline" [class.sub]="r.sub">
+                              @if (r.reps) { <span class="mono">{{ r.reps }}</span> }
+                              <span>{{ r.text }}</span>
+                              @if (r.load) {
+                                <span class="mono">{{ r.load }}{{ r.unit ? ' ' + r.unit : '' }}</span>
+                              }
+                            </p>
+                          }
+                        }
+                      } @else if (w.bodyText) {
+                        <p class="rx">{{ w.bodyText }}</p>
+                      }
+                    }
+                  </div>
+                  <div class="detail-actions">
+                    <bh-button variant="ghost" size="lg" class="full" testId="slot-detail-back"
+                               (click)="slotStep.set('search')">
+                      <span i18n="@@class.slot.detail.back">Back</span>
+                    </bh-button>
+                    <bh-button variant="strong" size="lg" class="full" testId="slot-detail-select"
+                               (click)="selectDetailWod()">
+                      <span i18n="@@class.slot.detail.select">Select</span>
+                    </bh-button>
+                  </div>
+                </div>
+              }
             </bh-pick-sheet>
 
             <bh-sheet [open]="addSlotOpen()" title="Add a slot" i18n-title="@@class.addSlot.sheetTitle"
@@ -309,6 +402,49 @@ function wodMatchesText(w: Wod, needle: string): boolean {
     .writenew:hover { background: var(--surface-2); }
     .writenew:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
+    /* ---- fill-slot sheet: filter trigger buttons, same two-line chip idiom as the piece
+       editor's meta strip -- --bone/--surface, never volt: this screen's volt budget is spent. */
+    .filterbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+    .filterbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0;
+      min-height: var(--tap); box-sizing: border-box; padding: var(--sp-2) var(--sp-3);
+      background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-ctl);
+      color: var(--bone); text-align: left; cursor: pointer; }
+    .filterbtn:hover { border-color: var(--bone-dim); }
+    .filterbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .filter-k { font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700;
+      letter-spacing: 0.08em; color: var(--bone-dim); }
+    .filter-v { width: 100%; font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; }
+
+    /* ---- fill-slot sheet: category/type/detail steps -- same .prow + checkmark idiom as the
+       piece editor's own meta sheets (copied, not reinvented). ------------------------------- */
+    .backrow { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap);
+      margin-bottom: var(--sp-2); padding: 0 var(--sp-1); background: none; border: none;
+      color: var(--bone-dim); font-family: var(--font-body); font-size: var(--fs-body); cursor: pointer; }
+    .backrow:hover { color: var(--bone); }
+    .backrow:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .stepbody { display: flex; flex-direction: column; }
+    .prow { display: flex; align-items: center; justify-content: space-between; width: 100%;
+      box-sizing: border-box; min-height: var(--tap); padding: 0 var(--sp-2); background: none;
+      border: none; border-bottom: 1px solid var(--hairline); color: var(--bone); text-align: left;
+      font-family: var(--font-body); font-size: var(--fs-body); cursor: pointer; }
+    .stepbody .prow:last-child { border-bottom: none; }
+    .prow:hover { background: var(--surface-2); }
+    .prow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .prow.sel { font-weight: 700; }
+    .mark { color: var(--bone); font-weight: 700; }
+
+    /* ---- fill-slot sheet: piece detail step -- the prescription reuses .blocklabel/.rxline/.rx
+       verbatim (same renderer as the stack's own expanded row), so only the step chrome is new. */
+    .detail-title { margin: 0 0 2px; font-family: var(--font-display); font-weight: 800;
+      font-size: var(--fs-h2); color: var(--bone); }
+    .detail-meta { margin: 0 0 var(--sp-3); font-family: var(--font-mono); font-size: var(--fs-meta);
+      letter-spacing: 0.04em; color: var(--bone-dim); }
+    .detail-rx { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+    .detail-actions { display: flex; gap: var(--sp-3); }
+    .detail-actions bh-button { flex: 1; min-width: 0; }
+
     /* ---- add-a-slot sheet: four full-width plain-verb rows --------------------------------- */
     .slotrows { display: flex; flex-direction: column; }
     .macrorow { width: 100%; box-sizing: border-box; min-height: var(--tap-lg); padding: 0 var(--sp-2);
@@ -344,6 +480,11 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   searchTerm = signal('');
   categoryFilter = signal('');
   typeFilter = signal('');
+  /** Which step the fill-slot sheet shows. `search` drives [overlay]="slotStep() !== 'search'"
+   *  on bh-pick-sheet -- every other value swaps in this component's own [sheetOverlay] content. */
+  slotStep = signal<'search' | 'category' | 'type' | 'detail'>('search');
+  /** The result tapped on the search step, shown (not yet applied) on the detail step. */
+  detailWod = signal<Wod | null>(null);
 
   addSlotOpen = signal(false);
 
@@ -351,14 +492,11 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   savedOk = signal(false);
   formError = signal('');
 
-  categoryOptions: SegOption[] = [
-    { value: '', label: ANY_LABEL },
-    ...MACROS.map(m => ({ value: m, label: MACRO_LABELS[m] })),
-  ];
-  typeOptions: SegOption[] = [
-    { value: '', label: ANY_LABEL },
-    ...TIMING_PRESETS.map(p => ({ value: p, label: PRESET_LABELS[p] })),
-  ];
+  readonly anyLabel = ANY_LABEL;
+  readonly timingPresets = TIMING_PRESETS;
+
+  categoryFilterLabel = computed(() => this.categoryFilter() ? this.macroLabel(this.categoryFilter()) : ANY_LABEL);
+  typeFilterLabel = computed(() => this.typeFilter() ? this.presetLabel(this.typeFilter()) : ANY_LABEL);
 
   itemLabel = (d: PieceDraft, i: number) =>
     d.wod?.title || d.label || $localize`:@@class.piece.fallback:piece ${i + 1}:position:`;
@@ -374,13 +512,27 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     const type = this.typeFilter();
     return this.library()
       .filter(w => (!cat || w.macro === cat) && (!type || w.timingPreset === type) && wodMatchesText(w, q))
-      .map(w => ({
-        id: w.id, primary: w.title,
-        secondary: w.timingPreset
-          ? `${MACRO_LABELS[w.macro] ?? w.macro} · ${PRESET_LABELS[w.timingPreset] ?? w.timingPreset}`
-          : (MACRO_LABELS[w.macro] ?? w.macro),
-      }));
+      .map(w => ({ id: w.id, primary: w.title, secondary: this.libMeta(w), detail: this.wodSnippet(w) || undefined }));
   });
+
+  /** "WORKOUT · for time" / "WARMUP" -- the result row's and the detail step's second line. */
+  libMeta(w: Wod): string {
+    return w.timingPreset
+      ? `${MACRO_LABELS[w.macro] ?? w.macro} · ${PRESET_LABELS[w.timingPreset] ?? w.timingPreset}`
+      : (MACRO_LABELS[w.macro] ?? w.macro);
+  }
+
+  /** The result row's third line: the prescription's movement text, so a coach can tell pieces
+   *  apart without opening each one. Built from the SAME rows the detail step and the class
+   *  stack's expanded row render, so the snippet can never disagree with either. */
+  private wodSnippet(w: Wod): string {
+    const parts = this.expandedRows(w)
+      .filter((r): r is Extract<ExpandedRow, { kind: 'line' }> => r.kind === 'line')
+      .map(l => (l.reps ? `${l.reps} ${l.text}` : l.text));
+    const text = parts.length ? parts.join(', ') : (w.bodyText ?? '').trim().replace(/\s+/g, ' ');
+    if (!text) return '';
+    return text.length > SNIPPET_CAP ? text.slice(0, SNIPPET_CAP - 1).trimEnd() + '…' : text;
+  }
 
   /** Navigating INTO the piece editor is part of editing this class, not leaving it: the drafts
    *  travel in the store, so the guard's "leave and lose them?" would be a lie and its Cancel
@@ -472,9 +624,11 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   isEmpty(d: PieceDraft): boolean { return d.wod === null && d.fromLibraryWodId === null; }
 
   /** Flattens `wod.blocks` (label, lines, one level of sub-blocks) into printable rows. Empty
-   *  when the piece has no blocks -- the caller falls back to the legacy `bodyText`. */
-  expandedRows(d: PieceDraft): ExpandedRow[] {
-    const blocks = d.wod?.blocks?.blocks ?? [];
+   *  when the piece has no blocks -- the caller falls back to the legacy `bodyText`. Takes the
+   *  `Wod` directly (not a `PieceDraft`) so the fill-slot sheet's detail step -- which only ever
+   *  has a library `Wod`, not a draft -- can reuse it too. */
+  expandedRows(w: Wod | null): ExpandedRow[] {
+    const blocks = w?.blocks?.blocks ?? [];
     const rows: ExpandedRow[] = [];
     for (const b of blocks) {
       if (b.label) rows.push({ kind: 'label', text: b.label, sub: false });
@@ -525,6 +679,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   }
 
   macroLabel(m: string): string { return MACRO_LABELS[m] ?? m; }
+  presetLabel(p: string): string { return PRESET_LABELS[p] ?? p; }
 
   // ---- expand / reorder / remove ------------------------------------------------------------
 
@@ -565,26 +720,51 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     this.categoryFilter.set(this.store.drafts()[i]?.macro ?? '');
     this.typeFilter.set('');
     this.searchTerm.set('');
+    this.slotStep.set('search');
+    this.detailWod.set(null);
     this.slotSheetOpen.set(true);
   }
 
   onLibrarySearch(term: string) { this.searchTerm.set(term); }
 
+  /** A tapped result no longer fills the slot -- it opens the detail step. `selectDetailWod()`
+   *  below is the only path that actually fills it. */
   onSlotPicked(result: PickResult) {
-    this.slotSheetOpen.set(false);
-    const i = this.slotIndex();
-    if (i === null || 'freeText' in result) return;
+    if ('freeText' in result) return; // allowFreeText is false for this sheet
     const w = this.library().find(x => x.id === result.id);
     if (!w) return;
-    const d = this.store.drafts()[i];
-    this.store.put(i, { ...d, wod: w, fromLibraryWodId: result.id });
+    this.detailWod.set(w);
+    this.slotStep.set('detail');
   }
 
-  closeSlotSheet() { this.slotSheetOpen.set(false); }
+  pickCategory(m: string) {
+    this.categoryFilter.set(m);
+    this.slotStep.set('search');
+  }
+
+  pickType(p: string) {
+    this.typeFilter.set(p);
+    this.slotStep.set('search');
+  }
+
+  selectDetailWod() {
+    const w = this.detailWod();
+    const i = this.slotIndex();
+    this.closeSlotSheet();
+    if (i === null || !w) return;
+    const d = this.store.drafts()[i];
+    this.store.put(i, { ...d, wod: w, fromLibraryWodId: w.id });
+  }
+
+  closeSlotSheet() {
+    this.slotSheetOpen.set(false);
+    this.slotStep.set('search');
+    this.detailWod.set(null);
+  }
 
   writeNewPiece() {
     const i = this.slotIndex();
-    this.slotSheetOpen.set(false);
+    this.closeSlotSheet();
     if (i === null) return;
     this.goToEditor(['/coach', 'classes', this.sessionId, 'build', 'piece', i]);
   }
