@@ -1527,6 +1527,10 @@ export class PieceEditorPage {
           this.drafts.put(Number(this.routeIndex), {
             ...this.draft,
             wod: saved,
+            // The editor is where the coach answered "how is this scored" -- carry BOTH halves of
+            // that answer back. scoreType lives on the wod, scoreable on the session item, and
+            // keeping the draft's skeleton-seeded flag silently overrode the coach's choice.
+            scoreable: this.scoreable(),
             // The piece now has its own content; it is no longer a pending library copy.
             fromLibraryWodId: null,
             scoreType: null,

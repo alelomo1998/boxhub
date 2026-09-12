@@ -3,6 +3,7 @@ import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angul
 import { of, throwError, Subject } from 'rxjs';
 import { PieceEditorPage } from './piece-editor.page';
 import { Movement, ProgrammingService, Wod } from './programming.service';
+import { ClassDraftStore, PieceDraft } from './class-draft.store';
 
 // A fully-formed Wod so every field a load() can copy from is present; individual specs override
 // just the fields they care about via loadWod's partial.
@@ -32,7 +33,9 @@ describe('PieceEditorPage', () => {
 
   // routeParams carries an `index` key on the class-build route (piece/:index) and never on
   // either wods/ route, so it is what tells the page whether it is standalone.
-  function createFixture(routeParams: Record<string, string>) {
+  // seedDraft, when given, is written into the class-draft store BEFORE the component is
+  // constructed: the page reads its own draft once, in a field initializer, not reactively.
+  function createFixture(routeParams: Record<string, string>, seedDraft?: PieceDraft) {
     // The standalone specs re-create the fixture on a different route AFTER beforeEach has already
     // instantiated the module, and configureTestingModule throws once that has happened.
     TestBed.resetTestingModule();
@@ -58,6 +61,8 @@ describe('PieceEditorPage', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(routeParams) } } },
       ],
     });
+
+    if (seedDraft) TestBed.inject(ClassDraftStore).open(routeParams['id'], [seedDraft]);
 
     fixture = TestBed.createComponent(PieceEditorPage);
     component = fixture.componentInstance;
@@ -211,6 +216,44 @@ describe('PieceEditorPage', () => {
     component.pickScore('NONE');
     expect(component.scoreable()).toBe(true);
     expect(component.scoreType()).toBe('NONE');
+  });
+
+  // ---- the editor's score choice must survive the write-back into the class draft -----------
+
+  function seededDraft(scoreable: boolean): PieceDraft {
+    return {
+      itemId: 'item1', wod: null, fromLibraryWodId: 'lib1', label: 'Warmup', macro: 'WARMUP',
+      scoreable, scoreType: null,
+    };
+  }
+
+  function openScoreSheet(): HTMLElement {
+    el.querySelector<HTMLElement>('[data-testid="meta-score"]')!.click();
+    fixture.detectChanges();
+    return el.querySelector('dialog[aria-label="How it is scored"]')!;
+  }
+
+  // Row order follows scoreOptions: 0 Not scored, 1 Time, 2 Rounds+reps, 3 Load, 4 Completion.
+  function pickScoreRow(rowIndex: number) {
+    openScoreSheet().querySelectorAll<HTMLElement>('.prow')[rowIndex].click();
+    fixture.detectChanges();
+  }
+
+  it('saving with the editor left at its default (scored) overwrites a stale scoreable:false in the draft', () => {
+    createFixture({ id: 'sess1', index: '0' }, seededDraft(false));
+
+    component.submit(new Event('submit'));
+
+    expect(TestBed.inject(ClassDraftStore).at(0)?.scoreable).toBe(true);
+  });
+
+  it('choosing Not scored in the score sheet and saving puts scoreable: false back into the draft', () => {
+    createFixture({ id: 'sess1', index: '0' }, seededDraft(true));
+
+    pickScoreRow(0); // Not scored
+    component.submit(new Event('submit'));
+
+    expect(TestBed.inject(ClassDraftStore).at(0)?.scoreable).toBe(false);
   });
 
   it('shows the team share control only when the team size is more than one', () => {
