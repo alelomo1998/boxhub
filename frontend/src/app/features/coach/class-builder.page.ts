@@ -117,7 +117,7 @@ function wodMatchesText(w: Wod, needle: string): boolean {
               <div class="eyebrow-row">
                 <span class="eyebrow">{{ d.startAt | date:'EEE d MMM · HH:mm' }}</span>
                 @if (published()) {
-                  <span class="pill volt" data-testid="status-live" i18n="@@class.status.live">LIVE</span>
+                  <span class="pill live" data-testid="status-live" i18n="@@class.status.live">LIVE</span>
                 } @else {
                   <span class="pill" data-testid="status-draft" i18n="@@class.status.draft">DRAFT</span>
                 }
@@ -200,16 +200,19 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                 <span i18n="@@class.addSlot">Add a slot</span>
               </button>
 
-              @if (dayTargets().length) {
-                <button type="button" class="addslot" data-testid="copy-day"
-                        [disabled]="!hasSavedPieces()" (click)="openCopySheet()">
+              <div class="copyaction">
+                <bh-button type="button" variant="solid" size="lg" class="full"
+                           [disabled]="!!copyDisabledReason()" testId="copy-day" (click)="openCopySheet()">
                   <span i18n="@@class.copyDay.button">Copy to the day's other classes</span>
-                </button>
+                </bh-button>
+                @if (copyDisabledReason(); as reason) {
+                  <p class="copy-reason" data-testid="copy-day-reason">{{ reason }}</p>
+                }
                 @if (copiedCount()) {
                   <p class="copied" role="status" data-testid="copy-day-ok"
                      i18n="@@class.copyDay.ok">{copiedCount(), plural, =1 {Copied to 1 class} other {Copied to {{ copiedCount() }} classes}}</p>
                 }
-              }
+              </div>
 
               <footer class="foot">
                 @if (formError()) {
@@ -218,12 +221,15 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                 @if (savedOk()) {
                   <p role="status" data-testid="stack-saved-ok" i18n="@@class.save.ok">Saved</p>
                 }
-                <bh-button type="submit" variant="strong" size="lg" class="full"
+                <!-- volt is legal here: the builder is on the hero list (user-ruled 2026-09-08),
+                     and publishing IS live/now -- exactly what volt means. Don't "fix" this back
+                     to strong; the pill above was demoted so this is the screen's one volt spend. -->
+                <bh-button type="submit" variant="primary" size="lg" class="full"
                            [loading]="saving()" testId="save-publish">
                   <span i18n="@@class.save.publish">Save and publish</span>
                 </bh-button>
-                <bh-button type="button" variant="ghost" [disabled]="saving()" (click)="saveDraft()"
-                           testId="save-draft">
+                <bh-button type="button" variant="ghost" size="lg" class="full" [disabled]="saving()"
+                           (click)="saveDraft()" testId="save-draft">
                   <span i18n="@@class.save.draft">Save draft</span>
                 </bh-button>
               </footer>
@@ -253,11 +259,6 @@ function wodMatchesText(w: Wod, needle: string): boolean {
 
               @if (slotStep() === 'category') {
                 <div sheetOverlay class="stepbody" data-testid="slot-category-step">
-                  <button type="button" class="backrow" data-testid="slot-category-back"
-                          (click)="slotStep.set('search')">
-                    <span aria-hidden="true">&#x2039;</span>
-                    <span i18n="@@class.slot.back">Back</span>
-                  </button>
                   <div class="rows">
                     <button type="button" class="prow" [class.sel]="categoryFilter() === ''"
                             data-testid="filter-category-ANY" (click)="pickCategory('')">
@@ -272,15 +273,16 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                       </button>
                     }
                   </div>
+                  <div class="stepfoot">
+                    <bh-button variant="ghost" size="lg" class="full" testId="slot-category-back"
+                               (click)="slotStep.set('search')">
+                      <span i18n="@@class.slot.back">Back</span>
+                    </bh-button>
+                  </div>
                 </div>
               }
               @if (slotStep() === 'type') {
                 <div sheetOverlay class="stepbody" data-testid="slot-type-step">
-                  <button type="button" class="backrow" data-testid="slot-type-back"
-                          (click)="slotStep.set('search')">
-                    <span aria-hidden="true">&#x2039;</span>
-                    <span i18n="@@class.slot.back">Back</span>
-                  </button>
                   <div class="rows">
                     <button type="button" class="prow" [class.sel]="typeFilter() === ''"
                             data-testid="filter-type-ANY" (click)="pickType('')">
@@ -294,6 +296,12 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                         @if (typeFilter() === p) { <span class="mark" aria-hidden="true">&#x2713;</span> }
                       </button>
                     }
+                  </div>
+                  <div class="stepfoot">
+                    <bh-button variant="ghost" size="lg" class="full" testId="slot-type-back"
+                               (click)="slotStep.set('search')">
+                      <span i18n="@@class.slot.back">Back</span>
+                    </bh-button>
                   </div>
                 </div>
               }
@@ -406,11 +414,13 @@ function wodMatchesText(w: Wod, needle: string): boolean {
     .eyebrow-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); }
-    /* The DRAFT/LIVE pill is this screen's one volt element, and only while LIVE -- law §5. */
+    /* The pill is NOT this screen's volt element -- "Save and publish" below is, and volt is one
+       question per screen. LIVE is demoted to --good text/border, same idiom as classes.page.ts's
+       .prog.pub (the list screen's own live marker). DRAFT is unchanged. */
     .pill { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
       text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--hairline);
       border-radius: var(--r-full); color: var(--faint); }
-    .pill.volt { background: var(--volt); color: var(--on-volt); border-color: var(--volt); }
+    .pill.live { color: var(--good); border-color: var(--good); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 2px 0 0; text-wrap: balance; }
 
@@ -454,6 +464,13 @@ function wodMatchesText(w: Wod, needle: string): boolean {
     .addslot:hover { color: var(--bone); border-color: var(--bone-dim); }
     .addslot:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
+    /* The copy button is a real, always-enabled-looking action (bh-button solid), not the dashed
+       .addslot quiet treatment -- that's what made it unfindable. Kept apart from "Add a slot"
+       by the footer's own gap so the two never read as a pair. */
+    .copyaction { margin-top: var(--sp-4); }
+    .copy-reason { margin: var(--sp-2) 0 0; font-family: var(--font-body); font-size: var(--fs-sm);
+      color: var(--faint); }
+
     .foot { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-5); }
     .full { width: 100%; }
 
@@ -481,13 +498,10 @@ function wodMatchesText(w: Wod, needle: string): boolean {
       white-space: nowrap; }
 
     /* ---- fill-slot sheet: category/type/detail steps -- same .prow + checkmark idiom as the
-       piece editor's own meta sheets (copied, not reinvented). ------------------------------- */
-    .backrow { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap);
-      margin-bottom: var(--sp-2); padding: 0 var(--sp-1); background: none; border: none;
-      color: var(--bone-dim); font-family: var(--font-body); font-size: var(--fs-body); cursor: pointer; }
-    .backrow:hover { color: var(--bone); }
-    .backrow:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+       piece editor's own meta sheets (copied, not reinvented). Back is the SAME bh-button the
+       detail step uses -- same variant/size/position -- so all three steps read as one family. */
     .stepbody { display: flex; flex-direction: column; }
+    .stepfoot { margin-top: var(--sp-3); }
     .prow { display: flex; align-items: center; justify-content: space-between; width: 100%;
       box-sizing: border-box; min-height: var(--tap); padding: 0 var(--sp-2); background: none;
       border: none; border-bottom: 1px solid var(--hairline); color: var(--bone); text-align: left;
@@ -605,6 +619,19 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
    *  would copy nothing. */
   hasSavedPieces = computed(() =>
     (JSON.parse(this.store.baseline()) as PieceDraft[]).some(d => !this.isEmpty(d)));
+
+  /** The copy button is always shown (a coach must be able to discover it); this is why it's
+   *  disabled, rendered as a --faint meta line under the button, never a tooltip -- there is no
+   *  tooltip on touch. Empty string means enabled. */
+  copyDisabledReason = computed(() => {
+    if (!this.dayTargets().length) {
+      return $localize`:@@class.copyDay.noTargets:No other classes of this type today.`;
+    }
+    if (!this.hasSavedPieces()) {
+      return $localize`:@@class.copyDay.nothingToCopy:Nothing to copy yet.`;
+    }
+    return '';
+  });
 
   checkedCopyCount = computed(() => this.copyTargets().filter(t => t.checked).length);
 
@@ -975,7 +1002,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   /** The disabled attribute guards one path only (Enter still submits a form regardless of a
    *  button's [disabled]) -- this guard is what actually stops the copy. */
   openCopySheet() {
-    if (!this.hasSavedPieces()) return;
+    if (this.copyDisabledReason()) return;
     if (this.hasUnsaved()) {
       // Copying now would copy the last SAVED state, silently dropping whatever's unsaved --
       // save first (this class's own publish state, unchanged), then open on the fresh content.

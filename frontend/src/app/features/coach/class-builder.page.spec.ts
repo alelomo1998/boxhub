@@ -220,6 +220,37 @@ describe('ClassBuilderPage', () => {
     expect(inputAfter.value).toBe('grace');
   });
 
+  it('the category and type steps\' Back is the same bh-button control as the detail step\'s, not a bare button.backrow', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-category"]')!.click();
+    fixture.detectChanges();
+    const categoryBack = el.querySelector('[data-testid="slot-category-back"]')!;
+    expect(categoryBack.closest('bh-button')).toBeTruthy();
+    expect(el.querySelector('.backrow')).toBeNull();
+    el.querySelector<HTMLElement>('[data-testid="slot-category-back"]')!.click();
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-type"]')!.click();
+    fixture.detectChanges();
+    const typeBack = el.querySelector('[data-testid="slot-type-back"]')!;
+    expect(typeBack.closest('bh-button')).toBeTruthy();
+    el.querySelector<HTMLElement>('[data-testid="slot-type-back"]')!.click();
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="pick-row-lib-1"]')!.click();
+    fixture.detectChanges();
+    const detailBack = el.querySelector('[data-testid="slot-detail-back"]')!;
+    expect(detailBack.closest('bh-button')).toBeTruthy();
+  });
+
   it("pressing a result row opens the detail step showing that piece's prescription, and does NOT fill the slot", () => {
     setup();
     store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
@@ -341,6 +372,34 @@ describe('ClassBuilderPage', () => {
     const text = el.querySelector('[data-testid="pick-row-lib-1"] .d')!.textContent!;
     expect(text.length).toBeLessThanOrEqual(80);
     expect(text.endsWith('…')).toBe(true);
+  });
+
+  it('the publish button carries the volt (primary) variant and the LIVE pill does not', () => {
+    setup();
+    booking.sessionDetail.and.returnValue(of({ ...DETAIL, programmingStatus: 'PUBLISHED' }));
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+
+    const publishInner = el.querySelector('[data-testid="save-publish"]')!;
+    expect(publishInner.classList.contains('primary')).toBe(true);
+    expect(publishInner.classList.contains('strong')).toBe(false);
+
+    const pill = el.querySelector('[data-testid="status-live"]')!;
+    expect(pill.classList.contains('volt')).toBe(false);
+    expect(pill.classList.contains('live')).toBe(true);
+  });
+
+  it('Save draft renders full width alongside Save and publish, same footprint', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+
+    const publishHost = el.querySelector('[data-testid="save-publish"]')!.closest('bh-button')!;
+    const draftHost = el.querySelector('[data-testid="save-draft"]')!.closest('bh-button')!;
+    expect(publishHost.classList.contains('full')).toBe(true);
+    expect(draftHost.classList.contains('full')).toBe(true);
+    expect(el.querySelector('[data-testid="save-publish"]')!.classList.contains('lg')).toBe(true);
+    expect(el.querySelector('[data-testid="save-draft"]')!.classList.contains('lg')).toBe(true);
   });
 
   it('re-saving an edited class sends the existing item ids', () => {
@@ -609,13 +668,46 @@ describe('ClassBuilderPage', () => {
   });
 
   describe('copy to the day\'s other classes', () => {
-    it('the button is absent when the day holds no other class of this name', () => {
+    it('the button is always shown, disabled with a reason when the day holds no other class of this name', () => {
       setup();
       booking.listSessions.and.returnValue(of([sessionView('sess1', 'CrossFit 60', DETAIL.startAt)]));
       store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
       fixture.detectChanges();
 
-      expect(el.querySelector('[data-testid="copy-day"]')).toBeNull();
+      const btn = el.querySelector<HTMLButtonElement>('[data-testid="copy-day"]');
+      expect(btn).toBeTruthy();
+      expect(btn!.disabled).toBe(true);
+      expect(el.querySelector('[data-testid="copy-day-reason"]')).toBeTruthy();
+    });
+
+    it('disabled with a reason when the class has no saved pieces yet, even with other classes that day', () => {
+      setup();
+      const other = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([sessionView('sess1', 'CrossFit 60', DETAIL.startAt), other]));
+      store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+      fixture.detectChanges();
+
+      const btn = el.querySelector<HTMLButtonElement>('[data-testid="copy-day"]');
+      expect(btn).toBeTruthy();
+      expect(btn!.disabled).toBe(true);
+      expect(el.querySelector('[data-testid="copy-day-reason"]')!.textContent).toContain('Nothing to copy yet');
+    });
+
+    it('enabled with no reason line when both conditions are met, and still opens the sheet', () => {
+      setup();
+      const other = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
+      booking.listSessions.and.returnValue(of([sessionView('sess1', 'CrossFit 60', DETAIL.startAt), other]));
+      prog.sessionItems.and.returnValue(of([] as SessionItem[]));
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+
+      const btn = el.querySelector<HTMLButtonElement>('[data-testid="copy-day"]');
+      expect(btn!.disabled).toBe(false);
+      expect(el.querySelector('[data-testid="copy-day-reason"]')).toBeNull();
+
+      btn!.click();
+      fixture.detectChanges();
+      expect(component.copyOpen()).toBe(true);
     });
 
     it('the button is present when it does, and the sheet lists each target with its time and name', () => {
