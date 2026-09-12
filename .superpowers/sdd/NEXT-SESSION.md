@@ -1,232 +1,223 @@
-# Next session — **M14c-a is IN PROGRESS on `m14c-a-builder`. The piece editor is DONE and signed off. Task 11 is next and needs a SHAPE PASS first.**
+# Next session — **M14c-a: the BUILD is done and scored. Task 13 (e2e) and Task 14 (records) remain.**
 
 | | |
 |---|---|
-| Branch | **`m14c-a-builder`**, pushed, HEAD `8b5d526`. `main` at `ee19a35`. |
+| Branch | **`m14c-a-builder`**, HEAD `de8ac3d`. `main` at `ee19a35`. **Not pushed this session — push it.** |
 | Spec | `docs/superpowers/specs/2026-09-07-m14c-a-builder-design.md` |
-| Plan | `docs/superpowers/plans/2026-09-07-m14c-a-builder.md` — **17 tasks; 1–10 and 12 done** |
-| Backend | **821 / 0 / 0 / 0**, `BUILD SUCCESS` |
-| Karma | **784 SUCCESS** |
+| Plan | `docs/superpowers/plans/2026-09-07-m14c-a-builder.md` — **Tasks 1–12 done, plus work the plan never listed (below)** |
+| Backend | **821 / 0 / 0 / 0**, `BUILD SUCCESS` — re-verified at the close, nothing backend changed this session |
+| Karma | **874 SUCCESS** |
 | Production build | clean, **zero warnings** |
-| Playwright | **STILL not run this milestone** — Task 13. See the warning below. |
-| Visual baselines | `sortable-list` still has **no snapshot**. Task 13 Step 0. |
-| Piece editor | **signed off by the user.** `audit` **19/20** (gate 16), `critique` **35/40** (gate 32). |
+| Visual regression | **33 passed** — baselines regenerated, see the warning below |
+| Playwright e2e | **STILL not run this milestone.** Task 13. `programming.spec.ts` drives a screen that no longer exists. |
+| Piece editor | signed off earlier: `audit` 19/20, `critique` 35/40 |
+| Class stack | signed off now: **`audit` 20/20, `critique` 34/40**, browser-verified |
 
 ---
 
 ## What is actually left
 
-**Task 11 — the class stack.** The only substantial build remaining. A new screen at
-`coach/classes/:id/build` replacing `instance-builder.page.ts`. **The user's rule: a new screen gets
-3–4 real layout options to choose from BEFORE it is built.** Skipping that on the piece editor cost
-six rounds of rework. Do not skip it again. Read `instance-builder.page.ts`'s `seedFromSkeleton`
-before deleting the file — the skeleton pre-seed (a standard class type produces empty labelled
-slots the coach fills) is behaviour the user validated on the tour and it carries across.
-
-**Task 13 — e2e.** Step 0 regenerates the `sortable-list` visual baseline via `e2e/visual.sh` (the
-Linux container — **never Playwright locally**, or you compare against baselines your renderer never
-wrote). Then the wiring Karma structurally cannot see: open a class → tap a piece → edit → save →
-**reload** → confirm it persisted.
+**Task 13 — e2e.** The only substantial work remaining. See the two warnings below; this is not a
+formality and it is not a re-run.
 
 **Task 14 — close the records.** `docs/BACKLOG.md`, `docs/ROADMAP-AT-A-GLANCE.md` row 10,
 `.superpowers/sdd/progress.md`, and rewrite this file.
 
 ---
 
-## ⚠️ The e2e suite has not run once this milestone
+## ⚠️ `e2e/tests/programming.spec.ts` tests a DELETED screen
 
-Task 13 expects a baseline of **91 passed**. Since that baseline was set, this milestone has changed
-a **shared `ui/` component** (`bh-sortable-list`, substantially — see below), **two forms**, and the
-**wod JSON model**. If any of that broke another screen's selectors, nobody knows yet. Budget for
-it; do not assume Task 13 is a formality.
+It drives `instance-builder.page.ts` by its test ids — `piece-stack`, `add-piece`, `piece-title`,
+`publish-btn`, and `.prog.pub` — and every one of them is gone. That file was deleted in `9d78d99`
+and the route now loads `ClassBuilderPage`. **This spec must be REWRITTEN, not re-run**, against the
+new ids: `stack-form`, `add-slot`, `add-slot-<MACRO>`, `slot-open-<i>`, `slot-write-new`,
+`pick-row-<id>`, `slot-detail-select`, `piece-toggle-<i>`, `piece-edit-<i>`, `save-draft`,
+`save-publish`, `copy-day`, `copy-confirm`.
+
+The wiring Karma structurally cannot see, and which the rewrite must cover:
+open a class → fill a slot from the library → **reload** → confirm it persisted; and write a NEW
+piece → save in the editor → land back on the stack with the piece attached.
+
+**The e2e baseline of 91 predates this milestone.** A shared `ui/` component, two forms, the wod
+JSON model, `bh-pick-sheet` and `bh-button` have all changed since. Budget for fallout beyond this
+one file.
+
+## ⚠️ The visual baselines churn WHOLESALE when the gallery gains a section — this is not a bug
+
+Adding `bh-banner` and the `sortable-list` section changed **52 baselines plus 6 new ones**, not the
+two you would expect. Root-caused this session, with evidence:
+
+- the suite screenshots each section after scrolling it into view, so the **document's total height
+  sets the scroll offset, and the scroll offset sets the sub-pixel phase every glyph rasterises at**.
+  Two more sections means a taller page, which re-rasterises text everywhere.
+- It is real, not noise: a **main build reproduces main's baselines to ZERO differing pixels**, and
+  this build differed by 4–8% on every section, identically every run.
+
+Two traps that cost hours; do not pay them again:
+
+1. **The per-section loop aborts at its first failing section.** A gallery with many differences
+   reveals ONE per viewport per run, so the failures look like they are moving between icon, button
+   and data-table. They are not moving. You are fixing one and uncovering the next.
+2. **`--update-snapshots` writes the first stable capture; a verify run retries until it matches.**
+   One regeneration pass can leave a set that still fails. **Run `./visual.sh --update-snapshots`
+   TWICE, then verify.** That converges and stays green across rebuilds.
+
+---
+
+## Work this session the plan never listed
+
+The plan's Task 11 was one screen. The user reviewed it live and ruled on a lot more.
+
+- **`ClassDraftStore`** (`features/programming/class-draft.store.ts`) — the stack and the piece
+  editor are SIBLING routes and could not exchange anything. The editor never loaded the piece at
+  `:index`, always minted a second wod instead of patching, and the wod it created was never
+  attached to the session. The store carries drafts across the navigation and holds the unsaved
+  baseline, so a piece written in the editor is still guarded on return.
+- **`bh-banner`** (`ui/banner.component.ts`) — a floating confirmation, good/danger, optional
+  action, both tones auto-dismissing with the danger dwell longer and the dwell pausing on
+  hover/focus. It **composes `bh-alert`** rather than restating it, so a semantic colour never fills
+  anything larger than a chip. In the dev gallery with its seven states.
+- **`--dock-h`** — the dock's outer height moved into `_tokens.scss` and the dock pins its own
+  `min-height` to it. Anything anchored to the bottom of a mobile screen has to clear the dock, and
+  the banner was re-deriving `56 + 6 + 6` in a second file.
+- **`bh-button` gained `describedBy`** — an attribute on a component host does not reach the element
+  inside it. Fifth instance of that trap in this codebase.
+- **Copy a class to the day's other occurrences** — targets are same-name sessions on the same local
+  day; the sheet lists them, ticks the empty ones and never treats a failed check as empty;
+  publishing travels with the content. **No backend work**: `PUT /sessions/{id}/items` already
+  copies via `fromLibraryWodId` and does not require a library row.
+
+## What the user ruled — binding, do not relitigate
+
+Carried forward, plus new:
+
+1. **The fill-slot sheet's filters are BUTTONS opening steps INSIDE the same sheet**, styled like the
+   piece editor's unit picker. A sheet stacked on a sheet stays banned.
+2. **A search result opens a DETAIL step** with Back and Select; it does not fill the slot on tap.
+   Each result row also carries a one-line prescription snippet.
+3. **Reorder leaves no hover fill** — after a drop the pointer rests on the dropped row and a hover
+   fill read as "this one is selected".
+4. **"Save and publish" is VOLT**; the DRAFT/LIVE pill gave up volt so the screen keeps one.
+   The builder is on the hero list, and publishing IS live/now.
+5. **The two saves share a row; copy sits BELOW them.** Four stacked buttons was rejected.
+6. **Remove is two-step**, mirroring the piece editor: danger-bordered ghost opens, filled executes.
+7. **The banner replaces the inline "Saved" text.** Saving a draft and publishing read differently.
+
+## THE BUILDER IS NOT THE RUNNER — a persona error that reached a scored pass
+
+A critique brief this session described the coach as "on the gym floor, one-handed, mid-class". That
+is the **runner** (`coach/classes/:id/run`). The **builder** is where a coach programs beforehand, on
+tablet or desktop — `PRODUCT.md` says exactly that. The critique's only P1 was built on the wrong
+scene and was withdrawn. Mobile-first at 360px still binds, because of Capacitor and the App Store;
+that is a layout constraint, not a claim about when the screen is used.
+
+## Open, filed, NOT fixed
+
+- **Disabled buttons measure 2.18:1** (`--surface` on `--disabled`, `.btn.strong:disabled`). WCAG
+  exempts inactive controls so it is not a violation, but the label is the weakest text on screen —
+  confirmed by eye on the copy sheet. It lives in the shared `bh-button`, so it is a system-wide
+  decision, deliberately not taken here.
+- **`--faint` fails AA on `--surface-2`** (4.27:1) while passing on `--surface` (4.70:1). One place
+  hit that combination and was fixed; **the pairing is a live trap for the next sheet-row design.**
+- The fill-slot search step is the densest view in the flow (search + two filters + write-new + a
+  result list). Recorded as P3 once the persona error was corrected.
+- **A collapsed block's name field is 38px wide at 320px** in the PIECE EDITOR. Offered twice, never
+  answered. The proposal: render the name as plain text while collapsed, editable only when expanded.
+- **The hero title still clips** past ~16 characters at 360px in the piece editor.
+- `WodJsonValidator` does not cross-check `blockIndex`, and weight unit does not convert on switch.
+  Both deliberate, both carry `ponytail:` comments. **The TV must tolerate an index it cannot resolve.**
+- Everything in spec §10: timer auto-arm → M34, admin entry point → M15b, library/benchmarks/types
+  pages → M14c-b, roster team-splitting → Project 2.
+
+## Dev-data note
+
+The demo day held only ONE "Burn It", so the copy button correctly hid itself and the feature could
+not be exercised. **A second Burn It at 21:00 was inserted into the dev database** to test it. It is
+dev-only data, not a migration and not seed code.
+
+## Process, as the user corrected it
+
+The routine in `CLAUDE.md` reads `audit → critique → fix every P0/P1 → re-score BOTH`. The user
+ruled the better order is **`audit → fix → critique`**, so the critique judges a screen that is not
+about to change under it and only one scoring pass is spent. **Amend `CLAUDE.md` if that is to be
+the rule.**
+
+Also: a scored pass must be run with **Claude in Chrome**, not only Playwright and not only source.
+Playwright measures real pixels and is the right tool for contrast, overflow, axe and keyboard, but
+the user asks specifically whether the screens were SEEN. Look at them.
 
 ---
 
 ## Paste this into the new session
 
 ```
-Read .superpowers/sdd/NEXT-SESSION.md and CONTINUE M14c-a.
+Read .superpowers/sdd/NEXT-SESSION.md and FINISH M14c-a: Task 13 (e2e) then Task 14 (records).
 
 cd ~/dev/boxhub && git checkout m14c-a-builder && git status
-# expect a CLEAN tree at 8b5d526, branch pushed
+# expect a CLEAN tree at de8ac3d
 
-Do NOT re-plan and do NOT re-spec. Tasks 1-10 and 12 are committed and were
-verified by the orchestrator, not by their executors. THE PIECE EDITOR IS DONE
-AND SIGNED OFF -- audit 19/20, critique 35/40. Do not reopen it, do not re-score
-it, do not "improve" it unless the user asks.
+Do NOT re-plan, do NOT re-spec, do NOT reopen any screen. The piece editor AND
+the class stack are both built, reviewed and signed off -- piece editor audit
+19/20 critique 35/40, class stack audit 20/20 critique 34/40. Do not re-score
+them, do not "improve" them unless I ask.
 
-FIRST ACTION: confirm the baselines yourself, then START TASK 11 WITH A SHAPE
-PASS -- 3-4 real layout options with little ASCII previews, presented to the
-user for a choice, BEFORE any code. That step was skipped on the piece editor
-and cost six rounds of rework. It is not optional.
-
-  cd ~/dev/boxhub && docker compose -f docker/docker-compose.yml up -d --build
-  # http://localhost/app/coach/wods/new   as coach@demo.io / boxhub-demo-2026
-
-Task 11 is the class stack at coach/classes/:id/build, replacing
-instance-builder.page.ts. Read its seedFromSkeleton BEFORE deleting it -- the
-skeleton pre-seed is behaviour the user validated on the tour.
-
-Then Task 13 (e2e) and Task 14 (records).
-
-ALWAYS SUBAGENT. One executor per task. The orchestrator dispatches, reviews
-every diff, runs every gate ITSELF, and commits. NEVER accept an executor's
-reported test numbers -- run the suite yourself and read the real line. That
-rule paid out this session: the handoff's backend number was stale and the
-suite was actually RED.
-
-SUBAGENTS STALL ON THIS REPO. What survives is a SHORT brief naming ONE file
-with the detail in a contract file on disk that the brief points at. Long
-inline briefs stall. Write the contract to $CLAUDE_JOB_DIR/tmp/<name>.md.
-Tell every executor to IGNORE the graphify PreToolUse hook -- it orders them to
-run `graphify query` before reading and they burn whole turns obeying it.
-Tell them to run maven and npm in the FOREGROUND with timeout 900000.
-Tell them to leave the docker stack UP -- one tore it down and the user could
-not open the page.
-
-MEASURE AT MORE THAN ONE WIDTH. Three separate defects shipped this session
-because a change was verified at a single viewport. Any layout change gets
-measured at 320 / 360 / 393 / 768 / 1024 / 1280 before it is called done.
-
-Baselines to confirm before building on them:
-  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # 821/0/0/0
+FIRST: confirm the baselines yourself. Never quote a number from this file.
+  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test   # expect 821/0/0/0
   cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless
-  cd frontend && env -u NODE_OPTIONS npm run build                 # 0 warnings
-Expect 821/0/0/0, TOTAL: 784 SUCCESS, zero warnings. The "Mailer ... port:
+  cd frontend && env -u NODE_OPTIONS npm run build                 # expect 0 warnings
+Expect 821/0/0/0, TOTAL: 874 SUCCESS, zero warnings. The "Mailer ... port:
 localhost, 1025" ERROR lines are pre-existing SMTP noise -- judge only by
 "Tests run:" and "BUILD SUCCESS".
 
-Environment: NODE_OPTIONS is poisoned, always `env -u NODE_OPTIONS`. There is
-no ./mvnw; JAVA_HOME=/opt/homebrew/opt/openjdk@21. NEVER chain a grep gate
-with && -- a grep that correctly finds nothing exits 1 and aborts the chain.
-Compose from the repo root (docker/docker-compose.yml), Playwright from e2e/.
-THE BACKEND IMAGE NEEDS `up -d --build` -- the jar is baked in with no source
-mount, so a new migration does NOT reach a running container otherwise. This
-cost a debugging detour when the box weight unit came back undefined.
+  cd ~/dev/boxhub && docker compose -f docker/docker-compose.yml up -d --build
+  # http://localhost/app/coach/classes/d3063f9c-1b8e-4627-80c8-30aa783190e4/build
+  # as coach@demo.io / boxhub-demo-2026
+
+TASK 13 IS A REWRITE, NOT A RE-RUN. e2e/tests/programming.spec.ts drives
+instance-builder.page.ts, which was DELETED this milestone -- piece-stack,
+add-piece, piece-title, publish-btn and .prog.pub no longer exist. Rewrite it
+against the new ids (listed in the handoff) and cover the wiring Karma cannot
+see: fill a slot from the library -> RELOAD -> it persisted; and write a new
+piece -> save -> land back on the stack with it attached. The e2e baseline of 91
+predates this milestone and a shared ui/ component, two forms, the wod JSON
+model, bh-pick-sheet and bh-button have all changed. Budget for fallout beyond
+that one file.
+
+VISUAL BASELINES: if you touch the dev gallery, the WHOLE set churns and that is
+correct, not a bug -- the handoff explains why. Two traps: the per-section loop
+ABORTS at its first failure so you only see one per viewport per run, and
+--update-snapshots must be run TWICE before it converges. Run e2e/visual.sh in
+its Linux container, never Playwright locally.
+
+ALWAYS SUBAGENT. One executor per task. The orchestrator dispatches, reviews
+every diff, runs every gate ITSELF, and commits. NEVER accept an executor's
+reported test numbers -- run the suite yourself and read the real line.
+
+SUBAGENTS STALL ON THIS REPO. What survives is a SHORT brief naming ONE file
+with the detail in a contract file on disk that the brief points at. Long inline
+briefs stall, and one stalled this session waiting on a notification that never
+came -- tell them to run everything in the FOREGROUND and never wait on a
+monitor. Tell every executor to IGNORE the graphify PreToolUse hook. Tell them
+to leave the docker stack UP.
+
+MEASURE AT MORE THAN ONE WIDTH: 320 / 360 / 393 / 768 / 1024 / 1280.
+A SCORED PASS NEEDS CLAUDE IN CHROME, not just Playwright and never just source
+-- Playwright is right for contrast, overflow, axe and keyboard, but LOOK at the
+screens too. I will ask whether you did.
+
+Environment: NODE_OPTIONS is poisoned, always `env -u NODE_OPTIONS`. There is no
+./mvnw and no `timeout` binary; JAVA_HOME=/opt/homebrew/opt/openjdk@21. NEVER
+chain a grep gate with && -- a grep that correctly finds nothing exits 1 and
+aborts the chain. Compose from the repo root (docker/docker-compose.yml),
+Playwright from e2e/. THE BACKEND IMAGE NEEDS `up -d --build` -- the jar is
+baked in with no source mount.
 
 A backtick inside a comment in an Angular `template:`/`styles:` literal closes
 the string, and a backtick in a bash -m commit message runs command
 substitution. Write commit messages through a quoted heredoc.
+
+Two things I owe you an answer on, ask me:
+- the piece editor's collapsed block name field, 38px wide at 320px;
+- whether to amend CLAUDE.md's routine to audit -> fix -> critique, which is the
+  order I ruled this session.
 ```
-
----
-
-## What the user ruled on the builder — binding, do not relitigate
-
-Carried forward from the previous handoff, still binding:
-
-1. **The builder is on the HERO list** (2026-09-08). Volt is available here, bounded by area, one
-   question per element.
-2. **Shape: header strip + block canvas.** Title, then ONE meta strip of four chips
-   (WHAT / HOW / SCORE / WHO) each opening a sheet, then segments, then THE WORK, then save.
-3. **Sheets are full-width rows at `--tap-lg`, and close on pick.** No segmented pills in a sheet.
-4. **`HOW` has a `None` row.**
-5. **The segment sequence is drawn on the PAGE, not inside the picker.**
-6. **Add affordances are full width, plain verbs**, no `+` glyph.
-7. **A new piece opens with one block already.**
-8. ~~No rep-scheme field; reps is free text.~~ **SUPERSEDED 2026-09-10 — see ruling 13.**
-9. **`+ part` (the second nesting level) is removed from the UI.** The model and the athlete reader
-   keep it; existing sub-blocks still render read-only.
-10. **Reorder ONLY when a block is collapsed.**
-11. **`WHO` reads `1`**, not `SOLO`.
-12. **Weight unit is box-level** (V34, `boxes.weight_unit`, KG default).
-
-New this session:
-
-13. **Reps and load take NUMBERS ONLY, entered through a stepper** (2026-09-10). This reverses
-    ruling 8 — the user chose it knowing Fran's `21-15-9` then lives in the movement text. The
-    stepper's value is a raw STRING so a library wod carrying free-text reps still renders instead
-    of silently blanking on open. Load allows one decimal; reps does not.
-14. **Only EMOM, Tabata and Interval get a segments list.** A segment means *a block plus a
-    duration*, so it only means anything for a repeating pattern. For time and AMRAP get a
-    cap/duration written to `timeCapSeconds` instead — a field the live class runner already read
-    and this screen had never set.
-15. **A WORK segment names the block it runs** (`blockIndex`), so the TV can show the right
-    prescription. The index is remapped by every op that changes the shape of `blocks`.
-16. **Copy a block, paste it as a new one. No replace, no cut.** The clipboard is ONE slot and is
-    **cleared on paste** — pasting the same block twice means pressing copy twice (user-ruled).
-17. **A movement declares which units it may be measured in, and whether it takes a load.**
-    Assault bike offers CAL, a burpee offers REPS only and no load at all. Imperial lives in the
-    unit list itself (`M,KM,MI,FT`), **not** a box-wide toggle — a box-level switch would relabel a
-    500 m row as 500 ft without converting it.
-18. **Every picker is a `bh-sheet`, never a native select or combo.** Creating a movement is a
-    SECOND STEP INSIDE the same sheet, not a sheet stacked on a sheet.
-19. **The WHAT chip keeps volt** (ruled by the orchestrator 2026-09-10, user delegated). The
-    design law's "taxonomy does not qualify" line excludes labels *about* a subject; the macro IS
-    the subject, and it is the first question the screen answers.
-20. **Reorder motion: 500ms, symmetric ease-in-out, swap fires at 18% of a neighbour.** The user
-    tuned all three by eye and said to leave the duration alone.
-
----
-
-## `bh-sortable-list` was substantially rewritten — read this before touching it
-
-It no longer reorders rows during a drag. Rows hold their slots and are **translated**; the
-consumer's array is only reordered on drop. Consequences a future change must respect:
-
-- **Hit-testing reads geometry cached at grab**, never live `getBoundingClientRect()`. A
-  transformed element reports its *transformed* box, so live reads describe the animation and make
-  the target index oscillate.
-- **The drop clears transforms with transitions suppressed for one frame** (a `settling` class, a
-  double `requestAnimationFrame`). This is the whole trick: the consumer's re-render puts each
-  item's content exactly where its transform was already showing it, so an instant reset produces
-  no visible movement. Tween that reset and every row animates away from where the coach dropped
-  it — which is precisely the bug the user reported as "the switch is fake".
-- **Escape and a no-op drop deliberately KEEP their tween.** Nothing reordered there, so the rows
-  genuinely do have to travel back.
-- The grabbed row carries `position: relative; z-index: 1`. Without it, paint order is DOM order and
-  a block dragged *downward* slides underneath the ones it passes.
-
----
-
-## Open, filed, NOT fixed
-
-- **A collapsed block's name field is 38px wide at 320px** (78px at 360), against ~175px of typical
-  content. It got *worse* in the critique-P1 fix, which widened the bar's gap and gave remove a
-  border. **The user was offered the fix and has not answered:** when collapsed, render the name as
-  plain text rather than an editable field, and keep it editable only when expanded — one fewer
-  control in a row whose job is "drag me", and the name gets the full width.
-- **The hero title still clips** past ~16 characters at 360px (measured: 693px of content in a
-  328px field). Stepped down a type size below 360px, which helps and does not solve. A real fix is
-  wrapping to two lines, which is a shape change and therefore the user's call.
-- **Help/documentation heuristic scored 2** — there is none anywhere on the screen. Acceptable for
-  an expert tool; recorded because it was scored as observed.
-- **The create-movement step inside the picker was never opened by a review pass.** Both `audit`
-  and `critique` targeted the piece editor, and the review agent built its piece by picking an
-  existing movement, so the free-text path — a second screen inside a sheet, reachable only after a
-  search misses — was never walked. It had three defects: a 403 for coaches, mismatched action
-  buttons, and an invented `OTHER` category. All fixed in `04c04e9`. **The lesson: a surface that
-  only appears after a miss needs to be named as its own target, or a scored pass will skip it.**
-- **`WodJsonValidator` does not cross-check `blockIndex` against the block list**, and does not
-  check a scale's unit against its movement's allowed list. Both are deliberate and carry
-  `ponytail:` comments — the validator is a pure function with no repository. **The TV must
-  tolerate an index it cannot resolve.**
-- **Weight unit does not convert on switch.** KG→LB relabels rather than converts. Deliberate.
-- **`ScoreDto` does not echo `teamId`/`teamName`.**
-- **Collapse state is a parallel `boolean[]`**, spliced alongside `blocks` in every shape-changing
-  op. Correct today; breaks silently if someone mutates `blocks` without touching it.
-- Everything in spec §10: timer auto-arm → M34, admin entry point → M15b, library/benchmarks/types
-  pages → M14c-b, roster team-splitting → Project 2, the seven remaining `wodType` consumers.
-
----
-
-## What this session cost, so it is not repeated
-
-**Three defects shipped because a change was measured at ONE viewport width.** The reps input
-rendered 6px wide at 360; then, after that was fixed, 24px and 6px at *every* width from 760 up,
-which `audit` caught only because it measures at four. A single width is not a verification.
-
-**The backend suite was RED and the handoff said green.** `ClassReminderSchedulerTest` hardcoded
-`2026-09-10T05:00:00Z` and every session it seeds goes through `BookingService.book`, which rejects
-a past class — so all eight tests began erroring the moment that date passed. Nothing in this
-milestone touched the file; `main` carries the same bomb. Fixed to a relative base. **This is the
-argument for running the suite yourself rather than quoting the last number you saw.**
-
-**The backend container does not pick up a new migration from `up -d`.** The jar is baked into the
-image with no source mount. It served a pre-migration schema for a while, which surfaced as the box
-weight unit arriving `undefined` and rendering "Load in undefined for line 1" — invisible to every
-green test. Use `up -d --build`.
-
-**`bh-button` has no output**, so `(clicked)` binds a DOM event that never fires. All 18 specs
-passed while every ghost button was dead. **Karma cannot see a dead binding unless a spec presses
-the real control.** Specs on this screen now press real controls; keep it that way.
