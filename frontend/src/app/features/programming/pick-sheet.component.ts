@@ -176,12 +176,14 @@ export type PickResult = { id: string } | { freeText: string };
     /* Mono because a secondary line is meta (category, modality, preset), never prose. */
     .s { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
       letter-spacing: 0.04em; }
-    /* The content snippet, one step down from .s: --fs-meta is already the smallest type-scale
-       token (ponytail: no smaller step exists, so the demotion is carried by color -- --faint is
-       dimmer than .s's --bone-dim). Never wraps -- a long prescription would otherwise grow the
-       row to three lines at 360px. */
-    .d { width: 100%; font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--faint);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* The content snippet. It does NOT get a dimmer colour than .s: these rows paint on
+       --surface-2, where --faint measures 4.27:1 and fails AA for body-sized text (it passes at
+       4.70:1 on --surface, which is why it is fine elsewhere -- axe caught this one here and only
+       here). The three lines are already told apart by voice: Archivo title, letterspaced meta,
+       then the plain prescription. Never wraps -- a long one would otherwise grow the row to three
+       lines at 360px. */
+    .d { width: 100%; font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
 
     /* ---- create step: same picker-row language as the editor's own meta sheets ------------- */
     .create-step { display: flex; flex-direction: column; gap: var(--sp-2); }
