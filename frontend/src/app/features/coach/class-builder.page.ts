@@ -13,6 +13,7 @@ import { ClassDraftStore, PieceDraft } from '../programming/class-draft.store';
 import { PickSheetComponent, PickRow, PickResult } from '../programming/pick-sheet.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { AlertComponent } from '../../ui/alert.component';
+import { BannerComponent } from '../../ui/banner.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { SortableListComponent } from '../../ui/sortable-list.component';
@@ -93,7 +94,7 @@ function wodMatchesText(w: Wod, needle: string): boolean {
   standalone: true,
   imports: [
     DatePipe, RouterLink, ButtonComponent, AlertComponent, EmptyComponent, SheetComponent,
-    SortableListComponent, PickSheetComponent,
+    SortableListComponent, PickSheetComponent, BannerComponent,
   ],
   template: `
     <section class="page">
@@ -217,9 +218,6 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                 @if (formError()) {
                   <bh-alert tone="danger" data-testid="stack-save-error">{{ formError() }}</bh-alert>
                 }
-                @if (savedOk()) {
-                  <p role="status" data-testid="stack-saved-ok" i18n="@@class.save.ok">Saved</p>
-                }
                 <div class="saverow">
                   <bh-button type="button" variant="ghost" size="lg" class="full" [disabled]="saving()"
                              (click)="saveDraft()" testId="save-draft">
@@ -242,10 +240,6 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                 </bh-button>
                 @if (copyDisabledReason(); as reason) {
                   <p class="copy-reason" data-testid="copy-day-reason">{{ reason }}</p>
-                }
-                @if (copiedCount()) {
-                  <p class="copied" role="status" data-testid="copy-day-ok"
-                     i18n="@@class.copyDay.ok">{copiedCount(), plural, =1 {Copied to 1 class} other {Copied to {{ copiedCount() }} classes}}</p>
                 }
               </div>
             </form>
@@ -415,6 +409,11 @@ function wodMatchesText(w: Wod, needle: string): boolean {
           }
         }
       }
+
+      @if (banner(); as b) {
+        <bh-banner [tone]="b.tone" [message]="b.message" [actionLabel]="b.actionLabel ?? ''"
+                   (action)="retryLastSave()" (dismissed)="banner.set(null)" />
+      }
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -577,8 +576,6 @@ function wodMatchesText(w: Wod, needle: string): boolean {
       border: 1px solid var(--hairline); border-radius: var(--r-xs); display: grid; place-items: center; }
     .ct-box.checked { border-color: var(--bone); }
     .ctfoot { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
-    .copied { margin: var(--sp-2) 0 0; font-family: var(--font-mono); font-size: var(--fs-meta);
-      letter-spacing: 0.06em; text-transform: uppercase; color: var(--good); }
   `],
 })
 export class ClassBuilderPage implements OnInit, HasUnsaved {
@@ -627,14 +624,13 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   copyTargets = signal<CopyTarget[]>([]);
   copyBusy = signal(false);
   copyError = signal('');
-  /** How many classes the last copy wrote, for the confirmation. The copy lands in OTHER
-   *  classes the coach is not looking at, so a silent close is the one case where "it
-   *  worked" genuinely cannot be seen. */
-  copiedCount = signal(0);
 
   saving = signal(false);
-  savedOk = signal(false);
   formError = signal('');
+  /** One banner at a time -- a new outcome replaces whatever is showing rather than stacking. */
+  banner = signal<{ tone: 'good' | 'danger'; message: string; actionLabel?: string } | null>(null);
+  /** What Retry re-runs, set only by a failed save -- copy failures don't offer it. */
+  private pendingRetry: (() => void) | null = null;
 
   readonly anyLabel = ANY_LABEL;
   readonly timingPresets = TIMING_PRESETS;
@@ -1026,15 +1022,30 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
         this.openDrafts(merged);
         if (publish) this.published.set(true);
         this.saving.set(false);
-        this.savedOk.set(true);
-        setTimeout(() => this.savedOk.set(false), 2500);
+        this.pendingRetry = null;
+        this.banner.set({
+          tone: 'good',
+          message: publish
+            ? $localize`:@@class.save.publishedOk:Class published`
+            : $localize`:@@class.save.ok:Saved`,
+        });
         onSaved?.();
       },
       error: () => {
         this.saving.set(false);
-        this.formError.set($localize`:@@class.save.error:Couldn't save — your pieces are still here, try again.`);
+        const msg = $localize`:@@class.save.error:Couldn't save — your pieces are still here, try again.`;
+        this.formError.set(msg);
+        this.pendingRetry = () => this.doSave(publish, onSaved);
+        this.banner.set({ tone: 'danger', message: msg, actionLabel: $localize`:@@class.save.retry:Retry` });
       },
     });
+  }
+
+  /** Bound to the failed-save banner's action -- re-runs whichever save (draft or publish) just
+   *  failed. The component doesn't dismiss the banner on action press; the next outcome replaces
+   *  it either way. */
+  retryLastSave() {
+    this.pendingRetry?.();
   }
 
   // ---- copy to the day's other classes -----------------------------------------------------
@@ -1091,7 +1102,6 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
     this.copyBusy.set(true);
     this.copyError.set('');
-    this.copiedCount.set(0);
 
     const writes = ticked.map(t => this.prog.putItems(t.session.id, items).pipe(
       switchMap(() => (publish ? this.prog.publishProgramming(t.session.id, 'PUBLISHED') : of(null))),
@@ -1107,12 +1117,23 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
       const failed = results.filter(r => !r.ok);
       if (failed.length) {
         const names = failed.map(r => formatDate(r.target.session.startAt, 'HH:mm', this.locale)).join(', ');
-        this.copyError.set($localize`:@@class.copyDay.partialFail:Couldn't copy to ${names}:times: — try again.`);
+        const msg = $localize`:@@class.copyDay.partialFail:Couldn't copy to ${names}:times: — try again.`;
+        this.copyError.set(msg);
+        this.pendingRetry = null;
+        this.banner.set({ tone: 'danger', message: msg });
       } else {
-        this.copiedCount.set(results.length);
-        setTimeout(() => this.copiedCount.set(0), 4000);
+        this.banner.set({ tone: 'good', message: this.copyOkMessage(results.length) });
+        this.pendingRetry = null;
         this.closeCopySheet();
       }
     });
+  }
+
+  /** Same wording the old inline "Copied to N classes" line used, split one/other the way
+   *  `conversations.page.ts`'s `unreadAriaLabel` does -- $localize takes plain interpolation,
+   *  not an ICU plural, outside a template. */
+  private copyOkMessage(n: number): string {
+    if (n === 1) return $localize`:@@class.copyDay.ok.one:Copied to 1 class`;
+    return $localize`:@@class.copyDay.ok.many:Copied to ${n}:count: classes`;
   }
 }

@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { formatDate } from '@angular/common';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { of, throwError, Subject } from 'rxjs';
@@ -623,6 +623,102 @@ describe('ClassBuilderPage', () => {
     expect(store.drafts()).toEqual(original);
   });
 
+  it('a failed save mounts a danger banner and still renders the inline stack-save-error', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+    prog.putItems.and.returnValue(throwError(() => new Error('boom')));
+
+    el.querySelector<HTMLElement>('[data-testid="save-publish"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('bh-banner .alert.danger')).toBeTruthy();
+    expect(el.querySelector('[data-testid="stack-save-error"]')).toBeTruthy();
+  });
+
+  it('the failed-save banner offers Retry, and pressing it calls the save again with the same publish flag', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+    prog.putItems.and.returnValue(throwError(() => new Error('boom')));
+
+    el.querySelector<HTMLElement>('[data-testid="save-publish"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('bh-banner .alert.danger')).toBeTruthy();
+
+    prog.putItems.and.returnValue(of([] as SessionItem[]));
+    prog.sessionItems.and.returnValue(of([sessionItem('item1', BLANK_WOD)]));
+    el.querySelector<HTMLElement>('bh-banner button')!.click();
+    fixture.detectChanges();
+
+    expect(prog.publishProgramming).toHaveBeenCalledWith('sess1', 'PUBLISHED');
+    expect(el.querySelector('[data-testid="status-live"]')).toBeTruthy();
+  });
+
+  it('a successful draft save mounts a good banner, and the old "Saved" paragraph is gone', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+    prog.sessionItems.and.returnValue(of([sessionItem('item1', BLANK_WOD)]));
+
+    el.querySelector<HTMLElement>('[data-testid="save-draft"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="stack-saved-ok"]')).toBeNull();
+    expect(el.querySelector('bh-banner .alert.good')).toBeTruthy();
+    expect(el.querySelector('bh-banner')!.textContent).toContain('Saved');
+  });
+
+  it('a successful publish mounts a good banner whose message differs from the draft one', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+    prog.sessionItems.and.returnValue(of([sessionItem('item1', BLANK_WOD)]));
+
+    el.querySelector<HTMLElement>('[data-testid="save-publish"]')!.click();
+    fixture.detectChanges();
+
+    const text = el.querySelector('bh-banner')!.textContent!;
+    expect(text).toContain('Class published');
+    expect(text).not.toContain('Saved');
+  });
+
+  it('a second banner replaces the first rather than stacking two', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+    prog.putItems.and.returnValue(throwError(() => new Error('boom')));
+
+    el.querySelector<HTMLElement>('[data-testid="save-publish"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelectorAll('bh-banner').length).toBe(1);
+    expect(el.querySelector('bh-banner .alert.danger')).toBeTruthy();
+
+    prog.putItems.and.returnValue(of([] as SessionItem[]));
+    prog.sessionItems.and.returnValue(of([sessionItem('item1', BLANK_WOD)]));
+    el.querySelector<HTMLElement>('[data-testid="save-draft"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelectorAll('bh-banner').length).toBe(1);
+    expect(el.querySelector('bh-banner .alert.good')).toBeTruthy();
+  });
+
+  it('(dismissed) clears the banner, so it unmounts', fakeAsync(() => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+    prog.sessionItems.and.returnValue(of([sessionItem('item1', BLANK_WOD)]));
+
+    el.querySelector<HTMLElement>('[data-testid="save-draft"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('bh-banner')).toBeTruthy();
+
+    tick(3200);
+    fixture.detectChanges();
+
+    expect(el.querySelector('bh-banner')).toBeNull();
+  }));
+
   it('unsaved work is behind the guard', () => {
     setup();
     store.open('sess1', [emptyDraft('Warmup', 'WARMUP')]);
@@ -871,7 +967,7 @@ describe('ClassBuilderPage', () => {
       ]);
     });
 
-    it('a successful copy confirms how many classes were written', () => {
+    it('a successful copy mounts a good banner carrying the count', () => {
       setup();
       const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
       booking.listSessions.and.returnValue(of([t2]));
@@ -887,13 +983,13 @@ describe('ClassBuilderPage', () => {
 
       // The copy lands in another class the coach cannot see, so the confirmation is the only
       // evidence it happened.
-      const ok = el.querySelector('[data-testid="copy-day-ok"]');
-      expect(ok).toBeTruthy();
-      expect(ok!.getAttribute('role')).toBe('status');
-      expect(ok!.textContent).toContain('1');
+      const banner = el.querySelector('bh-banner .alert.good');
+      expect(banner).toBeTruthy();
+      expect(banner!.getAttribute('role')).toBe('status');
+      expect(banner!.textContent).toContain('1');
     });
 
-    it('a partial failure confirms nothing', () => {
+    it('a partial copy failure mounts a danger banner and keeps the sheet\'s own error', () => {
       setup();
       const t2 = sessionView('sess2', 'CrossFit 60', '2026-09-12T12:00:00Z');
       booking.listSessions.and.returnValue(of([t2]));
@@ -907,7 +1003,7 @@ describe('ClassBuilderPage', () => {
       el.querySelector<HTMLElement>('[data-testid="copy-confirm"]')!.click();
       fixture.detectChanges();
 
-      expect(el.querySelector('[data-testid="copy-day-ok"]')).toBeNull();
+      expect(el.querySelector('bh-banner .alert.danger')).toBeTruthy();
       expect(el.querySelector('[data-testid="copy-day-error"]')).toBeTruthy();
     });
 
