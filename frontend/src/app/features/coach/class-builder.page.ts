@@ -183,10 +183,23 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                                       [attr.data-testid]="'piece-edit-' + i">
                                 <span i18n="@@class.piece.edit">Edit this piece</span> &#x203A;
                               </button>
-                              <bh-button variant="danger" size="sm" (click)="removeAt(i)"
-                                         [testId]="'piece-remove-' + i">
-                                <span i18n="@@class.piece.remove">Remove</span>
-                              </bh-button>
+                              @if (confirmRemove() === i) {
+                                <div class="removeconfirm">
+                                  <bh-button variant="ghost" size="sm" (click)="cancelRemoveBlock()"
+                                             [testId]="'piece-remove-cancel-' + i">
+                                    <span i18n="@@class.piece.removeCancel">Cancel</span>
+                                  </bh-button>
+                                  <bh-button variant="danger" size="sm" (click)="confirmRemoveBlock(i)"
+                                             [testId]="'piece-remove-confirm-' + i">
+                                    <span i18n="@@class.piece.removeConfirm">Remove</span>
+                                  </bh-button>
+                                </div>
+                              } @else {
+                                <bh-button variant="ghost-danger" size="sm" (click)="confirmRemove.set(i)"
+                                           [testId]="'piece-remove-' + i">
+                                  <span i18n="@@class.piece.remove">Remove</span>
+                                </bh-button>
+                              }
                             </div>
                           </div>
                         }
@@ -199,6 +212,28 @@ function wodMatchesText(w: Wod, needle: string): boolean {
               <button type="button" class="addslot" data-testid="add-slot" (click)="addSlotOpen.set(true)">
                 <span i18n="@@class.addSlot">Add a slot</span>
               </button>
+
+              <footer class="foot">
+                @if (formError()) {
+                  <bh-alert tone="danger" data-testid="stack-save-error">{{ formError() }}</bh-alert>
+                }
+                @if (savedOk()) {
+                  <p role="status" data-testid="stack-saved-ok" i18n="@@class.save.ok">Saved</p>
+                }
+                <div class="saverow">
+                  <bh-button type="button" variant="ghost" size="lg" class="full" [disabled]="saving()"
+                             (click)="saveDraft()" testId="save-draft">
+                    <span i18n="@@class.save.draft">Save draft</span>
+                  </bh-button>
+                  <!-- volt is legal here: the builder is on the hero list (user-ruled 2026-09-08),
+                       and publishing IS live/now -- exactly what volt means. Don't "fix" this back
+                       to strong; the pill above was demoted so this is the screen's one volt spend. -->
+                  <bh-button type="submit" variant="primary" size="lg" class="full"
+                             [loading]="saving()" testId="save-publish">
+                    <span i18n="@@class.save.publish">Save and publish</span>
+                  </bh-button>
+                </div>
+              </footer>
 
               <div class="copyaction">
                 <bh-button type="button" variant="solid" size="lg" class="full"
@@ -213,26 +248,6 @@ function wodMatchesText(w: Wod, needle: string): boolean {
                      i18n="@@class.copyDay.ok">{copiedCount(), plural, =1 {Copied to 1 class} other {Copied to {{ copiedCount() }} classes}}</p>
                 }
               </div>
-
-              <footer class="foot">
-                @if (formError()) {
-                  <bh-alert tone="danger" data-testid="stack-save-error">{{ formError() }}</bh-alert>
-                }
-                @if (savedOk()) {
-                  <p role="status" data-testid="stack-saved-ok" i18n="@@class.save.ok">Saved</p>
-                }
-                <!-- volt is legal here: the builder is on the hero list (user-ruled 2026-09-08),
-                     and publishing IS live/now -- exactly what volt means. Don't "fix" this back
-                     to strong; the pill above was demoted so this is the screen's one volt spend. -->
-                <bh-button type="submit" variant="primary" size="lg" class="full"
-                           [loading]="saving()" testId="save-publish">
-                  <span i18n="@@class.save.publish">Save and publish</span>
-                </bh-button>
-                <bh-button type="button" variant="ghost" size="lg" class="full" [disabled]="saving()"
-                           (click)="saveDraft()" testId="save-draft">
-                  <span i18n="@@class.save.draft">Save draft</span>
-                </bh-button>
-              </footer>
             </form>
 
             <bh-pick-sheet [open]="slotSheetOpen()" [rows]="filteredLibraryRows()"
@@ -457,6 +472,10 @@ function wodMatchesText(w: Wod, needle: string): boolean {
       padding: 0; background: none; border: none; color: var(--bone-dim); text-decoration: none;
       font-family: var(--font-body); font-size: var(--fs-sm); cursor: pointer; }
     .editlink:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+    /* Two-step remove, same idiom as the piece editor's own block remove: the opener is a
+       danger-bordered ghost (never outshouts the volt publish button), Cancel/Remove replace it
+       in place once armed. */
+    .removeconfirm { display: flex; align-items: center; gap: var(--sp-2); }
 
     .addslot { width: 100%; min-height: var(--tap-lg); margin: var(--sp-3) 0; background: none;
       border: 1px dashed var(--hairline); border-radius: var(--r-ctl); color: var(--bone-dim);
@@ -467,12 +486,18 @@ function wodMatchesText(w: Wod, needle: string): boolean {
     /* The copy button is a real, always-enabled-looking action (bh-button solid), not the dashed
        .addslot quiet treatment -- that's what made it unfindable. Kept apart from "Add a slot"
        by the footer's own gap so the two never read as a pair. */
-    .copyaction { margin-top: var(--sp-4); }
+    .copyaction { margin-top: var(--sp-5); }
     .copy-reason { margin: var(--sp-2) 0 0; font-family: var(--font-body); font-size: var(--fs-sm);
       color: var(--faint); }
 
     .foot { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-5); }
     .full { width: 100%; }
+    /* Save draft / Save and publish side by side (user-ruled 2026-09-12: "not like this, i dont
+       like having 4 buttons stacked"). Publish gets the larger share so it still reads as primary
+       -- volt already carries the hierarchy, this just gives it more room. class="full" is dropped
+       from both bh-buttons: the grid gives each its width, and a long "Save and publish" wraps to
+       two lines rather than overflow if a column is ever too narrow (measured at 320/360/393). */
+    .saverow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: var(--sp-3); }
 
     /* ---- fill-slot sheet: lead row + segmented filters ------------------------------------- */
     .writenew { display: flex; align-items: center; width: 100%; box-sizing: border-box;
@@ -575,6 +600,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   drafts = this.store.drafts;
   expanded = signal<number | null>(null);
+  /** Which expanded row is asking to confirm its Remove -- mirrors the piece editor's two-step
+   *  remove idiom exactly (contract 12e). Only one row may ask at a time. */
+  confirmRemove = signal<number | null>(null);
 
   slotSheetOpen = signal(false);
   slotIndex = signal<number | null>(null);
@@ -834,6 +862,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   toggleExpand(i: number) {
     this.expanded.update(cur => (cur === i ? null : i));
+    // A confirm armed on the row being collapsed (or left behind for a different row) is a trap
+    // otherwise -- it would sit hidden, still live, for the coach to walk back into later.
+    this.confirmRemove.set(null);
   }
 
   reorder(ev: { from: number; to: number }) {
@@ -849,6 +880,15 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     this.store.drafts.update(ds => ds.filter((_, idx) => idx !== i));
     this.expanded.set(null);
     setTimeout(() => this.focusAfterRemove(i), 0);
+  }
+
+  cancelRemoveBlock() {
+    this.confirmRemove.set(null);
+  }
+
+  confirmRemoveBlock(i: number) {
+    this.confirmRemove.set(null);
+    this.removeAt(i);
   }
 
   private focusAfterRemove(i: number) {

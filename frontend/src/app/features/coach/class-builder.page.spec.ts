@@ -389,15 +389,17 @@ describe('ClassBuilderPage', () => {
     expect(pill.classList.contains('live')).toBe(true);
   });
 
-  it('Save draft renders full width alongside Save and publish, same footprint', () => {
+  it('Save draft and Save and publish are siblings in one row, not stacked full-width', () => {
     setup();
     store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
     fixture.detectChanges();
 
     const publishHost = el.querySelector('[data-testid="save-publish"]')!.closest('bh-button')!;
     const draftHost = el.querySelector('[data-testid="save-draft"]')!.closest('bh-button')!;
-    expect(publishHost.classList.contains('full')).toBe(true);
-    expect(draftHost.classList.contains('full')).toBe(true);
+    const row = el.querySelector<HTMLElement>('.saverow')!;
+    expect(row.children.length).toBe(2);
+    expect(draftHost.parentElement).toBe(row);
+    expect(publishHost.parentElement).toBe(row);
     expect(el.querySelector('[data-testid="save-publish"]')!.classList.contains('lg')).toBe(true);
     expect(el.querySelector('[data-testid="save-draft"]')!.classList.contains('lg')).toBe(true);
   });
@@ -457,6 +459,106 @@ describe('ClassBuilderPage', () => {
     fixture.detectChanges();
 
     expect(el.querySelectorAll('[data-sortable-handle]').length).toBe(1);
+  });
+
+  describe('two-step remove', () => {
+    function expandTwo() {
+      setup();
+      const a = filledDraft('item1', { ...BLANK_WOD, id: 'wa' });
+      const b = filledDraft('item2', { ...BLANK_WOD, id: 'wb' });
+      store.open('sess1', [a, b]);
+      fixture.detectChanges();
+    }
+
+    it('pressing Remove on an expanded row does NOT remove it, and reveals Cancel and Remove', () => {
+      expandTwo();
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="piece-remove-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(store.drafts().length).toBe(2);
+      expect(el.querySelector('[data-testid="piece-remove-0"]')).toBeNull();
+      expect(el.querySelector('[data-testid="piece-remove-cancel-0"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="piece-remove-confirm-0"]')).toBeTruthy();
+    });
+
+    it('pressing Cancel restores the opener and keeps the piece', () => {
+      expandTwo();
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-remove-0"]')!.click();
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="piece-remove-cancel-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(store.drafts().length).toBe(2);
+      expect(el.querySelector('[data-testid="piece-remove-0"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="piece-remove-cancel-0"]')).toBeNull();
+    });
+
+    it('pressing the confirm Remove deletes the piece', () => {
+      expandTwo();
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-remove-0"]')!.click();
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="piece-remove-confirm-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(store.drafts().length).toBe(1);
+      expect(store.drafts()[0].wod!.id).toBe('wb');
+    });
+
+    it('collapsing the row while it is asking clears the confirmation, so reopening shows the opener again', () => {
+      expandTwo();
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-remove-0"]')!.click();
+      fixture.detectChanges();
+      expect(component.confirmRemove()).toBe(0);
+
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click(); // collapse
+      fixture.detectChanges();
+      expect(component.confirmRemove()).toBeNull();
+
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click(); // reopen
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="piece-remove-0"]')).toBeTruthy();
+      expect(el.querySelector('[data-testid="piece-remove-confirm-0"]')).toBeNull();
+    });
+
+    it('expanding a different row clears a confirmation armed on the first', () => {
+      expandTwo();
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-remove-0"]')!.click();
+      fixture.detectChanges();
+      expect(component.confirmRemove()).toBe(0);
+
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-1"]')!.click();
+      fixture.detectChanges();
+
+      expect(component.confirmRemove()).toBeNull();
+      expect(component.expanded()).toBe(1);
+    });
+  });
+
+  it('the copy control follows the save row in DOM order', () => {
+    setup();
+    store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+    fixture.detectChanges();
+
+    const form = el.querySelector('[data-testid="stack-form"]')!;
+    const children = Array.from(form.children);
+    const footIndex = children.findIndex(c => c.classList.contains('foot'));
+    const copyIndex = children.findIndex(c => c.classList.contains('copyaction'));
+    expect(footIndex).toBeGreaterThan(-1);
+    expect(copyIndex).toBeGreaterThan(footIndex);
   });
 
   it("the category filter opens pre-set to the slot's macro", () => {
