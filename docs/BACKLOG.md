@@ -959,7 +959,7 @@ Recorded at milestone close so the next reader knows these were decided, not mis
 - **`--faint` on `--surface-2` (4.27:1) is a live trap for sheet rows** — the builder hit it once and
   fixed that instance. See the watch-list entry above.
 - **Piece editor: a collapsed block's name field is 38px wide at 320px.** Proposal on the table: plain
-  text while collapsed, editable only when expanded. **Awaiting the user's decision.**
+  text while collapsed, editable only when expanded. **User ruled 2026-09-13: keep it filed, not scheduled.**
 - **Piece editor: the hero title clips past ~16 characters at 360px.** A real fix wraps to two lines
   — a shape change, the user's call.
 - **Fill-slot sheet's search step is the densest view in the flow** (search + two filters +

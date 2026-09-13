@@ -116,12 +116,16 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 **Per screen, not per milestone. Not a menu — the gate is all four steps.**
 
 ```
-shape → build → audit (≥16/20) → critique (≥32/40) → fix every P0/P1 → re-score BOTH
+shape → build → audit (≥16/20) → fix every P0/P1 → critique (≥32/40)
 ```
 
 - **`audit` runs BEFORE `critique`.** It is deterministic and cheap, and its findings should inform
   the design review rather than the reverse. M23 needed three critique passes to catch two WCAG AA
   contrast failures (4.27:1, then 2.18:1) — both sit in `audit`'s accessibility dimension.
+- **Fix BETWEEN audit and critique, not after both (user-ruled 2026-09-13, M14c-a).** The critique
+  then judges a screen that is not about to change under it, and only one scoring pass is spent.
+  If the critique itself raises a P0/P1, fix it and re-run the critique — its score is not the
+  screen's score while one is open.
 - **Both run with Claude in Chrome connected.** A source-only pass is provisional: `critique` scores
   Nielsen heuristics, so ~36 of its 40 points can be earned without anyone seeing a rendered pixel.
   **If the browser is unavailable, stop and ask — do not score anyway.**

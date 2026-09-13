@@ -12,13 +12,10 @@
 | Piece editor | `audit` 19/20, `critique` 35/40 |
 | Class stack | `audit` 20/20, `critique` 34/40 |
 
-## Owed by the user — ask, do not decide
+## Ruled by the user at the close (2026-09-13)
 
-1. **Piece editor: collapsed block name field is 38px wide at 320px.** Proposal: plain text while
-   collapsed, editable only when expanded. Filed in `docs/BACKLOG.md` under "M14c-a §10".
-2. **Amend `CLAUDE.md`'s impeccable routine to `audit → fix → critique`?** The user ruled that order
-   during M14c-a (the critique judges a screen that is not about to change, one scoring pass spent).
-   The file still reads `audit → critique → fix every P0/P1 → re-score BOTH`.
+1. **Piece editor's 38px collapsed name field** — stays filed in `docs/BACKLOG.md` ("M14c-a §10"). Not scheduled.
+2. **Routine order amended in `CLAUDE.md`:** `audit → fix → critique`.
 
 ## What M14c-b inherits from M14c-a
 
@@ -55,6 +52,5 @@ cd ~/dev/boxhub && git checkout m14c-a-builder && git status   # expect clean
 1. Confirm baselines yourself (never quote this file): backend mvn test,
    Karma, npm run build. Then ask me to confirm merging m14c-a-builder into
    main; merge and delete the branch in one step.
-2. Ask me the two owed questions in the handoff.
-3. Start M14c-b (roadmap row 11) at superpowers:brainstorming. No spec exists.
+2. Start M14c-b (roadmap row 11) at superpowers:brainstorming. No spec exists.
 ```
