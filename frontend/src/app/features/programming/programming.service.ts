@@ -164,7 +164,6 @@ export class ProgrammingService {
   createWod(w: WodInput): Observable<Wod> { return this.http.post<Wod>('/api/box/wods', w); }
   patchWod(id: string, w: WodInput): Observable<Wod> { return this.http.patch<Wod>(`/api/box/wods/${id}`, w); }
   deleteWod(id: string): Observable<void> { return this.http.delete<void>(`/api/box/wods/${id}`); }
-  duplicateWod(id: string): Observable<Wod> { return this.http.post<Wod>(`/api/box/wods/${id}/duplicate`, {}); }
 
   libraryEntries(): Observable<LibraryEntry[]> {
     return forkJoin([this.wods(), this.benchmarks()]).pipe(map(([w, b]) => mergeLibrary(w, b)));
