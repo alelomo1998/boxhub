@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 
 export interface Movement { id: string; name: string; category: string; modality: string | null;
                             global: boolean; units: string[]; loadable: boolean; }
@@ -77,9 +77,51 @@ export interface ItemInput {
   id?: string | null;
   wodId?: string | null;
   fromLibraryWodId?: string | null;
+  fromBenchmarkId?: string | null;
   scoreable: boolean;
   scoreType?: string | null;
 }
+
+/** One row of the library: a box wod, or a global benchmark adapted to the Wod shape. */
+export interface LibraryEntry {
+  wod: Wod;
+  /** GIRL / HERO / OTHER for a benchmark -- global, or the box's own copy of one. null otherwise. */
+  benchmarkKind: string | null;
+  /** A global benchmark (wod.id IS the benchmark id): opening it shows the add sheet, picking it
+   *  into a class sends fromBenchmarkId. */
+  global: boolean;
+}
+
+export interface WodHistoryRow { itemId: string; sessionId: string; className: string; startAt: string; wod: Wod; }
+export interface WodHistoryPage { rows: WodHistoryRow[]; nextBefore: string | null; }
+
+export function benchmarkAsWod(b: Benchmark): Wod {
+  return {
+    id: b.id, title: b.name, wodType: 'CUSTOM', macro: 'WORKOUT', timingPreset: null,
+    timing: { rounds: 1, segments: [] }, library: true, teamSize: 1, teamShare: null,
+    scoreType: b.scoreType, timeCapSeconds: b.timeCapSeconds, bodyText: b.bodyText, blocks: b.blocks,
+    scalingNotes: null, benchmarkTemplateId: b.id,
+  };
+}
+
+/**
+ * Saved pieces first (server order: newest updated), then every benchmark the box has NOT copied,
+ * in the server's kind-then-name order. Once a box piece carries a benchmark's id the global row
+ * hides (spec D9) -- never two Frans.
+ */
+export function mergeLibrary(wods: Wod[], benchmarks: Benchmark[]): LibraryEntry[] {
+  const kindById = new Map(benchmarks.map(b => [b.id, b.kind]));
+  const copied = new Set(wods.map(w => w.benchmarkTemplateId).filter((id): id is string => !!id));
+  return [
+    ...wods.map(w => ({
+      wod: w, global: false,
+      benchmarkKind: w.benchmarkTemplateId ? kindById.get(w.benchmarkTemplateId) ?? null : null,
+    })),
+    ...benchmarks.filter(b => !copied.has(b.id))
+      .map(b => ({ wod: benchmarkAsWod(b), benchmarkKind: b.kind, global: true })),
+  ];
+}
+
 export interface TeamScoreInput {
   membershipIds: string[]; teamName?: string | null;
   rx: boolean; timeSeconds?: number | null; rounds?: number | null; reps?: number | null;
@@ -123,6 +165,17 @@ export class ProgrammingService {
   patchWod(id: string, w: WodInput): Observable<Wod> { return this.http.patch<Wod>(`/api/box/wods/${id}`, w); }
   deleteWod(id: string): Observable<void> { return this.http.delete<void>(`/api/box/wods/${id}`); }
   duplicateWod(id: string): Observable<Wod> { return this.http.post<Wod>(`/api/box/wods/${id}/duplicate`, {}); }
+
+  libraryEntries(): Observable<LibraryEntry[]> {
+    return forkJoin([this.wods(), this.benchmarks()]).pipe(map(([w, b]) => mergeLibrary(w, b)));
+  }
+
+  wodHistory(search?: string, before?: string | null): Observable<WodHistoryPage> {
+    let params = new HttpParams();
+    if (search) params = params.set('search', search);
+    if (before) params = params.set('before', before);
+    return this.http.get<WodHistoryPage>('/api/box/wods/history', { params });
+  }
 
   // benchmarks (unchanged)
   benchmarks(kind?: string): Observable<Benchmark[]> {

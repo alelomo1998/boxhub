@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { ProgrammingService } from './programming.service';
+import { ProgrammingService, mergeLibrary, benchmarkAsWod, Benchmark, Wod } from './programming.service';
 
 describe('ProgrammingService', () => {
   let service: ProgrammingService;
@@ -89,5 +89,32 @@ describe('ProgrammingService', () => {
     const req = http.expectOne('/api/box/wods/w1');
     expect(req.request.body.saveToLibrary).toBe(true);
     req.flush({});
+  });
+
+  it('wodHistory sends search and before', () => {
+    service.wodHistory('fran', '2026-09-01T06:00:00Z').subscribe();
+    const req = http.expectOne(r => r.url === '/api/box/wods/history');
+    expect(req.request.params.get('search')).toBe('fran');
+    expect(req.request.params.get('before')).toBe('2026-09-01T06:00:00Z');
+    req.flush({ rows: [], nextBefore: null });
+  });
+});
+
+describe('mergeLibrary', () => {
+  const bm = (id: string, name: string, kind: string): Benchmark =>
+    ({ id, name, kind, scoreType: 'TIME', timeCapSeconds: null, bodyText: '', blocks: { blocks: [] } });
+  const wod = (id: string, benchmarkTemplateId: string | null): Wod => ({ ...benchmarkAsWod(bm(id, id, 'GIRL')),
+    id, benchmarkTemplateId, library: true });
+
+  it('lists saved pieces before benchmarks', () => {
+    const out = mergeLibrary([wod('w1', null)], [bm('b1', 'Fran', 'GIRL')]);
+    expect(out.map(e => [e.wod.id, e.global])).toEqual([['w1', false], ['b1', true]]);
+  });
+
+  it('hides a global benchmark the box already copied, flagging the copy', () => {
+    const out = mergeLibrary([wod('w1', 'b1')], [bm('b1', 'Fran', 'GIRL'), bm('b2', 'Murph', 'HERO')]);
+    expect(out.map(e => e.wod.id)).toEqual(['w1', 'b2']);
+    expect(out[0].benchmarkKind).toBe('GIRL');
+    expect(out[0].global).toBeFalse();
   });
 });

@@ -11,6 +11,7 @@ import {
 } from '../programming/programming.service';
 import { ClassDraftStore, PieceDraft } from '../programming/class-draft.store';
 import { PickSheetComponent, PickRow, PickResult } from '../programming/pick-sheet.component';
+import { MACRO_LABELS, PRESET_LABELS, ExpandedRow, expandedRows, wodMatchesText, libMeta } from '../programming/prescription';
 import { ButtonComponent } from '../../ui/button.component';
 import { AlertComponent } from '../../ui/alert.component';
 import { BannerComponent } from '../../ui/banner.component';
@@ -30,21 +31,6 @@ const macroOf = (wodType: string) =>
 const scoredByDefault = (type: string): boolean =>
   ['FOR_TIME', 'AMRAP', 'EMOM', 'INTERVAL', 'STRENGTH'].includes(type);
 
-const MACRO_LABELS: Record<string, string> = {
-  WARMUP: $localize`:@@class.macro.warmup:Warmup`,
-  STRENGTH: $localize`:@@class.macro.strength:Strength`,
-  GYMNASTIC: $localize`:@@class.macro.gymnastic:Gymnastic`,
-  WORKOUT: $localize`:@@class.macro.workout:Workout`,
-};
-
-const PRESET_LABELS: Record<string, string> = {
-  FOR_TIME: $localize`:@@class.preset.forTime:For time`,
-  AMRAP: $localize`:@@class.preset.amrap:AMRAP`,
-  EMOM: $localize`:@@class.preset.emom:EMOM`,
-  TABATA: $localize`:@@class.preset.tabata:Tabata`,
-  INTERVAL: $localize`:@@class.preset.interval:Interval`,
-};
-
 const NOT_SCORED = $localize`:@@class.score.notScored:not scored`;
 const ANY_LABEL = $localize`:@@class.filter.any:Any`;
 
@@ -61,26 +47,6 @@ interface CopyTarget {
 /** One row's worth of content snippet, ~80 chars: long enough to tell pieces apart, short enough
  *  to never wrap a result row to three lines at 360px. */
 const SNIPPET_CAP = 80;
-
-/** One printable row of an expanded piece's body, flattened from `wod.blocks` (two levels deep,
- *  the server rejects a third). Built once per render by `expandedRows` so the template stays a
- *  flat @for instead of nested loops. */
-type ExpandedRow =
-  | { kind: 'label'; text: string; sub: boolean }
-  | { kind: 'line'; reps?: string; text: string; load?: string; unit?: string; sub: boolean };
-
-/** Walk one level of nesting -- blocks are exactly two levels deep (server rejects a third). */
-function wodMatchesText(w: Wod, needle: string): boolean {
-  if (!needle) return true;
-  if (w.title.toLowerCase().includes(needle)) return true;
-  for (const b of w.blocks?.blocks ?? []) {
-    if ((b.lines ?? []).some(l => l.text?.toLowerCase().includes(needle))) return true;
-    for (const sb of b.blocks ?? []) {
-      if ((sb.lines ?? []).some(l => l.text?.toLowerCase().includes(needle))) return true;
-    }
-  }
-  return false;
-}
 
 /**
  * The class stack: one screen per class instance, a reorderable list of pieces filled from the
@@ -726,11 +692,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   });
 
   /** "WORKOUT · for time" / "WARMUP" -- the result row's and the detail step's second line. */
-  libMeta(w: Wod): string {
-    return w.timingPreset
-      ? `${MACRO_LABELS[w.macro] ?? w.macro} · ${PRESET_LABELS[w.timingPreset] ?? w.timingPreset}`
-      : (MACRO_LABELS[w.macro] ?? w.macro);
-  }
+  libMeta(w: Wod): string { return libMeta(w); }
 
   /** The result row's third line: the prescription's movement text, so a coach can tell pieces
    *  apart without opening each one. Built from the SAME rows the detail step and the class
@@ -870,23 +832,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
    *  when the piece has no blocks -- the caller falls back to the legacy `bodyText`. Takes the
    *  `Wod` directly (not a `PieceDraft`) so the fill-slot sheet's detail step -- which only ever
    *  has a library `Wod`, not a draft -- can reuse it too. */
-  expandedRows(w: Wod | null): ExpandedRow[] {
-    const blocks = w?.blocks?.blocks ?? [];
-    const rows: ExpandedRow[] = [];
-    for (const b of blocks) {
-      if (b.label) rows.push({ kind: 'label', text: b.label, sub: false });
-      for (const l of b.lines ?? []) {
-        rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, sub: false });
-      }
-      for (const sb of b.blocks ?? []) {
-        if (sb.label) rows.push({ kind: 'label', text: sb.label, sub: true });
-        for (const l of sb.lines ?? []) {
-          rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, sub: true });
-        }
-      }
-    }
-    return rows;
-  }
+  expandedRows(w: Wod | null): ExpandedRow[] { return expandedRows(w); }
 
   editRoute(i: number): unknown[] {
     return ['/coach', 'classes', this.sessionId, 'build', 'piece', i];
