@@ -117,7 +117,9 @@ class SessionNotificationTest extends AbstractIntegrationTest {
         UUID boxId = seedBox();
         ClassSession s = new ClassSession();
         s.setName("WOD");
-        Instant startAt = Instant.now().plusSeconds(3600 * 24);
+        // MICROS: Postgres timestamptz holds microseconds, Linux Instant.now() carries nanos. Untruncated,
+        // the row reads back different from this value, so CI (Linux) saw a same-instant PATCH as a move.
+        Instant startAt = Instant.now().truncatedTo(ChronoUnit.MICROS).plusSeconds(3600 * 24);
         s.setStartAt(startAt);
         s.setDurationMin(60);
         s.setCapacity(1); // 1 slot: second booker lands on the waitlist
@@ -138,7 +140,7 @@ class SessionNotificationTest extends AbstractIntegrationTest {
         UUID boxId = seedBox();
         ClassSession s = new ClassSession();
         s.setName("WOD");
-        s.setStartAt(Instant.now().plusSeconds(3600 * 24));
+        s.setStartAt(Instant.now().truncatedTo(ChronoUnit.MICROS).plusSeconds(3600 * 24));
         s.setDurationMin(60);
         s.setCapacity(1);
         UUID sessionId = sessions.save(s).getId();
