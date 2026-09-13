@@ -106,7 +106,7 @@ public class ClassTemplateController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public TemplateDto create(@Valid @RequestBody CreateTemplateRequest req) {
-        RoleGuard.requireStaff(); // M5: class types are coach/admin-managed
+        RoleGuard.requireBoxAdmin(); // M14c-b: class structure is the box's, not its coaches' (tour decision 5)
         ClassType type = findOrCreateType(req.name().trim());
 
         ScheduleSlot s = new ScheduleSlot();
@@ -137,7 +137,7 @@ public class ClassTemplateController {
     @Transactional
     @PatchMapping("/{id}")
     public TemplateDto patch(@PathVariable UUID id, @Valid @RequestBody PatchTemplateRequest req) {
-        RoleGuard.requireStaff(); // M5: class types are coach/admin-managed
+        RoleGuard.requireBoxAdmin(); // M14c-b: class structure is the box's, not its coaches' (tour decision 5)
         ScheduleSlot s = slots.findById(id).orElseThrow(NoSuchElementException::new); // tenant filter: foreign = 404
         ClassType t = typeOf(s);
 

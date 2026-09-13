@@ -53,7 +53,7 @@ public class SkeletonController {
     @PutMapping
     @Transactional
     public List<PieceDto> put(@PathVariable UUID templateId, @Valid @RequestBody SkeletonRequest req) {
-        RoleGuard.requireStaff();
+        RoleGuard.requireBoxAdmin(); // M14c-b: class structure is the box's, not its coaches' (tour decision 5)
         UUID classTypeId = classTypeId(templateId);
         // The shipped frontend fans one PUT out per slot of a name group, all landing on this same
         // class type — pessimistic lock serializes them so N concurrent saves become N identical

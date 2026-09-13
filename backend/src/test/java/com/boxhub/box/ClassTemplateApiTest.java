@@ -40,7 +40,7 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
     @Autowired ScheduleSlotRepository slots;
     @Autowired BookingRepository bookings;
 
-    String adminToken, athleteToken, otherAdminToken;
+    String adminToken, athleteToken, otherAdminToken, coachToken;
     Box a, b;
 
     @BeforeEach
@@ -51,6 +51,7 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
         adminToken = boxToken("cta-" + n + "@t.io", a, "BOX_ADMIN");
         athleteToken = boxToken("ctath-" + n + "@t.io", a, "ATHLETE");
         otherAdminToken = boxToken("ctb-" + n + "@t.io", b, "BOX_ADMIN");
+        coachToken = boxToken("ctc-" + n + "@t.io", a, "COACH");
     }
 
     @AfterEach
@@ -144,6 +145,26 @@ class ClassTemplateApiTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + athleteToken)
                         .content("{\"name\":\"X\",\"weekday\":0,\"startTime\":\"06:00\",\"durationMin\":60,\"capacity\":12}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void coachCannotCreate() throws Exception {
+        mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"name\":\"X\",\"weekday\":0,\"startTime\":\"06:00\",\"durationMin\":60,\"capacity\":12}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void coachCannotPatch() throws Exception {
+        String body = mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"name\":\"Y\",\"weekday\":1,\"startTime\":\"07:00\",\"durationMin\":60,\"capacity\":12}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = om.readTree(body).get("id").asText();
+        mvc.perform(patch("/api/box/class-templates/" + id).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken).content("{\"capacity\":10}"))
                 .andExpect(status().isForbidden());
     }
 

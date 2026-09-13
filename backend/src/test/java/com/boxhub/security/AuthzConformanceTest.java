@@ -525,10 +525,10 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("GET /api/box/me/announcements", "ATHLETE"),
             Map.entry("POST /api/box/me/announcements/{id}/read", "ATHLETE"),
             Map.entry("GET /api/box/class-templates", "ATHLETE"),
-            Map.entry("POST /api/box/class-templates", "COACH"),
-            Map.entry("PATCH /api/box/class-templates/{id}", "COACH"),
+            Map.entry("POST /api/box/class-templates", "BOX_ADMIN"),
+            Map.entry("PATCH /api/box/class-templates/{id}", "BOX_ADMIN"),
             Map.entry("GET /api/box/class-templates/{templateId}/skeleton", "COACH"),
-            Map.entry("PUT /api/box/class-templates/{templateId}/skeleton", "COACH"),
+            Map.entry("PUT /api/box/class-templates/{templateId}/skeleton", "BOX_ADMIN"),
             // --- schedule, booking, roster ---
             Map.entry("GET /api/box/home", "ATHLETE"),
             // --- M29a AMENDMENT A1: person-to-person conversations. These five REPLACE the seven
@@ -583,7 +583,6 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("POST /api/box/wods", "COACH"),
             Map.entry("PATCH /api/box/wods/{id}", "COACH"),
             Map.entry("DELETE /api/box/wods/{id}", "COACH"),
-            Map.entry("POST /api/box/wods/{id}/duplicate", "COACH"),
             Map.entry("GET /api/box/movements", "ATHLETE"),
             Map.entry("POST /api/box/movements", "COACH"),
             Map.entry("PATCH /api/box/movements/{id}", "BOX_ADMIN"),

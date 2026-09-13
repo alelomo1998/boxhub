@@ -179,24 +179,4 @@ public class WodController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "WOD in use");
         wods.delete(w);
     }
-
-    @PostMapping("/{id}/duplicate")
-    @ResponseStatus(HttpStatus.CREATED)
-    public WodDto duplicate(@PathVariable UUID id) {
-        RoleGuard.requireStaff();
-        Wod src = wods.findById(id).orElseThrow(NoSuchElementException::new);
-        Wod copy = new Wod();
-        copy.setTitle(src.getTitle() + " (copy)");
-        copy.setMacro(src.getMacro());
-        copy.setTimingPreset(src.getTimingPreset());
-        copy.setTimingJson(src.getTimingJson());
-        copy.setScoreType(src.getScoreType());
-        copy.setTimeCapSeconds(src.getTimeCapSeconds());
-        copy.setBodyText(src.getBodyText());
-        copy.setBlocksJson(src.getBlocksJson());
-        copy.setScalingNotes(src.getScalingNotes());
-        copy.setBenchmarkTemplateId(src.getBenchmarkTemplateId());
-        copy.setCreatedBy(TenantContext.userId());
-        return toDto(wods.save(copy));
-    }
 }
