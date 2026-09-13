@@ -28,7 +28,7 @@ type Load = 'loading' | 'ready' | 'error';
     <section class="lib">
       <header class="head">
         <h1 class="t-h1" i18n="@@library.title">Library</h1>
-        <bh-button variant="strong" size="lg" class="new" route="/coach/wods/new" testId="lib-new">
+        <bh-button variant="strong" size="lg" class="new full" route="/coach/wods/new" testId="lib-new">
           <span i18n="@@library.new">New WOD</span>
         </bh-button>
       </header>
@@ -135,7 +135,7 @@ type Load = 'loading' | 'ready' | 'error';
     .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); text-transform: uppercase; }
     .rx { list-style: none; margin: 0 0 var(--sp-4); padding: 0; font-family: var(--font-mono); font-size: var(--fs-body); color: var(--bone); }
     .stateline { color: var(--bone-dim); }
-    @media (max-width: 767px) { .new { width: 100%; } }
+    @media (max-width: 767px) { .new { flex-basis: 100%; } }
   `],
 })
 export class WodLibraryPage {
