@@ -1,8 +1,8 @@
-# Next session — **M14c-a is COMPLETE on its branch. Merge it, then start M14c-b.**
+# Next session — **M14c-a is merged. Start M14c-b.**
 
 | | |
 |---|---|
-| Branch | **`m14c-a-builder`** — all 14 tasks done, pushed. **Not merged to `main`** — merge + delete the branch is the first step (the user confirms the merge). |
+| Branch | **`main`** at merge `f09d574` (M14c-a, 2026-09-13). `m14c-a-builder` deleted locally and on origin. |
 | Next milestone | **M14c-b** library, benchmarks & types — roadmap row 11. **No spec, no plan yet**: starts at brainstorming. |
 | Backend | 821 / 0 / 0 / 0, `BUILD SUCCESS` (re-run 2026-09-13) |
 | Karma | 874 SUCCESS |
@@ -47,10 +47,9 @@
 ```
 Read .superpowers/sdd/NEXT-SESSION.md.
 
-cd ~/dev/boxhub && git checkout m14c-a-builder && git status   # expect clean
+cd ~/dev/boxhub && git checkout main && git pull && git status   # expect clean
 
 1. Confirm baselines yourself (never quote this file): backend mvn test,
-   Karma, npm run build. Then ask me to confirm merging m14c-a-builder into
-   main; merge and delete the branch in one step.
+   Karma, npm run build.
 2. Start M14c-b (roadmap row 11) at superpowers:brainstorming. No spec exists.
 ```
