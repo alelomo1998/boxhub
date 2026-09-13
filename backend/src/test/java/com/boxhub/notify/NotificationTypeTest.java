@@ -40,20 +40,25 @@ class NotificationTypeTest {
     }
 
     @Test
-    void onlyTwoTypesDedupe() {
+    void onlyThreeTypesDedupe() {
+        // Deduping is for the types where re-firing is a bug rather than a fact: an overlapping
+        // reminder sweep, a nightly expiry warning, and a coach hitting Save and republish.
         for (NotificationType t : NotificationType.values()) {
             String key = t.dedupeKey(Map.of(NotificationType.SESSION_ID, "s",
                     NotificationType.SUBSCRIPTION_ID, "x", NotificationType.ENDS_AT, "y"));
-            boolean expected = t == NotificationType.SUBSCRIPTION_EXPIRING || t == NotificationType.CLASS_STARTING_SOON;
+            boolean expected = t == NotificationType.SUBSCRIPTION_EXPIRING
+                    || t == NotificationType.CLASS_STARTING_SOON
+                    || t == NotificationType.PROGRAMMING_PUBLISHED;
             assertThat(key != null).as("dedupes: %s", t).isEqualTo(expected);
         }
     }
 
     @Test
     void messagesAndRemindersAreNotInTheFeed() {
+        // 13 since M14c-a added PROGRAMMING_PUBLISHED.
         assertThat(NotificationType.feedTypeNames())
                 .doesNotContain(NotificationType.NEW_MESSAGE.name(), NotificationType.CLASS_STARTING_SOON.name())
-                .hasSize(12);
+                .hasSize(13);
     }
 
     @Test

@@ -23,14 +23,30 @@ public class MovementController {
         this.movements = movements;
     }
 
-    public record MovementDto(UUID id, String name, String category, String modality, boolean global) {
+    public record MovementDto(UUID id, String name, String category, String modality, boolean global,
+                              List<String> units, boolean loadable) {
         static MovementDto of(Movement m) {
-            return new MovementDto(m.getId(), m.getName(), m.getCategory(), m.getModality(), m.getBoxId() == null);
+            return new MovementDto(m.getId(), m.getName(), m.getCategory(), m.getModality(), m.getBoxId() == null,
+                    List.of(m.getUnits().split(",")), m.isLoadable());
         }
     }
 
-    record CreateMovementRequest(@NotBlank String name, @NotBlank String category, String modality) {}
-    record PatchMovementRequest(String name, String modality, Boolean active) {}
+    record CreateMovementRequest(@NotBlank String name, @NotBlank String category, String modality,
+                                 List<String> units, Boolean loadable) {}
+    record PatchMovementRequest(String name, String modality, Boolean active,
+                                List<String> units, Boolean loadable) {}
+
+    // wire contract is a list even though storage is a comma-separated string, so the frontend
+    // never splits anything; empty rejected explicitly -- a movement with no unit can't be prescribed.
+    private static List<String> validateUnits(List<String> units) {
+        if (units.isEmpty())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MOVEMENT_UNIT: at least one unit required");
+        for (String u : units) {
+            if (!Movement.UNITS.contains(u))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MOVEMENT_UNIT: unknown unit " + u);
+        }
+        return units;
+    }
 
     @GetMapping
     public List<MovementDto> list(@RequestParam(required = false) String search,
@@ -47,12 +63,16 @@ public class MovementController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MovementDto create(@Valid @RequestBody CreateMovementRequest req) {
-        RoleGuard.requireBoxAdmin();
+        // coach-or-admin: adding to the catalogue is programming work, done from the coach WOD builder
+        RoleGuard.requireStaff();
         Movement m = new Movement();
         m.setBoxId(TenantContext.requireBoxId());
         m.setName(req.name().trim());
         m.setCategory(req.category());
         m.setModality(req.modality());
+        List<String> units = req.units() == null ? List.of("REPS") : validateUnits(req.units());
+        m.setUnits(String.join(",", units));
+        m.setLoadable(Boolean.TRUE.equals(req.loadable()));
         try {
             return MovementDto.of(movements.saveAndFlush(m));
         } catch (DataIntegrityViolationException e) {
@@ -70,6 +90,8 @@ public class MovementController {
         if (req.name() != null) m.setName(req.name().trim());
         if (req.modality() != null) m.setModality(req.modality());
         if (req.active() != null) m.setActive(req.active());
+        if (req.units() != null) m.setUnits(String.join(",", validateUnits(req.units())));
+        if (req.loadable() != null) m.setLoadable(req.loadable());
         try {
             return MovementDto.of(movements.saveAndFlush(m));
         } catch (DataIntegrityViolationException e) {

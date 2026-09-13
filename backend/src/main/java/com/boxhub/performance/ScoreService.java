@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
@@ -93,6 +95,31 @@ public class ScoreService {
         s.setLoggedBy(loggedByMembershipId);
         s.setUpdatedAt(Instant.now());
         return scores.save(s);
+    }
+
+    /**
+     * A team result is N rows sharing one generated team_id -- one per member, each keeping its own
+     * membership_id (spec 5.2). Deliberately NOT a team_score table: every leaderboard, history and
+     * analytics read keys on membership_id, and a second shape would force each of them to union two
+     * sources. All N rows are written in ONE transaction, so a partial team is impossible -- a
+     * foreign or unknown membership rolls the whole result back.
+     *
+     * <p>Per-member writing is {@link #upsertFor}, unchanged: it validates the membership is in the
+     * caller's box, it preserves athlete-owned attributes (rx/private/notes) on a row that already
+     * exists, and it stamps logged_by. Whoever posts the team result is the logger.
+     */
+    @Transactional
+    public List<WodScore> upsertTeam(UUID itemId, List<UUID> membershipIds, String teamName,
+                                     ScoreInput in, UUID loggedByMembershipId) {
+        UUID teamId = UUID.randomUUID();
+        List<WodScore> out = new ArrayList<>();
+        for (UUID membershipId : membershipIds) {
+            WodScore s = upsertFor(itemId, membershipId, in, loggedByMembershipId);
+            s.setTeamId(teamId);
+            s.setTeamName(teamName);
+            out.add(scores.save(s));
+        }
+        return out;
     }
 
     @Transactional(readOnly = true)

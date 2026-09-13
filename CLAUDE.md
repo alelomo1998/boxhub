@@ -35,6 +35,16 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   TV). `athlete/home.page.ts`'s "Book your next session" was demoted to `--bone` for exactly this —
   it stays primary by size, weight and case. The **dock's active-tab icon is exempt**: it is
   persistent wayfinding chrome, like a focus ring, not a screen's expressive choice.
+- **THE BUILDER IS ON THE HERO LIST (user-ruled 2026-09-08).** The piece editor and the class stack
+  were built as plumbing under the rule above and came back as four grey pill groups — *"zero
+  identity, we lost all the colors"*. The reason the rule failed here: the builder is where a coach
+  spends real time writing the workout, and what they are writing IS the WOD board. **A piece being
+  authored gets the same expressive treatment as a piece being read.** So volt is available on both
+  builder screens, bounded as always by area (a row, chip, bar, badge — never a card, panel, page
+  background or sheet) and still answering only *one question per volt element*. Control chrome
+  (inputs, remove buttons, add affordances) stays `--bone`/`--surface`; the **prescription** — the
+  block the coach is writing, the selected macro/timing, the live segment — is what may carry it.
+  This does NOT reopen volt on genuinely plumbing screens (account, settings, admin forms).
 - **A screen's ONE primary action is `bh-button variant="strong"` when it has no volt to spend.**
   Volt means live / now / winning, so a plumbing screen's save never gets it — but `solid` is the
   wrong answer for a lone primary action: it is `--surface-2` on a `--surface` card, one token step
@@ -106,12 +116,16 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
 **Per screen, not per milestone. Not a menu — the gate is all four steps.**
 
 ```
-shape → build → audit (≥16/20) → critique (≥32/40) → fix every P0/P1 → re-score BOTH
+shape → build → audit (≥16/20) → fix every P0/P1 → critique (≥32/40)
 ```
 
 - **`audit` runs BEFORE `critique`.** It is deterministic and cheap, and its findings should inform
   the design review rather than the reverse. M23 needed three critique passes to catch two WCAG AA
   contrast failures (4.27:1, then 2.18:1) — both sit in `audit`'s accessibility dimension.
+- **Fix BETWEEN audit and critique, not after both (user-ruled 2026-09-13, M14c-a).** The critique
+  then judges a screen that is not about to change under it, and only one scoring pass is spent.
+  If the critique itself raises a P0/P1, fix it and re-run the critique — its score is not the
+  screen's score while one is open.
 - **Both run with Claude in Chrome connected.** A source-only pass is provisional: `critique` scores
   Nielsen heuristics, so ~36 of its 40 points can be earned without anyone seeing a rendered pixel.
   **If the browser is unavailable, stop and ask — do not score anyway.**

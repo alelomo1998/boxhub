@@ -39,6 +39,14 @@ public enum NotificationType {
     CLASS_STARTING_SOON     ("calendar",         false, true,    false),
 
     /**
+     * The coach has posted the class's programming. The registry declared this off by default
+     * against a bulk week-publish path that does not exist -- the builder publishes one session at
+     * a time -- so it ships ON and opt-out, deduped per session (docs/NOTIFICATIONS.md §4.4,
+     * amended 2026-09-07).
+     */
+    PROGRAMMING_PUBLISHED   ("clipboard-list",   true,  true,    false),
+
+    /**
      * Declared so M27c has something to route push against. Emits NO row: bh-messages-envelope
      * already delivers this with its own badge and its own read marker, and a second copy in the
      * feed would mean two badges counting one message (M29b D-2).
@@ -93,7 +101,8 @@ public enum NotificationType {
     public String link(Map<String, Object> params) {
         return switch (this) {
             case WAITLIST_PROMOTED, CLASS_CANCELLED, CLASS_TIME_CHANGED, COACH_CHANGED,
-                 LATE_CANCEL_UNREFUNDED, NO_SHOW_RECORDED, CLASS_STARTING_SOON ->
+                 LATE_CANCEL_UNREFUNDED, NO_SHOW_RECORDED, CLASS_STARTING_SOON,
+                 PROGRAMMING_PUBLISHED ->
                     "/athlete/class/" + params.get(SESSION_ID);
             case SUBSCRIPTION_EXPIRING, PAYMENT_FAILED, MEMBERSHIP_BLOCKED -> "/athlete/membership";
             case INVITE_ACCEPTED, NEW_MEMBER_JOINED -> "/admin/members";
@@ -109,7 +118,8 @@ public enum NotificationType {
     public String dedupeKey(Map<String, Object> params) {
         return switch (this) {
             case SUBSCRIPTION_EXPIRING -> params.get(SUBSCRIPTION_ID) + ":" + params.get(ENDS_AT);
-            case CLASS_STARTING_SOON -> String.valueOf(params.get(SESSION_ID));
+            // A coach who fixes a typo and hits Save and republish must not re-notify the roster.
+            case CLASS_STARTING_SOON, PROGRAMMING_PUBLISHED -> String.valueOf(params.get(SESSION_ID));
             default -> null;
         };
     }

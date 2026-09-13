@@ -5,11 +5,14 @@ import { SegmentedComponent, SegOption } from './segmented.component';
 @Component({
   standalone: true,
   imports: [SegmentedComponent],
-  template: `<bh-segmented [options]="opts" [(value)]="v" label="Effort" />`,
+  template: `<bh-segmented [options]="opts" [(value)]="v" label="Effort"
+                            [tone]="tone()" [wrap]="wrap()" />`,
 })
 class Host {
   opts: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   v = signal('rx');
+  tone = signal<'volt' | 'bone'>('volt');
+  wrap = signal(false);
 }
 
 describe('SegmentedComponent', () => {
@@ -57,5 +60,31 @@ describe('SegmentedComponent', () => {
     radios()[1].click();
     f.detectChanges();
     expect(f.componentInstance.v()).toBe('sc');
+  });
+
+  it('defaults to the volt tone, so existing consumers are unchanged', () => {
+    expect(f.nativeElement.querySelector('.seg').classList.contains('tone-bone')).toBe(false);
+  });
+
+  // The builder is a plumbing screen and the shell's box switcher already spent its volt budget,
+  // so a volt-filled chip there would be a second volt element. --bone is 15.9:1 and is not volt.
+  it('renders a bone tone when asked', () => {
+    f.componentInstance.tone.set('bone');
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('.seg').classList.contains('tone-bone')).toBe(true);
+  });
+
+  it('wraps when asked, because five score options do not fit one line at 360px', () => {
+    f.componentInstance.wrap.set(true);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('.seg').classList.contains('wrap')).toBe(true);
+  });
+
+  it('keeps radiogroup semantics and arrow keys in both tones', () => {
+    f.componentInstance.tone.set('bone');
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[role="radiogroup"]')).toBeTruthy();
+    expect(radios()[0].getAttribute('tabindex')).toBe('0');
+    expect(radios()[1].getAttribute('tabindex')).toBe('-1');
   });
 });

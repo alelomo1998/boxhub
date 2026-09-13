@@ -3,6 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { AlertComponent } from '../../ui/alert.component';
 import { AuthLayoutComponent } from '../../ui/auth-layout.component';
 import { AvatarComponent } from '../../ui/avatar.component';
+import { BannerComponent } from '../../ui/banner.component';
 import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { DataTableComponent } from '../../ui/data-table.component';
@@ -19,6 +20,7 @@ import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SelectComponent } from '../../ui/select.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { ShellHeaderComponent } from '../../ui/shell-header.component';
+import { SortableListComponent } from '../../ui/sortable-list.component';
 import { SwitchComponent } from '../../ui/switch.component';
 import { DayTone, WeekCalendarComponent } from '../../ui/week-calendar.component';
 import { WordmarkComponent } from '../../ui/wordmark.component';
@@ -91,8 +93,8 @@ export class GalleryNotificationBellComponent implements OnInit {
     NgTemplateOutlet,
     WordmarkComponent, ProofWodBoardComponent, ProofAdminMembersComponent,
     IconComponent, ButtonComponent, FieldComponent, SelectComponent,
-    PanelComponent, AlertComponent, EmptyComponent, DataTableComponent,
-    ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent,
+    PanelComponent, AlertComponent, BannerComponent, EmptyComponent, DataTableComponent,
+    ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent, SortableListComponent,
     AvatarComponent, PillComponent, WeekCalendarComponent, SheetComponent, AuthLayoutComponent,
     BenchmarkBoardComponent, GalleryNotificationBellComponent,
   ],
@@ -531,6 +533,41 @@ export class GalleryNotificationBellComponent implements OnInit {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'alert' }" />
       </section>
 
+      <section class="gsec" id="banner" data-gallery="banner">
+        <h2 class="t-h2" i18n="@@dev.gallery.banner.heading">Banner</h2>
+        <p class="note" i18n="@@dev.gallery.banner.note.interactiveOnly">
+          Interactive-only — bh-banner mounts with &#64;if, so it can't render statically; each
+          sample below auto-dismisses on its own dwell, re-open it to see it again. Shown here in
+          a contained box that neutralises its real position: fixed (the same contain: paint trick
+          the dock section below uses) — clearing a real dock and the safe-area inset is only
+          checkable on a real screen.
+        </p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.banner.trigger.good">Good</span>
+            <bh-button variant="primary" size="sm" (click)="bannerDemo.set('good')"
+                       i18n="@@dev.gallery.banner.openGood">Show confirmation</bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.banner.trigger.danger">Danger, with action</span>
+            <bh-button variant="primary" size="sm" (click)="bannerDemo.set('danger')"
+                       i18n="@@dev.gallery.banner.openDanger">Show failure</bh-button>
+          </div>
+        </div>
+        <div class="bannerwrap">
+          @if (bannerDemo() === 'good') {
+            <bh-banner tone="good" message="Changes saved." i18n-message="@@dev.gallery.banner.sample.good"
+                       (dismissed)="bannerDemo.set('none')" />
+          }
+          @if (bannerDemo() === 'danger') {
+            <bh-banner tone="danger" message="Couldn't save your changes." i18n-message="@@dev.gallery.banner.sample.danger"
+                       actionLabel="Retry" i18n-actionLabel="@@dev.gallery.banner.retry"
+                       (action)="onBannerRetry()" (dismissed)="bannerDemo.set('none')" />
+          }
+        </div>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'banner' }" />
+      </section>
+
       <section class="gsec" id="empty" data-gallery="empty">
         <h2 class="t-h2" i18n="@@dev.gallery.empty.heading">Empty</h2>
         <div class="row">
@@ -684,6 +721,14 @@ export class GalleryNotificationBellComponent implements OnInit {
           <div class="cell">
             <span class="stlabel" i18n="@@dev.gallery.segmented.state.sc">Scaled selected</span>
             <bh-segmented [options]="segOptions" value="sc" label="Division" i18n-label="@@dev.gallery.segmented.label" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.segmented.state.bone">Bone tone (plumbing screens)</span>
+            <bh-segmented [options]="segOptions" value="rx" tone="bone" label="Division" i18n-label="@@dev.gallery.segmented.label" />
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.segmented.state.wrap">Wrapped, five options at 360px</span>
+            <bh-segmented [options]="scoreOptions" value="rx" [wrap]="true" label="Score" i18n-label="@@dev.gallery.segmented.scoreLabel" />
           </div>
         </div>
         <p class="note" i18n="@@dev.gallery.segmented.note">
@@ -872,6 +917,36 @@ export class GalleryNotificationBellComponent implements OnInit {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'week-calendar' }" />
       </section>
 
+      <section class="gsec" id="sortable-list" data-gallery="sortable-list">
+        <h2 class="t-h2" i18n="@@dev.gallery.sortableList.heading">Sortable list</h2>
+        <bh-sortable-list [items]="sortableSample" label="Class pieces"
+                          i18n-label="@@dev.gallery.sortableList.label"
+                          [itemLabel]="sortableLabel">
+          <ng-template let-piece let-i="index">
+            <span class="sl-row">
+              <span class="sl-pos">{{ i + 1 }}</span>
+              <span class="sl-name">{{ piece }}</span>
+              @if (i === 1) {
+                <bh-button variant="ghost" size="sm" i18n="@@dev.gallery.sortableList.edit">Edit</bh-button>
+              }
+            </span>
+          </ng-template>
+        </bh-sortable-list>
+        <p class="note" i18n="@@dev.gallery.sortableList.note">
+          Reorder without a mouse: tab to a row's drag handle, press space or enter to grab it, move
+          it with the arrows, drop it with space or enter, or press escape to put it back where it
+          was. The handle exists because a row is a listitem rather than an option — a listitem may
+          carry its own controls, which is what the second row's Edit button demonstrates, and what
+          a class stack needs so that tapping a piece opens its editor. Every move is announced in a
+          live region. Pointer drag needs a long press first, so a thumb can still scroll the list.
+          The grabbed row lifts on a shadow — the one case a flat surface is allowed one, because it
+          genuinely floats — and it lifts to --surface-2, never to volt: reordering a list is
+          plumbing, and the shell has already spent this screen's accent. Hover, focus and the
+          lifted state are all live states, checked by hand.
+        </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'sortable-list' }" />
+      </section>
+
       <section class="gsec" id="wordmark" data-gallery="wordmark">
         <h2 class="t-h2" i18n="@@dev.gallery.wordmark.heading">Wordmark</h2>
         <div class="row">
@@ -1038,6 +1113,12 @@ export class GalleryNotificationBellComponent implements OnInit {
     @media (max-width: 719px) {
       .dockwrap { min-height: 96px; }
     }
+    /* Same contain: paint trick as .dockwrap above, sized for bh-banner's own bottom offset
+       instead of the dock's — see banner.component.ts for where each number comes from. */
+    .bannerwrap { position: relative; min-height: 120px; contain: paint; }
+    @media (max-width: 719px) {
+      .bannerwrap { min-height: 240px; }
+    }
 
     /* Demo-only layout geometry (fixed widths, margin resets) that used to live in inline style=""
        attributes — blocked by the app's strict CSP (no unsafe-inline). Moved here as classes. */
@@ -1049,6 +1130,10 @@ export class GalleryNotificationBellComponent implements OnInit {
       border: 1px solid transparent; border-radius: var(--r-ctl); padding: 3px var(--sp-2) 3px 3px;
       min-height: var(--tap); cursor: pointer; font: inherit; color: var(--bone); }
     .demo-brandbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .sl-row { display: flex; align-items: center; gap: var(--sp-3); }
+    .sl-name { flex: 1; min-width: 0; }
+    .sl-pos { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+      color: var(--faint); font-size: var(--fs-sm); }
     .demo-brandmark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt);
       color: var(--on-volt); display: grid; place-items: center; font-family: var(--font-display);
       font-weight: 800; font-size: var(--fs-body); }
@@ -1100,6 +1185,15 @@ export class DevGalleryPage {
       { state: 'disabled', how: 'rendered' },
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.weekCalendar.loading:it derives its own dates; the screen beside it owns the fetch and its spinner. Absent tones is a resting state, not a loading one` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.weekCalendar.error:a date cannot fail to be a date; the screen renders any fetch error` },
+    ],
+    'sortable-list': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'hand' },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.sortableList.disabled:a list with one item simply does not reorder; there is no disabled variant to render` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.sortableList.loading:reordering is synchronous and local; the consumer owns any save that follows` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.sortableList.error:it emits a from/to pair and cannot fail; a rejected save is the consumer's error to render` },
     ],
     'auth-layout': [
       { state: 'default', how: 'rendered' },
@@ -1162,6 +1256,15 @@ export class DevGalleryPage {
       { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.active:nothing is pressable` },
       { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.disabled:a message is shown or it is not rendered` },
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.alert.loading:renders synchronously from the text it is given` },
+      { state: 'error', how: 'rendered' },
+    ],
+    banner: [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand' },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.banner.active:no press state of its own; the optional projected action button carries its own, shown in the button section` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.banner.disabled:a standing message, not a control — it has no disabled state of its own` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.banner.loading:renders synchronously from the message it's given; it fetches nothing` },
       { state: 'error', how: 'rendered' },
     ],
     empty: [
@@ -1249,11 +1352,26 @@ export class DevGalleryPage {
   protected readonly iconNames = ICON_NAMES;
   /** Drives the jump-to index. Same keys as `ledgers`, so the index cannot drift from the sections. */
   protected readonly sectionKeys = Object.keys(this.ledgers);
+  /** Fabricated, per this page's "no API call" rule. */
+  protected readonly sortableSample = ['Warm-up', 'Strength: back squat', 'Metcon: Fran', 'Cool-down'];
+  /** Names each drag handle after the piece it moves, so the four are told apart by ear. */
+  protected readonly sortableLabel = (piece: string) => piece;
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
+  protected readonly scoreOptions: SegOption[] = [
+    { value: 'rx', label: 'RX' }, { value: 'rx+', label: 'RX+' }, { value: 'sc', label: 'Scaled' },
+    { value: 'sc+', label: 'Scaled+' }, { value: 'foundations', label: 'Foundations' },
+  ];
   // bh-sheet's `open` input is one-way (see sheet.component.ts JSDoc) — the component never clears
   // it, so this page must reset its own signal on (closed) or the sheet could never reopen.
   protected readonly sheetOpen = signal(false);
   protected readonly sheetConfirmOpen = signal(false);
+  /** Which bh-banner sample is mounted, mutually exclusive. bh-banner has no `open` input (its
+   *  own doc: mount/unmount with @if or the role announcement can silently not fire), so this
+   *  page owns the same @if-driven pattern every real caller must use. */
+  protected readonly bannerDemo = signal<'none' | 'good' | 'danger'>('none');
+  /** Demo no-op — a real caller retries whatever failed and dismisses only once that resolves;
+   *  this page has nothing to retry. */
+  protected onBannerRetry() {}
   protected readonly dockSample: DockTab[] = [
     { link: '.', label: 'Home', icon: 'house' },
     { link: '.', label: 'Book', icon: 'calendar-plus' },

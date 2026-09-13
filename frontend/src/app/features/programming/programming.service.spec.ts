@@ -60,4 +60,34 @@ describe('ProgrammingService', () => {
     expect(req.request.method).toBe('POST');
     req.flush({});
   });
+
+  it('sends the axes, not the legacy wodType, when creating', () => {
+    service.createWod({ title: 'Fran', macro: 'WORKOUT', timingPreset: 'FOR_TIME',
+                        scoreType: 'TIME', library: false }).subscribe();
+    const req = http.expectOne('/api/box/wods');
+    expect(req.request.body.macro).toBe('WORKOUT');
+    expect(req.request.body.wodType).toBeUndefined();
+    req.flush({});
+  });
+
+  it('asks for a library copy by fromLibraryWodId', () => {
+    service.putItems('s1', [{ fromLibraryWodId: 'w1', scoreable: true }]).subscribe();
+    const req = http.expectOne('/api/box/sessions/s1/items');
+    expect(req.request.body.items[0].fromLibraryWodId).toBe('w1');
+    req.flush([]);
+  });
+
+  it('posts a team score to the team endpoint', () => {
+    service.putTeamScore('i1', { membershipIds: ['m1', 'm2'], rx: true, isPrivate: false }).subscribe();
+    const req = http.expectOne('/api/box/sessions/items/i1/score/team');
+    expect(req.request.method).toBe('POST');
+    req.flush([]);
+  });
+
+  it('saves a piece to the library through the patch flag', () => {
+    service.patchWod('w1', { title: 'X', saveToLibrary: true }).subscribe();
+    const req = http.expectOne('/api/box/wods/w1');
+    expect(req.request.body.saveToLibrary).toBe(true);
+    req.flush({});
+  });
 });

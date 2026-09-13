@@ -23,7 +23,7 @@ export interface Plan {
 }
 export interface Invite { id: string; email: string; role: Role; planId: string | null; expiresAt: string; }
 export interface CreatedInvite extends Invite { link: string; }
-export interface BoxSettings { id: string; name: string; slug: string; timezone: string; logoUrl: string | null; role: Role; }
+export interface BoxSettings { id: string; name: string; slug: string; timezone: string; logoUrl: string | null; role: Role; weightUnit: 'KG' | 'LB'; }
 export interface PageResponse<T> { content: T[]; totalElements: number; totalPages: number; }
 export interface TvDeviceDto { id: string; name: string; online: boolean; lastSeenAt: string | null; createdAt: string; }
 

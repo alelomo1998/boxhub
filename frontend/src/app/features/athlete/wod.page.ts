@@ -36,18 +36,40 @@ import { SheetComponent } from '../../ui/sheet.component';
                         <h2 class="p-title">{{ i.wod.title }}</h2>
                       </div>
 
+                      <!-- ONE level of recursion, not arbitrary depth: the model is capped at two
+                           and the renderer says so. Before M14c-a a nested block rendered as a
+                           labelled empty box and a line's scaling options did not render at all,
+                           which was invisible only because nothing could author either. -->
                       @for (blk of i.wod.blocks.blocks; track $index) {
                         <div class="block">
                           @if (blk.label) { <div class="blabel">{{ blk.label }}<span class="bnote">{{ blk.note }}</span></div> }
-                          @for (l of blk.lines; track $index) {
+                          @for (l of blk.lines ?? []; track $index) {
                             <div class="line"><span class="reps">{{ l.reps }}</span><span class="mv">{{ l.text }}</span><span class="ld">{{ l.load }}</span></div>
+                            @for (sc of l.scales ?? []; track $index) {
+                              <div class="line scaled"><span class="reps">{{ sc.reps }}</span><span class="mv">{{ sc.text }}</span><span class="ld">{{ sc.load }}</span></div>
+                            }
+                          }
+                          @for (sub of blk.blocks ?? []; track $index) {
+                            <div class="sub">
+                              @if (sub.label) { <div class="blabel">{{ sub.label }}<span class="bnote">{{ sub.note }}</span></div> }
+                              @for (l of sub.lines ?? []; track $index) {
+                                <div class="line"><span class="reps">{{ l.reps }}</span><span class="mv">{{ l.text }}</span><span class="ld">{{ l.load }}</span></div>
+                                @for (sc of l.scales ?? []; track $index) {
+                                  <div class="line scaled"><span class="reps">{{ sc.reps }}</span><span class="mv">{{ sc.text }}</span><span class="ld">{{ sc.load }}</span></div>
+                                }
+                              }
+                            </div>
                           }
                         </div>
                       }
                       @if (i.wod.bodyText) { <pre class="wb">{{ i.wod.bodyText }}</pre> }
                       @if (i.wod.scalingNotes) { <p class="scaling">Scaling — {{ i.wod.scalingNotes }}</p> }
 
-                      @if (i.scoreable && i.scoreType !== 'NONE') {
+                      <!-- i.scoreable alone, NOT "&& scoreType !== NONE". Completion scoring
+                           (scoreable with type NONE) is a result -- done or not -- and score-form
+                           has always had a branch for it. This condition gated that branch out, so
+                           the state was authorable and could never be logged. -->
+                      @if (i.scoreable) {
                         <div class="p-actions">
                           @if (i.myScoreLogged) {
                             <span class="logged" data-testid="logged-mark">Logged ✓</span>
@@ -97,6 +119,8 @@ import { SheetComponent } from '../../ui/sheet.component';
               label="Log score" [confirmClose]="scoreDirty()" (closed)="scoreItem.set(null)">
       @if (scoreItem(); as i) {
         <bh-score-form [itemId]="i.id" [scoreType]="i.scoreType"
+                       [teamSize]="i.wod.teamSize" [teamShare]="i.wod.teamShare"
+                       [sessionId]="data()?.session?.id ?? null"
                        (dirtyChange)="scoreDirty.set($event)" (saved)="onSaved()" />
       }
     </bh-sheet>
@@ -129,6 +153,11 @@ import { SheetComponent } from '../../ui/sheet.component';
       text-transform: uppercase; margin: 2px 0 0; text-wrap: balance; }
 
     .block { margin-bottom: var(--sp-3); }
+    /* A part inside a block, indented so the two levels the model allows read as two levels. */
+    .sub { padding-left: var(--sp-3); border-left: 1px solid var(--hairline); margin-top: var(--sp-2); }
+    /* An alternative to the line above it, quieter than the prescription it replaces. */
+    .line.scaled { padding-left: var(--sp-4); color: var(--bone-dim); }
+    .line.scaled .reps { font-weight: 400; }
     .blabel { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
       color: var(--faint); margin-bottom: 6px; }
     .bnote { margin-left: 8px; color: var(--bone-dim); }
@@ -176,7 +205,9 @@ export class WodPage implements OnInit {
 
   typeLabel(i: SessionItem): string {
     const t = i.wod.wodType.replace('_', ' ');
-    return i.scoreable && i.scoreType !== 'NONE' ? `${t} · scored` : t;
+    // Same condition as the log button, changed with it: fixing only the button would leave this
+    // label calling a completion-scored piece unscored while offering a control to score it.
+    return i.scoreable ? `${t} · scored` : t;
   }
 
   openScore(i: SessionItem) { this.scoreDirty.set(false); this.scoreItem.set(i); }

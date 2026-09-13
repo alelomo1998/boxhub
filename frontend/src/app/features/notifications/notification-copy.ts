@@ -89,6 +89,12 @@ export const NOTIFICATION_COPY: Record<string, NotificationCopy> = {
     title: p => $localize`:@@notifications.memberJoined.title:${p['memberName']}:name: joined your gym`,
     body: () => null,
   },
+  PROGRAMMING_PUBLISHED: {
+    icon: 'clipboard-list',
+    eyebrow: $localize`:@@notifications.programmingPublished.eyebrow:Workout posted`,
+    title: p => $localize`:@@notifications.programmingPublished.title:New workout for ${p['className']}:className:`,
+    body: () => null,
+  },
 };
 
 export interface NotificationPrefCopy {
@@ -100,7 +106,7 @@ export interface NotificationPrefCopy {
   hint: string;
 }
 
-/** Settings-page labels for the twelve in-app feed types. Task 20's preferences page is its only
+/** Settings-page labels for the thirteen in-app feed types. Task 20's preferences page is its only
  *  consumer. A type missing here must not crash the page — fall back to something localized and
  *  generic, same as NOTIFICATION_COPY's row fallback above. */
 export const NOTIFICATION_PREF_COPY: Record<string, NotificationPrefCopy> = {
@@ -151,5 +157,9 @@ export const NOTIFICATION_PREF_COPY: Record<string, NotificationPrefCopy> = {
   NEW_MEMBER_JOINED: {
     label: $localize`:@@notifications.pref.memberJoined.label:New members`,
     hint: $localize`:@@notifications.pref.memberJoined.hint:When a new member joins your gym.`,
+  },
+  PROGRAMMING_PUBLISHED: {
+    label: $localize`:@@notifications.pref.programmingPublished.label:New workouts`,
+    hint: $localize`:@@notifications.pref.programmingPublished.hint:When your coach posts the workout for a class you're booked into.`,
   },
 };

@@ -106,8 +106,20 @@
   /* The primary action on a mobile screen. 44 is the accessible MINIMUM for any target, which is
      the wrong size for the one control a screen exists to reach — MOBILE FIRST, binding. */
   --tap-lg: 56px;
+  /* The dock's OUTER height. Declared here rather than left implicit in dock.component.ts
+     because anything else anchored to the bottom of a mobile screen has to clear it, and a
+     second file re-deriving 56 + 6 + 6 goes silently wrong the day the dock changes. The
+     dock pins its own min-height to this, so the token is the authority, not a description. */
+  --dock-h: 68px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ease-out starts almost instantly then coasts — right for a quick hover fade, wrong for
+     --dur-move's longer travel where it reads as a snap-then-drift. A symmetric in-out accelerates
+     and decelerates, which is what "smoother" means for a fixed-distance move. */
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
   --dur: 200ms;
   /* Separate from --dur: that's a UI-transition duration, this is a continuous linear spin — reusing it would make the spinner a frantic 200ms stutter. */
   --dur-spin: 700ms;
+  /* reordering: a row trading places travels further than a hover tint fades.
+     340ms (this round's prior value) was still called too quick — now 500ms. */
+  --dur-move: 500ms;
 }

@@ -86,7 +86,7 @@ class NotificationPrefApiTest extends AbstractIntegrationTest {
         actAsBox(athlete.getUser(), athlete);
         var rows = controller.mine();
 
-        assertThat(rows).hasSize(12);
+        assertThat(rows).hasSize(13);   // 13 since M14c-a added PROGRAMMING_PUBLISHED
         assertThat(rows).allSatisfy(r -> assertThat(r.enabled()).isTrue());
     }
 
@@ -133,7 +133,7 @@ class NotificationPrefApiTest extends AbstractIntegrationTest {
         // A switch that controls nothing is worse than an absent one. Guard against a vacuous
         // pass: doesNotContain is trivially true on an empty list, so assert the real size first.
         var rows = controller.mine();
-        assertThat(rows).hasSize(12);
+        assertThat(rows).hasSize(13);
         assertThat(rows).extracting(NotificationPrefController.PrefRow::type)
                 .doesNotContain("NEW_MESSAGE", "CLASS_STARTING_SOON");
     }
@@ -145,7 +145,7 @@ class NotificationPrefApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/me/notification-prefs")
                         .header("Authorization", "Bearer " + athleteToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(12));
+                .andExpect(jsonPath("$.length()").value(13));
     }
 
     @Test

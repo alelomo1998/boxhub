@@ -16,7 +16,8 @@ export interface ClassTemplate {
   durationMin: number; capacity: number; coachId: string | null; active: boolean;
   imagePath?: string | null;
 }
-export interface GridEntry { membershipId: string; name: string; avatarPath: string | null; status: string; }
+/** `me` flags the caller's own row — the partner picker needs it, and /roster is COACH-only. */
+export interface GridEntry { membershipId: string; name: string; avatarPath: string | null; status: string; me: boolean; }
 export interface SessionDetail {
   id: string; name: string; startAt: string; durationMin: number; capacity: number;
   imagePath: string | null; programmingStatus: string;

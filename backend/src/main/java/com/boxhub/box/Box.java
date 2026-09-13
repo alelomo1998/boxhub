@@ -36,6 +36,8 @@ public class Box {
      * Defaulted in Java as well as the schema because tests construct Box directly.
      */
     @Column(nullable = false) private String currency = "eur";
+    /** The one weight unit this box records loads in — KG or LB, box-wide (user-ruled). */
+    @Column(name = "weight_unit", nullable = false) private String weightUnit = "KG";
     @Column(nullable = false) private boolean published = false;
     @Column private String description;
     @Column private String street;
@@ -72,6 +74,8 @@ public class Box {
     public java.time.Instant getCreatedAt() { return createdAt; }
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
+    public String getWeightUnit() { return weightUnit; }
+    public void setWeightUnit(String weightUnit) { this.weightUnit = weightUnit; }
     public String getLocale() { return locale; }
     public void setLocale(String locale) { this.locale = locale; }
     public boolean isPublished() { return published; }

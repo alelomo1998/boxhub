@@ -3,6 +3,7 @@ package com.boxhub.programming;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -13,6 +14,10 @@ import java.util.UUID;
 @Entity
 @Table(name = "movement")
 public class Movement {
+
+    /** The only units a line or scale may be measured in. Validated here AND in WodJsonValidator. */
+    public static final List<String> UNITS = List.of("REPS", "CAL", "M", "KM", "MI", "FT", "SEC");
+
     @Id @GeneratedValue private UUID id;
     @Column(name = "box_id") private UUID boxId;                 // null = global seed
     @Column(nullable = false) private String name;
@@ -20,6 +25,8 @@ public class Movement {
     @Column private String modality;
     @Column(nullable = false) private boolean active = true;
     @Column(name = "created_at", nullable = false) private Instant createdAt = Instant.now();
+    @Column(nullable = false) private String units = "REPS";     // comma-separated, first = default
+    @Column(nullable = false) private boolean loadable = false;
 
     public UUID getId() { return id; }
     public UUID getBoxId() { return boxId; }
@@ -33,4 +40,8 @@ public class Movement {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }
+    public String getUnits() { return units; }
+    public void setUnits(String units) { this.units = units; }
+    public boolean isLoadable() { return loadable; }
+    public void setLoadable(boolean loadable) { this.loadable = loadable; }
 }
