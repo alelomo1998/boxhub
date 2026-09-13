@@ -354,7 +354,7 @@ full e2e run.
   only, a check-in frees a place and the class can be overbooked. Verify that before choosing which
   number is the right one — the detail's is the more truthful of the two for a human reading it.
 
-- **Instance-builder save creates new `wod` rows on every edited re-save** — quick-created pieces become
+- ~~**Instance-builder save creates new `wod` rows on every edited re-save**~~ FIXED in M14c-a (`e978f55`, `edf6baf`): attaching a library wod copies it, re-saving an edited class copy updates it in place, and the library list excludes class-owned copies. Original entry: quick-created pieces become
   library wods each time, so the library grows unboundedly. The fix is dedupe-or-update-in-place, a design
   change to this screen's save model. **Still open after M14a, deliberately.** M14a built the mechanism —
   `wod.library` and `WodService.attachToSession`, which copies a library WOD so the class owns its content —
@@ -364,7 +364,7 @@ full e2e run.
   copy-vs-update-in-place logic keyed on whether the incoming wod is a library row or this session's own
   copy — **M14c**, with the builder rebuild, which is also the only milestone allowed to change what that
   endpoint returns.
-- **A pre-M14a `CIRCUIT`, `CUSTOM` or `SKILL` wod reopens with a blank type select** — M14a replaced
+- ~~**A pre-M14a `CIRCUIT`, `CUSTOM` or `SKILL` wod reopens with a blank type select**~~ FIXED in M14c-a (`7481c34`, `fa4993a`): the wire carries `macro` and `timingPreset`, and the legacy `<select>` died with `wod-builder`. Original entry: M14a replaced
   `wod.wod_type` with `macro` + `timing_preset` and keeps `wodType` on the wire as
   `timingPreset ?? macro`, which is lossy for exactly those three: `CIRCUIT`/`CUSTOM` read back as
   `WORKOUT` and `SKILL` as `GYMNASTIC`, none of which are options in `wod-builder`'s legacy `<select>`.
@@ -812,8 +812,8 @@ not code), anything AI, per-gym website builder, per-gym theming.
 **Deferred with a trigger:** on-demand media library — reopens when rxed earns enough to upgrade the
 server (`docs/VPS-DEPLOYMENT.md` flags the storage limit). Custom report builder — v1.1.
 
-**Editing a class's programming DELETES every score logged against it (found by the analytics
-brief, 2026-08-27). Live and reachable — needs a decision, not a quiet fix.**
+~~**Editing a class's programming DELETES every score logged against it (found by the analytics
+brief, 2026-08-27). Live and reachable — needs a decision, not a quiet fix.**~~ CLOSED — **already fixed by M39** (`0451f55`: session-item PUT reconciles by id instead of delete-all-recreate). The open question below is answered, not actioned in M14c-a.
 `PUT /api/box/sessions/{sessionId}/items` calls `items.deleteBySessionId(sessionId)`
 (`programming/SessionItemController.java:94`) and recreates the items fresh, and
 `wod_score.session_item_id` is `on delete cascade` (`V7__class_model.sql:53`). There is **no guard
@@ -934,3 +934,38 @@ Recorded at milestone close so the next reader knows these were decided, not mis
   briefly took it to 447; moving Security and Log out into the profile sheet returned it to its
   pre-M29b 401. Needs a bisect of the column's grid items. Admin is desktop-first, so this is a
   polish item, not a pilot blocker.
+
+## M14c-a §10 — deferred out of the builder, closed 2026-09-13
+
+Recorded at milestone close so the next reader knows these were decided, not missed.
+
+- **Timer auto-arms from the programmed piece** (tour decision 9) — **M34**. `ClassTimer.spec_json` is
+  free-form, so nothing is blocked by waiting.
+- **Admin entry point to the builder** — **M15b**. An admin-shell IA decision; `BOX_ADMIN` can already
+  use the coach route.
+- **WOD library page, benchmarks deletion, types page to admin, `POST /api/box/wods/{id}/duplicate`**
+  — **M14c-b / M15b**. The builder no longer calls the duplicate endpoint; the library page is its
+  remaining caller.
+- **Roster team-splitting, heats** — **Project 2 / M36**. Authoring a team WOD is the builder; running
+  teams is The Room.
+- **The seven remaining `wodType` consumers** — **M14c-b / M17b / M34**. The additive wire is what let
+  this milestone leave them alone.
+
+### Found during M14c-a, not owned by it
+
+- **Disabled `bh-button` label measures 2.18:1** (`--surface` ink on `--disabled`,
+  `.btn.strong:disabled`). WCAG exempts inactive controls, but it is the weakest text on the builder.
+  Shared `ui/` component, so a system-wide call, not taken screen-side.
+- **`--faint` on `--surface-2` (4.27:1) is a live trap for sheet rows** — the builder hit it once and
+  fixed that instance. See the watch-list entry above.
+- **Piece editor: a collapsed block's name field is 38px wide at 320px.** Proposal on the table: plain
+  text while collapsed, editable only when expanded. **Awaiting the user's decision.**
+- **Piece editor: the hero title clips past ~16 characters at 360px.** A real fix wraps to two lines
+  — a shape change, the user's call.
+- **Fill-slot sheet's search step is the densest view in the flow** (search + two filters +
+  write-new + results). P3 from the class-stack critique.
+- **A movement created from the pick sheet gets `category: 'OTHER'`**, a seventh category the seed
+  never uses.
+- **`WodJsonValidator` does not cross-check `blockIndex`, and weight unit does not convert on
+  switch.** Both deliberate, both carry `ponytail:` comments. **The TV must tolerate a block index it
+  cannot resolve.**

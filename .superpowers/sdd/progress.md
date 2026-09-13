@@ -2911,3 +2911,21 @@ before handing back. Seven rounds. Every round found something the green suites 
   a shape change and therefore the user's call.
 - A movement created from the pick sheet gets `category: 'OTHER'`, a seventh category that exists
   nowhere else in the seed.
+
+## M14c-a close — Tasks 13 and 14 (2026-09-13)
+
+- **Baselines re-run, not quoted:** backend 821/0/0/0 BUILD SUCCESS, Karma 874 SUCCESS, production
+  build zero warnings.
+- **First e2e run this milestone**, `down -v` stack: **90 passed, 1 failed** — the one failure was
+  `programming.spec.ts` driving the deleted instance-builder. The feared fallout from the shared
+  `ui/` changes, two forms, the wod JSON model, `bh-pick-sheet` and `bh-button` did not materialise.
+- **Task 13** `3482afc` — `programming.spec.ts` rewritten (one executor, contract on disk). Two
+  cases: library fill → save draft → reload persists; write new piece → editor save → back on the
+  stack attached → publish → reload persists. Orchestrator review caught one assertion that could
+  not fail: the seeded Burn It is already PUBLISHED, so `status-live` passed before the click — now
+  asserts the publish banner. Negative control run: dropping the draft save fails the post-reload
+  assertion. **Full suite on a fresh `down -v` stack: 92 passed, 0 failed.**
+- **Visual baselines not re-run** — the dev gallery was not touched this session; last run 33 passed.
+- **Task 14** — BACKLOG: growth bug, type loss, D-1 struck through (D-1 closed as M39's fix); §10
+  deferrals and the milestone's open findings filed under "M14c-a §10". Roadmap row 10 → done.
+- **Dev data:** the `down -v` removed the hand-inserted second Burn It. Nothing to clean up.
