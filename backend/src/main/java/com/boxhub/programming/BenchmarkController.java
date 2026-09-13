@@ -45,6 +45,6 @@ public class BenchmarkController {
     @ResponseStatus(HttpStatus.CREATED)
     public WodController.WodDto clone(@PathVariable UUID id) {
         RoleGuard.requireStaff();
-        return wodService.toDto(wodService.cloneFromBenchmark(id));
+        return wodService.toDto(wodService.cloneFromBenchmark(id, true));
     }
 }

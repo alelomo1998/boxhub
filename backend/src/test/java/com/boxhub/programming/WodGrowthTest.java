@@ -305,4 +305,65 @@ class WodGrowthTest extends AbstractIntegrationTest {
                         .content("{\"items\":[" + fromLibrary(foreignWod) + "]}"))
                 .andExpect(status().isNotFound());
     }
+
+    // --- fromBenchmarkId ----------------------------------------------------------------------
+
+    private UUID aBenchmarkId() throws Exception {
+        String json = mvc.perform(get("/api/box/benchmarks").header("Authorization", "Bearer " + coachToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return UUID.fromString(om.readTree(json).get(0).get("id").asText());
+    }
+
+    private static String fromBenchmark(UUID benchmarkId) {
+        return "{\"fromBenchmarkId\":\"" + benchmarkId + "\",\"scoreable\":true}";
+    }
+
+    /** D7: a benchmark picked into a class becomes the class's own copy, never a library row. */
+    @Test
+    void attachingABenchmarkCopiesIntoTheClassWithProvenance() throws Exception {
+        UUID session = seedSession();
+        UUID benchmark = aBenchmarkId();
+        long libraryRows = TenantContext.runAsBox(boxId, () -> wodRepo.findByLibraryTrueOrderByUpdatedAtDesc().size());
+
+        putItems(session, fromBenchmark(benchmark));
+
+        Wod copy = wod(UUID.fromString(firstItem(session).get("wodId").asText()));
+        assertThat(copy.isLibrary()).isFalse();
+        assertThat(copy.getBenchmarkTemplateId()).isEqualTo(benchmark);
+        assertThat(copy.getSourceWodId()).isNull();
+        assertThat(TenantContext.runAsBox(boxId, () -> wodRepo.findByLibraryTrueOrderByUpdatedAtDesc().size()))
+                .isEqualTo(libraryRows);
+    }
+
+    @Test
+    void libraryAndBenchmarkSourcesTogetherIs400() throws Exception {
+        UUID session = seedSession();
+        UUID libraryWod = createWod("Diane", true);
+        mvc.perform(put("/api/box/sessions/" + session + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"items\":[{\"fromLibraryWodId\":\"" + libraryWod + "\",\"fromBenchmarkId\":\""
+                                + aBenchmarkId() + "\",\"scoreable\":false}]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unknownBenchmarkIs404() throws Exception {
+        UUID session = seedSession();
+        mvc.perform(put("/api/box/sessions/" + session + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"items\":[" + fromBenchmark(UUID.randomUUID()) + "]}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void anExistingItemCannotTakeABenchmarkSource() throws Exception {
+        UUID session = seedSession();
+        putItems(session, fromBenchmark(aBenchmarkId()));
+        UUID itemId = UUID.fromString(firstItem(session).get("id").asText());
+        mvc.perform(put("/api/box/sessions/" + session + "/items").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coachToken)
+                        .content("{\"items\":[{\"id\":\"" + itemId + "\",\"fromBenchmarkId\":\"" + aBenchmarkId()
+                                + "\",\"scoreable\":false}]}"))
+                .andExpect(status().isBadRequest());
+    }
 }

@@ -105,8 +105,10 @@ public class WodService {
                 deserialize(w.getBlocksJson()), w.getScalingNotes(), w.getBenchmarkTemplateId());
     }
 
-    /** Clone a global benchmark template into a box WOD (tenant from TenantContext), keeping provenance. */
-    Wod cloneFromBenchmark(java.util.UUID templateId) {
+    /** Map a global benchmark template to a box WOD, keeping provenance. The ONE template-to-wod
+     *  mapper: the clone endpoint makes a library row (library = true), a class pick makes the
+     *  class's own copy (library = false). */
+    Wod cloneFromBenchmark(java.util.UUID templateId, boolean library) {
         BenchmarkTemplate t = benchmarks.findById(templateId).orElseThrow(NoSuchElementException::new);
         Wod w = new Wod();
         w.setTitle(t.getName());
@@ -117,6 +119,7 @@ public class WodService {
         w.setBodyText(t.getBodyText());
         w.setBlocksJson(t.getBlocksJson());
         w.setBenchmarkTemplateId(t.getId());
+        w.setLibrary(library);
         w.setCreatedBy(TenantContext.userId());
         return wods.save(w);
     }
