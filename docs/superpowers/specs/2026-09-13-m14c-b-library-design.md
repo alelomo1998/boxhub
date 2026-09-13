@@ -87,6 +87,11 @@ columns, not panes).
   the sheet. On success → `/coach/wods`.
 - **Class stack slot search** (M14c-a's picker): benchmark rows alongside saved pieces, same `BENCHMARK`
   flag and D9 hide rule, same merge helper. Picking a benchmark sends `fromBenchmarkId`.
+- **Class stack, "Edit this piece" on a pending pick** — a LIVE M14c-a defect found at planning: a
+  library pick not yet saved holds the library wod's id, so the editor loads and PATCHes the library
+  row itself, breaking copy-on-attach. A pending benchmark pick would 404 there. Fix at the root, for
+  both: opening the editor on a draft with a pending source saves the class first (the existing
+  `doSave(onSaved)` hook), so the editor always opens the class's own copy.
 - **Benchmarks page** — deleted. `/coach/benchmarks` redirects to `/coach/wods`.
 - **Types page** — file and behaviour unchanged, route moves to `/admin/types` with an admin nav entry
   (desktop list and mobile overflow both); `/coach/types` redirects to `/coach/classes`. Its FormsModule,
@@ -101,7 +106,9 @@ columns, not panes).
 Class-owned pieces (`wod.library = false`) joined through `session_item` to `class_sessions`:
 `start_at <= now()`, session `status <> 'CANCELLED'`, optional `search` (title, case-insensitive),
 ordered `start_at desc, sort_order asc`, **limit 50**, cursor `before` (an ISO instant; returns rows
-strictly older). Response rows: `{ itemId, sessionId, className, startAt, wod: WodDto }`.
+strictly older). Response: `{ rows: [{ itemId, sessionId, className, startAt, wod: WodDto }], nextBefore }`
+— `nextBefore` is null on the last page. A full page drops its trailing rows that share the last
+row's `startAt`, so a page never cuts one class's pieces in half (amended at planning).
 
 Tenant-scoped through the ordinary filtered path — no native SQL, no `runAsRoot`. No migration.
 
@@ -114,8 +121,9 @@ A server-side merge would be a second DTO shape for one rule a few lines long.
 ### 4.3 `PUT /api/box/sessions/{id}/items` gains `fromBenchmarkId`
 
 Exactly one of `wodId` / `fromLibraryWodId` / `fromBenchmarkId`, else 400. A benchmark source goes
-through **the same copier** as a library source (`WodService.copyForSession`'s field list must not fork —
-M14c-a's "ONE copier" rule): a class-owned wod, `library = false`, `benchmarkTemplateId` set,
+through **the one benchmark mapper** that `POST /benchmarks/{id}/clone` already uses
+(`WodService.cloneFromBenchmark`, gaining a `library` flag — the template-to-wod field list must not
+fork, M14c-a's "ONE copier" rule): a class-owned wod, `library = false`, `benchmarkTemplateId` set,
 `sourceWodId` null. An unknown benchmark id → 404. Existing-item-with-a-source → 400, as today.
 Athlete benchmark history (`PerformanceQueries.benchmarkHistory`, `HistoryController`) already keys on
 `benchmarkTemplateId`, so a benchmark picked into a class counts with no further change.
