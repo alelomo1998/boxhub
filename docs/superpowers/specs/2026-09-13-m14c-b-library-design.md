@@ -231,3 +231,5 @@ section and §1–§7 disagree, **this section wins**; the superseded parts are 
 - The class stack's slot picker keeps fetching the whole library client-side; moving it onto
   `GET /library` is filed in BACKLOG.
 - Piece editor rendering of a class copy's legacy `body_text` — unchanged.
+
+| D22 | **A structured benchmark's load is the men's Rx, in the box's unit.** Templates store it in lb (the source); the one benchmark mapper converts to kg for a KG box (`round(lb × 0.45359237)`). The women's load, and both units, live in the block note (`Rx 95/65 lb · 43/29 kg`) until M17c models gendered Rx. | — |
