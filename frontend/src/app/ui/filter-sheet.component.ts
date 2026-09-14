@@ -282,20 +282,23 @@ export class FilterSheetComponent {
     this.step.set(null);
   }
 
-  /** Multi facet: an option toggles and the step stays open. */
+  /** Multi facet: an option toggles and returns to the menu (user-ruled 2026-09-14) -- selections
+   *  still accumulate across visits, since the step shows what is already ticked. */
   protected toggleMulti(key: string, value: string) {
     const current = this.draft()[key] ?? [];
     const values = current.includes(value) ? current.filter(v => v !== value) : [...current, value];
     const next = { ...this.draft() };
     if (values.length) next[key] = values; else delete next[key];
     this.emitDraft(next);
+    this.step.set(null);
   }
 
-  /** Multi facet's "Any" row: clears the facet, stays open like every other multi row. */
+  /** Multi facet's "Any" row: clears the facet and returns to the menu, like every other pick. */
   protected clearFacet(key: string) {
     const next = { ...this.draft() };
     delete next[key];
     this.emitDraft(next);
+    this.step.set(null);
   }
 
   private setCustom(key: string, values: string[]) {

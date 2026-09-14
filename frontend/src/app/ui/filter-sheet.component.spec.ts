@@ -92,34 +92,38 @@ describe('FilterSheetComponent', () => {
     expect(menuRow('category').textContent).toContain('Strength');
   });
 
-  it('multi facet: toggling an option stays on the step', () => {
+  // User-ruled 2026-09-14: every option pick returns to the menu, multi included. A multi facet
+  // still accumulates -- re-entering it shows what is already ticked and toggles one more.
+  it('multi facet: toggling an option returns to the menu and the next visit adds to it', () => {
     openSheet();
     menuRow('kind').click();
     f.detectChanges();
     opt('kind', 'girl').click();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('[data-testid="filter-step-kind"]')).toBeTruthy();
-    expect(opt('kind', 'girl').classList).toContain('sel');
+    expect(f.nativeElement.querySelector('[data-testid="filter-step-kind"]')).toBeFalsy();
+    expect(f.nativeElement.querySelector('[data-testid="filter-menu"]')).toBeTruthy();
 
+    menuRow('kind').click();
+    f.detectChanges();
+    expect(opt('kind', 'girl').classList).toContain('sel');
     opt('kind', 'hero').click();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('[data-testid="filter-step-kind"]')).toBeTruthy();
-    expect(opt('kind', 'girl').classList).toContain('sel');
-    expect(opt('kind', 'hero').classList).toContain('sel');
+    expect(menuRow('kind').textContent).toContain('Girl');
+    expect(menuRow('kind').textContent).toContain('Hero');
   });
 
-  it('multi facet: the Any row clears the selection and stays on the step', () => {
+  it('multi facet: the Any row clears the selection and returns to the menu', () => {
     openSheet();
     menuRow('kind').click();
     f.detectChanges();
     opt('kind', 'girl').click();
-    opt('kind', 'hero').click();
+    f.detectChanges();
+    menuRow('kind').click();
     f.detectChanges();
     opt('kind', 'any').click();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('[data-testid="filter-step-kind"]')).toBeTruthy();
-    expect(opt('kind', 'any').classList).toContain('sel');
-    expect(opt('kind', 'girl').classList).not.toContain('sel');
+    expect(f.nativeElement.querySelector('[data-testid="filter-menu"]')).toBeTruthy();
+    expect(menuRow('kind').textContent).toContain('Any');
   });
 
   it('Clear empties the whole draft from the menu', () => {
