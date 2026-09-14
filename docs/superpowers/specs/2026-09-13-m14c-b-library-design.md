@@ -213,6 +213,7 @@ section and §1–§7 disagree, **this section wins**; the superseded parts are 
 | D20 | **Benchmarks become structured blocks** (a migration rewrites the seeded catalogue with real catalogue movements). The `:`/`,` body-text split is deleted. | §2 card line derivation for benchmarks |
 | D21 | **Saved library pieces holding only plain text are deleted** by the same migration. Class copies — and any scores on them — are untouched. `DevDataSeeder` writes blocks, so a fresh stack never recreates the old format. | — |
 | D22 | **A structured benchmark's load is the men's Rx, in the box's unit.** Templates store it in lb (the source); the one benchmark mapper converts to kg for a KG box (`round(lb × 0.45359237)`). The women's load, and both units, live in the block note (`Rx 95/65 lb · 43/29 kg`) until M17c models gendered Rx. | — |
+| D23 | **The shell header stays reachable (user-ruled 2026-09-14).** Below 768px it slides away while scrolling down and returns on any scroll up; from 768px it is always sticky. Reduced motion: it shows and hides without a slide. Found on the Library: the header never stuck at all, on any screen — `position: sticky` sat on the inner `<header>`, whose containing block is the host of exactly its own height. | — |
 
 ### 8.3 Backend, revised
 
