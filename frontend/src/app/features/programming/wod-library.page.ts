@@ -100,7 +100,7 @@ type Load = 'loading' | 'ready' | 'error';
           }
         }
       } @else {
-        <bh-week-calendar [min]="-365" [max]="0" [(offset)]="historyOffset" />
+        <bh-week-calendar [jump]="true" [min]="-3650" [max]="0" [(offset)]="historyOffset" />
         @switch (histState()) {
           @case ('loading') { <p class="stateline" i18n="@@library.history.loading">Loading history…</p> }
           @case ('error') {
@@ -148,7 +148,21 @@ type Load = 'loading' | 'ready' | 'error';
         <bh-search-bar placeholder="Movement name" i18n-placeholder="@@library.filter.movement.placeholder"
                        label="Search movements" i18n-label="@@library.filter.movement.searchLabel"
                        testId="filter-movement-search" [value]="movementTerm()" (search)="onMovementSearch($event)" />
-        @if (movementRows().length) {
+        @if (movementTerm().trim().length < 2) {
+          @if (values.length) {
+            <ul class="mrows">
+              @for (id of values; track id) {
+                <li>
+                  <button type="button" class="prow sel"
+                          [attr.data-testid]="'filter-movement-' + id" (click)="toggleMovement(id, values, set)">
+                    <span>{{ movementName(id) }}</span>
+                    <span class="mark" aria-hidden="true">&#x2713;</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        } @else if (movementRows().length) {
           <ul class="mrows">
             @for (m of movementRows(); track m.id) {
               <li>
@@ -160,7 +174,7 @@ type Load = 'loading' | 'ready' | 'error';
               </li>
             }
           </ul>
-        } @else if (movementTerm().trim().length >= 2) {
+        } @else {
           <p class="stateline" i18n="@@library.filter.movement.noMatch">No movements match.</p>
         }
       </ng-template>
@@ -269,13 +283,17 @@ export class WodLibraryPage {
   filterOpen = signal(false);
   draftCount = signal<number | null>(null);
   private readonly counts$ = new Subject<FilterValue>();
+  /** The sheet's DRAFT, not the applied `filters()` -- a summary must reflect what's picked before
+   *  Apply, or every facet reads "Any" until you leave and reopen the sheet (R6b finding 1). Set
+   *  in openFilters() and on every draftChange. */
+  filterDraft = signal<FilterValue>({});
 
   movementTerm = signal('');
   movementRows = signal<Movement[]>([]);
   private readonly movementNames = signal<Map<string, string>>(new Map());
   filterSummaries = computed(() => {
     const out: Record<string, string> = {};
-    const ids = this.filters()['movement'] ?? [];
+    const ids = this.filterDraft()['movement'] ?? [];
     if (!ids.length) return out;
     const names = this.movementNames();
     const labels = ids.map(id => names.get(id) ?? id);
@@ -391,12 +409,16 @@ export class WodLibraryPage {
 
   openFilters() {
     this.draftCount.set(null);
+    this.filterDraft.set(this.filters());
+    this.movementTerm.set('');
+    this.movementRows.set([]);
     this.counts$.next(this.filters());
     this.filterOpen.set(true);
   }
 
   onDraftChange(v: FilterValue) {
     this.draftCount.set(null);
+    this.filterDraft.set(v);
     this.counts$.next(v);
   }
 
@@ -419,6 +441,14 @@ export class WodLibraryPage {
 
   toggleMovement(id: string, values: string[], set: (v: string[]) => void) {
     set(values.includes(id) ? values.filter(v => v !== id) : [...values, id]);
+    // Cleared so re-entering the step (this facet now returns to the menu on every pick, same as
+    // single/multi) doesn't show the last search (R6b finding 2).
+    this.movementTerm.set('');
+    this.movementRows.set([]);
+  }
+
+  movementName(id: string): string {
+    return this.movementNames().get(id) ?? id;
   }
 
   loadHistory(day: string) {

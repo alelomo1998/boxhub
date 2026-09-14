@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { WeekCalendarComponent } from './week-calendar.component';
 
 describe('WeekCalendarComponent', () => {
@@ -162,6 +162,110 @@ describe('WeekCalendarComponent', () => {
     expect(live()).not.toBe(before);
     expect(live()).toBe(cmp.dayLabel(cmp.selectedDay()));
   });
+
+  // ---- jump sheet (R6b finding 4) --------------------------------------------------------------
+
+  it('the month label is a plain span, not a button, when jump is false (default, every existing consumer)', () => {
+    const fixture = make();
+    const el = fixture.nativeElement;
+    expect(el.querySelector('.mon').tagName).toBe('SPAN');
+    expect(el.querySelector('[data-testid="wc-jump-open"]')).toBeFalsy();
+  });
+
+  it('jump: open, step the year back, pick October then day 10, lands on that day\'s offset', () => {
+    const fixture = make(0, -400);
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    const el = fixture.nativeElement;
+
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(cmp.jumpYear()).toBe(cmp.selected().getFullYear());
+
+    (el.querySelector('[data-testid="wc-jump-year-prev"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const targetYear = cmp.jumpYear();
+    expect(targetYear).toBe(cmp.selected().getFullYear() - 1);
+
+    (el.querySelector('[data-testid="wc-jump-month-9"]') as HTMLButtonElement).click(); // October
+    fixture.detectChanges();
+    expect(cmp.jumpStep()).toBe('days');
+
+    const targetDate = new Date(targetYear, 9, 10);
+    const iso = `${targetDate.getFullYear()}-10-10`;
+    (el.querySelector(`[data-testid="wc-jump-day-${iso}"]`) as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const expectedOffset = Math.round((targetDate.getTime() - cmp.today().getTime()) / 864e5);
+    expect(cmp.offset()).toBe(expectedOffset);
+    expect(cmp.jumpOpen()).toBeFalse(); // picking a day closes the sheet
+  });
+
+  it('jump: a day outside [min, max] is disabled and clicking it does nothing', () => {
+    const fixture = make(2, 0); // a narrow horizon guarantees the current month has an out-of-range day
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    const el = fixture.nativeElement;
+    const startOffset = cmp.offset();
+
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (el.querySelector(`[data-testid="wc-jump-month-${cmp.selected().getMonth()}"]`) as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const blocked = cmp.jumpDays().find(d => d && !d.selectable)!;
+    expect(blocked).toBeDefined();
+    const btn = el.querySelector(`[data-testid="wc-jump-day-${blocked.iso}"]`) as HTMLButtonElement;
+    expect(btn.disabled).toBeTrue();
+    btn.click();
+    fixture.detectChanges();
+
+    expect(cmp.offset()).toBe(startOffset);
+    expect(cmp.jumpOpen()).toBeTrue(); // nothing happened, sheet stays open
+  });
+
+  it('jump: Back returns from the day grid to the month grid', () => {
+    const fixture = make();
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    const el = fixture.nativeElement;
+
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (el.querySelector(`[data-testid="wc-jump-month-${cmp.selected().getMonth()}"]`) as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(cmp.jumpStep()).toBe('days');
+
+    (el.querySelector('[data-testid="wc-jump-back"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(cmp.jumpStep()).toBe('months');
+  });
+
+  it('jump: focus follows the step swap instead of falling to the body', fakeAsync(() => {
+    const fixture = make();
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    const el = fixture.nativeElement;
+    document.body.appendChild(el);
+
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const month = cmp.selected().getMonth();
+    (el.querySelector(`[data-testid="wc-jump-month-${month}"]`) as HTMLButtonElement).click();
+    fixture.detectChanges();
+    tick();
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('wc-jump-back');
+
+    (el.querySelector('[data-testid="wc-jump-back"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    tick();
+    expect(document.activeElement?.getAttribute('data-testid')).toBe(`wc-jump-month-${month}`);
+    el.remove();
+  }));
 
   it('gives every day an accessible name that states availability in words', () => {
     const fixture = make();

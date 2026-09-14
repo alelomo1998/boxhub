@@ -156,7 +156,9 @@ export class FilterStepDirective {
     .prow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     .prow.sel { font-weight: 700; }
     .mark { color: var(--bone); font-weight: 700; }
-    .custom { display: flex; flex-direction: column; gap: var(--sp-2); }
+    /* bh-sheet's .body is overflow-y:auto, which clips a focused child's 2px outline-offset ring
+       at the scroll container's content edge (R6b finding 3) -- this padding keeps the ring clear. */
+    .custom { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-1); }
   `],
 })
 export class FilterSheetComponent {
@@ -301,10 +303,14 @@ export class FilterSheetComponent {
     this.step.set(null);
   }
 
+  /** Custom facet: `set()` also returns to the menu, same as single/multi (user-ruled 2026-09-14) --
+   *  focus return to the originating row is already covered by the effect above, since openStep()
+   *  sets returnFocusKey regardless of what kind of facet it opened. */
   private setCustom(key: string, values: string[]) {
     const next = { ...this.draft() };
     if (values.length) next[key] = values; else delete next[key];
     this.emitDraft(next);
+    this.step.set(null);
   }
 
   protected customSetter(key: string): (v: string[]) => void {

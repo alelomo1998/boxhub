@@ -912,6 +912,10 @@ export class GalleryNotificationBellComponent implements OnInit {
         <!-- A THIRD instance with a negative min, so past-enabled is on this page every day — the
              history screen opens the horizon backwards instead of forwards. -->
         <bh-week-calendar [min]="-30" />
+        <!-- A FOURTH instance with [jump] -- the Library History tab's month label opens a
+             months/days picker sheet (R6b finding 4). States only checkable by hand: the sheet's
+             months/days steps, the year stepper bounds, and focus return to the month button. -->
+        <bh-week-calendar [jump]="true" [min]="-400" />
         <p class="note" i18n="@@dev.gallery.weekCalendar.note">
           Offset is a model — two-way bound by the athlete book page, the coach classes page and
           the admin schedule page. Chevrons page a week and disable at the [min, max] bounds (min defaults to 0); a swipe

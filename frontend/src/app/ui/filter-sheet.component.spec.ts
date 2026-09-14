@@ -163,7 +163,9 @@ describe('FilterSheetComponent', () => {
     expect(applyBtn().textContent).toContain('No results');
   });
 
-  it('a custom facet template receives the draft value and can set it', () => {
+  // User-ruled 2026-09-14 (R6b finding 2): a custom facet's set() also returns to the menu, same as
+  // single/multi -- so the step is torn down on the same tick as the pick, not left open.
+  it('a custom facet template receives the draft value, can set it, and returns to the menu', () => {
     openSheet();
     menuRow('movement').click();
     f.detectChanges();
@@ -172,8 +174,9 @@ describe('FilterSheetComponent', () => {
 
     btn.click();
     f.detectChanges();
-    expect(btn.textContent).toContain('(1)');
     expect(h.draftChanges.at(-1)).toEqual({ movement: ['thruster'] });
+    expect(f.nativeElement.querySelector('[data-testid="filter-step-movement"]')).toBeFalsy();
+    expect(f.nativeElement.querySelector('[data-testid="filter-menu"]')).toBeTruthy();
   });
 
   it('emits draftChange for every draft edit', () => {

@@ -187,15 +187,65 @@ describe('WodLibraryPage', () => {
 
     el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
     fixture.detectChanges();
-    // Custom facets don't auto-return to the menu (unlike single/multi options) -- Apply lives
-    // on the menu, so Back first.
-    el.querySelector<HTMLElement>('[data-testid="filter-step-back"]')!.click();
-    fixture.detectChanges();
+    // A pick returns straight to the menu now (user-ruled 2026-09-14, R6b) -- Apply lives there.
     el.querySelector<HTMLElement>('[data-testid="filter-apply"]')!.click();
     fixture.detectChanges();
 
     const call = prog.libraryPage.calls.mostRecent().args[0];
     expect(call.movement).toEqual(['m1']);
+  }));
+
+  // R6b finding 1: the summary must read the sheet's DRAFT, not the still-unapplied `filters()`.
+  it('the filter menu shows the draft movement summary immediately after a pick, before Apply', fakeAsync(() => {
+    setup();
+    prog.movements.and.returnValue(of([movement('m1', 'Thruster')]));
+
+    el.querySelector<HTMLElement>('[data-testid="lib-filter"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!.click();
+    fixture.detectChanges();
+
+    const search: HTMLInputElement = el.querySelector('[data-testid="filter-movement-search"]')!;
+    search.value = 'thr';
+    search.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
+    fixture.detectChanges();
+
+    const row = el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!;
+    expect(row.textContent).toContain('Thruster');
+  }));
+
+  // R6b finding 2: re-entering Movement must not show the previous search, and with no term typed
+  // it lists the current selection (checked) instead so it can be unticked without searching again.
+  it('re-entering Movement after a pick clears the old search and lists the current selection', fakeAsync(() => {
+    setup();
+    prog.movements.and.returnValue(of([movement('m1', 'Thruster')]));
+
+    el.querySelector<HTMLElement>('[data-testid="lib-filter"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!.click();
+    fixture.detectChanges();
+
+    const search: HTMLInputElement = el.querySelector('[data-testid="filter-movement-search"]')!;
+    search.value = 'thr';
+    search.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!.click();
+    fixture.detectChanges();
+
+    const reenteredSearch: HTMLInputElement = el.querySelector('[data-testid="filter-movement-search"]')!;
+    expect(reenteredSearch.value).toBe('');
+    const selected = el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!;
+    expect(selected.textContent).toContain('Thruster');
+    expect(selected.classList).toContain('sel');
   }));
 
   it('the scroll sentinel loads the next page when it becomes visible, appending rows', () => {

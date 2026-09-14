@@ -87,7 +87,7 @@ export class CoachShellPage implements OnInit {
   // stays — the envelope is what points at it.
   tabs: DockTab[] = [
     { link: 'classes', label: 'Classes', icon: 'calendar' },
-    { link: 'wods', label: 'Build', icon: 'clipboard-list' },
+    { link: 'wods', label: 'Library', icon: 'clipboard-list' },
     { link: 'benchmarks', label: 'Bench', icon: 'dumbbell' },
     { link: 'types', label: 'Types', icon: 'layout-grid' },
   ];
