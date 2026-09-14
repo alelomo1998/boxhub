@@ -124,6 +124,9 @@ export class WeekCalendarComponent {
   offset = model(0);
   /** Inclusive upper bound. 13 = a 2-week horizon, matching Box.bookingHorizonWeeks's default of 2. */
   max = input(13);
+  /** Inclusive lower bound, may be negative to open past days. Default 0 keeps every current
+   *  consumer (booking, schedule, classes) identical. */
+  min = input(0);
   /** Keyed by local ISO date ('YYYY-MM-DD'). An absent key means 'none'. */
   tones = input<Record<string, DayTone>>({});
 
@@ -144,6 +147,7 @@ export class WeekCalendarComponent {
     const today = this.today();
     const tones = this.tones();
     const max = this.max();
+    const min = this.min();
     const mondayIdx = (sel.getDay() + 6) % 7;         // JS Sunday=0 -> Monday-first index
     const start = new Date(sel);
     start.setDate(start.getDate() - mondayIdx);
@@ -156,7 +160,7 @@ export class WeekCalendarComponent {
       // them makes the difference 23 or 25 hours and a truncating divide lands one day out.
       const offset = Math.round((date.getTime() - today.getTime()) / 864e5);
       const iso = isoOf(date);
-      out.push({ date, offset, iso, tone: tones[iso] ?? 'none', selectable: offset >= 0 && offset <= max });
+      out.push({ date, offset, iso, tone: tones[iso] ?? 'none', selectable: offset >= min && offset <= max });
     }
     return out;
   });
@@ -164,7 +168,7 @@ export class WeekCalendarComponent {
   /** Always present: week() is built around the selected day by construction. */
   readonly selectedDay = computed<WeekDay>(() => this.week().find(d => d.offset === this.offset())!);
 
-  readonly canPrev = computed(() => this.week()[0].offset > 0);
+  readonly canPrev = computed(() => this.week()[0].offset > this.min());
   readonly canNext = computed(() => this.week()[6].offset < this.max());
 
   monthLabel(): string { return formatDate(this.selected(), 'LLLL y', this.locale); }
@@ -189,7 +193,7 @@ export class WeekCalendarComponent {
   }
 
   shiftDay(dir: number) {
-    const next = Math.min(this.max(), Math.max(0, this.offset() + dir));
+    const next = Math.min(this.max(), Math.max(this.min(), this.offset() + dir));
     if (next !== this.offset()) this.offset.set(next);
   }
 
@@ -198,13 +202,13 @@ export class WeekCalendarComponent {
    * (user-ruled 2026-09-06): pressing "next week" from a Wednesday should open the next week,
    * not hop Wednesday-to-Wednesday. week()[0] IS that week's Monday by construction.
    *
-   * Clamped into [0, max]. Backwards the clamp bites often and correctly — the target Monday is
-   * usually before today, and today is then the earliest selectable day of that same week.
-   * Forwards it never bites: canNext() already requires week()[6].offset < max(), so the next
-   * Monday is at most max.
+   * Clamped into [min, max]. Backwards the clamp bites often and correctly when min is the
+   * default 0 — the target Monday is usually before today, and today is then the earliest
+   * selectable day of that same week. Forwards it never bites: canNext() already requires
+   * week()[6].offset < max(), so the next Monday is at most max.
    */
   shiftWeek(dir: number) {
-    const next = Math.min(this.max(), Math.max(0, this.week()[0].offset + dir * 7));
+    const next = Math.min(this.max(), Math.max(this.min(), this.week()[0].offset + dir * 7));
     if (next !== this.offset()) this.offset.set(next);
   }
 

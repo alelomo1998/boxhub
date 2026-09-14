@@ -6,13 +6,14 @@ import { SegmentedComponent, SegOption } from './segmented.component';
   standalone: true,
   imports: [SegmentedComponent],
   template: `<bh-segmented [options]="opts" [(value)]="v" label="Effort"
-                            [tone]="tone()" [wrap]="wrap()" />`,
+                            [tone]="tone()" [wrap]="wrap()" [stretch]="stretch()" />`,
 })
 class Host {
   opts: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   v = signal('rx');
   tone = signal<'volt' | 'bone'>('volt');
   wrap = signal(false);
+  stretch = signal(false);
 }
 
 describe('SegmentedComponent', () => {
@@ -78,6 +79,21 @@ describe('SegmentedComponent', () => {
     f.componentInstance.wrap.set(true);
     f.detectChanges();
     expect(f.nativeElement.querySelector('.seg').classList.contains('wrap')).toBe(true);
+  });
+
+  it('defaults to inline, content-width sizing, so existing consumers are unchanged', () => {
+    expect(f.nativeElement.querySelector('.seg').classList.contains('stretch')).toBe(false);
+  });
+
+  it('stretch fills the row width and gives every option an equal share', () => {
+    f.componentInstance.stretch.set(true);
+    f.detectChanges();
+    const group = f.nativeElement.querySelector('.seg');
+    expect(group.classList.contains('stretch')).toBe(true);
+    expect(getComputedStyle(group).display).toBe('flex');
+    for (const opt of radios()) {
+      expect(getComputedStyle(opt).flexGrow).toBe('1');
+    }
   });
 
   it('keeps radiogroup semantics and arrow keys in both tones', () => {

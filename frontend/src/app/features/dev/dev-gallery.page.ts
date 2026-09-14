@@ -730,6 +730,10 @@ export class GalleryNotificationBellComponent implements OnInit {
             <span class="stlabel" i18n="@@dev.gallery.segmented.state.wrap">Wrapped, five options at 360px</span>
             <bh-segmented [options]="scoreOptions" value="rx" [wrap]="true" label="Score" i18n-label="@@dev.gallery.segmented.scoreLabel" />
           </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.segmented.state.stretch">Stretched, fills the row</span>
+            <bh-segmented [options]="segOptions" value="rx" [stretch]="true" label="Division" i18n-label="@@dev.gallery.segmented.label" />
+          </div>
         </div>
         <p class="note" i18n="@@dev.gallery.segmented.note">
           Hover and focus aren't shown statically — hover on an unselected segment lightens its text
@@ -904,9 +908,12 @@ export class GalleryNotificationBellComponent implements OnInit {
              "disabled: rendered" claim true six days in seven. A ledger that is conditionally
              true is the omission it exists to prevent. -->
         <bh-week-calendar [max]="2" />
+        <!-- A THIRD instance with a negative min, so past-enabled is on this page every day — the
+             history screen opens the horizon backwards instead of forwards. -->
+        <bh-week-calendar [min]="-30" />
         <p class="note" i18n="@@dev.gallery.weekCalendar.note">
           Offset is a model — two-way bound by the athlete book page, the coach classes page and
-          the admin schedule page. Chevrons page a week and disable at the [0, max] bounds; a swipe
+          the admin schedule page. Chevrons page a week and disable at the [min, max] bounds (min defaults to 0); a swipe
           pages a day; tapping a day jumps to it. Dots carry availability by SHAPE, not hue —
           filled is open, a hollow ring is full, a flat tick is no classes — and each day's
           aria-label states it in words, so the strip works with no dot visible at all. Days

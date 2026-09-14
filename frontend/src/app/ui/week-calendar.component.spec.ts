@@ -2,9 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { WeekCalendarComponent } from './week-calendar.component';
 
 describe('WeekCalendarComponent', () => {
-  function make(max = 13) {
+  function make(max = 13, min?: number) {
     const fixture = TestBed.createComponent(WeekCalendarComponent);
     fixture.componentRef.setInput('max', max);
+    if (min !== undefined) fixture.componentRef.setInput('min', min);
     fixture.detectChanges();
     return fixture;
   }
@@ -23,6 +24,24 @@ describe('WeekCalendarComponent', () => {
     const week = fixture.componentInstance.week();
     expect(week.filter(d => d.selectable).every(d => d.offset >= 0 && d.offset <= 2)).toBeTrue();
     expect(week.some(d => !d.selectable)).toBeTrue();
+  });
+
+  it('defaults min to 0, so yesterday stays unselectable and every current consumer is unchanged', () => {
+    const fixture = make();
+    const cmp = fixture.componentInstance;
+    const yesterday = cmp.week().find(d => d.offset === -1);
+    // -1 is only in the visible week when today is not Monday; the assertion that matters either
+    // way is canPrev, which is false on the current week regardless of which weekday today is.
+    if (yesterday) expect(yesterday.selectable).toBeFalse();
+    expect(cmp.canPrev()).toBeFalse();
+  });
+
+  it('a negative min opens past days: -30 makes yesterday selectable and canPrev true', () => {
+    const fixture = make(13, -30);
+    const cmp = fixture.componentInstance;
+    const yesterday = cmp.week().find(d => d.offset === -1);
+    if (yesterday) expect(yesterday.selectable).toBeTrue();
+    expect(cmp.canPrev()).toBeTrue();
   });
 
   it("shiftWeek lands on the target week's Monday and clamps to [0, max]", () => {

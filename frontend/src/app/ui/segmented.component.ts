@@ -12,7 +12,7 @@ export interface SegOption { value: string; label: string; }
   standalone: true,
   template: `
     <div class="seg" role="radiogroup" [attr.aria-label]="label()"
-         [class.tone-bone]="tone() === 'bone'" [class.wrap]="wrap()">
+         [class.tone-bone]="tone() === 'bone'" [class.wrap]="wrap()" [class.stretch]="stretch()">
       @for (o of options(); track o.value; let i = $index) {
         <button #opt type="button" class="opt" role="radio"
                 [class.on]="o.value === value()"
@@ -35,6 +35,9 @@ export interface SegOption { value: string; label: string; }
     /* A volt ring on the volt-filled selected segment is invisible — law §11.2. */
     .opt.on:focus-visible { outline-color: var(--focus-inv); }
     .seg.wrap { flex-wrap: wrap; }
+    /* Full-width groups (e.g. a two-way split filling a card) — each option shares the row equally. */
+    .seg.stretch { display: flex; width: 100%; }
+    .seg.stretch .opt { flex: 1 1 0; }
     .seg.tone-bone .opt.on { background: var(--bone); color: var(--on-bone); }
     /* A volt ring is invisible on volt; on a near-white bone fill it is invisible too. Both
        selected fills therefore take the inverted ring, for the same reason. */
@@ -52,6 +55,9 @@ export class SegmentedComponent {
   tone = input<'volt' | 'bone'>('volt');
   /** Let the group wrap onto more than one line. Five score options do not fit one line at 360px. */
   wrap = input(false);
+  /** Fill the row width, each option sharing it equally. Default false keeps every current
+   *  consumer's inline, content-width sizing unchanged. */
+  stretch = input(false);
 
   private opts = viewChildren<ElementRef<HTMLButtonElement>>('opt');
 
