@@ -212,6 +212,7 @@ section and §1–§7 disagree, **this section wins**; the superseded parts are 
 | D19 | **History = the week strip picks a day**; that day's pieces only. No search, filter or `+` on History. `bh-week-calendar` gains a `min` so it can go back in time. | D11 date rules, §4.1 cursor paging |
 | D20 | **Benchmarks become structured blocks** (a migration rewrites the seeded catalogue with real catalogue movements). The `:`/`,` body-text split is deleted. | §2 card line derivation for benchmarks |
 | D21 | **Saved library pieces holding only plain text are deleted** by the same migration. Class copies — and any scores on them — are untouched. `DevDataSeeder` writes blocks, so a fresh stack never recreates the old format. | — |
+| D22 | **A structured benchmark's load is the men's Rx, in the box's unit.** Templates store it in lb (the source); the one benchmark mapper converts to kg for a KG box (`round(lb × 0.45359237)`). The women's load, and both units, live in the block note (`Rx 95/65 lb · 43/29 kg`) until M17c models gendered Rx. | — |
 
 ### 8.3 Backend, revised
 
@@ -231,5 +232,3 @@ section and §1–§7 disagree, **this section wins**; the superseded parts are 
 - The class stack's slot picker keeps fetching the whole library client-side; moving it onto
   `GET /library` is filed in BACKLOG.
 - Piece editor rendering of a class copy's legacy `body_text` — unchanged.
-
-| D22 | **A structured benchmark's load is the men's Rx, in the box's unit.** Templates store it in lb (the source); the one benchmark mapper converts to kg for a KG box (`round(lb × 0.45359237)`). The women's load, and both units, live in the block note (`Rx 95/65 lb · 43/29 kg`) until M17c models gendered Rx. | — |
