@@ -61,6 +61,12 @@ stop rather than improvise.
 
 ## Moment 4 — before claiming anything is done
 
+- [ ] **Does the change touch anything `DevDataSeeder` calls?** Then boot a `down -v` stack and read
+      the backend log. The seeder is `@Profile("dev")`, so no test runs it. It aborted the whole demo
+      seed twice on the same trap: `runAsBox` installs a synthetic JWT whose subject is a random UUID,
+      so anything stamping `TenantContext.userId()` into a `users(id)` foreign key fails (M29a's
+      announcement `sent_by`; M14c-b's benchmark clone `created_by`, green at 836 tests).
+
 - [ ] **Did I look, or did I read a report?** A subagent reported "the void reads as gone"; measuring showed it had moved 181px. Twice a report was optimistic where measurement was not.
 - [ ] **Did e2e run?** Karma cannot see a dead submit binding. Rebuild the image, and re-run on a `down -v` stack before blaming a diff — `runner`/`tracking`/`tv` are non-idempotent and fail on a dirty stack for unrelated reasons.
 - [ ] **Did the critique re-run?** A score measured *with* a P0 open is not the screen's score. "Fixed" without a new number is a claim, not a result.
