@@ -1,5 +1,7 @@
 package com.boxhub.programming;
 
+import com.boxhub.box.Box;
+import com.boxhub.box.BoxRepository;
 import com.boxhub.shared.TenantContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,16 +18,20 @@ import java.util.UUID;
 @Service
 public class WodService {
 
+    private static final double KG_PER_LB = 0.45359237;
+
     private final WodRepository wods;
     private final BenchmarkTemplateRepository benchmarks;
     private final SessionItemRepository sessionItems;
+    private final BoxRepository boxes;
     private final ObjectMapper om;
 
     public WodService(WodRepository wods, BenchmarkTemplateRepository benchmarks,
-                      SessionItemRepository sessionItems, ObjectMapper om) {
+                      SessionItemRepository sessionItems, BoxRepository boxes, ObjectMapper om) {
         this.wods = wods;
         this.benchmarks = benchmarks;
         this.sessionItems = sessionItems;
+        this.boxes = boxes;
         this.om = om;
     }
 
@@ -109,19 +115,59 @@ public class WodService {
      *  mapper: the clone endpoint makes a library row (library = true), a class pick makes the
      *  class's own copy (library = false). */
     Wod cloneFromBenchmark(java.util.UUID templateId, boolean library) {
+        Wod w = benchmarkWod(templateId, library);
+        w.setCreatedBy(TenantContext.userId());
+        return wods.save(w);
+    }
+
+    /** The mapping itself, unsaved and without an author: a request stamps its user
+     *  (cloneFromBenchmark), the dev seeder stamps its coach, because runAsBox's synthetic
+     *  subject is not a users(id) row and wod.created_by references one. */
+    public Wod benchmarkWod(java.util.UUID templateId, boolean library) {
         BenchmarkTemplate t = benchmarks.findById(templateId).orElseThrow(NoSuchElementException::new);
+        Box box = boxes.findById(TenantContext.requireBoxId()).orElseThrow();
         Wod w = new Wod();
         w.setTitle(t.getName());
         w.setMacro(WodTypeWire.toMacro("CUSTOM"));
-        w.setTimingPreset(WodTypeWire.toTimingPreset("CUSTOM"));
+        w.setTimingPreset(switch (t.getScoreType()) {
+            case "TIME" -> "FOR_TIME";
+            case "ROUNDS_REPS" -> "AMRAP";
+            default -> null;
+        });
         w.setScoreType(t.getScoreType());
         w.setTimeCapSeconds(t.getTimeCapSeconds());
         w.setBodyText(t.getBodyText());
-        w.setBlocksJson(t.getBlocksJson());
+        w.setBlocksJson(benchmarkBlocks(t, box.getWeightUnit()));
         w.setBenchmarkTemplateId(t.getId());
         w.setLibrary(library);
-        w.setCreatedBy(TenantContext.userId());
-        return wods.save(w);
+        return w;
+    }
+
+    /** A template's blocks with each line's load (stored in lb, the benchmark's source unit) in
+     *  the box's unit. Only numeric loads convert; D22 keeps the women's load in the note. */
+    String benchmarkBlocks(BenchmarkTemplate t, String weightUnit) {
+        if (!"KG".equals(weightUnit)) return t.getBlocksJson();
+        WodJson.Blocks blocks = deserialize(t.getBlocksJson());
+        return serialize(new WodJson.Blocks(blocks.blocks().stream().map(this::toKg).toList()));
+    }
+
+    private WodJson.Block toKg(WodJson.Block b) {
+        List<WodJson.Line> lines = b.lines() == null ? null
+                : b.lines().stream().map(this::lineToKg).toList();
+        List<WodJson.Block> children = b.blocks() == null ? null
+                : b.blocks().stream().map(this::toKg).toList();
+        return new WodJson.Block(b.label(), b.note(), lines, children);
+    }
+
+    private WodJson.Line lineToKg(WodJson.Line l) {
+        String load = l.load();
+        if (load == null) return l;
+        try {
+            load = String.valueOf(Math.round(Double.parseDouble(load) * KG_PER_LB));
+        } catch (NumberFormatException e) {
+            return l; // non-numeric load (e.g. "95/65") -- leave as-is, unreachable via the benchmark seed
+        }
+        return new WodJson.Line(l.text(), l.movementId(), l.reps(), load, l.scaling(), l.scales(), l.unit());
     }
 
     Instant now() { return Instant.now(); }

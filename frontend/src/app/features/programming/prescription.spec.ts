@@ -10,18 +10,23 @@ const base: Wod = {
 describe('prescriptionLines', () => {
   it('flattens both block levels with reps and load', () => {
     const w = { ...base, blocks: { blocks: [
-      { label: 'A', lines: [{ text: 'Thrusters', reps: '21', load: '43', unit: 'KG' }],
+      { label: 'A', lines: [{ text: 'Thrusters', reps: '21', load: '43' }],
         blocks: [{ lines: [{ text: 'Pull-ups', reps: '21' }] }] },
     ] } };
-    expect(prescriptionLines(w)).toEqual(['21 Thrusters (43 KG)', '21 Pull-ups']);
+    expect(prescriptionLines(w)).toEqual(['21 Thrusters (43)', '21 Pull-ups']);
   });
 
-  it('splits a benchmark sentence when there are no blocks', () => {
-    const w = { ...base, bodyText: '21-15-9 reps for time: Thrusters (95/65 lb), Pull-Ups' };
-    expect(prescriptionLines(w)).toEqual(['21-15-9 reps for time', 'Thrusters (95/65 lb)', 'Pull-Ups']);
+  it('shows a non-REPS unit next to the reps count', () => {
+    const w = { ...base, blocks: { blocks: [{ lines: [{ text: 'Run', reps: '400', unit: 'M' }] }] } };
+    expect(prescriptionLines(w)).toEqual(['400 M Run']);
   });
 
-  it('returns nothing for a piece with neither', () => {
+  it('lowercases the box weight unit onto a load', () => {
+    const w = { ...base, blocks: { blocks: [{ lines: [{ text: 'Thruster', reps: '21', load: '43' }] }] } };
+    expect(prescriptionLines(w, 'KG')).toEqual(['21 Thruster (43 kg)']);
+  });
+
+  it('returns nothing for a piece with no blocks', () => {
     expect(prescriptionLines(base)).toEqual([]);
   });
 });

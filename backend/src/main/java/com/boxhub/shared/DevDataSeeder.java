@@ -49,6 +49,8 @@ public class DevDataSeeder implements CommandLineRunner {
     private final TemplatePieceRepository skeletons;
     private final SessionItemRepository items;
     private final WodRepository wods;
+    private final WodService wodService;
+    private final BenchmarkTemplateRepository benchmarks;
     private final MovementRepository movements;
     private final WodScoreRepository wodScores;
     private final LiftEntryRepository liftEntries;
@@ -62,7 +64,8 @@ public class DevDataSeeder implements CommandLineRunner {
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
                          ClassTypeRepository types, ScheduleSlotRepository slots, ClassSessionRepository sessions,
                          SessionGenerator sessionGenerator, TemplatePieceRepository skeletons,
-                         SessionItemRepository items, WodRepository wods, MovementRepository movements,
+                         SessionItemRepository items, WodRepository wods, WodService wodService,
+                         BenchmarkTemplateRepository benchmarks, MovementRepository movements,
                          WodScoreRepository wodScores, LiftEntryRepository liftEntries,
                          AnnouncementService announcements, BookingRepository bookings, UserRepository userRepo,
                          PlanRepository plans, SubscriptionRepository subscriptions, SubscriptionService subscriptionService) {
@@ -76,6 +79,8 @@ public class DevDataSeeder implements CommandLineRunner {
         this.skeletons = skeletons;
         this.items = items;
         this.wods = wods;
+        this.wodService = wodService;
+        this.benchmarks = benchmarks;
         this.movements = movements;
         this.wodScores = wodScores;
         this.liftEntries = liftEntries;
@@ -312,25 +317,46 @@ public class DevDataSeeder implements CommandLineRunner {
             todaySession("Burn It", Instant.now().plus(java.time.Duration.ofMinutes(40)), 60, 12, coach2Id);
         });
 
-        // publish modular programming on today's instances
+        // publish modular programming on today's instances. Each is a LIBRARY row; items attach
+        // through wodService.copyForSession so a session owns its own copy (library = false) —
+        // the same copy-on-attach model a real coach's pick goes through (R2: the seeder no longer
+        // shares library rows with classes).
         TenantContext.runAsBox(box.getId(), () -> {
-            UUID warmup = wod("Row + mobility", "WARMUP", "NONE", "5' easy row, hip openers, empty-bar work");
-            UUID strength = wod("Back Squat 5x5", "STRENGTH", "LOAD", "Back Squat 5x5 @ 80% — log your top set");
-            UUID fran = wods.findByTitleContainingIgnoreCaseOrderByUpdatedAtDesc("Fran").stream().findFirst()
-                    .map(Wod::getId).orElseGet(() -> wod("Fran", "FOR_TIME", "TIME", "21-15-9: Thrusters (95/65), Pull-Ups"));
-            UUID burner = wod("10' burner", "AMRAP", "ROUNDS_REPS", "AMRAP 10: 8 cal row, 8 burpees, 8 wall balls");
+            String warmupBlocks = "{\"blocks\":[{\"lines\":["
+                    + "{\"text\":\"easy row\",\"reps\":\"5 min\"},"
+                    + "{\"text\":\"hip openers\"},"
+                    + "{\"text\":\"empty-bar work\"}"
+                    + "]}]}";
+            String strengthBlocks = "{\"blocks\":[{\"note\":\"@ 80% — log your top set\",\"lines\":["
+                    + "{\"text\":\"Back Squat\",\"movementId\":\"" + movementId(box, "Back Squat") + "\",\"reps\":\"5x5\",\"unit\":\"REPS\"}"
+                    + "]}]}";
+            String burnerBlocks = "{\"blocks\":[{\"label\":\"AMRAP 10\",\"lines\":["
+                    + "{\"text\":\"Row\",\"movementId\":\"" + movementId(box, "Row") + "\",\"reps\":\"8\",\"unit\":\"CAL\"},"
+                    + "{\"text\":\"Burpee\",\"movementId\":\"" + movementId(box, "Burpee") + "\",\"reps\":\"8\",\"unit\":\"REPS\"},"
+                    + "{\"text\":\"Wall Ball\",\"movementId\":\"" + movementId(box, "Wall Ball") + "\",\"reps\":\"8\",\"unit\":\"REPS\"}"
+                    + "]}]}";
+
+            UUID warmupLib = wod("Row + mobility", "WARMUP", "NONE", warmupBlocks);
+            UUID strengthLib = wod("Back Squat 5x5", "STRENGTH", "LOAD", strengthBlocks);
+            UUID franLib = wods.findByTitleContainingIgnoreCaseOrderByUpdatedAtDesc("Fran").stream().findFirst()
+                    .map(Wod::getId).orElseGet(() -> {
+                        Wod fran = wodService.benchmarkWod(franTemplateId(), true);
+                        fran.setCreatedBy(coachId); // not TenantContext.userId(): see seedAnnouncement
+                        return wods.save(fran).getId();
+                    });
+            UUID burnerLib = wod("10' burner", "AMRAP", "ROUNDS_REPS", burnerBlocks);
 
             var zone = java.time.ZoneId.of(box.getTimezone());
             var from = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant();
             var to = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant();
             for (ClassSession s : sessions.findByStartAtBetweenOrderByStartAt(from, to)) {
                 if ("Burn It".equals(s.getName())) {
-                    item(s.getId(), 0, warmup, false, null);
-                    item(s.getId(), 1, burner, true, null);
+                    item(s.getId(), 0, copyId(warmupLib), false, null);
+                    item(s.getId(), 1, copyId(burnerLib), true, null);
                 } else {
-                    item(s.getId(), 0, warmup, false, null);
-                    item(s.getId(), 1, strength, true, null);
-                    item(s.getId(), 2, fran, true, null);
+                    item(s.getId(), 0, copyId(warmupLib), false, null);
+                    item(s.getId(), 1, copyId(strengthLib), true, null);
+                    item(s.getId(), 2, copyId(franLib), true, null);
                 }
                 s.setProgrammingStatus("PUBLISHED");
                 sessions.save(s);
@@ -515,14 +541,36 @@ public class DevDataSeeder implements CommandLineRunner {
         skeletons.save(p);
     }
 
-    private UUID wod(String title, String type, String scoreType, String body) {
+    /** blocksJson is a full {"blocks":[...]} JSON string, structured like a coach-written piece
+     *  (R2/D20) rather than the legacy plain-text body. */
+    private UUID wod(String title, String type, String scoreType, String blocksJson) {
         Wod w = new Wod();
         w.setTitle(title);
         w.setMacro(WodTypeWire.toMacro(type));
         w.setTimingPreset(WodTypeWire.toTimingPreset(type));
         w.setScoreType(scoreType);
-        w.setBodyText(body);
+        w.setBlocksJson(blocksJson);
         return wods.save(w).getId();
+    }
+
+    /** A library wod's movement-picker id, by exact name, visible to the box (global or its own). */
+    private UUID movementId(Box box, String name) {
+        return movements.findVisible(box.getId()).stream()
+                .filter(m -> name.equals(m.getName())).findFirst()
+                .map(Movement::getId).orElseThrow();
+    }
+
+    /** The one global Fran benchmark_template row, seeded by V5 and structured by V36. */
+    private UUID franTemplateId() {
+        return benchmarks.findAllByOrderByKindAscNameAsc().stream()
+                .filter(t -> "Fran".equals(t.getName())).findFirst()
+                .map(BenchmarkTemplate::getId).orElseThrow();
+    }
+
+    /** Copy-on-attach (R2): a session item points at its own copy of a library wod, never the
+     *  library row directly — mirrors what SessionItemController does for a real coach's pick. */
+    private UUID copyId(UUID libraryWodId) {
+        return wodService.copyForSession(wods.findById(libraryWodId).orElseThrow()).getId();
     }
 
     private void item(UUID sessionId, int sort, UUID wodId, boolean scoreable, String scoreType) {

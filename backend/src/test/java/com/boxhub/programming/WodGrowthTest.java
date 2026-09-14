@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,10 +66,15 @@ class WodGrowthTest extends AbstractIntegrationTest {
     }
 
     private UUID newBox(String name, String slug) {
+        return newBox(name, slug, "KG");
+    }
+
+    private UUID newBox(String name, String slug, String weightUnit) {
         Box b = new Box();
         b.setName(name);
         b.setSlug(slug);
         b.setTimezone("Europe/Rome");
+        b.setWeightUnit(weightUnit);
         return boxes.save(b).getId();
     }
 
@@ -83,7 +89,11 @@ class WodGrowthTest extends AbstractIntegrationTest {
     }
 
     private UUID seedSession() {
-        return TenantContext.runAsBox(boxId, () -> {
+        return seedSession(boxId);
+    }
+
+    private UUID seedSession(UUID box) {
+        return TenantContext.runAsBox(box, () -> {
             ClassSession s = new ClassSession();
             s.setName("WOD Class");
             s.setStartAt(Instant.now().plusSeconds(3600));
@@ -126,15 +136,23 @@ class WodGrowthTest extends AbstractIntegrationTest {
     }
 
     private void putItems(UUID sessionId, String... itemJson) throws Exception {
+        putItems(coachToken, sessionId, itemJson);
+    }
+
+    private void putItems(String token, UUID sessionId, String... itemJson) throws Exception {
         mvc.perform(put("/api/box/sessions/" + sessionId + "/items").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coachToken)
+                        .header("Authorization", "Bearer " + token)
                         .content("{\"items\":[" + String.join(",", itemJson) + "]}"))
                 .andExpect(status().isOk());
     }
 
     private JsonNode firstItem(UUID sessionId) throws Exception {
+        return firstItem(coachToken, sessionId);
+    }
+
+    private JsonNode firstItem(String token, UUID sessionId) throws Exception {
         String json = mvc.perform(get("/api/box/sessions/" + sessionId + "/items")
-                        .header("Authorization", "Bearer " + coachToken))
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return om.readTree(json).get(0);
@@ -155,7 +173,11 @@ class WodGrowthTest extends AbstractIntegrationTest {
     }
 
     private Wod wod(UUID id) {
-        return TenantContext.runAsBox(boxId, () -> wodRepo.findById(id).orElseThrow());
+        return wod(id, boxId);
+    }
+
+    private Wod wod(UUID id, UUID box) {
+        return TenantContext.runAsBox(box, () -> wodRepo.findById(id).orElseThrow());
     }
 
     // --- the growth fix ---------------------------------------------------------------------
@@ -314,6 +336,16 @@ class WodGrowthTest extends AbstractIntegrationTest {
         return UUID.fromString(om.readTree(json).get(0).get("id").asText());
     }
 
+    /** Benchmarks are global, so any valid coach token can list them regardless of its box. */
+    private UUID franBenchmarkId(String token) throws Exception {
+        String json = mvc.perform(get("/api/box/benchmarks").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        for (JsonNode n : om.readTree(json)) {
+            if ("Fran".equals(n.get("name").asText())) return UUID.fromString(n.get("id").asText());
+        }
+        throw new NoSuchElementException("Fran benchmark not found");
+    }
+
     private static String fromBenchmark(UUID benchmarkId) {
         return "{\"fromBenchmarkId\":\"" + benchmarkId + "\",\"scoreable\":true}";
     }
@@ -365,5 +397,32 @@ class WodGrowthTest extends AbstractIntegrationTest {
                         .content("{\"items\":[{\"id\":\"" + itemId + "\",\"fromBenchmarkId\":\"" + aBenchmarkId()
                                 + "\",\"scoreable\":false}]}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // --- benchmark load unit conversion (D22) -------------------------------------------------
+
+    /** The setup box defaults to KG (newBox's default): Fran's stored-in-lb 95 becomes 43. */
+    @Test
+    void aKgBoxConvertsTheBenchmarksLoadFromPoundsToKilos() throws Exception {
+        UUID session = seedSession();
+        putItems(session, fromBenchmark(franBenchmarkId(coachToken)));
+
+        Wod copy = wod(UUID.fromString(firstItem(session).get("wodId").asText()));
+        JsonNode firstLine = om.readTree(copy.getBlocksJson()).get("blocks").get(0).get("lines").get(0);
+        assertThat(firstLine.get("load").asText()).isEqualTo("43");
+    }
+
+    @Test
+    void anLbBoxKeepsTheBenchmarksLoadInPounds() throws Exception {
+        long n = System.nanoTime();
+        UUID lbBox = newBox("Growth LB " + n, "growth-lb-" + n, "LB");
+        String lbCoach = coachTokenFor(lbBox, "growth-lb-" + n + "@t.io");
+        UUID session = seedSession(lbBox);
+
+        putItems(lbCoach, session, fromBenchmark(franBenchmarkId(lbCoach)));
+
+        Wod copy = wod(UUID.fromString(firstItem(lbCoach, session).get("wodId").asText()), lbBox);
+        JsonNode firstLine = om.readTree(copy.getBlocksJson()).get("blocks").get(0).get("lines").get(0);
+        assertThat(firstLine.get("load").asText()).isEqualTo("95");
     }
 }

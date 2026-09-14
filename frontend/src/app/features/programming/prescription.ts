@@ -78,15 +78,17 @@ export function libMeta(w: Wod): string {
 }
 
 /**
- * A piece's prescription as printable lines: every line of both block levels, "reps text (load unit)".
- * A benchmark has no blocks -- its prescription is one sentence in bodyText, split on ':' and ','.
- * ponytail: the split would break a load written with a comma inside parentheses; no seeded
- * benchmark has one (checked 2026-09-13). Parse the sentence properly if a box writes one.
+ * A piece's prescription as printable lines: every line of both block levels, "reps unit text
+ * (load boxUnit)" -- e.g. "400 M Run", "21 Thrusters (43 kg)". `weightUnit` is the box's own
+ * (R2/D22): a benchmark's load is stored in lb and WodService converts it server-side, so this
+ * only lowercases whatever unit label the caller already resolved for display.
  */
-export function prescriptionLines(w: Wod): string[] {
-  const lines = expandedRows(w)
+export function prescriptionLines(w: Wod, weightUnit?: string): string[] {
+  return expandedRows(w)
     .filter((r): r is Extract<ExpandedRow, { kind: 'line' }> => r.kind === 'line')
-    .map(l => [l.reps, l.text, l.load ? `(${l.load}${l.unit ? ' ' + l.unit : ''})` : ''].filter(Boolean).join(' '));
-  if (lines.length) return lines;
-  return (w.bodyText ?? '').split(/[:,]/).map(s => s.trim()).filter(Boolean);
+    .map(l => [
+      (l.reps ?? '') + (l.unit && l.unit !== 'REPS' ? ' ' + l.unit : ''),
+      l.text,
+      l.load ? `(${l.load}${weightUnit ? ' ' + weightUnit.toLowerCase() : ''})` : '',
+    ].filter(Boolean).join(' '));
 }

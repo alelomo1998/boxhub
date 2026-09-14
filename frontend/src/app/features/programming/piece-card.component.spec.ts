@@ -18,18 +18,20 @@ function render(wod: Wod, eyebrow = '', benchmarkKind: string | null = null) {
   return fixture;
 }
 
+function linesWod(...texts: string[]): Wod {
+  return { ...base, blocks: { blocks: [{ lines: texts.map(text => ({ text })) }] } };
+}
+
 describe('PieceCardComponent', () => {
   it('shows at most 3 lines and a +N more for a piece with 5', () => {
-    const wod = { ...base, bodyText: 'a, b, c, d, e' };
-    const fixture = render(wod);
+    const fixture = render(linesWod('a', 'b', 'c', 'd', 'e'));
     const items = fixture.nativeElement.querySelectorAll('.rx li');
     expect(items.length).toBe(3);
     expect(fixture.nativeElement.querySelector('.more').textContent).toContain('+2 more');
   });
 
   it('shows no "more" line for a piece with exactly 3 lines', () => {
-    const wod = { ...base, bodyText: 'a, b, c' };
-    const fixture = render(wod);
+    const fixture = render(linesWod('a', 'b', 'c'));
     expect(fixture.nativeElement.querySelectorAll('.rx li').length).toBe(3);
     expect(fixture.nativeElement.querySelector('.more')).toBeNull();
   });
