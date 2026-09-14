@@ -18,6 +18,26 @@ class HostComponent {
   closedCount = 0;
 }
 
+/** Stubs window.matchMedia to report `matches` for every query, with a no-op listener API. Must
+ *  run BEFORE TestBed.createComponent — the component reads matchMedia in its constructor. Same
+ *  helper as shell-header.component.spec.ts's stubMatchMedia. */
+function stubMatchMedia(matches: boolean): void {
+  spyOn(window, 'matchMedia').and.callFake((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  } as unknown as MediaQueryList));
+}
+
+function pointerEvent(type: string, clientY: number): PointerEvent {
+  return new PointerEvent(type, { clientY, pointerId: 1, pointerType: 'touch', bubbles: true, cancelable: true });
+}
+
 describe('SheetComponent', () => {
   it('opens and closes the native dialog from the open input', () => {
     const fixture = TestBed.createComponent(HostComponent);
@@ -113,5 +133,117 @@ describe('SheetComponent', () => {
     dlg.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     fixture.detectChanges();
     expect(dlg.open).toBeFalse();
+  });
+
+  // R6e: below 720px the X is undiscoverable clutter next to the swipe gesture, but must stay a
+  // real exit for keyboard/screen-reader users who have no swipe.
+  it('below 720px, the close button is visually hidden but keeps its accessible name', () => {
+    stubMatchMedia(true);
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const close: HTMLButtonElement = fixture.nativeElement.querySelector('[data-testid="sheet-close"]');
+    expect(close.getAttribute('aria-label')).toBeTruthy();
+    const style = getComputedStyle(close);
+    expect(style.position).toBe('absolute');
+    expect(style.width).toBe('1px');
+    expect(style.height).toBe('1px');
+  });
+
+  it('at 720px and up, the close button is not hidden', () => {
+    stubMatchMedia(false);
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const close: HTMLButtonElement = fixture.nativeElement.querySelector('[data-testid="sheet-close"]');
+    expect(getComputedStyle(close).position).not.toBe('absolute');
+  });
+
+  // What this CAN prove: the hide rule is gated on :not(:focus-visible), so removing that gate
+  // (hiding unconditionally) fails it. What this CANNOT prove: that :focus-visible itself engages
+  // on a real keyboard Tab in a real browser — Karma/ChromeHeadless doesn't reliably reproduce
+  // that heuristic, so the visible-on-focus claim is also a manual browser check.
+  it('the phone hide rule is scoped to :not(:focus-visible), so focus reveals the button in place', () => {
+    // Render one instance first -- Angular only injects a component's <style> tag once it has
+    // actually been created, and no earlier test in this file is guaranteed to still be mounted.
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+
+    const rules: CSSStyleRule[] = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      let cssRules: CSSRuleList;
+      try { cssRules = sheet.cssRules; } catch { continue; }
+      for (const rule of Array.from(cssRules)) {
+        if (rule instanceof CSSStyleRule && rule.selectorText?.includes('sh-close') && rule.selectorText?.includes('phone')) {
+          rules.push(rule);
+        }
+      }
+    }
+    const hideRule = rules.find(r => r.selectorText.includes(':not(:focus-visible)'));
+    expect(hideRule).withContext('a .sh-close.phone hide rule gated on :not(:focus-visible) must exist').toBeDefined();
+    expect(hideRule!.style.getPropertyValue('width').trim()).toBe('1px');
+  });
+
+  it('a drag past 80px on the grab handle closes the sheet', () => {
+    stubMatchMedia(true);
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
+    const grab: HTMLElement = fixture.nativeElement.querySelector('.grab');
+    grab.dispatchEvent(pointerEvent('pointerdown', 100));
+    dlg.dispatchEvent(pointerEvent('pointermove', 220)); // +120px
+    dlg.dispatchEvent(pointerEvent('pointerup', 220));
+    dlg.dispatchEvent(new Event('close')); // close() queues the real event; same convention as the rest of this file
+    fixture.detectChanges();
+    expect(dlg.open).toBeFalse();
+    expect(fixture.componentInstance.closedCount).toBe(1);
+  });
+
+  it('a 40px drag on the grab handle snaps back without closing', () => {
+    stubMatchMedia(true);
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
+    const grab: HTMLElement = fixture.nativeElement.querySelector('.grab');
+    grab.dispatchEvent(pointerEvent('pointerdown', 100));
+    dlg.dispatchEvent(pointerEvent('pointermove', 140)); // +40px, under the 80px threshold
+    dlg.dispatchEvent(pointerEvent('pointerup', 140));
+    fixture.detectChanges();
+    expect(dlg.open).toBeTrue();
+    expect(fixture.componentInstance.closedCount).toBe(0);
+  });
+
+  it('a drag past 80px shows the discard prompt instead of closing when guarded', () => {
+    stubMatchMedia(true);
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.confirmClose.set(true);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
+    const grab: HTMLElement = fixture.nativeElement.querySelector('.grab');
+    grab.dispatchEvent(pointerEvent('pointerdown', 100));
+    dlg.dispatchEvent(pointerEvent('pointermove', 220)); // +120px
+    dlg.dispatchEvent(pointerEvent('pointerup', 220));
+    fixture.detectChanges();
+    expect(dlg.open).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.discard')).not.toBeNull();
+  });
+
+  it('a drag starting inside .body does nothing', () => {
+    stubMatchMedia(true);
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    const dlg: HTMLDialogElement = fixture.nativeElement.querySelector('dialog');
+    const body: HTMLElement = fixture.nativeElement.querySelector('.body');
+    body.dispatchEvent(pointerEvent('pointerdown', 100));
+    dlg.dispatchEvent(pointerEvent('pointermove', 220));
+    dlg.dispatchEvent(pointerEvent('pointerup', 220));
+    fixture.detectChanges();
+    expect(dlg.open).toBeTrue();
+    expect(fixture.componentInstance.closedCount).toBe(0);
   });
 });

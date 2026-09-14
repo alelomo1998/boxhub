@@ -632,7 +632,8 @@ export class GalleryNotificationBellComponent implements OnInit {
         <p class="note" i18n="@@dev.gallery.sheet.note.interactiveOnly">
           Interactive-only — bh-sheet mounts a native &lt;dialog&gt;, so it cannot render statically;
           open it below to check the rise animation, backdrop and Esc-dismiss, and focus containment
-          by hand.
+          by hand. Two more states are phone-width only, so also by hand: below 720px, swipe the
+          grab handle down to close, and the close X is hidden until it receives keyboard focus.
         </p>
         <div class="row">
           <div class="cell">

@@ -1,5 +1,9 @@
-import { Component, ElementRef, ViewChild, effect, input, output, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, ViewChild, computed, effect, inject, input, output, signal } from '@angular/core';
 import { IconComponent } from './icon.component';
+
+/** Past this many px of downward drag on the handle/header, a release closes the sheet -- a
+ *  behaviour constant, not a CSS breakpoint. */
+const DRAG_CLOSE_PX = 80;
 
 /**
  * Bottom sheet on native <dialog>: Esc-dismiss, focus containment and backdrop come free.
@@ -19,15 +23,20 @@ import { IconComponent } from './icon.component';
   standalone: true,
   imports: [IconComponent],
   template: `
-    <dialog #dlg class="sheet" (close)="onNativeClose()" (cancel)="onCancel($event)"
-            (click)="onBackdrop($event)" [attr.aria-label]="label()">
-      <!-- The grab handle is decoration: nothing here implements drag-to-dismiss, so it must not
-           be the only exit. Plate 05 of the M23 sketch drew an explicit close control and it was
-           never built — Escape and backdrop-tap worked, but neither is discoverable on a phone. -->
-      <div class="grab" aria-hidden="true"></div>
-      <div class="sh-head">
+    <dialog #dlg class="sheet" tabindex="-1" [class.dragging]="dragging()" [style.transform]="dragTransform()"
+            (close)="onNativeClose()" (cancel)="onCancel($event)" (click)="onBackdrop($event)"
+            (pointermove)="onDragMove($event)" (pointerup)="onDragEnd($event)"
+            (pointercancel)="onDragEnd($event)" [attr.aria-label]="label()">
+      <!-- Below 720px the grab handle is a real drag-to-close affordance (onDragStart/Move/End) —
+           a release past DRAG_CLOSE_PX closes the sheet, same path as the X. The X itself is
+           visually hidden below 720px until it receives keyboard focus, because the swipe covers
+           the pointer case; it stays in the DOM at full size so it is still the discoverable exit
+           for screen-reader and keyboard users, who have no swipe gesture. At 720px and up neither
+           of this changes: the handle stays decoration (display:none) and the X stays visible. -->
+      <div class="grab" aria-hidden="true" (pointerdown)="onDragStart($event)"></div>
+      <div class="sh-head" (pointerdown)="onDragStart($event)">
         @if (title()) { <h2 class="sh-title">{{ title() }}</h2> }
-        <button type="button" class="sh-close" (click)="requestClose()"
+        <button type="button" class="sh-close" [class.phone]="isPhone()" (click)="requestClose()"
                 [attr.aria-label]="closeLabel()" data-testid="sheet-close">
           <bh-icon name="x" [size]="18" />
         </button>
@@ -53,8 +62,11 @@ import { IconComponent } from './icon.component';
       background: var(--surface); color: var(--bone);
       padding: var(--sp-3) var(--sp-5) calc(var(--sp-6) + env(safe-area-inset-bottom));
       width: 100%; max-width: 560px; margin: auto auto 0; box-sizing: border-box;
-      box-shadow: var(--shadow-float); }
+      box-shadow: var(--shadow-float); transition: transform var(--dur) var(--ease-out); }
     .sheet[open] { animation: rise var(--dur) var(--ease-out); }
+    /* While a drag is live the translate must track the pointer 1:1, with no transition lag;
+       the transition above is what performs the snap-back once the pointer lifts. */
+    .sheet.dragging { transition: none; }
     /* ::backdrop cannot inherit :root vars in some engines, so the literal is what actually
        renders in Chrome — keep it EQUAL to --scrim in _tokens.scss. It had drifted to
        rgba(10, 7, 4, 0.55): weaker and warmer than the token, which is why content behind an
@@ -70,6 +82,13 @@ import { IconComponent } from './icon.component';
       color: var(--bone-dim); border-radius: var(--r-full); }
     .sh-close:hover { color: var(--bone); }
     .sh-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* Below 720px (isPhone, read live off matchMedia -- not this rule's own media query, so the
+       spec can stub it) the X is visually hidden -- same clip pattern as bh-search-bar's .sr --
+       but stays in the DOM at its normal size and position the moment it receives keyboard focus,
+       so it never leaves keyboard/screen-reader users without a discoverable exit. */
+    .sh-close.phone:not(:focus-visible) { position: absolute; width: 1px; height: 1px;
+      min-width: 1px; min-height: 1px; margin: 0; padding: 0; border: 0; overflow: hidden;
+      clip-path: inset(50%); white-space: nowrap; }
     .body { max-height: 70vh; overflow-y: auto; }
     .discard { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3);
       padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--r-card);
@@ -85,7 +104,7 @@ import { IconComponent } from './icon.component';
       .sheet { border-radius: var(--r-lg); margin: auto; padding-bottom: var(--sp-5); }
       .grab { display: none; }
     }
-    @media (prefers-reduced-motion: reduce) { .sheet[open] { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .sheet[open] { animation: none; } .sheet { transition: none; } }
   `],
 })
 export class SheetComponent {
@@ -99,6 +118,17 @@ export class SheetComponent {
 
   discardAsk = signal(false);
 
+  /** Only true below 720px (this component's own breakpoint). Read live off matchMedia in the
+   *  constructor rather than a CSS media query, so the hidden-X and drag specs can stub it
+   *  deterministically regardless of the test runner's actual window size. */
+  isPhone = signal(false);
+  dragging = signal(false);
+  dragY = signal(0);
+  dragTransform = computed(() => (this.dragY() ? `translateY(${this.dragY()}px)` : null));
+
+  private dragStartY = 0;
+  private phoneQuery: MediaQueryList | null = null;
+
   constructor() {
     // The dialog's own open/close state is driven directly off the `open` input signal — no local
     // mirror needed, since a signal already IS the up-to-date "desired" value the old @Input
@@ -106,9 +136,22 @@ export class SheetComponent {
     effect(() => {
       const el = this.dlg?.nativeElement;
       if (!el) return;
-      if (this.open() && !el.open) el.showModal();
+      // showModal()'s own focusing steps land on the FIRST focusable descendant in tree order --
+      // the close button, since it precedes any projected content -- which would make it
+      // :focus-visible (and so, below 720px, visible) the instant every sheet opens. tabindex="-1"
+      // on the dialog plus this explicit focus() puts initial focus on the sheet surface itself
+      // instead, same accessible pattern most dialog libraries use, so the X starts hidden.
+      if (this.open() && !el.open) { el.showModal(); el.focus(); }
       else if (!this.open() && el.open) el.close();
     });
+
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return; // guards Karma/SSR-less envs
+    const destroyRef = inject(DestroyRef);
+    this.phoneQuery = window.matchMedia('(max-width: 719.98px)');
+    this.isPhone.set(this.phoneQuery.matches);
+    const onPhoneChange = () => this.isPhone.set(this.phoneQuery!.matches);
+    this.phoneQuery.addEventListener('change', onPhoneChange);
+    destroyRef.onDestroy(() => this.phoneQuery?.removeEventListener('change', onPhoneChange));
   }
 
   onNativeClose() {
@@ -131,6 +174,33 @@ export class SheetComponent {
   requestClose() {
     if (this.confirmClose()) this.discardAsk.set(true);
     else this.dlg.nativeElement.close();
+  }
+
+  /** Bound on .grab and .sh-head only, never .body -- so content scrolling inside the sheet is
+   *  never hijacked. */
+  onDragStart(ev: PointerEvent) {
+    if (!this.isPhone()) return;
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    try { (ev.currentTarget as Element).setPointerCapture(ev.pointerId); }
+    catch { /* a synthetic pointerId (tests) isn't a real active pointer -- capture is best-effort */ }
+    this.dragStartY = ev.clientY;
+    this.dragging.set(true);
+  }
+
+  onDragMove(ev: PointerEvent) {
+    if (!this.dragging()) return;
+    this.dragY.set(Math.max(0, ev.clientY - this.dragStartY)); // never translates above 0
+  }
+
+  /** Past DRAG_CLOSE_PX, the SAME requestClose() the X uses, so confirmClose still shows the
+   *  discard bar. The translate always snaps back first: when guarded, the dialog itself does not
+   *  close, so there is nothing left to reset once requestClose returns. */
+  onDragEnd(ev: PointerEvent) {
+    if (!this.dragging()) return;
+    this.dragging.set(false);
+    const dy = this.dragY();
+    this.dragY.set(0);
+    if (dy > DRAG_CLOSE_PX) this.requestClose();
   }
 
   keep() { this.discardAsk.set(false); }

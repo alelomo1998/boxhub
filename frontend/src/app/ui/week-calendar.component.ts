@@ -81,7 +81,8 @@ function isoOf(d: Date): string {
     </div>
     <ng-content />
     @if (jump()) {
-      <bh-sheet [open]="jumpOpen()" [label]="jumpAriaLabel()" (closed)="onJumpClosed()">
+      <bh-sheet [open]="jumpOpen()" [label]="jumpAriaLabel()" title="Calendar"
+                i18n-title="@@ui.weekCalendar.jump.title" (closed)="onJumpClosed()">
         @if (jumpStep() === 'months') {
           <div class="jyear">
             <button type="button" class="pg" data-testid="wc-jump-year-prev" (click)="shiftJumpYear(-1)"

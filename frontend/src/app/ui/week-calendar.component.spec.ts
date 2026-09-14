@@ -172,6 +172,17 @@ describe('WeekCalendarComponent', () => {
     expect(el.querySelector('[data-testid="wc-jump-open"]')).toBeFalsy();
   });
 
+  // R6e: the jump sheet gets a title -- label() stays the aria-label, unchanged.
+  it('the jump sheet renders the "Calendar" title', () => {
+    const fixture = make(0, -400);
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement;
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('.sh-title')?.textContent?.trim()).toBe('Calendar');
+  });
+
   it('jump: open, step the year back, pick October then day 10, lands on that day\'s offset', () => {
     const fixture = make(0, -400);
     fixture.componentRef.setInput('jump', true);
