@@ -185,6 +185,8 @@ describe('FilterSheetComponent', () => {
     expect(h.draftChanges.length).toBe(1);
     expect(h.draftChanges[0]).toEqual({ kind: ['girl'] });
 
+    menuRow('kind').click(); // a pick returns to the menu, so step back in for the second
+    f.detectChanges();
     opt('kind', 'hero').click();
     f.detectChanges();
     expect(h.draftChanges.length).toBe(2);
