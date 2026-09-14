@@ -179,3 +179,55 @@ component, so the dev-gallery contract does not apply; its states are covered by
 - Box-authored benchmarks (a coach flagging their own piece) — not built; would need a column and a
   second history key. File in BACKLOG if raised.
 - Tags / search-by-movement — already in BACKLOG.
+
+---
+
+## 8. Revision 1 — after the first visual review (user-ruled 2026-09-14)
+
+The first build of the Library page (`78ced63`) was reviewed by the user and sent back. Where this
+section and §1–§7 disagree, **this section wins**; the superseded parts are named.
+
+### 8.1 What the review found
+
+1. Benchmarks are plain text (`body_text`, empty blocks), so the piece editor cannot show them.
+2. The visible "Library" title is noise.
+3. "New WOD" as the first element is misleading: it creates a **piece**, and it deserves a better
+   position and volt.
+4. Filters are missing — by movement (chosen from the movement sheet) and by piece type.
+5. The Library | History control must take the full width.
+6. History needs the app's calendar.
+7. Loading everything does not scale: a box with 10k pieces must page, newest first, on scroll; search
+   starts at 3 characters.
+
+### 8.2 Decisions
+
+| # | Ruling | Supersedes |
+|---|---|---|
+| D13 | **No visible page title.** A visually-hidden `h1` keeps the landmark. | §2 structure item 1 |
+| D14 | **"New piece"**, an icon `+` button in **volt**, at the end of the search row. Volt on this screen is a user ruling, recorded in `CLAUDE.md` beside the builder's. | §2 "no volt", "+ New WOD" |
+| D15 | **`bh-segmented` full width** (new `stretch` input on the `ui/` component). | — |
+| D16 | **Filters: Movement, Category, Timing, Benchmark kind**, in a sheet shaped **menu → drill-in step → Apply ("Show N")**. Built as a reusable **`ui/` `bh-filter-sheet`** taking facet definitions — M25 reuses it on posts, so it is built to the full component contract. | §2 anti-goal "no filter chips" |
+| D17 | **A quick "Benchmarks" toggle chip** under the search row. Benchmarks appear **only** with it (or the Benchmark-kind facet) on — the default list is the box's own pieces. | D2's "merged in", §2 Library-tab ordering |
+| D18 | **Server-side paging**: 50 newest (by `updated_at`), more on scroll. Search is sent only at **≥3 characters**. | §4.2 client-side merge, §2 "fetched once" |
+| D19 | **History = the week strip picks a day**; that day's pieces only. No search, filter or `+` on History. `bh-week-calendar` gains a `min` so it can go back in time. | D11 date rules, §4.1 cursor paging |
+| D20 | **Benchmarks become structured blocks** (a migration rewrites the seeded catalogue with real catalogue movements). The `:`/`,` body-text split is deleted. | §2 card line derivation for benchmarks |
+| D21 | **Saved library pieces holding only plain text are deleted** by the same migration. Class copies — and any scores on them — are untouched. `DevDataSeeder` writes blocks, so a fresh stack never recreates the old format. | — |
+
+### 8.3 Backend, revised
+
+- **`GET /api/box/library`** (STAFF): `q` (applied only if ≥3 chars — server enforces too), `macro`,
+  `timing`, `movement` (repeatable), `benchmarks` (boolean), `kind` (repeatable GIRL/HERO), `cursor`.
+  Default mode: box library pieces, keyset-paged on `(updated_at desc, id desc)`, 50 per page, plus
+  `total` for the sheet's "Show N". Benchmark mode: global benchmarks not yet copied + box pieces with a
+  `benchmark_template_id`, unpaged (the catalogue is ~30). Tenant-filtered JPQL; the movement facet
+  matches a `movementId` anywhere in `blocks_json` without leaving Hibernate's tenant filter.
+- **`GET /api/box/wods/history?day=YYYY-MM-DD`** replaces the cursor: pieces of non-cancelled sessions
+  that started on that day **in the box's timezone** and before now.
+- **Migration**: benchmark blocks + deletion of plain-text-only library rows that no session item
+  references.
+
+### 8.4 Still out of scope
+
+- The class stack's slot picker keeps fetching the whole library client-side; moving it onto
+  `GET /library` is filed in BACKLOG.
+- Piece editor rendering of a class copy's legacy `body_text` — unchanged.
