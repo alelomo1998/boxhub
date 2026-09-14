@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { WodLibraryPage } from './wod-library.page';
-import { LibraryEntry, ProgrammingService, Wod, WodHistoryPage, WodHistoryRow } from './programming.service';
+import { LibraryEntry, ProgrammingService, Wod, WodHistoryRow } from './programming.service';
 
 function wod(id: string, title: string, bodyText = ''): Wod {
   return {
@@ -31,7 +31,7 @@ describe('WodLibraryPage', () => {
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
       ['libraryEntries', 'wodHistory', 'cloneBenchmark']);
     prog.libraryEntries.and.returnValue(of(entries));
-    prog.wodHistory.and.returnValue(of({ rows: [], nextBefore: null } as WodHistoryPage));
+    prog.wodHistory.and.returnValue(of([] as WodHistoryRow[]));
 
     TestBed.configureTestingModule({
       imports: [WodLibraryPage],
@@ -86,7 +86,7 @@ describe('WodLibraryPage', () => {
   it('shows the error alert when libraryEntries fails, and retries on click', () => {
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService', ['libraryEntries', 'wodHistory', 'cloneBenchmark']);
     prog.libraryEntries.and.returnValue(throwError(() => new Error('boom')));
-    prog.wodHistory.and.returnValue(of({ rows: [], nextBefore: null } as WodHistoryPage));
+    prog.wodHistory.and.returnValue(of([] as WodHistoryRow[]));
     TestBed.configureTestingModule({
       imports: [WodLibraryPage],
       providers: [provideRouter([]), { provide: ProgrammingService, useValue: prog }],
@@ -121,7 +121,7 @@ describe('WodLibraryPage', () => {
       historyRow('i2', 's2', '2026-09-11T06:00:00Z', w),
     ];
     setup([]);
-    prog.wodHistory.and.returnValue(of({ rows, nextBefore: null } as WodHistoryPage));
+    prog.wodHistory.and.returnValue(of(rows));
     switchToHistory();
     fixture.detectChanges();
 
@@ -130,26 +130,6 @@ describe('WodLibraryPage', () => {
     const card = el.querySelector('[data-testid="hist-card-i1"]')!;
     expect(card.tagName).toBe('A');
     expect(card.getAttribute('href')).toContain('/coach/classes/s1/build');
-  });
-
-  it('shows Load older when nextBefore is set, and appends rows on click', () => {
-    const w = wod('w1', 'Fran');
-    const first = historyRow('i1', 's1', '2026-09-12T06:00:00Z', w);
-    const older = historyRow('i2', 's2', '2026-09-01T06:00:00Z', w);
-    setup([]);
-    prog.wodHistory.and.returnValue(of({ rows: [first], nextBefore: '2026-09-10T00:00:00Z' } as WodHistoryPage));
-    switchToHistory();
-    fixture.detectChanges();
-
-    const more = el.querySelector<HTMLElement>('[data-testid="hist-more"]')!;
-    expect(more).not.toBeNull();
-
-    prog.wodHistory.and.returnValue(of({ rows: [older], nextBefore: null } as WodHistoryPage));
-    more.click();
-    fixture.detectChanges();
-
-    expect(prog.wodHistory).toHaveBeenCalledWith(undefined, '2026-09-10T00:00:00Z');
-    expect(el.querySelectorAll('[data-testid^="hist-card-"]').length).toBe(2);
   });
 
   it('opens the benchmark sheet on a global card tap, adds it, and navigates', () => {

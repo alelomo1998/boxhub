@@ -199,24 +199,25 @@ export class WodLibraryPage {
     });
   }
 
+  // ponytail: R1 made history a day endpoint (no search, no cursor); this page still queries/paginates
+  // the old way, so it's wired to always ask for today and never page. R6 rewrites it for real.
+  private today(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   /** History is fetched lazily, the first time its tab opens, and again whenever its search changes. */
   loadHistory(reset: boolean) {
     if (reset) { this.histState.set('loading'); this.history.set([]); this.nextBefore.set(null); }
     this.historyLoaded = true;
-    this.prog.wodHistory(this.query().trim() || undefined).subscribe({
-      next: p => { this.history.set(p.rows); this.nextBefore.set(p.nextBefore); this.histState.set('ready'); },
+    this.prog.wodHistory(this.today()).subscribe({
+      next: rows => { this.history.set(rows); this.nextBefore.set(null); this.histState.set('ready'); },
       error: () => this.histState.set('error'),
     });
   }
 
   loadMore() {
-    if (this.morePending() || !this.nextBefore()) return;
-    this.morePending.set(true);
-    this.moreError.set(false);
-    this.prog.wodHistory(this.query().trim() || undefined, this.nextBefore()).subscribe({
-      next: p => { this.history.update(h => [...h, ...p.rows]); this.nextBefore.set(p.nextBefore); this.morePending.set(false); },
-      error: () => { this.morePending.set(false); this.moreError.set(true); },
-    });
+    // no cursor on the day endpoint (R1) -- nextBefore is always null so this never fires.
   }
 
   onSearch(v: string) {

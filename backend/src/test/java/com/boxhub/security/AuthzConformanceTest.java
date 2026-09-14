@@ -402,7 +402,9 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                 // EVERYONE needs no seeded id. Without this entry the athlete probe 400s on the
                 // missing param before RoleGuard.requireStaff() runs, so the route would be swept
                 // without its role check ever being exercised.
-                "GET /api/box/announcements/preview", "?segment=EVERYONE");
+                "GET /api/box/announcements/preview", "?segment=EVERYONE",
+                // M14c-b: day is required, so without it every probe 400s before requireStaff() runs.
+                "GET /api/box/wods/history", "?day=2026-01-01");
 
         bodies = Map.ofEntries(
                 Map.entry("PUT /api/box/stripe", "{\"restrictedKey\":\"rk_test_x\",\"webhookSecret\":\"whsec_x\"}"),

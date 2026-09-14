@@ -93,7 +93,6 @@ export interface LibraryEntry {
 }
 
 export interface WodHistoryRow { itemId: string; sessionId: string; className: string; startAt: string; wod: Wod; }
-export interface WodHistoryPage { rows: WodHistoryRow[]; nextBefore: string | null; }
 
 export function benchmarkAsWod(b: Benchmark): Wod {
   return {
@@ -169,11 +168,9 @@ export class ProgrammingService {
     return forkJoin([this.wods(), this.benchmarks()]).pipe(map(([w, b]) => mergeLibrary(w, b)));
   }
 
-  wodHistory(search?: string, before?: string | null): Observable<WodHistoryPage> {
-    let params = new HttpParams();
-    if (search) params = params.set('search', search);
-    if (before) params = params.set('before', before);
-    return this.http.get<WodHistoryPage>('/api/box/wods/history', { params });
+  wodHistory(day: string): Observable<WodHistoryRow[]> {
+    const params = new HttpParams().set('day', day);
+    return this.http.get<WodHistoryRow[]>('/api/box/wods/history', { params });
   }
 
   // benchmarks (unchanged)

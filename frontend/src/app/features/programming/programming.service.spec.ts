@@ -91,12 +91,11 @@ describe('ProgrammingService', () => {
     req.flush({});
   });
 
-  it('wodHistory sends search and before', () => {
-    service.wodHistory('fran', '2026-09-01T06:00:00Z').subscribe();
+  it('wodHistory sends day', () => {
+    service.wodHistory('2026-09-01').subscribe();
     const req = http.expectOne(r => r.url === '/api/box/wods/history');
-    expect(req.request.params.get('search')).toBe('fran');
-    expect(req.request.params.get('before')).toBe('2026-09-01T06:00:00Z');
-    req.flush({ rows: [], nextBefore: null });
+    expect(req.request.params.get('day')).toBe('2026-09-01');
+    req.flush([]);
   });
 });
 

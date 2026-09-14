@@ -1,5 +1,6 @@
 package com.boxhub.programming;
 
+import com.boxhub.box.BoxRepository;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
@@ -9,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -20,11 +23,13 @@ public class WodController {
     private final WodRepository wods;
     private final SessionItemRepository items;
     private final WodService service;
+    private final BoxRepository boxes;
 
-    public WodController(WodRepository wods, SessionItemRepository items, WodService service) {
+    public WodController(WodRepository wods, SessionItemRepository items, WodService service, BoxRepository boxes) {
         this.wods = wods;
         this.items = items;
         this.service = service;
+        this.boxes = boxes;
     }
 
     public record WodDto(UUID id, String title, String wodType,
@@ -95,37 +100,23 @@ public class WodController {
         return toDto(wods.findById(id).orElseThrow(NoSuchElementException::new));
     }
 
-    static final int HISTORY_PAGE = 50;
-
     public record HistoryRowDto(UUID itemId, UUID sessionId, String className, Instant startAt, WodDto wod) {}
-    public record HistoryPage(List<HistoryRowDto> rows, Instant nextBefore) {}
 
     @GetMapping("/history")
-    public HistoryPage history(@RequestParam(required = false) String search,
-                               @RequestParam(required = false) Instant before) {
+    public List<HistoryRowDto> history(@RequestParam String day) {
         RoleGuard.requireStaff();
-        Instant now = service.now();
-        Instant upper = before == null || before.isAfter(now) ? now : before;
-        String pattern = "%" + (search == null ? "" : search.trim().toLowerCase(java.util.Locale.ROOT)) + "%";
-        List<SessionItemRepository.HistoryRow> rows =
-                items.history(upper, pattern, org.springframework.data.domain.PageRequest.of(0, HISTORY_PAGE + 1));
-        Instant nextBefore = null;
-        if (rows.size() > HISTORY_PAGE) {
-            Instant boundary = rows.get(HISTORY_PAGE).startAt(); // the first row NOT served
-            List<SessionItemRepository.HistoryRow> page = rows.subList(0, HISTORY_PAGE);
-            // Never cut one class in half: drop the page's trailing rows that share the next row's start.
-            List<SessionItemRepository.HistoryRow> whole = page.stream()
-                    .filter(r -> !r.startAt().equals(boundary)).toList();
-            // ponytail: if all 50 rows share one start (50 pieces at one instant), the page is served
-            // cut and the rest of that instant is skipped. Cursor on (startAt, itemId) if that happens.
-            rows = whole.isEmpty() ? page : whole;
-            // Exclusive cursor: the next page is everything older than the last served start, which
-            // includes any rows trimmed above (they sit between that start and the probe).
-            nextBefore = rows.get(rows.size() - 1).startAt();
+        LocalDate date;
+        try { date = LocalDate.parse(day); }
+        catch (java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "day must be YYYY-MM-DD");
         }
-        return new HistoryPage(rows.stream()
+        // The box's own day, not the server's: a 23:30 class in Rome is "today" there.
+        ZoneId zone = ZoneId.of(boxes.findById(TenantContext.requireBoxId()).orElseThrow().getTimezone());
+        Instant from = date.atStartOfDay(zone).toInstant();
+        Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
+        return items.history(from, to, service.now()).stream()
                 .map(r -> new HistoryRowDto(r.itemId(), r.sessionId(), r.className(), r.startAt(), toDto(r.wod())))
-                .toList(), nextBefore);
+                .toList();
     }
 
     @PostMapping

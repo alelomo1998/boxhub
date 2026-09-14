@@ -1,6 +1,5 @@
 package com.boxhub.programming;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,9 +24,8 @@ public interface SessionItemRepository extends JpaRepository<SessionItem, UUID> 
             from SessionItem i, com.boxhub.box.ClassSession s, Wod w
             where i.sessionId = s.id and i.wodId = w.id
               and w.library = false and s.status <> 'CANCELLED'
-              and s.startAt < :upper
-              and lower(w.title) like :pattern
-            order by s.startAt desc, i.sortOrder asc
+              and s.startAt >= :from and s.startAt < :to and s.startAt < :now
+            order by s.startAt asc, i.sortOrder asc
             """)
-    List<HistoryRow> history(@Param("upper") Instant upper, @Param("pattern") String pattern, Pageable page);
+    List<HistoryRow> history(@Param("from") Instant from, @Param("to") Instant to, @Param("now") Instant now);
 }
