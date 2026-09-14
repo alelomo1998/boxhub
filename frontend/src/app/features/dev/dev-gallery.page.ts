@@ -675,6 +675,11 @@ export class GalleryNotificationBellComponent implements OnInit {
           The top bar shared by all three shells — brand mark, box name, an optional mono area
           eyebrow, and a nav slot plus an actions slot.
         </p>
+        <p class="note" i18n="@@dev.gallery.shellHeader.note.scrollHide">
+          Sticky on the host at every width (D23). Below 768px it also slides away on scroll-down
+          and returns on scroll-up or on focus entering it — this gallery scrolls the whole page, so
+          check that by hand on a narrow viewport rather than here.
+        </p>
         <div class="shellwrap">
           <bh-shell-header boxName="Demo Box" area="Coach">
             <!-- Sample nav item: not a real route, not i18n-marked. -->

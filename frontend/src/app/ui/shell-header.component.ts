@@ -1,13 +1,19 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, inject, input, signal } from '@angular/core';
 
 /**
  * The top bar, shared by all three shells. It owns the bar and the brand block only — NOT the page
  * layout, because there isn't a shared one: athlete and coach are flex columns, admin is a grid
  * with a side nav and a PENDING banner. One shell component would have fitted none of them.
+ *
+ * D23: sticky lives on the HOST, not the inner <header> — the inner element's containing block
+ * was the host itself, exactly its own height, so `position: sticky` on it never had anywhere to
+ * stick. Below 768px the host also slides away on scroll-down and returns on scroll-up, so the
+ * header stays reachable without permanently eating viewport on a phone.
  */
 @Component({
   selector: 'bh-shell-header',
   standalone: true,
+  host: { '[class.hide]': 'hidden()', '(focusin)': 'onFocusIn()' },
   template: `
     <header class="top">
       <!-- ng-content inside a control-flow block is only INSTANTIATED when that branch renders,
@@ -27,9 +33,13 @@ import { Component, computed, input } from '@angular/core';
       <div class="acts"><ng-content select="[actions]" /></div>
     </header>`,
   styles: [`
+    :host { display: block; position: sticky; top: 0; z-index: 20;
+      transition: transform var(--dur) var(--ease-out); }
+    :host(.hide) { transform: translateY(-100%); }
+    @media (prefers-reduced-motion: reduce) { :host { transition: none; } }
     .top { display: flex; align-items: center; gap: var(--sp-3);
       padding: var(--sp-2) var(--sp-5); border-bottom: 1px solid var(--hairline);
-      position: sticky; top: 0; z-index: 20; background: var(--ground); }
+      background: var(--ground); }
     .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
     /* The one volt element in the chrome. It is the box's identity, not an accent — but law §2.3
        still budgets it, which is why the wordmark renders monochrome in app chrome (law §10.2). */
@@ -82,4 +92,39 @@ export class ShellHeaderComponent {
      BoxHub, which survived the rename because a single letter does not look like a brand string —
      the same way the mail subject lines did. */
   initial = computed(() => (this.boxName() || '').trim().charAt(0).toUpperCase());
+
+  /** D23: only ever true below 768px, and never while focus sits inside the header. */
+  protected hidden = signal(false);
+
+  private lastScrollY = 0;
+  private phoneQuery: MediaQueryList | null = null;
+
+  constructor() {
+    if (typeof window === 'undefined') return; // guards Karma/SSR-less test envs
+    const hostEl = inject(ElementRef<HTMLElement>).nativeElement;
+    const destroyRef = inject(DestroyRef);
+
+    const onScroll = () => {
+      if (!this.phoneQuery?.matches) return;
+      const y = window.scrollY;
+      const headerH = hostEl.offsetHeight;
+      if (y <= headerH) this.hidden.set(false);
+      else if (y - this.lastScrollY > 8) this.hidden.set(true);
+      else if (this.lastScrollY - y > 8) this.hidden.set(false);
+      this.lastScrollY = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    destroyRef.onDestroy(() => window.removeEventListener('scroll', onScroll));
+
+    if (typeof window.matchMedia === 'function') {
+      this.phoneQuery = window.matchMedia('(max-width: 767.98px)');
+      const onChange = () => { if (!this.phoneQuery!.matches) this.hidden.set(false); };
+      this.phoneQuery.addEventListener('change', onChange);
+      destroyRef.onDestroy(() => this.phoneQuery?.removeEventListener('change', onChange));
+    }
+  }
+
+  /** Tabbing (or a click handler moving focus) into a slid-away header must never strand focus
+   *  somewhere invisible. */
+  protected onFocusIn() { this.hidden.set(false); }
 }
