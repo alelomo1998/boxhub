@@ -10,6 +10,7 @@ import { DataTableComponent } from '../../ui/data-table.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
 import { EmptyComponent } from '../../ui/empty.component';
 import { FieldComponent } from '../../ui/field.component';
+import { FilterFacet, FilterSheetComponent, FilterStepDirective, FilterValue } from '../../ui/filter-sheet.component';
 import { ICON_NAMES, IconComponent } from '../../ui/icon.component';
 import { NotificationBellComponent } from '../notifications/notification-bell.component';
 import { NotificationService } from '../notifications/notification.service';
@@ -96,7 +97,7 @@ export class GalleryNotificationBellComponent implements OnInit {
     PanelComponent, AlertComponent, BannerComponent, EmptyComponent, DataTableComponent,
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent, SortableListComponent,
     AvatarComponent, PillComponent, WeekCalendarComponent, SheetComponent, AuthLayoutComponent,
-    BenchmarkBoardComponent, GalleryNotificationBellComponent,
+    BenchmarkBoardComponent, GalleryNotificationBellComponent, FilterSheetComponent, FilterStepDirective,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -1026,6 +1027,64 @@ export class GalleryNotificationBellComponent implements OnInit {
         </div>
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'benchmark-board' }" />
       </section>
+
+      <section class="gsec" id="filter-sheet" data-gallery="filter-sheet">
+        <h2 class="t-h2" i18n="@@dev.gallery.filterSheet.heading">Filter sheet</h2>
+        <p class="note" i18n="@@dev.gallery.filterSheet.note">
+          Interactive-only, like bh-sheet underneath it. Four triggers below preset the sheet's
+          applied value and result count and open it on the menu; from there, tap Category (a
+          built-in single facet), Benchmark kind (a built-in multi facet) or Movement (a projected
+          custom facet, fabricated here as one toggle button) to check the single/multi/custom
+          steps by hand.
+        </p>
+        <div class="row">
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.filterSheet.state.empty">Menu, empty</span>
+            <bh-button variant="primary" size="sm" testId="dev-filter-open-empty"
+                       (click)="openFilterDemo('empty')" i18n="@@dev.gallery.filterSheet.openLabel">
+              Open filters
+            </bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.filterSheet.state.values">Menu, with values</span>
+            <bh-button variant="primary" size="sm" testId="dev-filter-open-values"
+                       (click)="openFilterDemo('values')" i18n="@@dev.gallery.filterSheet.openLabel">
+              Open filters
+            </bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.filterSheet.state.counting">Counting (count null)</span>
+            <bh-button variant="primary" size="sm" testId="dev-filter-open-counting"
+                       (click)="openFilterDemo('counting')" i18n="@@dev.gallery.filterSheet.openLabel">
+              Open filters
+            </bh-button>
+          </div>
+          <div class="cell">
+            <span class="stlabel" i18n="@@dev.gallery.filterSheet.state.zero">Zero results</span>
+            <bh-button variant="primary" size="sm" testId="dev-filter-open-zero"
+                       (click)="openFilterDemo('zero')" i18n="@@dev.gallery.filterSheet.openLabel">
+              Open filters
+            </bh-button>
+          </div>
+        </div>
+
+        <bh-filter-sheet [open]="filterSheetOpen()" [facets]="filterFacets" [(value)]="filterValue"
+                          [count]="filterCount()" (draftChange)="onFilterDraftChange($event)"
+                          (closed)="filterSheetOpen.set(false)">
+          <ng-template bhFilterStep="movement" let-values let-set="set">
+            <p class="note" i18n="@@dev.gallery.filterSheet.customNote">
+              Fabricated projected step -- a real page (e.g. the Library) renders a search field
+              and movement rows here instead of one demo button.
+            </p>
+            <button type="button" data-testid="dev-filter-movement-thruster"
+                    (click)="toggleDemoMovement(values, set)">
+              <span i18n="@@dev.gallery.filterSheet.movement.thruster">Thruster</span>
+              @if (values.includes('thruster')) { <span aria-hidden="true"> &#x2713;</span> }
+            </button>
+          </ng-template>
+        </bh-filter-sheet>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'filter-sheet' }" />
+      </section>
     </div>
   `,
   styles: [`
@@ -1283,6 +1342,15 @@ export class DevGalleryPage {
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.loading:renders synchronously from the title and message it is given; the screen shows this in place of a spinner once loading is over` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.empty.error:a no-results state, not a failure; the screen renders bh-alert for an actual fetch error` },
     ],
+    'filter-sheet': [
+      { state: 'default', how: 'hand' },
+      { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.filterSheet.hover:no hover treatment of its own -- the menu rows, step rows and buttons inside it carry their own, shown in their own sections` },
+      { state: 'focus', how: 'hand' },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.filterSheet.active:never pressed itself; the rows and buttons inside it carry their own` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.filterSheet.disabled:Apply guards a zero-result draft in its click handler, never with the native disabled attribute -- see CLAUDE.md's disabled-button rule` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.filterSheet.loading:the caller owns the fetch; a null count() renders "Show results" in Apply instead of a component-level pending state` },
+      { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.filterSheet.error:the caller owns data and renders its own error for a failed count or fetch; this component has none of its own` },
+    ],
     sheet: [
       { state: 'default', how: 'hand' },
       { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.sheet.hover:no hover treatment of its own` },
@@ -1393,4 +1461,46 @@ export class DevGalleryPage {
     };
     return { [iso(0)]: 'open', [iso(1)]: 'open', [iso(2)]: 'full' };
   });
+
+  /** Fabricated facets, per this page's "no API call" rule -- one built-in single, one built-in
+   *  multi, one custom (projected) facet, so the four preset triggers below can reach every kind
+   *  of choice step by hand. */
+  protected readonly filterFacets: FilterFacet[] = [
+    { key: 'category', label: $localize`:@@dev.gallery.filterSheet.facet.category:Category`, mode: 'single',
+      options: [
+        { value: 'strength', label: $localize`:@@dev.gallery.filterSheet.opt.strength:Strength` },
+        { value: 'metcon', label: $localize`:@@dev.gallery.filterSheet.opt.metcon:Metcon` },
+      ] },
+    { key: 'kind', label: $localize`:@@dev.gallery.filterSheet.facet.kind:Benchmark kind`, mode: 'multi',
+      options: [
+        { value: 'girl', label: $localize`:@@dev.gallery.filterSheet.opt.girl:Girl` },
+        { value: 'hero', label: $localize`:@@dev.gallery.filterSheet.opt.hero:Hero` },
+      ] },
+    { key: 'movement', label: $localize`:@@dev.gallery.filterSheet.facet.movement:Movement`, mode: 'multi' },
+  ];
+  protected readonly filterSheetOpen = signal(false);
+  protected readonly filterValue = signal<FilterValue>({});
+  protected readonly filterCount = signal<number | null>(12);
+
+  /** Presets the four states a trigger can reach directly; single/multi/custom steps are reached
+   *  by tapping a row from any of these, per the section's note. */
+  protected openFilterDemo(preset: 'empty' | 'values' | 'counting' | 'zero') {
+    if (preset === 'empty') { this.filterValue.set({}); this.filterCount.set(12); }
+    else if (preset === 'values') {
+      this.filterValue.set({ category: ['strength'], movement: ['thruster', 'pull-up', 'burpee'] });
+      this.filterCount.set(8);
+    } else if (preset === 'counting') { this.filterValue.set({}); this.filterCount.set(null); }
+    else { this.filterValue.set({ category: ['metcon'] }); this.filterCount.set(0); }
+    this.filterSheetOpen.set(true);
+  }
+
+  /** Fabricated recount: a real page reruns its query on every draftChange and sets `count` from
+   *  the response's total; this page has no query to run. */
+  protected onFilterDraftChange(v: FilterValue) {
+    this.filterCount.set(Object.keys(v).length ? 3 : 12);
+  }
+
+  protected toggleDemoMovement(values: string[], set: (v: string[]) => void) {
+    set(values.includes('thruster') ? [] : ['thruster']);
+  }
 }
