@@ -256,6 +256,71 @@ describe('WodLibraryPage', () => {
     expect(selected.classList).toContain('sel');
   }));
 
+  // M14c-b audit P1: movement rows exposed selection only via a bare .sel class.
+  it('a movement row exposes aria-pressed, in both the results list and the already-picked list', fakeAsync(() => {
+    setup();
+    prog.movements.and.returnValue(of([movement('m1', 'Thruster')]));
+
+    el.querySelector<HTMLElement>('[data-testid="lib-filter"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!.click();
+    fixture.detectChanges();
+
+    const search: HTMLInputElement = el.querySelector('[data-testid="filter-movement-search"]')!;
+    search.value = 'thr';
+    search.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="filter-movement-m1"]')!.getAttribute('aria-pressed')).toBe('false');
+    el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="filter-movement-m1"]')!.getAttribute('aria-pressed')).toBe('true');
+
+    // Re-enter the step: with the term cleared, the picked-list branch renders instead.
+    el.querySelector<HTMLElement>('[data-testid="filter-step-back"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="filter-movement-m1"]')!.getAttribute('aria-pressed')).toBe('true');
+  }));
+
+  // M14c-b audit P2: the card link's accessible name was the whole card's text run together
+  // ("Workout · For timeTimeAnnie…"). It must be named from the title and described by the meta.
+  it('a saved card link is named from the title and described by the meta line', () => {
+    setup([entry(wod('w1', 'Fran'))]);
+    const link = el.querySelector('[data-testid="lib-card-w1"]')!;
+    expect(link.getAttribute('aria-labelledby')).toBe('pc-title-w1');
+    expect(link.getAttribute('aria-describedby')).toBe('pc-desc-w1');
+    expect(el.querySelector('#pc-title-w1')!.textContent!.trim()).toBe('Fran');
+  });
+
+  it('a global benchmark button is named/described the same way', () => {
+    const global = entry(wod('b1', 'Murph'), { global: true, benchmarkKind: 'HERO' });
+    setup([global]);
+    const btn = el.querySelector('[data-testid="lib-card-b1"]')!;
+    expect(btn.getAttribute('aria-labelledby')).toBe('pc-title-b1');
+    expect(btn.getAttribute('aria-describedby')).toBe('pc-desc-b1');
+  });
+
+  it('a history card link is named/described from its piece card', () => {
+    const w = wod('w1', 'Fran');
+    setup([]);
+    prog.wodHistory.and.returnValue(of([historyRow('i1', 's1', new Date().toISOString(), w)]));
+    switchToHistory();
+    fixture.detectChanges();
+    const card = el.querySelector('[data-testid="hist-card-i1"]')!;
+    expect(card.getAttribute('aria-labelledby')).toBe('pc-title-w1');
+    expect(card.getAttribute('aria-describedby')).toBe('pc-desc-w1');
+  });
+
+  // M14c-b audit P2: the field stayed capped at ~340px, leaving a gap before filter/+.
+  it('the Library search fills its row (stretch)', () => {
+    setup();
+    const host = el.querySelector('[data-testid="lib-search"]')!.closest('bh-search-bar')!;
+    expect(host.classList).toContain('stretch');
+  });
+
   it('the scroll sentinel loads the next page when it becomes visible, appending rows', () => {
     const realIO = (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver;
     (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver = FakeIntersectionObserver;

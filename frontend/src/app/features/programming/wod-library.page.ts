@@ -45,7 +45,7 @@ type Load = 'loading' | 'ready' | 'error';
       @if (tab() === 'library') {
         <div class="toolsrow">
           <bh-search-bar [placeholder]="searchPlaceholder" label="Search pieces" i18n-label="@@library.search.label"
-                         testId="lib-search" [value]="query()" (search)="onSearch($event)" />
+                         testId="lib-search" [stretch]="true" [value]="query()" (search)="onSearch($event)" />
           <button type="button" class="iconbtn" [attr.aria-label]="filterAriaLabel()"
                   data-testid="lib-filter" (click)="openFilters()">
             <bh-icon name="filter" />
@@ -75,11 +75,15 @@ type Load = 'loading' | 'ready' | 'error';
                 @for (e of rows(); track e.wod.id) {
                   <li>
                     @if (e.global) {
-                      <button type="button" class="hit" (click)="openBenchmark(e)" [attr.data-testid]="'lib-card-' + e.wod.id">
+                      <button type="button" class="hit" (click)="openBenchmark(e)"
+                              [attr.aria-labelledby]="'pc-title-' + e.wod.id" [attr.aria-describedby]="'pc-desc-' + e.wod.id"
+                              [attr.data-testid]="'lib-card-' + e.wod.id">
                         <bh-piece-card [wod]="e.wod" [eyebrow]="libMeta(e.wod)" [benchmarkKind]="e.benchmarkKind" [weightUnit]="weightUnit()" />
                       </button>
                     } @else {
-                      <a class="hit" [routerLink]="['/coach/wods', e.wod.id]" [attr.data-testid]="'lib-card-' + e.wod.id">
+                      <a class="hit" [routerLink]="['/coach/wods', e.wod.id]"
+                         [attr.aria-labelledby]="'pc-title-' + e.wod.id" [attr.aria-describedby]="'pc-desc-' + e.wod.id"
+                         [attr.data-testid]="'lib-card-' + e.wod.id">
                         <bh-piece-card [wod]="e.wod" [eyebrow]="libMeta(e.wod)" [benchmarkKind]="e.benchmarkKind" [weightUnit]="weightUnit()" />
                       </a>
                     }
@@ -112,7 +116,9 @@ type Load = 'loading' | 'ready' | 'error';
               <ul class="grid">
                 @for (r of histRows(); track r.itemId) {
                   <li>
-                    <a class="hit" [routerLink]="['/coach/classes', r.sessionId, 'build']" [attr.data-testid]="'hist-card-' + r.itemId">
+                    <a class="hit" [routerLink]="['/coach/classes', r.sessionId, 'build']"
+                       [attr.aria-labelledby]="'pc-title-' + r.wod.id" [attr.aria-describedby]="'pc-desc-' + r.wod.id"
+                       [attr.data-testid]="'hist-card-' + r.itemId">
                       <bh-piece-card [wod]="r.wod" [eyebrow]="histMeta(r)" [weightUnit]="weightUnit()" />
                     </a>
                   </li>
@@ -153,7 +159,7 @@ type Load = 'loading' | 'ready' | 'error';
             <ul class="mrows">
               @for (id of values; track id) {
                 <li>
-                  <button type="button" class="prow sel"
+                  <button type="button" class="prow sel" aria-pressed="true"
                           [attr.data-testid]="'filter-movement-' + id" (click)="toggleMovement(id, values, set)">
                     <span>{{ movementName(id) }}</span>
                     <span class="mark" aria-hidden="true">&#x2713;</span>
@@ -167,6 +173,7 @@ type Load = 'loading' | 'ready' | 'error';
             @for (m of movementRows(); track m.id) {
               <li>
                 <button type="button" class="prow" [class.sel]="values.includes(m.id)"
+                        [attr.aria-pressed]="values.includes(m.id)"
                         [attr.data-testid]="'filter-movement-' + m.id" (click)="toggleMovement(m.id, values, set)">
                   <span>{{ m.name }}</span>
                   @if (values.includes(m.id)) { <span class="mark" aria-hidden="true">&#x2713;</span> }

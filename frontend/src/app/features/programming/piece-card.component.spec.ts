@@ -51,4 +51,14 @@ describe('PieceCardComponent', () => {
     const fixture = render(base);
     expect(fixture.nativeElement.querySelector('.rx')).toBeNull();
   });
+
+  // M14c-b audit P2: the wrapping link/button (owned by the page) needs stable ids to name itself
+  // from the title and describe itself from the meta line, instead of reading as one run-on string.
+  it('exposes title/description ids keyed by the wod id', () => {
+    const fixture = render({ ...base, id: 'w42' });
+    const title = fixture.nativeElement.querySelector('.title');
+    const top = fixture.nativeElement.querySelector('.top');
+    expect(title.id).toBe('pc-title-w42');
+    expect(top.id).toBe('pc-desc-w42');
+  });
 });

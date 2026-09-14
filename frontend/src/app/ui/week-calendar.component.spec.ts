@@ -251,6 +251,60 @@ describe('WeekCalendarComponent', () => {
     expect(cmp.jumpOpen()).toBeTrue(); // nothing happened, sheet stays open
   });
 
+  // M14c-b audit P1: jmon/jday selection was visual only (.sel class); expose it to AT.
+  it('jump: the month matching the selected day carries aria-pressed="true", others "false"', () => {
+    const fixture = make(0, -400);
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    const el = fixture.nativeElement;
+
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const month = cmp.selected().getMonth();
+    const selBtn = el.querySelector(`[data-testid="wc-jump-month-${month}"]`) as HTMLButtonElement;
+    const otherBtn = el.querySelector(`[data-testid="wc-jump-month-${(month + 6) % 12}"]`) as HTMLButtonElement;
+    expect(selBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(otherBtn.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('jump: today carries aria-current="date", and picking a different day moves aria-pressed', () => {
+    const fixture = make(13, -400);
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    const el = fixture.nativeElement;
+
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const month = cmp.selected().getMonth();
+    (el.querySelector(`[data-testid="wc-jump-month-${month}"]`) as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const todayIso = cmp.week().find(d => d.offset === 0)!.iso;
+    const todayBtn = el.querySelector(`[data-testid="wc-jump-day-${todayIso}"]`) as HTMLButtonElement;
+    // Today is also the initially-selected day, so it carries both.
+    expect(todayBtn.getAttribute('aria-current')).toBe('date');
+    expect(todayBtn.getAttribute('aria-pressed')).toBe('true');
+
+    const other = cmp.jumpDays().find(d => d && d.selectable && !d.today)!;
+    expect(other).toBeDefined();
+    (el.querySelector(`[data-testid="wc-jump-day-${other.iso}"]`) as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    // Reopen to the same month to re-render against the now-updated offset.
+    (el.querySelector('[data-testid="wc-jump-open"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (el.querySelector(`[data-testid="wc-jump-month-${month}"]`) as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const todayBtn2 = el.querySelector(`[data-testid="wc-jump-day-${todayIso}"]`) as HTMLButtonElement;
+    const otherBtn2 = el.querySelector(`[data-testid="wc-jump-day-${other.iso}"]`) as HTMLButtonElement;
+    expect(todayBtn2.getAttribute('aria-current')).toBe('date'); // today never changes
+    expect(todayBtn2.getAttribute('aria-pressed')).toBe('false'); // no longer selected
+    expect(otherBtn2.getAttribute('aria-pressed')).toBe('true'); // the newly-picked day
+  });
+
   it('jump: Back returns from the day grid to the month grid', () => {
     const fixture = make();
     fixture.componentRef.setInput('jump', true);
@@ -291,6 +345,15 @@ describe('WeekCalendarComponent', () => {
     expect(document.activeElement?.getAttribute('data-testid')).toBe(`wc-jump-month-${month}`);
     el.remove();
   }));
+
+  // M14c-b audit P2: a consumer with no tones (History) read every day as "…, no classes", which
+  // is false there -- the tone word must be omitted entirely, not just default to 'none'.
+  it('omits the tone word entirely when no tones are supplied', () => {
+    const fixture = make();
+    const cmp = fixture.componentInstance;
+    const label = cmp.dayLabel(cmp.selectedDay());
+    expect(label).not.toContain('classes');
+  });
 
   it('gives every day an accessible name that states availability in words', () => {
     const fixture = make();

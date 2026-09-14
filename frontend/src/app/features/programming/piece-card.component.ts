@@ -14,7 +14,7 @@ export const CARD_LINE_BUDGET = 3;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="top">
+    <div class="top" [id]="descId()">
       <span class="eyebrow">
         @if (benchmarkKind()) {
           <span class="chip" i18n="@@library.card.benchmark">Benchmark</span>
@@ -24,7 +24,7 @@ export const CARD_LINE_BUDGET = 3;
       </span>
       @if (scoreLabel()) { <span class="score">{{ scoreLabel() }}</span> }
     </div>
-    <h3 class="title">{{ wod().title }}</h3>
+    <h3 class="title" [id]="titleId()">{{ wod().title }}</h3>
     @if (lines().shown.length) {
       <ul class="rx">
         @for (l of lines().shown; track $index) { <li>{{ l }}</li> }
@@ -58,6 +58,13 @@ export class PieceCardComponent {
   /** The box's own weight unit (R2/D22), passed through to prescriptionLines so a load prints in
    *  the unit the coach reads in. null/omitted -- a load prints with no unit suffix. */
   weightUnit = input<string | null>(null);
+
+  /** Ids for the wrapping link/button (the page owns the tappable element -- this card is only
+   *  ever presentational) to name itself from the title and describe itself from the meta line,
+   *  rather than reading the whole card as one run-on string (M14c-b audit P2). Keyed by the
+   *  wod's own id, unique per rendered card in every grid this component appears in. */
+  titleId = computed(() => `pc-title-${this.wod().id}`);
+  descId = computed(() => `pc-desc-${this.wod().id}`);
 
   kindLabel = computed(() => { const k = this.benchmarkKind(); return k ? BENCHMARK_KIND_LABELS[k] ?? k : ''; });
   scoreLabel = computed(() => SCORE_TYPE_LABELS[this.wod().scoreType] ?? '');

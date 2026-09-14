@@ -99,7 +99,8 @@ function isoOf(d: Date): string {
           </div>
           <div class="jmonths">
             @for (m of jumpMonths(); track m.month) {
-              <button type="button" class="jmon" [class.sel]="m.sel" [disabled]="!m.selectable"
+              <button type="button" class="jmon" [class.sel]="m.sel" [attr.aria-pressed]="m.sel"
+                      [disabled]="!m.selectable"
                       [attr.data-testid]="'wc-jump-month-' + m.month" (click)="pickJumpMonth(m)">
                 {{ m.label }}
               </button>
@@ -120,6 +121,7 @@ function isoOf(d: Date): string {
                 <span class="jblank" aria-hidden="true"></span>
               } @else {
                 <button type="button" class="jday" [class.sel]="d.sel" [class.today]="d.today"
+                        [attr.aria-pressed]="d.sel" [attr.aria-current]="d.today ? 'date' : null"
                         [disabled]="!d.selectable" [attr.aria-label]="d.label"
                         [attr.data-testid]="'wc-jump-day-' + d.iso" (click)="pickJumpDay(d)">
                   {{ d.date.getDate() }}
@@ -406,8 +408,13 @@ export class WeekCalendarComponent {
   monthLabel(): string { return formatDate(this.selected(), 'LLLL y', this.locale); }
   dowLabel(d: WeekDay): string { return formatDate(d.date, 'EEEEE', this.locale); }
 
+  /** Availability tone is omitted entirely when the consumer passed no `tones` -- otherwise every
+   *  day reads "…, no classes" (every tone defaults to 'none'), which is false when nobody asked
+   *  this instance to track availability at all (M14c-b audit P2, e.g. Library's History strip). */
   dayLabel(d: WeekDay): string {
-    return `${formatDate(d.date, 'EEEE d MMMM', this.locale)}, ${this.toneWord(d.tone)}`;
+    const date = formatDate(d.date, 'EEEE d MMMM', this.locale);
+    if (!Object.keys(this.tones()).length) return date;
+    return `${date}, ${this.toneWord(d.tone)}`;
   }
 
   private toneWord(t: DayTone): string {

@@ -218,6 +218,43 @@ describe('FilterSheetComponent', () => {
     expect(document.activeElement).toBe(heading);
   });
 
+  // M14c-b audit P1: selection state was visual only (a bare .sel class), inaudible to a screen
+  // reader. A single facet's rows now form a radiogroup labelled by the step heading.
+  it('a single facet exposes an ARIA radiogroup with aria-checked reflecting selection', () => {
+    openSheet();
+    menuRow('category').click();
+    f.detectChanges();
+    const heading: HTMLElement = f.nativeElement.querySelector('[data-testid="filter-step-heading"]');
+    const group: HTMLElement = f.nativeElement.querySelector('[role="radiogroup"]');
+    expect(group).toBeTruthy();
+    expect(group.getAttribute('aria-labelledby')).toBe(heading.id);
+    expect(opt('category', 'any').getAttribute('role')).toBe('radio');
+    expect(opt('category', 'any').getAttribute('aria-checked')).toBe('true');
+    expect(opt('category', 'strength').getAttribute('aria-checked')).toBe('false');
+
+    opt('category', 'strength').click();
+    f.detectChanges();
+    menuRow('category').click();
+    f.detectChanges();
+    expect(opt('category', 'strength').getAttribute('aria-checked')).toBe('true');
+    expect(opt('category', 'any').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('a multi facet exposes aria-pressed reflecting selection', () => {
+    openSheet();
+    menuRow('kind').click();
+    f.detectChanges();
+    expect(opt('kind', 'any').getAttribute('aria-pressed')).toBe('true');
+
+    opt('kind', 'girl').click();
+    f.detectChanges();
+    menuRow('kind').click();
+    f.detectChanges();
+    expect(opt('kind', 'girl').getAttribute('aria-pressed')).toBe('true');
+    expect(opt('kind', 'hero').getAttribute('aria-pressed')).toBe('false');
+    expect(opt('kind', 'any').getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('returns focus to the originating menu row on Back', (done) => {
     openSheet();
     const row = menuRow('category');

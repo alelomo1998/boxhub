@@ -99,7 +99,12 @@ const DRAG_CLOSE_PX = 80;
     .sh-close.phone:not(:focus-visible) { position: absolute; width: 1px; height: 1px;
       min-width: 1px; min-height: 1px; margin: 0; padding: 0; border: 0; overflow: hidden;
       clip-path: inset(50%); white-space: nowrap; }
-    .body { max-height: 70vh; overflow-y: auto; }
+    /* overflow-y:auto clips a focused child's 2px outline-offset ring at the scrollport edge (R6b
+       finding 3, generalised M14c-b R6e-fix: every sheet step had this, not only the one field
+       that got padded before). Padding on all sides gives the ring room; the equal negative margin
+       cancels it back out so content sits exactly where the sheet's own padding already put it. */
+    .body { max-height: 70vh; overflow-y: auto; box-sizing: border-box;
+      padding: var(--sp-2); margin: calc(var(--sp-2) * -1); }
     .discard { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3);
       padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--r-card);
       background: var(--surface-2); }

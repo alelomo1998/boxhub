@@ -47,4 +47,21 @@ describe('SearchBarComponent', () => {
     type('ada'); tick(300);
     expect(f.componentInstance.hits.length).toBe(1);
   }));
+
+  // M14c-b audit P2: the field stayed ~340px wide inside a much wider host (a gap before Library's
+  // filter/+ buttons). stretch lets a consumer fill its row; default keeps every other screen as-is.
+  it('stretch removes the 340px cap; default consumers keep it', () => {
+    const fixture = TestBed.createComponent(SearchBarComponent);
+    fixture.componentRef.setInput('label', 'Search');
+    fixture.detectChanges();
+    document.body.appendChild(fixture.nativeElement);
+
+    expect(getComputedStyle(fixture.nativeElement.querySelector('.sb')).maxWidth).toBe('340px');
+
+    fixture.componentRef.setInput('stretch', true);
+    fixture.detectChanges();
+    expect(getComputedStyle(fixture.nativeElement.querySelector('.sb')).maxWidth).toBe('none');
+
+    fixture.nativeElement.remove();
+  });
 });

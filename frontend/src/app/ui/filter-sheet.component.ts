@@ -67,26 +67,32 @@ export class FilterStepDirective {
         </div>
       } @else if (activeFacet(); as facet) {
         <div class="stepbody" [attr.data-testid]="'filter-step-' + facet.key">
-          <h3 #stepheading class="stept" tabindex="-1" data-testid="filter-step-heading">{{ facet.label }}</h3>
+          <h3 #stepheading class="stept" tabindex="-1" [id]="'filter-step-heading-' + facet.key"
+              data-testid="filter-step-heading">{{ facet.label }}</h3>
           @if (facet.options; as opts) {
-            <div class="rows">
-              @if (facet.mode === 'single') {
-                <button type="button" class="prow" [class.sel]="!selectedFor(facet).length"
+            @if (facet.mode === 'single') {
+              <div class="rows" role="radiogroup" [attr.aria-labelledby]="'filter-step-heading-' + facet.key">
+                <button type="button" class="prow" role="radio" [class.sel]="!selectedFor(facet).length"
+                        [attr.aria-checked]="!selectedFor(facet).length"
                         [attr.data-testid]="'filter-opt-' + facet.key + '-any'"
                         (click)="pickSingle(facet.key, null)">
                   <span>{{ anyLabel }}</span>
                   @if (!selectedFor(facet).length) { <span class="mark" aria-hidden="true">&#x2713;</span> }
                 </button>
                 @for (o of opts; track o.value) {
-                  <button type="button" class="prow" [class.sel]="isSelected(facet.key, o.value)"
+                  <button type="button" class="prow" role="radio" [class.sel]="isSelected(facet.key, o.value)"
+                          [attr.aria-checked]="isSelected(facet.key, o.value)"
                           [attr.data-testid]="'filter-opt-' + facet.key + '-' + o.value"
                           (click)="pickSingle(facet.key, o.value)">
                     <span>{{ o.label }}</span>
                     @if (isSelected(facet.key, o.value)) { <span class="mark" aria-hidden="true">&#x2713;</span> }
                   </button>
                 }
-              } @else {
+              </div>
+            } @else {
+              <div class="rows">
                 <button type="button" class="prow" [class.sel]="!selectedFor(facet).length"
+                        [attr.aria-pressed]="!selectedFor(facet).length"
                         [attr.data-testid]="'filter-opt-' + facet.key + '-any'"
                         (click)="clearFacet(facet.key)">
                   <span>{{ anyLabel }}</span>
@@ -94,14 +100,15 @@ export class FilterStepDirective {
                 </button>
                 @for (o of opts; track o.value) {
                   <button type="button" class="prow" [class.sel]="isSelected(facet.key, o.value)"
+                          [attr.aria-pressed]="isSelected(facet.key, o.value)"
                           [attr.data-testid]="'filter-opt-' + facet.key + '-' + o.value"
                           (click)="toggleMulti(facet.key, o.value)">
                     <span>{{ o.label }}</span>
                     @if (isSelected(facet.key, o.value)) { <span class="mark" aria-hidden="true">&#x2713;</span> }
                   </button>
                 }
-              }
-            </div>
+              </div>
+            }
           } @else {
             <div class="custom" data-testid="filter-step-custom">
               <ng-container [ngTemplateOutlet]="customTpl(facet.key)"
@@ -156,9 +163,9 @@ export class FilterStepDirective {
     .prow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     .prow.sel { font-weight: 700; }
     .mark { color: var(--bone); font-weight: 700; }
-    /* bh-sheet's .body is overflow-y:auto, which clips a focused child's 2px outline-offset ring
-       at the scroll container's content edge (R6b finding 3) -- this padding keeps the ring clear. */
-    .custom { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-1); }
+    /* The focus-ring clip this padding used to work around is now fixed at the source, in
+       bh-sheet's own .body (M14c-b R6e-fix). */
+    .custom { display: flex; flex-direction: column; gap: var(--sp-2); }
   `],
 })
 export class FilterSheetComponent {

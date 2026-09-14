@@ -54,6 +54,25 @@ describe('SheetComponent', () => {
     fixture.nativeElement.remove();
   });
 
+  // M14c-b audit P2: .body's overflow-y:auto clipped a focused child's 2px/2px-offset ring at the
+  // scrollport edge. Padding gives the ring room; an equal-and-opposite negative margin keeps the
+  // sheet's own outer visual padding unchanged.
+  it('the body pads enough to clear a 2px/2px-offset focus ring, offset by an equal negative margin', () => {
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    document.body.appendChild(fixture.nativeElement);
+    const body = fixture.nativeElement.querySelector('.body') as HTMLElement;
+    const style = getComputedStyle(body);
+    const padTop = parseFloat(style.paddingTop);
+    const padLeft = parseFloat(style.paddingLeft);
+    expect(padTop).toBeGreaterThanOrEqual(4); // ring width(2) + offset(2)
+    expect(padLeft).toBeGreaterThanOrEqual(4);
+    expect(parseFloat(style.marginTop)).toBeCloseTo(-padTop, 1);
+    expect(parseFloat(style.marginLeft)).toBeCloseTo(-padLeft, 1);
+    fixture.nativeElement.remove();
+  });
+
   it('opens and closes the native dialog from the open input', () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
