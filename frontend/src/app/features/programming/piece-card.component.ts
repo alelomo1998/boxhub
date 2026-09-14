@@ -55,11 +55,14 @@ export class PieceCardComponent {
   wod = input.required<Wod>();
   eyebrow = input('');
   benchmarkKind = input<string | null>(null);
+  /** The box's own weight unit (R2/D22), passed through to prescriptionLines so a load prints in
+   *  the unit the coach reads in. null/omitted -- a load prints with no unit suffix. */
+  weightUnit = input<string | null>(null);
 
   kindLabel = computed(() => { const k = this.benchmarkKind(); return k ? BENCHMARK_KIND_LABELS[k] ?? k : ''; });
   scoreLabel = computed(() => SCORE_TYPE_LABELS[this.wod().scoreType] ?? '');
   lines = computed(() => {
-    const all = prescriptionLines(this.wod());
+    const all = prescriptionLines(this.wod(), this.weightUnit() ?? undefined);
     return { shown: all.slice(0, CARD_LINE_BUDGET), more: Math.max(0, all.length - CARD_LINE_BUDGET) };
   });
 }

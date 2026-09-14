@@ -97,6 +97,30 @@ describe('ProgrammingService', () => {
     expect(req.request.params.get('day')).toBe('2026-09-01');
     req.flush([]);
   });
+
+  it('libraryPage sends filters, repeated array params, and only q at 3+ chars', () => {
+    service.libraryPage({ q: 'fra', macro: 'WORKOUT', timing: 'FOR_TIME', movement: ['m1', 'm2'],
+      benchmarks: true, kind: ['GIRL', 'HERO'], cursor: 'c1' }).subscribe();
+    const req = http.expectOne(r => r.url === '/api/box/library');
+    expect(req.request.params.get('q')).toBe('fra');
+    expect(req.request.params.get('macro')).toBe('WORKOUT');
+    expect(req.request.params.get('timing')).toBe('FOR_TIME');
+    expect(req.request.params.getAll('movement')).toEqual(['m1', 'm2']);
+    expect(req.request.params.get('benchmarks')).toBe('true');
+    expect(req.request.params.getAll('kind')).toEqual(['GIRL', 'HERO']);
+    expect(req.request.params.get('cursor')).toBe('c1');
+    req.flush({ rows: [], nextCursor: null, total: 0 });
+  });
+
+  it('libraryPage omits q, benchmarks and cursor when unset', () => {
+    service.libraryPage({}).subscribe();
+    const req = http.expectOne(r => r.url === '/api/box/library');
+    expect(req.request.params.has('q')).toBeFalse();
+    expect(req.request.params.has('benchmarks')).toBeFalse();
+    expect(req.request.params.has('cursor')).toBeFalse();
+    expect(req.request.params.has('movement')).toBeFalse();
+    req.flush({ rows: [], nextCursor: null, total: 0 });
+  });
 });
 
 describe('mergeLibrary', () => {

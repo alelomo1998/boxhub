@@ -94,6 +94,14 @@ export interface LibraryEntry {
 
 export interface WodHistoryRow { itemId: string; sessionId: string; className: string; startAt: string; wod: Wod; }
 
+/** `GET /api/box/library` (R3/R6): `q` only applies at >=3 chars (server enforces too); `movement`
+ *  and `kind` are repeated params. `cursor` null/omitted asks for page one. */
+export interface LibraryQuery {
+  q?: string; macro?: string; timing?: string; movement?: string[];
+  benchmarks?: boolean; kind?: string[]; cursor?: string | null;
+}
+export interface LibraryPage { rows: LibraryEntry[]; nextCursor: string | null; total: number; }
+
 export function benchmarkAsWod(b: Benchmark): Wod {
   return {
     id: b.id, title: b.name, wodType: 'CUSTOM', macro: 'WORKOUT', timingPreset: null,
@@ -171,6 +179,19 @@ export class ProgrammingService {
   wodHistory(day: string): Observable<WodHistoryRow[]> {
     const params = new HttpParams().set('day', day);
     return this.http.get<WodHistoryRow[]>('/api/box/wods/history', { params });
+  }
+
+  /** R3/R6: the Library page's paged, filtered read. Array fields append as repeated params. */
+  libraryPage(query: LibraryQuery): Observable<LibraryPage> {
+    let params = new HttpParams();
+    if (query.q) params = params.set('q', query.q);
+    if (query.macro) params = params.set('macro', query.macro);
+    if (query.timing) params = params.set('timing', query.timing);
+    for (const m of query.movement ?? []) params = params.append('movement', m);
+    if (query.benchmarks) params = params.set('benchmarks', 'true');
+    for (const k of query.kind ?? []) params = params.append('kind', k);
+    if (query.cursor) params = params.set('cursor', query.cursor);
+    return this.http.get<LibraryPage>('/api/box/library', { params });
   }
 
   // benchmarks (unchanged)
