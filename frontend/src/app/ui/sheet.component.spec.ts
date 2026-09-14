@@ -39,6 +39,21 @@ function pointerEvent(type: string, clientY: number): PointerEvent {
 }
 
 describe('SheetComponent', () => {
+  // A touch swipe on the handle was claimed by the browser as a pan (pointercancel a few px in), so
+  // it never closed -- found by the user on a phone; a mouse drag never takes that path. The body
+  // must keep native scrolling.
+  it('the drag surfaces opt out of browser panning, the body does not, and the handle has a real hit area', () => {
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    document.body.appendChild(fixture.nativeElement);
+    const q = (sel: string) => fixture.nativeElement.querySelector(sel) as HTMLElement;
+    expect(getComputedStyle(q('.grab')).touchAction).toBe('none');
+    expect(getComputedStyle(q('.sh-head')).touchAction).toBe('none');
+    expect(getComputedStyle(q('.body')).touchAction).not.toBe('none');
+    expect(getComputedStyle(q('.grab'), '::before').top).toBe('-12px');
+    fixture.nativeElement.remove();
+  });
+
   it('opens and closes the native dialog from the open input', () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();

@@ -67,6 +67,16 @@ const DRAG_CLOSE_PX = 80;
     /* While a drag is live the translate must track the pointer 1:1, with no transition lag;
        the transition above is what performs the snap-back once the pointer lifts. */
     .sheet.dragging { transition: none; }
+    /* The drag's own surfaces must not be a scroll/pan gesture: without this a touch swipe is
+       claimed by the browser, which fires pointercancel a few px in, and the sheet never closes.
+       A mouse drag never hits that path, which is why the first browser check passed. The body
+       keeps its default so content inside the sheet still scrolls. */
+    .grab, .sh-head { touch-action: none; }
+    /* A 5px bar is too thin to catch a thumb, and a sheet with no title has no header to grab
+       either (the X is clipped to 1px there). The pseudo-element widens the handle's hit area to a
+       tap-sized band without moving anything on screen. */
+    .grab { position: relative; }
+    .grab::before { content: ''; position: absolute; inset: calc(var(--sp-3) * -1) calc(var(--sp-8) * -1); }
     /* ::backdrop cannot inherit :root vars in some engines, so the literal is what actually
        renders in Chrome — keep it EQUAL to --scrim in _tokens.scss. It had drifted to
        rgba(10, 7, 4, 0.55): weaker and warmer than the token, which is why content behind an
