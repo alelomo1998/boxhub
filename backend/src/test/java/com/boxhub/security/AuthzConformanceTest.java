@@ -582,6 +582,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("GET /api/box/wods", "ATHLETE"),
             Map.entry("GET /api/box/wods/{id}", "ATHLETE"),
             Map.entry("GET /api/box/wods/history", "COACH"),
+            Map.entry("GET /api/box/library", "COACH"),
             Map.entry("POST /api/box/wods", "COACH"),
             Map.entry("PATCH /api/box/wods/{id}", "COACH"),
             Map.entry("DELETE /api/box/wods/{id}", "COACH"),

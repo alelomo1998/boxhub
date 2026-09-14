@@ -129,11 +129,7 @@ public class WodService {
         Wod w = new Wod();
         w.setTitle(t.getName());
         w.setMacro(WodTypeWire.toMacro("CUSTOM"));
-        w.setTimingPreset(switch (t.getScoreType()) {
-            case "TIME" -> "FOR_TIME";
-            case "ROUNDS_REPS" -> "AMRAP";
-            default -> null;
-        });
+        w.setTimingPreset(derivedTimingPreset(t.getScoreType()));
         w.setScoreType(t.getScoreType());
         w.setTimeCapSeconds(t.getTimeCapSeconds());
         w.setBodyText(t.getBodyText());
@@ -141,6 +137,36 @@ public class WodService {
         w.setBenchmarkTemplateId(t.getId());
         w.setLibrary(library);
         return w;
+    }
+
+    /** cloneFromBenchmark/benchmarkWod's timing derivation, shared with benchmarkDto and
+     *  LibraryController's benchmark-mode timing filter so nothing disagrees on it. */
+    static String derivedTimingPreset(String scoreType) {
+        return switch (scoreType) {
+            case "TIME" -> "FOR_TIME";
+            case "ROUNDS_REPS" -> "AMRAP";
+            default -> null;
+        };
+    }
+
+    /**
+     * A global (uncopied) benchmark, presented as a WodDto without ever being saved -- the
+     * library's "benchmarks=true" mode shows these for every template the box hasn't cloned yet.
+     * Reuses benchmarkBlocks and derivedTimingPreset so this is the same mapping cloneFromBenchmark
+     * applies, just without persisting a Wod. An unsaved Wod's id is null (its @Id is
+     * @GeneratedValue, only assigned on save), so the global row can't get an id from toDto the
+     * normal way -- it uses the template's own id instead, which is what the frontend already has
+     * on hand to clone it.
+     */
+    public WodController.WodDto benchmarkDto(BenchmarkTemplate t, String weightUnit) {
+        String macro = WodTypeWire.toMacro("CUSTOM");
+        String timingPreset = derivedTimingPreset(t.getScoreType());
+        return new WodController.WodDto(
+                t.getId(), t.getName(), WodTypeWire.toWodType(macro, timingPreset),
+                macro, timingPreset, WodJson.Timing.empty(),
+                true, 1, null,
+                t.getScoreType(), t.getTimeCapSeconds(), t.getBodyText(),
+                deserialize(benchmarkBlocks(t, weightUnit)), null, t.getId());
     }
 
     /** A template's blocks with each line's load (stored in lb, the benchmark's source unit) in
