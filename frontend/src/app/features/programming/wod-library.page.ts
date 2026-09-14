@@ -143,7 +143,7 @@ type Load = 'loading' | 'ready' | 'error';
     <bh-filter-sheet [open]="filterOpen()" [facets]="filterFacets" [(value)]="filters"
                      [count]="draftCount()" [summaries]="filterSummaries()"
                      title="Filters" i18n-title="@@library.filter.sheetTitle"
-                     (draftChange)="onDraftChange($event)" (closed)="filterOpen.set(false)">
+                     (draftChange)="onDraftChange($event)" (stepChange)="onFilterStep($event)" (closed)="filterOpen.set(false)">
       <ng-template bhFilterStep="movement" let-values let-set="set">
         <bh-search-bar placeholder="Movement name" i18n-placeholder="@@library.filter.movement.placeholder"
                        label="Search movements" i18n-label="@@library.filter.movement.searchLabel"
@@ -441,8 +441,12 @@ export class WodLibraryPage {
 
   toggleMovement(id: string, values: string[], set: (v: string[]) => void) {
     set(values.includes(id) ? values.filter(v => v !== id) : [...values, id]);
-    // Cleared so re-entering the step (this facet now returns to the menu on every pick, same as
-    // single/multi) doesn't show the last search (R6b finding 2).
+  }
+
+  /** Each visit to the Movement step starts from a blank search listing what is already picked;
+   *  within a visit the results stay, so several movements can be ticked in a row. */
+  onFilterStep(step: string | null) {
+    if (step !== 'movement') return;
     this.movementTerm.set('');
     this.movementRows.set([]);
   }

@@ -175,8 +175,11 @@ function isoOf(d: Date): string {
     /* ---- jump sheet (R6b finding 4): month label becomes a button opening a months/days picker.
        No volt anywhere here — the selected-day treatment below reuses the strip's own .sel tokens
        rather than introducing a new one. ------------------------------------------------------ */
+    /* Button chrome only -- NO font or text-transform here: this rule comes after .mon, so any
+       font declaration would override the label's own type and it would stop matching every other
+       calendar's month label (it did: 16px/400/lowercase against 20px/700/uppercase). */
     .monbtn { background: none; border: none; padding: 0; min-height: var(--tap); cursor: pointer;
-      font: inherit; color: inherit; text-transform: inherit; }
+      color: inherit; }
     .monbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .jyear { display: flex; align-items: center; justify-content: center; gap: var(--sp-3);
       margin-bottom: var(--sp-3); }

@@ -174,6 +174,10 @@ export class FilterSheetComponent {
   /** Every draft change, so the caller can recount. */
   draftChange = output<FilterValue>();
   closed = output<void>();
+  /** The step being shown: a facet key when a choice step opens, null when back on the menu. A
+   *  caller resets per-visit state on it (the library clears its movement search on entry). Not
+   *  emitted when the sheet opens -- it always opens on the menu. */
+  stepChange = output<string | null>();
 
   protected readonly anyLabel = $localize`:@@filterSheet.any:Any`;
 
@@ -265,10 +269,16 @@ export class FilterSheetComponent {
   protected openStep(key: string) {
     this.returnFocusKey = key;
     this.step.set(key);
+    this.stepChange.emit(key);
   }
 
   protected back() {
+    this.goMenu();
+  }
+
+  private goMenu() {
     this.step.set(null);
+    this.stepChange.emit(null);
   }
 
   private emitDraft(next: FilterValue) {
@@ -281,7 +291,7 @@ export class FilterSheetComponent {
     const next = { ...this.draft() };
     if (value === null) delete next[key]; else next[key] = [value];
     this.emitDraft(next);
-    this.step.set(null);
+    this.goMenu();
   }
 
   /** Multi facet: an option toggles and returns to the menu (user-ruled 2026-09-14) -- selections
@@ -292,7 +302,7 @@ export class FilterSheetComponent {
     const next = { ...this.draft() };
     if (values.length) next[key] = values; else delete next[key];
     this.emitDraft(next);
-    this.step.set(null);
+    this.goMenu();
   }
 
   /** Multi facet's "Any" row: clears the facet and returns to the menu, like every other pick. */
@@ -300,17 +310,16 @@ export class FilterSheetComponent {
     const next = { ...this.draft() };
     delete next[key];
     this.emitDraft(next);
-    this.step.set(null);
+    this.goMenu();
   }
 
-  /** Custom facet: `set()` also returns to the menu, same as single/multi (user-ruled 2026-09-14) --
-   *  focus return to the originating row is already covered by the effect above, since openStep()
-   *  sets returnFocusKey regardless of what kind of facet it opened. */
+  /** Custom facet: `set()` updates the draft and STAYS on the step (user-ruled 2026-09-14): a
+   *  projected step like the movement search is where several values get picked in one visit, so
+   *  leaving on every pick would force a round trip per value. Back returns to the menu. */
   private setCustom(key: string, values: string[]) {
     const next = { ...this.draft() };
     if (values.length) next[key] = values; else delete next[key];
     this.emitDraft(next);
-    this.step.set(null);
   }
 
   protected customSetter(key: string): (v: string[]) => void {

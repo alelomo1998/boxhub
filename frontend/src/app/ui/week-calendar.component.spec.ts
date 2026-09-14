@@ -202,6 +202,20 @@ describe('WeekCalendarComponent', () => {
     expect(cmp.jumpOpen()).toBeFalse(); // picking a day closes the sheet
   });
 
+  it('jump: the month label button keeps the plain label\'s type, like every other calendar', () => {
+    const fixture = make();
+    fixture.detectChanges();
+    document.body.appendChild(fixture.nativeElement);
+    const type = (e: Element) => { const c = getComputedStyle(e); return [c.fontSize, c.fontWeight, c.textTransform, c.fontFamily]; };
+    const plain = type(fixture.nativeElement.querySelector('.mon'));
+    expect(plain[0]).not.toBe('');
+
+    fixture.componentRef.setInput('jump', true);
+    fixture.detectChanges();
+    expect(type(fixture.nativeElement.querySelector('[data-testid="wc-jump-open"]'))).toEqual(plain);
+    fixture.nativeElement.remove();
+  });
+
   it('jump: a day outside [min, max] is disabled and clicking it does nothing', () => {
     const fixture = make(2, 0); // a narrow horizon guarantees the current month has an out-of-range day
     fixture.componentRef.setInput('jump', true);

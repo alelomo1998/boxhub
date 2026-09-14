@@ -7,7 +7,7 @@ import { FilterFacet, FilterSheetComponent, FilterStepDirective, FilterValue } f
   imports: [FilterSheetComponent, FilterStepDirective],
   template: `
     <bh-filter-sheet [open]="open()" [facets]="facets" [(value)]="value" [count]="count()"
-                      [summaries]="summaries()" (draftChange)="draftChanges.push($event)"
+                      [summaries]="summaries()" (draftChange)="draftChanges.push($event)" (stepChange)="steps.push($event)"
                       (closed)="closedCount = closedCount + 1">
       <ng-template bhFilterStep="movement" let-values let-set="set">
         <button type="button" data-testid="custom-thruster"
@@ -19,6 +19,7 @@ import { FilterFacet, FilterSheetComponent, FilterStepDirective, FilterValue } f
   `,
 })
 class HostComponent {
+  steps: (string | null)[] = [];
   facets: FilterFacet[] = [
     { key: 'category', label: 'Category', mode: 'single', options: [
       { value: 'strength', label: 'Strength' }, { value: 'metcon', label: 'Metcon' },
@@ -163,9 +164,9 @@ describe('FilterSheetComponent', () => {
     expect(applyBtn().textContent).toContain('No results');
   });
 
-  // User-ruled 2026-09-14 (R6b finding 2): a custom facet's set() also returns to the menu, same as
-  // single/multi -- so the step is torn down on the same tick as the pick, not left open.
-  it('a custom facet template receives the draft value, can set it, and returns to the menu', () => {
+  // User-ruled 2026-09-14, second review: a custom facet (the movement search) is where several
+  // values are picked in one visit, so set() stays on the step.
+  it('a custom facet template receives the draft value, can set it, and stays on the step', () => {
     openSheet();
     menuRow('movement').click();
     f.detectChanges();
@@ -175,8 +176,21 @@ describe('FilterSheetComponent', () => {
     btn.click();
     f.detectChanges();
     expect(h.draftChanges.at(-1)).toEqual({ movement: ['thruster'] });
-    expect(f.nativeElement.querySelector('[data-testid="filter-step-movement"]')).toBeFalsy();
-    expect(f.nativeElement.querySelector('[data-testid="filter-menu"]')).toBeTruthy();
+    expect(f.nativeElement.querySelector('[data-testid="filter-step-movement"]')).toBeTruthy();
+    expect(f.nativeElement.querySelector('[data-testid="custom-thruster"]')!.textContent).toContain('(1)');
+  });
+
+  it('emits stepChange with the facet key on entry and null back on the menu', () => {
+    openSheet();
+    menuRow('movement').click();
+    f.detectChanges();
+    (f.nativeElement.querySelector('[data-testid="filter-step-back"]') as HTMLButtonElement).click();
+    f.detectChanges();
+    menuRow('category').click();
+    f.detectChanges();
+    opt('category', 'strength').click();
+    f.detectChanges();
+    expect(h.steps).toEqual(['movement', null, 'category', null]);
   });
 
   it('emits draftChange for every draft edit', () => {

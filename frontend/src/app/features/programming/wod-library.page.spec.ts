@@ -169,9 +169,9 @@ describe('WodLibraryPage', () => {
     expect(el.querySelector('[data-testid="lib-card-w1"]')).toBeNull();
   });
 
-  it('the Movement facet searches, toggles a pick, and Apply sends its id', fakeAsync(() => {
+  it('the Movement facet picks several in one visit, and Apply sends their ids', fakeAsync(() => {
     setup();
-    prog.movements.and.returnValue(of([movement('m1', 'Thruster')]));
+    prog.movements.and.returnValue(of([movement('m1', 'Thruster'), movement('m2', 'Dumbbell Thruster')]));
     prog.libraryPage.and.returnValue(of(page([entry(wod('w9', 'Fran'))])));
 
     el.querySelector<HTMLElement>('[data-testid="lib-filter"]')!.click();
@@ -187,12 +187,16 @@ describe('WodLibraryPage', () => {
 
     el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
     fixture.detectChanges();
-    // A pick returns straight to the menu now (user-ruled 2026-09-14, R6b) -- Apply lives there.
+    // User-ruled 2026-09-14 (second review): a movement pick stays on the step, results and all.
+    el.querySelector<HTMLElement>('[data-testid="filter-movement-m2"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-step-back"]')!.click();
+    fixture.detectChanges();
     el.querySelector<HTMLElement>('[data-testid="filter-apply"]')!.click();
     fixture.detectChanges();
 
     const call = prog.libraryPage.calls.mostRecent().args[0];
-    expect(call.movement).toEqual(['m1']);
+    expect(call.movement).toEqual(['m1', 'm2']);
   }));
 
   // R6b finding 1: the summary must read the sheet's DRAFT, not the still-unapplied `filters()`.
@@ -212,6 +216,8 @@ describe('WodLibraryPage', () => {
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-step-back"]')!.click();
     fixture.detectChanges();
 
     const row = el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!;
@@ -236,6 +242,8 @@ describe('WodLibraryPage', () => {
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-step-back"]')!.click();
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!.click();
