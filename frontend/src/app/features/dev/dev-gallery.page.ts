@@ -731,7 +731,7 @@ export class GalleryNotificationBellComponent implements OnInit {
             <span class="stlabel" i18n="@@dev.gallery.segmented.state.wrap">Wrapped, five options at 360px</span>
             <bh-segmented [options]="scoreOptions" value="rx" [wrap]="true" label="Score" i18n-label="@@dev.gallery.segmented.scoreLabel" />
           </div>
-          <div class="cell">
+          <div class="cell wide">
             <span class="stlabel" i18n="@@dev.gallery.segmented.state.stretch">Stretched, fills the row</span>
             <bh-segmented [options]="segOptions" value="rx" [stretch]="true" label="Division" i18n-label="@@dev.gallery.segmented.label" />
           </div>

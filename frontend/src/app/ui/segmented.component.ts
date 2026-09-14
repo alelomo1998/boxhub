@@ -10,6 +10,7 @@ export interface SegOption { value: string; label: string; }
 @Component({
   selector: 'bh-segmented',
   standalone: true,
+  host: { '[class.stretch]': 'stretch()' },
   template: `
     <div class="seg" role="radiogroup" [attr.aria-label]="label()"
          [class.tone-bone]="tone() === 'bone'" [class.wrap]="wrap()" [class.stretch]="stretch()">
@@ -36,7 +37,9 @@ export interface SegOption { value: string; label: string; }
     .opt.on:focus-visible { outline-color: var(--focus-inv); }
     .seg.wrap { flex-wrap: wrap; }
     /* Full-width groups (e.g. a two-way split filling a card) — each option shares the row equally. */
-    .seg.stretch { display: flex; width: 100%; }
+    /* The HOST must take the row too: a content-width host leaves a 100%-wide group content-width. */
+    :host(.stretch) { display: block; width: 100%; }
+    .seg.stretch { display: flex; width: 100%; box-sizing: border-box; }
     .seg.stretch .opt { flex: 1 1 0; }
     .seg.tone-bone .opt.on { background: var(--bone); color: var(--on-bone); }
     /* A volt ring is invisible on volt; on a near-white bone fill it is invisible too. Both

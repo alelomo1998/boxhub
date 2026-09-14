@@ -96,6 +96,16 @@ describe('SegmentedComponent', () => {
     }
   });
 
+  // A flex column that aligns items to the start shrinks a content-width host -- the gallery's
+  // .cell and most toolbars. A plain block container would hide the bug: it widens the group anyway.
+  it('stretch takes the width of a flex parent that aligns to the start', () => {
+    const container = f.nativeElement as HTMLElement;
+    Object.assign(container.style, { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '400px' });
+    f.componentInstance.stretch.set(true);
+    f.detectChanges();
+    expect(container.querySelector('.seg')!.getBoundingClientRect().width).toBe(400);
+  });
+
   it('keeps radiogroup semantics and arrow keys in both tones', () => {
     f.componentInstance.tone.set('bone');
     f.detectChanges();
