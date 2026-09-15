@@ -132,6 +132,13 @@ class WodHistoryTest extends AbstractIntegrationTest {
         return om.readTree(json);
     }
 
+    private JsonNode historyDays(String token, String from, String to) throws Exception {
+        String json = mvc.perform(get("/api/box/wods/history/days?from=" + from + "&to=" + to)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return om.readTree(json);
+    }
+
     /**
      * Deterministic whatever the wall clock is: every seed is built relative to "now" in
      * Europe/Rome rather than a fixed clock time. "Today, already started" (justStarted, a few
@@ -223,5 +230,59 @@ class WodHistoryTest extends AbstractIntegrationTest {
         String otherCoach = tokenFor(other, "hist-oc-" + System.nanoTime() + "@t.io", "COACH");
         String today = ZonedDateTime.now(ROME).toLocalDate().toString();
         assertThat(history(otherCoach, "?day=" + today).size()).isZero();
+    }
+
+    /**
+     * GET /api/box/wods/history/days: same started/cancelled/future rules as {@link #history},
+     * bucketed into distinct box-local days instead of rows.
+     */
+    @Test
+    void daysListsOnlyDaysWithStartedPieces() throws Exception {
+        ZonedDateTime now = ZonedDateTime.now(ROME);
+        LocalDate today = now.toLocalDate();
+        UUID lib = createWod("Fran", true);
+
+        // Today, already started -- the one day that must be listed.
+        Instant startOfToday = today.atStartOfDay(ROME).toInstant().plus(1, ChronoUnit.MICROS);
+        Instant started = latest(now.minusSeconds(5).toInstant(), startOfToday);
+        attach(seedSessionAt(started, "SCHEDULED"), lib);
+
+        // A future session two days out -- in range, not started, must not appear.
+        LocalDate futureDay = today.plusDays(2);
+        attach(seedSessionAt(futureDay.atTime(12, 0).atZone(ROME).toInstant(), "SCHEDULED"), lib);
+
+        // Yesterday has no sessions at all -- an empty day, must not appear.
+        JsonNode days = historyDays(coachToken, today.minusDays(3).toString(), today.plusDays(5).toString());
+        List<String> list = new ArrayList<>();
+        days.forEach(d -> list.add(d.asText()));
+        assertThat(list).containsExactly(today.toString());
+    }
+
+    @Test
+    void daysRangeOver62DaysIs400() throws Exception {
+        LocalDate today = ZonedDateTime.now(ROME).toLocalDate();
+        mvc.perform(get("/api/box/wods/history/days?from=" + today + "&to=" + today.plusDays(63))
+                        .header("Authorization", "Bearer " + coachToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void daysAthleteIsForbidden() throws Exception {
+        String athlete = tokenFor(boxId, "hist-days-ath-" + System.nanoTime() + "@t.io", "ATHLETE");
+        String today = ZonedDateTime.now(ROME).toLocalDate().toString();
+        mvc.perform(get("/api/box/wods/history/days?from=" + today + "&to=" + today)
+                        .header("Authorization", "Bearer " + athlete))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anotherBoxSeesNoneOfThisBoxsHistoryDays() throws Exception {
+        ZonedDateTime now = ZonedDateTime.now(ROME);
+        LocalDate today = now.toLocalDate();
+        Instant startOfToday = today.atStartOfDay(ROME).toInstant().plus(1, ChronoUnit.MICROS);
+        attach(seedSessionAt(latest(now.minusSeconds(60).toInstant(), startOfToday), "SCHEDULED"), createWod("Fran", true));
+        UUID other = newBox("Hist Days Other " + System.nanoTime(), "hist-do-" + System.nanoTime());
+        String otherCoach = tokenFor(other, "hist-doc-" + System.nanoTime() + "@t.io", "COACH");
+        assertThat(historyDays(otherCoach, today.minusDays(1).toString(), today.plusDays(1).toString()).size()).isZero();
     }
 }

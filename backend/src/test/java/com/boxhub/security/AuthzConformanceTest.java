@@ -404,7 +404,9 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
                 // without its role check ever being exercised.
                 "GET /api/box/announcements/preview", "?segment=EVERYONE",
                 // M14c-b: day is required, so without it every probe 400s before requireStaff() runs.
-                "GET /api/box/wods/history", "?day=2026-01-01");
+                "GET /api/box/wods/history", "?day=2026-01-01",
+                // M14c-b: from/to are required, same reason.
+                "GET /api/box/wods/history/days", "?from=2026-01-01&to=2026-01-07");
 
         bodies = Map.ofEntries(
                 Map.entry("PUT /api/box/stripe", "{\"restrictedKey\":\"rk_test_x\",\"webhookSecret\":\"whsec_x\"}"),
@@ -582,6 +584,7 @@ class AuthzConformanceTest extends AbstractIntegrationTest {
             Map.entry("GET /api/box/wods", "ATHLETE"),
             Map.entry("GET /api/box/wods/{id}", "ATHLETE"),
             Map.entry("GET /api/box/wods/history", "COACH"),
+            Map.entry("GET /api/box/wods/history/days", "COACH"),
             Map.entry("GET /api/box/library", "COACH"),
             Map.entry("POST /api/box/wods", "COACH"),
             Map.entry("PATCH /api/box/wods/{id}", "COACH"),

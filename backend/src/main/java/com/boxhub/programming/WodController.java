@@ -119,6 +119,36 @@ public class WodController {
                 .toList();
     }
 
+    /**
+     * Which box-local days in [from, to] (inclusive) had at least one piece run -- same rules as
+     * {@link #history}, bucketed by day instead of returned row by row, so a calendar can mark days
+     * without fetching every row for the visible range.
+     */
+    @GetMapping("/history/days")
+    public List<String> historyDays(@RequestParam String from, @RequestParam String to) {
+        RoleGuard.requireStaff();
+        LocalDate fromDate, toDate;
+        try {
+            fromDate = LocalDate.parse(from);
+            toDate = LocalDate.parse(to);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from/to must be YYYY-MM-DD");
+        }
+        if (toDate.isBefore(fromDate))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "to must not be before from");
+        if (java.time.temporal.ChronoUnit.DAYS.between(fromDate, toDate) > 62)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "range must not exceed 62 days");
+        ZoneId zone = ZoneId.of(boxes.findById(TenantContext.requireBoxId()).orElseThrow().getTimezone());
+        Instant fromInstant = fromDate.atStartOfDay(zone).toInstant();
+        Instant toInstant = toDate.plusDays(1).atStartOfDay(zone).toInstant();
+        return items.history(fromInstant, toInstant, service.now()).stream()
+                .map(r -> LocalDate.ofInstant(r.startAt(), zone))
+                .distinct()
+                .sorted()
+                .map(LocalDate::toString)
+                .toList();
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public WodDto create(@Valid @RequestBody CreateWodRequest req) {

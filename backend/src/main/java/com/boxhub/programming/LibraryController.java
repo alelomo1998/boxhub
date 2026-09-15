@@ -78,7 +78,13 @@ public class LibraryController {
         String next = hasMore ? encodeCursor(page.get(page.size() - 1)) : null;
         long total = wods.count(spec);
 
-        List<Row> rows = page.stream().map(w -> new Row(service.toDto(w), null, false)).toList();
+        List<UUID> templateIds = page.stream().map(Wod::getBenchmarkTemplateId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<UUID, String> kindById = benchmarks.findAllById(templateIds).stream()
+                .collect(Collectors.toMap(BenchmarkTemplate::getId, BenchmarkTemplate::getKind));
+
+        List<Row> rows = page.stream()
+                .map(w -> new Row(service.toDto(w), kindById.get(w.getBenchmarkTemplateId()), false)).toList();
         return new LibraryPage(rows, next, total);
     }
 

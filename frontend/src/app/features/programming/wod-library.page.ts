@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, LOCALE_ID,
+  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, LOCALE_ID, afterNextRender,
   computed, effect, inject, signal, untracked, viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -14,10 +14,12 @@ import { IconComponent } from '../../ui/icon.component';
 import { SearchBarComponent } from '../../ui/search-bar.component';
 import { SegmentedComponent, SegOption } from '../../ui/segmented.component';
 import { SheetComponent } from '../../ui/sheet.component';
-import { WeekCalendarComponent } from '../../ui/week-calendar.component';
+import { DayTone, WeekCalendarComponent } from '../../ui/week-calendar.component';
 import { PieceCardComponent } from './piece-card.component';
 import { LibraryEntry, LibraryQuery, MACROS, Movement, ProgrammingService, TIMING_PRESETS, WodHistoryRow } from './programming.service';
-import { BENCHMARK_KIND_LABELS, libMeta, MACRO_LABELS, prescriptionLines, PRESET_LABELS } from './prescription';
+import {
+  BENCHMARK_KIND_LABELS, ExpandedRow, expandedRows, eyebrowFor, MACRO_LABELS, PRESET_LABELS, SCORE_TYPE_LABELS,
+} from './prescription';
 
 type Load = 'loading' | 'ready' | 'error';
 
@@ -58,10 +60,22 @@ type Load = 'loading' | 'ready' | 'error';
           </bh-button>
         </div>
 
-        <button type="button" class="chip" [attr.aria-pressed]="benchmarksOn()"
-                data-testid="lib-benchmarks-chip" (click)="toggleBenchmarks()">
-          <span i18n="@@library.benchmarksChip">Benchmarks</span>
-        </button>
+        <div class="chiprow">
+          <button type="button" class="chip" [attr.aria-pressed]="benchmarksOn()"
+                  data-testid="lib-benchmarks-chip" (click)="toggleBenchmarks()">
+            <span i18n="@@library.benchmarksChip">Benchmarks</span>
+          </button>
+          @for (c of activeChips(); track c.key + ':' + c.value) {
+            <button type="button" class="chip fchip" [attr.data-testid]="'chip-remove-' + c.key + '-' + c.value"
+                    [attr.aria-label]="removeChipAriaLabel(c.label)" (click)="removeChip(c.key, c.value)">
+              <span>{{ c.label }}</span>
+              <bh-icon name="x" [size]="14" />
+            </button>
+          }
+          @if (shortSearchHint()) {
+            <p class="hint" aria-live="polite" i18n="@@library.search.shortHint">Type at least 3 letters to search</p>
+          }
+        </div>
 
         @switch (libState()) {
           @case ('loading') { <p class="stateline" i18n="@@library.loading">Loading the library…</p> }
@@ -71,20 +85,20 @@ type Load = 'loading' | 'ready' | 'error';
           }
           @default {
             @if (rows().length) {
-              <ul class="grid">
+              <ul class="grid" [class.refreshing]="refreshing()" [attr.aria-busy]="refreshing()">
                 @for (e of rows(); track e.wod.id) {
                   <li>
                     @if (e.global) {
                       <button type="button" class="hit" (click)="openBenchmark(e)"
                               [attr.aria-labelledby]="'pc-title-' + e.wod.id" [attr.aria-describedby]="'pc-desc-' + e.wod.id"
                               [attr.data-testid]="'lib-card-' + e.wod.id">
-                        <bh-piece-card [wod]="e.wod" [eyebrow]="libMeta(e.wod)" [benchmarkKind]="e.benchmarkKind" [weightUnit]="weightUnit()" />
+                        <bh-piece-card [wod]="e.wod" [eyebrow]="eyebrowFor(e.wod, e.benchmarkKind)" [benchmarkKind]="e.benchmarkKind" [weightUnit]="weightUnit()" />
                       </button>
                     } @else {
                       <a class="hit" [routerLink]="['/coach/wods', e.wod.id]"
                          [attr.aria-labelledby]="'pc-title-' + e.wod.id" [attr.aria-describedby]="'pc-desc-' + e.wod.id"
                          [attr.data-testid]="'lib-card-' + e.wod.id">
-                        <bh-piece-card [wod]="e.wod" [eyebrow]="libMeta(e.wod)" [benchmarkKind]="e.benchmarkKind" [weightUnit]="weightUnit()" />
+                        <bh-piece-card [wod]="e.wod" [eyebrow]="eyebrowFor(e.wod, e.benchmarkKind)" [benchmarkKind]="e.benchmarkKind" [weightUnit]="weightUnit()" />
                       </a>
                     }
                   </li>
@@ -99,12 +113,17 @@ type Load = 'loading' | 'ready' | 'error';
                 }
               }
             } @else {
-              <bh-empty icon="search" [title]="noMatchTitle()" />
+              <bh-empty icon="search" [title]="noMatchTitle()">
+                <bh-button variant="ghost" testId="lib-clear-nomatch" (click)="clearNoMatch()">
+                  <span>{{ clearNoMatchLabel() }}</span>
+                </bh-button>
+              </bh-empty>
             }
           }
         }
       } @else {
-        <bh-week-calendar [jump]="true" [min]="-3650" [max]="0" [(offset)]="historyOffset" />
+        <bh-week-calendar [jump]="true" [min]="-3650" [max]="0" [(offset)]="historyOffset"
+                          [tones]="historyDayTones()" [toneWords]="historyToneWords" />
         @switch (histState()) {
           @case ('loading') { <p class="stateline" i18n="@@library.history.loading">Loading history…</p> }
           @case ('error') {
@@ -135,10 +154,33 @@ type Load = 'loading' | 'ready' | 'error';
     <bh-sheet [open]="!!bench()" [title]="bench()?.wod?.title ?? ''" label="Benchmark" i18n-label="@@library.bench.aria"
               (closed)="closeBenchmark()">
       @if (bench(); as b) {
-        <p class="eyebrow">{{ libMeta(b.wod) }}</p>
-        <ul class="rx">
-          @for (l of benchLines(); track $index) { <li>{{ l }}</li> }
-        </ul>
+        <div class="btop">
+          <span class="eyebrow">
+            @if (b.benchmarkKind) {
+              <span class="bchip" i18n="@@library.card.benchmark">Benchmark</span>
+              <span>{{ benchKindLabel() }}</span>
+            }
+            <span>{{ eyebrowFor(b.wod, b.benchmarkKind) }}</span>
+          </span>
+          @if (benchScoreLabel()) { <span class="bscore">{{ benchScoreLabel() }}</span> }
+        </div>
+        <div class="rx">
+          @for (r of benchRows(); track $index) {
+            @if (r.kind === 'label') {
+              <p class="blocklabel" [class.sub]="r.sub">{{ r.text }}</p>
+            } @else if (r.kind === 'line') {
+              <p class="rxline" [class.sub]="r.sub">
+                @if (r.reps) { <span class="mono">{{ r.reps }}{{ r.unit && r.unit !== 'REPS' ? ' ' + r.unit.toLowerCase() : '' }}</span> }
+                <span>{{ r.text }}</span>
+                @if (r.load) {
+                  <span class="mono">({{ r.load }}{{ benchWeightSuffix() }})</span>
+                }
+              </p>
+            } @else {
+              <p class="blocknote" [class.sub]="r.sub">{{ r.text }}</p>
+            }
+          }
+        </div>
         @if (addError()) { <bh-alert tone="danger" i18n="@@library.bench.addError">That did not add — try again.</bh-alert> }
         <bh-button variant="strong" size="lg" class="full" [loading]="adding()" (click)="addBenchmark()" testId="bench-add">
           <span i18n="@@library.bench.add">Add to library</span>
@@ -202,6 +244,11 @@ type Load = 'loading' | 'ready' | 'error';
       display: flex; align-items: center; justify-content: center; border-radius: var(--r-full);
       background: var(--bone); color: var(--on-bone); font-family: var(--font-mono); font-size: var(--fs-meta);
       font-variant-numeric: tabular-nums; }
+    .chiprow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+    /* F3: the short-search hint rides the chip row's own line -- margin-left: auto pushes it to
+       the end when the row has room, and it wraps under the chips like any other flex item when
+       it doesn't, so it never adds vertical space on its own. */
+    .hint { margin: 0 0 0 auto; color: var(--bone-dim); font-size: var(--fs-sm); }
     .chip { align-self: flex-start; display: inline-flex; align-items: center; min-height: var(--tap);
       padding: 0 var(--sp-3); background: var(--surface); border: 1px solid var(--hairline);
       border-radius: var(--r-full); color: var(--bone); font-family: var(--font-body); font-weight: 700;
@@ -209,15 +256,43 @@ type Load = 'loading' | 'ready' | 'error';
     .chip[aria-pressed="true"] { background: var(--bone); color: var(--on-bone); border-color: var(--bone); }
     .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .chip[aria-pressed="true"]:focus-visible { outline-color: var(--focus-inv); }
+    /* F2: a removable filter chip -- same shape as Benchmarks, plus its x icon. */
+    .fchip { gap: var(--sp-1); }
+    .fchip bh-icon { color: var(--bone-dim); }
+    .fchip:hover { background: var(--surface-2); }
     .grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
     @media (min-width: 768px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (min-width: 1280px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    /* F1: a search/filter refresh dims the existing rows instead of replacing them with the
+       loading line -- only a first load (no rows yet) shows that line. */
+    .grid.refreshing { opacity: 0.5; transition: opacity var(--dur) var(--ease-out); }
+    @media (prefers-reduced-motion: reduce) { .grid.refreshing { transition: none; } }
     .hit { display: block; height: 100%; min-height: var(--tap); width: 100%; padding: 0; text-align: left;
       background: none; border: 0; color: inherit; text-decoration: none; border-radius: var(--r-card); cursor: pointer; }
     .hit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .sentinel { height: 1px; }
-    .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); text-transform: uppercase; }
-    .rx { list-style: none; margin: 0 0 var(--sp-4); padding: 0; font-family: var(--font-mono); font-size: var(--fs-body); color: var(--bone); }
+    /* ---- benchmark sheet: eyebrow row mirrors bh-piece-card's .top/.eyebrow/.chip/.score, under
+       different class names since .chip is already the Benchmarks filter toggle on this page. */
+    .btop { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3);
+      margin-bottom: var(--sp-2); }
+    .eyebrow, .bscore { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
+      text-transform: uppercase; letter-spacing: 0.06em; }
+    .eyebrow { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: baseline; min-width: 0; }
+    .bchip { color: var(--bone); border: 1px solid var(--hairline); border-radius: var(--edge); padding: 0 var(--sp-1); }
+    .rx { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+    .blocklabel { margin: var(--sp-2) 0 0; font-family: var(--font-mono); font-size: var(--fs-meta);
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+    .blocklabel:first-child { margin-top: 0; }
+    .blocklabel.sub { padding-left: var(--sp-3); }
+    .blocknote { margin: var(--sp-2) 0 0; font-family: var(--font-mono); font-size: var(--fs-meta);
+      letter-spacing: 0.08em; color: var(--bone-dim); }
+    .blocknote:first-child { margin-top: 0; }
+    .blocknote.sub { padding-left: var(--sp-3); }
+    .rxline { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2); margin: 0;
+      font-size: var(--fs-sm); color: var(--bone); }
+    .rxline.sub { padding-left: var(--sp-3); }
+    .rxline .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+      color: var(--bone-dim); flex-shrink: 0; }
     .stateline { color: var(--bone-dim); }
     .mrows { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; }
     .prow { display: flex; align-items: center; justify-content: space-between; width: 100%;
@@ -235,6 +310,8 @@ export class WodLibraryPage {
   private prog = inject(ProgrammingService);
   private router = inject(Router);
   private locale = inject(LOCALE_ID);
+  private host: ElementRef<HTMLElement> = inject(ElementRef);
+  private injector = inject(Injector);
 
   readonly tabs: SegOption[] = [
     { value: 'library', label: $localize`:@@library.tabs.library:Library` },
@@ -242,7 +319,7 @@ export class WodLibraryPage {
   ];
   readonly searchPlaceholder = $localize`:@@library.search.placeholder:Name or movement`;
   readonly newPieceLabel = $localize`:@@library.new.label:New piece`;
-  readonly libMeta = libMeta;
+  readonly eyebrowFor = eyebrowFor;
 
   readonly filterFacets: FilterFacet[] = [
     { key: 'movement', label: $localize`:@@library.filter.movement:Movement`, mode: 'multi' },
@@ -266,12 +343,31 @@ export class WodLibraryPage {
   moreError = signal(false);
   benchmarksOn = signal(false);
   filters = signal<FilterValue>({});
+  /** F1: a search/filter refetch with rows already on screen dims them instead of swapping in the
+   *  loading line -- only a genuine first load (no rows yet) uses libState('loading'). */
+  refreshing = signal(false);
 
   private readonly sentinelEl = viewChild<ElementRef<HTMLElement>>('sentinel');
   private observer?: IntersectionObserver;
   private filtersInit = true;
+  /** F1: a request token so a slow earlier libraryPage() response can never overwrite a newer
+   *  one -- each loadLibrary() bumps it and its callbacks check it's still current before applying. */
+  private loadSeq = 0;
 
   activeFilterCount = computed(() => Object.keys(this.filters()).length);
+  /** F2: one chip per applied facet value, in filter-menu order -- Category/Timing (single) at
+   *  most one each, then Movement and Benchmark kind (multi) one per picked value. Read from the
+   *  APPLIED `filters()`, not the sheet's draft. */
+  activeChips = computed(() => {
+    const f = this.filters();
+    const names = this.movementNames();
+    const out: { key: string; value: string; label: string }[] = [];
+    if (f['category']?.[0]) { const v = f['category'][0]; out.push({ key: 'category', value: v, label: MACRO_LABELS[v] ?? v }); }
+    if (f['timing']?.[0]) { const v = f['timing'][0]; out.push({ key: 'timing', value: v, label: PRESET_LABELS[v] ?? v }); }
+    for (const id of f['movement'] ?? []) out.push({ key: 'movement', value: id, label: names.get(id) ?? id });
+    for (const k of f['kind'] ?? []) out.push({ key: 'kind', value: k, label: BENCHMARK_KIND_LABELS[k] ?? k });
+    return out;
+  });
   filterAriaLabel = computed(() => {
     const n = this.activeFilterCount();
     return n
@@ -284,6 +380,14 @@ export class WodLibraryPage {
       ? $localize`:@@library.noMatch.title:Nothing matches “${q}:query:”`
       : $localize`:@@library.noMatch.titleGeneric:Nothing matches these filters`;
   });
+  /** F3: 1-2 non-space characters is below the search floor (D18) -- the list is left alone, and
+   *  this hint says why nothing changed. */
+  shortSearchHint = computed(() => { const n = this.query().trim().length; return n === 1 || n === 2; });
+  /** F4: the no-match empty state's one way out. Facets/Benchmarks win over search -- clearing
+   *  those keeps the typed search text; with neither active, the button clears the search. */
+  clearNoMatchLabel = computed(() => (this.activeFilterCount() > 0 || this.benchmarksOn())
+    ? $localize`:@@library.noMatch.clearFilters:Clear filters`
+    : $localize`:@@library.noMatch.clearSearch:Clear search`);
 
   // ---- Filter sheet: draft count is recomputed on open and on every draftChange, cancelling any
   // in-flight count with switchMap so a fast series of taps only ever shows the latest.
@@ -311,12 +415,39 @@ export class WodLibraryPage {
   // ---- History tab: the week strip picks a day; that day's pieces only (D19).
   historyOffset = signal(0);
   historyDay = computed(() => this.isoFromOffset(this.historyOffset()));
+  /** F5: the visible week's Monday, as a computed (not a plain read of historyOffset) so the
+   *  fetch effect below only fires on a WEEK change -- a same-week day tap produces the same
+   *  string, and a computed's unchanged output never re-notifies its consumers. */
+  private historyWeekStart = computed(() => this.weekRange(this.historyOffset()).from);
   histRows = signal<WodHistoryRow[]>([]);
   histState = signal<Load>('loading');
+  /** F5: which days of the visible week ran a piece -- 'open' for a listed day, else the strip's
+   *  own 'none' default. A failed fetch resets to {} rather than blocking the day list. */
+  historyDayTones = signal<Record<string, DayTone>>({});
+  readonly historyToneWords: Partial<Record<DayTone, string>> = {
+    open: $localize`:@@library.history.tone.open:pieces ran`,
+    none: $localize`:@@library.history.tone.none:nothing ran`,
+  };
 
   // ---- Benchmark sheet (D8): unchanged from the first build.
   bench = signal<LibraryEntry | null>(null);
-  benchLines = computed(() => { const b = this.bench(); return b ? prescriptionLines(b.wod, this.weightUnit() ?? undefined) : []; });
+  benchRows = computed<ExpandedRow[]>(() => expandedRows(this.bench()?.wod ?? null));
+  /** " kg" / " lb" for a load's mono suffix, "" when the box's weight unit isn't loaded yet --
+   *  same fallback prescriptionLines already used for the card. */
+  benchWeightSuffix = computed(() => { const u = this.weightUnit(); return u ? ' ' + u.toLowerCase() : ''; });
+  benchKindLabel = computed(() => { const k = this.bench()?.benchmarkKind; return k ? BENCHMARK_KIND_LABELS[k] ?? k : ''; });
+  /** Score type, then the cap in the class stack's own format ("cap 20:00") -- D8 asks for both. */
+  benchScoreLabel = computed(() => {
+    const w = this.bench()?.wod;
+    if (!w) return '';
+    const parts = [SCORE_TYPE_LABELS[w.scoreType] ?? ''];
+    if (w.timeCapSeconds) {
+      const mm = Math.floor(w.timeCapSeconds / 60);
+      const ss = (w.timeCapSeconds % 60).toString().padStart(2, '0');
+      parts.push($localize`:@@class.cap:cap ${mm}:mins::${ss}:secs:`);
+    }
+    return parts.filter(Boolean).join(' · ');
+  });
   adding = signal(false);
   addError = signal(false);
 
@@ -338,6 +469,15 @@ export class WodLibraryPage {
       const t = this.tab();
       const day = this.historyDay();
       if (t === 'history') untracked(() => this.loadHistory(day));
+    });
+
+    // F5: the day-tone dots refetch only when the visible WEEK changes (weekStart is the same
+    // string for every day in that week, so a same-week day tap doesn't refire this), and only
+    // while History is open.
+    effect(() => {
+      const t = this.tab();
+      this.historyWeekStart(); // tracked so a week change (not just any day change) refires this
+      if (t === 'history') untracked(() => this.loadHistoryDays());
     });
 
     // Scroll paging: observe the sentinel after the grid, load the next page when it's visible.
@@ -362,8 +502,26 @@ export class WodLibraryPage {
   }
 
   private isoFromOffset(offset: number): string {
+    return this.dateIso(this.dateFromOffset(offset));
+  }
+
+  private dateFromOffset(offset: number): Date {
     const d = new Date(); d.setDate(d.getDate() + offset);
+    return d;
+  }
+
+  private dateIso(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /** F5: the Monday-Sunday range containing `offset`, local-calendar-date -- same Monday-first
+   *  rule bh-week-calendar's own week() uses. */
+  private weekRange(offset: number): { from: string; to: string } {
+    const d = this.dateFromOffset(offset);
+    const mondayIdx = (d.getDay() + 6) % 7; // JS Sunday=0 -> Monday-first index
+    const monday = new Date(d); monday.setDate(d.getDate() - mondayIdx);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    return { from: this.dateIso(monday), to: this.dateIso(sunday) };
   }
 
   private queryFor(f: FilterValue): LibraryQuery {
@@ -379,19 +537,32 @@ export class WodLibraryPage {
     };
   }
 
+  /** F1: rows already on screen stay (dimmed via `refreshing`) instead of being replaced by the
+   *  loading line -- only a genuine first load (no rows yet) uses libState('loading'). `loadSeq`
+   *  guards against a slower earlier response landing after a newer one. */
   loadLibrary() {
-    this.libState.set('loading');
-    this.rows.set([]);
-    this.nextCursor.set(null);
+    const seq = ++this.loadSeq;
+    const firstLoad = this.rows().length === 0;
+    if (firstLoad) { this.libState.set('loading'); this.nextCursor.set(null); } else { this.refreshing.set(true); }
     this.moreError.set(false);
     this.prog.libraryPage(this.queryFor(this.filters())).subscribe({
-      next: p => { this.rows.set(p.rows); this.nextCursor.set(p.nextCursor); this.libState.set('ready'); },
-      error: () => this.libState.set('error'),
+      next: p => {
+        if (seq !== this.loadSeq) return; // a newer loadLibrary() has already landed
+        this.rows.set(p.rows); this.nextCursor.set(p.nextCursor); this.libState.set('ready'); this.refreshing.set(false);
+      },
+      error: () => {
+        if (seq !== this.loadSeq) return;
+        this.libState.set('error'); this.refreshing.set(false);
+      },
     });
   }
 
   loadMore() {
-    if (this.loadingMore() || !this.nextCursor()) return;
+    // ponytail: refreshing() also blocks scroll-paging -- a refresh is about to replace every row
+    // (and its cursor) anyway, so a page-2 fetch mid-refresh would race the stale cursor against
+    // the new filters. The grid+sentinel now stay mounted during a refresh (F1), so this guard is
+    // new here; it wasn't needed while a refresh unmounted the sentinel via libState('loading').
+    if (this.loadingMore() || this.refreshing() || !this.nextCursor()) return;
     this.loadingMore.set(true);
     this.moreError.set(false);
     this.prog.libraryPage({ ...this.queryFor(this.filters()), cursor: this.nextCursor() }).subscribe({
@@ -412,6 +583,42 @@ export class WodLibraryPage {
   toggleBenchmarks() {
     this.benchmarksOn.update(on => !on);
     this.loadLibrary();
+  }
+
+  removeChipAriaLabel(label: string): string {
+    return $localize`:@@library.filter.removeChip:Remove filter: ${label}:label:`;
+  }
+
+  /** F2: drops one value from one facet (the filters effect refetches). Focus moves to whatever
+   *  chip now sits at the removed one's position, or the filter button once none are left. */
+  removeChip(key: string, value: string) {
+    const idx = this.activeChips().findIndex(c => c.key === key && c.value === value);
+    const next = (this.filters()[key] ?? []).filter(v => v !== value);
+    const updated = { ...this.filters() };
+    if (next.length) updated[key] = next; else delete updated[key];
+    this.filters.set(updated);
+    // afterNextRender, not setTimeout: a timeout can run before the removed chip leaves the DOM,
+    // focusing a node that is then destroyed -- focus fell to body on the live stack.
+    afterNextRender(() => {
+      const chips = this.host.nativeElement.querySelectorAll<HTMLElement>('[data-testid^="chip-remove-"]');
+      if (chips.length) chips[Math.min(idx, chips.length - 1)].focus();
+      else this.host.nativeElement.querySelector<HTMLElement>('[data-testid="lib-filter"]')?.focus();
+    }, { injector: this.injector });
+  }
+
+  /** F4: the no-match empty state's one way out -- clears search too, whichever branch: leaving
+   *  the search text behind a "Clear filters" tap still shows nothing on 2+ char terms. Setting
+   *  `query` directly (not `onSearch`, which would refetch on its own) keeps this to the ONE
+   *  refetch the filters effect already fires. Either way focus lands back on the search field. */
+  clearNoMatch() {
+    if (this.activeFilterCount() > 0 || this.benchmarksOn()) {
+      this.benchmarksOn.set(false);
+      this.query.set('');
+      this.filters.set({}); // the filters effect refetches
+    } else {
+      this.onSearch('');
+    }
+    setTimeout(() => this.host.nativeElement.querySelector<HTMLElement>('[data-testid="lib-search"]')?.focus());
   }
 
   openFilters() {
@@ -467,6 +674,20 @@ export class WodLibraryPage {
     this.prog.wodHistory(day).subscribe({
       next: rows => { this.histRows.set(rows); this.histState.set('ready'); },
       error: () => this.histState.set('error'),
+    });
+  }
+
+  /** F5: which days of the visible Monday-Sunday week ran a piece. Never blocks the day list --
+   *  a failed fetch just resets the dots to none for that week rather than erroring. */
+  loadHistoryDays() {
+    const { from, to } = this.weekRange(this.historyOffset());
+    this.prog.historyDays(from, to).subscribe({
+      next: days => {
+        const tones: Record<string, DayTone> = {};
+        for (const iso of days) tones[iso] = 'open';
+        this.historyDayTones.set(tones);
+      },
+      error: () => this.historyDayTones.set({}),
     });
   }
 

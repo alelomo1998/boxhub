@@ -261,6 +261,24 @@ class LibraryApiTest extends AbstractIntegrationTest {
         for (JsonNode row : heroesOnly.get("rows")) assertThat(row.get("benchmarkKind").asText()).isEqualTo("HERO");
     }
 
+    /** D9: a box copy of a benchmark carries its BENCHMARK flag in the DEFAULT list too --
+     *  not only when benchmarks=true. */
+    @Test
+    void defaultModeFlagsABoxCopyOfABenchmarkButNotAPlainPiece() throws Exception {
+        seedLibraryWod("Plain piece", true, Instant.now());
+
+        UUID franTemplateId = franTemplateId();
+        mvc.perform(post("/api/box/benchmarks/" + franTemplateId + "/clone")
+                        .header("Authorization", "Bearer " + coachToken))
+                .andExpect(status().isCreated());
+
+        JsonNode defaultList = library(coachToken, r -> r);
+        JsonNode franRow = rowByTitle(defaultList, "Fran");
+        assertThat(franRow.get("benchmarkKind").asText()).isEqualTo("GIRL");
+        JsonNode plainRow = rowByTitle(defaultList, "Plain piece");
+        assertThat(plainRow.get("benchmarkKind").isNull()).isTrue();
+    }
+
     /** Adding the same benchmark to the library twice is two rows with one benchmarkTemplateId.
      *  Benchmark mode shows that benchmark once, as the most recently edited copy -- not a 500. */
     @Test

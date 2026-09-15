@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { WodLibraryPage } from './wod-library.page';
 import { LibraryEntry, LibraryPage, Movement, ProgrammingService, Wod, WodHistoryRow } from './programming.service';
 
@@ -45,9 +45,10 @@ describe('WodLibraryPage', () => {
     TestBed.resetTestingModule();
 
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
-      ['libraryPage', 'wodHistory', 'cloneBenchmark', 'movements', 'weightUnit']);
+      ['libraryPage', 'wodHistory', 'historyDays', 'cloneBenchmark', 'movements', 'weightUnit']);
     prog.libraryPage.and.returnValue(of(page(entries, nextCursor)));
     prog.wodHistory.and.returnValue(of([] as WodHistoryRow[]));
+    prog.historyDays.and.returnValue(of([] as string[]));
     prog.weightUnit.and.returnValue(of('LB'));
     prog.movements.and.returnValue(of([] as Movement[]));
 
@@ -355,9 +356,10 @@ describe('WodLibraryPage', () => {
   it('shows the error alert when libraryPage fails, and retries on click', () => {
     TestBed.resetTestingModule();
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
-      ['libraryPage', 'wodHistory', 'cloneBenchmark', 'movements', 'weightUnit']);
+      ['libraryPage', 'wodHistory', 'historyDays', 'cloneBenchmark', 'movements', 'weightUnit']);
     prog.libraryPage.and.returnValue(throwError(() => new Error('boom')));
     prog.wodHistory.and.returnValue(of([] as WodHistoryRow[]));
+    prog.historyDays.and.returnValue(of([] as string[]));
     prog.weightUnit.and.returnValue(of('LB'));
     prog.movements.and.returnValue(of([] as Movement[]));
     TestBed.configureTestingModule({
@@ -451,5 +453,202 @@ describe('WodLibraryPage', () => {
     const sheet = el.querySelector<HTMLDialogElement>('dialog[aria-label="Benchmark"]')!;
     expect(sheet.hasAttribute('open')).toBeTrue();
     expect(sheet.querySelector('bh-alert')).not.toBeNull();
+  });
+
+  it('the benchmark sheet shows a block label and note, not just its lines (D8)', () => {
+    const barbara: Wod = {
+      ...wod('b2', 'Barbara'),
+      blocks: { blocks: [{
+        label: '5 rounds', note: 'Rest 3 min between rounds',
+        lines: [{ text: 'Pull-Up', reps: '20' }, { text: 'Push-Up', reps: '30' }],
+      }] },
+    };
+    const global = entry(barbara, { global: true, benchmarkKind: 'GIRL' });
+    setup([global]);
+
+    el.querySelector<HTMLElement>('[data-testid="lib-card-b2"]')!.click();
+    fixture.detectChanges();
+
+    const sheet = el.querySelector<HTMLDialogElement>('dialog[aria-label="Benchmark"]')!;
+    expect(sheet.textContent).toContain('5 rounds');
+    expect(sheet.textContent).toContain('Rest 3 min between rounds');
+    expect(sheet.textContent).toContain('Pull-Up');
+    expect(sheet.textContent).toContain('Benchmark');
+    expect(sheet.textContent).toContain('Girl');
+  });
+
+  // ---- F1: rows already on screen stay while a refetch is in flight; a slower earlier response
+  // must never land after a newer one.
+  it('F1: keeps existing rows (dimmed, aria-busy) while a refetch is in flight, instead of the loading line', () => {
+    setup([entry(wod('w1', 'Fran'))]);
+    const inflight = new Subject<LibraryPage>();
+    prog.libraryPage.and.returnValue(inflight.asObservable());
+
+    component.loadLibrary();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="lib-card-w1"]')).not.toBeNull();
+    expect(el.textContent).not.toContain('Loading the library');
+    const grid = el.querySelector('ul.grid')!;
+    expect(grid.getAttribute('aria-busy')).toBe('true');
+    expect(grid.classList).toContain('refreshing');
+
+    inflight.next(page([entry(wod('w2', 'Diane'))]));
+    inflight.complete();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="lib-card-w2"]')).not.toBeNull();
+    expect(grid.getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('F1: a slower earlier response never overwrites a newer one', () => {
+    setup([]);
+    const first = new Subject<LibraryPage>();
+    const second = new Subject<LibraryPage>();
+    prog.libraryPage.and.returnValues(first.asObservable(), second.asObservable());
+
+    component.loadLibrary();
+    component.loadLibrary();
+
+    second.next(page([entry(wod('w2', 'Diane'))]));
+    second.complete();
+    fixture.detectChanges();
+
+    first.next(page([entry(wod('w1', 'Fran'))])); // arrives late -- must be dropped
+    first.complete();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="lib-card-w2"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="lib-card-w1"]')).toBeNull();
+  });
+
+  // ---- F2: one removable chip per applied facet value.
+  it('F2: a facet chip removes just that value and refetches with the rest', fakeAsync(() => {
+    setup();
+    prog.movements.and.returnValue(of([movement('m1', 'Thruster'), movement('m2', 'Dumbbell Thruster')]));
+    prog.libraryPage.and.returnValue(of(page([entry(wod('w9', 'Fran'))])));
+
+    el.querySelector<HTMLElement>('[data-testid="lib-filter"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-row-movement"]')!.click();
+    fixture.detectChanges();
+
+    const search: HTMLInputElement = el.querySelector('[data-testid="filter-movement-search"]')!;
+    search.value = 'thr';
+    search.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="filter-movement-m1"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-movement-m2"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-step-back"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-apply"]')!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[data-testid="chip-remove-movement-m1"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="chip-remove-movement-m2"]')).not.toBeNull();
+
+    el.querySelector<HTMLElement>('[data-testid="chip-remove-movement-m1"]')!.click();
+    fixture.detectChanges();
+    tick(); // flush the focus-management setTimeout
+
+    expect(prog.libraryPage.calls.mostRecent().args[0].movement).toEqual(['m2']);
+    expect(el.querySelector('[data-testid="chip-remove-movement-m1"]')).toBeNull();
+    expect(el.querySelector('[data-testid="chip-remove-movement-m2"]')).not.toBeNull();
+  }));
+
+  // ---- F3: below the 3-char search floor, the list stays put and says why.
+  it('F3: a 1-2 char search shows the short-search hint and leaves the list alone', fakeAsync(() => {
+    setup([entry(wod('w1', 'Fran'))]);
+    prog.libraryPage.calls.reset();
+    const input: HTMLInputElement = el.querySelector('[data-testid="lib-search"]')!;
+
+    input.value = 'fr';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    expect(prog.libraryPage).not.toHaveBeenCalled();
+    expect(el.textContent).toContain('Type at least 3 letters to search');
+    expect(el.querySelector('[data-testid="lib-card-w1"]')).not.toBeNull();
+  }));
+
+  // ---- F4: the no-match empty state's one way out, in both its labelled forms.
+  it('F4 (facets active): the no-match button reads "Clear filters", clears them and the search, in one refetch, and refocuses search', fakeAsync(() => {
+    setup([entry(wod('w1', 'Fran'))]);
+
+    el.querySelector<HTMLElement>('[data-testid="lib-filter"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-row-category"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="filter-opt-category-STRENGTH"]')!.click();
+    fixture.detectChanges();
+    prog.libraryPage.and.returnValue(of(page([]))); // no match for that facet
+    el.querySelector<HTMLElement>('[data-testid="filter-apply"]')!.click();
+    fixture.detectChanges();
+
+    const input: HTMLInputElement = el.querySelector('[data-testid="lib-search"]')!;
+    input.value = 'fra';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    const btn = el.querySelector<HTMLElement>('[data-testid="lib-clear-nomatch"]')!;
+    expect(btn.textContent).toContain('Clear filters');
+
+    prog.libraryPage.calls.reset();
+    prog.libraryPage.and.returnValue(of(page([entry(wod('w1', 'Fran'))])));
+    btn.click();
+    fixture.detectChanges();
+    tick(); // flush the focus-management setTimeout
+
+    expect(component.filters()).toEqual({});
+    expect(component.query()).toBe('');
+    expect(prog.libraryPage.calls.count()).toBe(1); // one refetch, not one per cleared signal
+    expect(prog.libraryPage.calls.mostRecent().args[0].q).toBeUndefined();
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('lib-search');
+  }));
+
+  it('F4 (search only): the no-match button reads "Clear search" and empties the search field', fakeAsync(() => {
+    setup([entry(wod('w1', 'Fran'))]);
+    prog.libraryPage.and.returnValue(of(page([])));
+    const input: HTMLInputElement = el.querySelector('[data-testid="lib-search"]')!;
+    input.value = 'zzz';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    const btn = el.querySelector<HTMLElement>('[data-testid="lib-clear-nomatch"]')!;
+    expect(btn.textContent).toContain('Clear search');
+
+    prog.libraryPage.and.returnValue(of(page([entry(wod('w1', 'Fran'))])));
+    btn.click();
+    fixture.detectChanges();
+    tick();
+
+    expect(component.query()).toBe('');
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('lib-search');
+  }));
+
+  // ---- F6: a benchmark's eyebrow drops "Workout" -- the timing preset alone.
+  it('F6: a benchmark card eyebrow shows the timing preset only, not "Workout · …"', () => {
+    const global = entry({ ...wod('b1', 'Murph'), timingPreset: 'FOR_TIME' }, { global: true, benchmarkKind: 'GIRL' });
+    setup([global]);
+    const card = el.querySelector('[data-testid="lib-card-b1"] bh-piece-card')!;
+    expect(card.textContent).toContain('For time');
+    expect(card.textContent).not.toContain('Workout');
+  });
+
+  it('F6: the benchmark sheet eyebrow also drops "Workout" for a benchmark with a timing preset', () => {
+    const global = entry({ ...wod('b1', 'Murph'), timingPreset: 'AMRAP' }, { global: true, benchmarkKind: 'HERO' });
+    setup([global]);
+    el.querySelector<HTMLElement>('[data-testid="lib-card-b1"]')!.click();
+    fixture.detectChanges();
+    const sheet = el.querySelector<HTMLDialogElement>('dialog[aria-label="Benchmark"]')!;
+    expect(sheet.textContent).toContain('AMRAP');
+    expect(sheet.textContent).not.toContain('Workout');
   });
 });

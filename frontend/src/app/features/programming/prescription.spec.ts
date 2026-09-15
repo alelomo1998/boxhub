@@ -1,4 +1,4 @@
-import { prescriptionLines, wodMatchesText, libMeta } from './prescription';
+import { expandedRows, prescriptionLines, wodMatchesText, libMeta, eyebrowFor } from './prescription';
 import { Wod } from './programming.service';
 
 const base: Wod = {
@@ -18,7 +18,7 @@ describe('prescriptionLines', () => {
 
   it('shows a non-REPS unit next to the reps count', () => {
     const w = { ...base, blocks: { blocks: [{ lines: [{ text: 'Run', reps: '400', unit: 'M' }] }] } };
-    expect(prescriptionLines(w)).toEqual(['400 M Run']);
+    expect(prescriptionLines(w)).toEqual(['400 m Run']);
   });
 
   it('lowercases the box weight unit onto a load', () => {
@@ -28,6 +28,31 @@ describe('prescriptionLines', () => {
 
   it('returns nothing for a piece with no blocks', () => {
     expect(prescriptionLines(base)).toEqual([]);
+  });
+});
+
+describe('expandedRows', () => {
+  it('emits a block\'s label, lines, then note, in order -- and a sub-block\'s the same way', () => {
+    const w = { ...base, blocks: { blocks: [
+      {
+        label: '5 rounds', note: 'Rest 3 min between rounds',
+        lines: [{ text: 'Pull-Up', reps: '20' }],
+        blocks: [{ label: 'Cash-out', note: 'Easy pace', lines: [{ text: 'Row', reps: '250', unit: 'M' }] }],
+      },
+    ] } };
+    expect(expandedRows(w)).toEqual([
+      { kind: 'label', text: '5 rounds', sub: false },
+      { kind: 'line', reps: '20', text: 'Pull-Up', load: undefined, unit: undefined, sub: false },
+      { kind: 'note', text: 'Rest 3 min between rounds', sub: false },
+      { kind: 'label', text: 'Cash-out', sub: true },
+      { kind: 'line', reps: '250', text: 'Row', load: undefined, unit: 'M', sub: true },
+      { kind: 'note', text: 'Easy pace', sub: true },
+    ]);
+  });
+
+  it('omits a note row when the block has none', () => {
+    const w = { ...base, blocks: { blocks: [{ label: 'A', lines: [{ text: 'Thrusters', reps: '21' }] }] } };
+    expect(expandedRows(w).some(r => r.kind === 'note')).toBeFalse();
   });
 });
 
@@ -42,5 +67,19 @@ describe('libMeta', () => {
   it('joins macro and preset', () => {
     expect(libMeta({ ...base, timingPreset: 'AMRAP' })).toBe('Workout · AMRAP');
     expect(libMeta(base)).toBe('Workout');
+  });
+});
+
+describe('eyebrowFor', () => {
+  it('drops the macro for a benchmark with a timing preset -- the preset alone', () => {
+    expect(eyebrowFor({ ...base, timingPreset: 'AMRAP' }, 'GIRL')).toBe('AMRAP');
+  });
+
+  it('falls back to libMeta for a benchmark with no timing preset', () => {
+    expect(eyebrowFor(base, 'GIRL')).toBe('Workout');
+  });
+
+  it('a plain piece (no benchmarkKind) is unchanged -- always libMeta', () => {
+    expect(eyebrowFor({ ...base, timingPreset: 'AMRAP' }, null)).toBe('Workout · AMRAP');
   });
 });

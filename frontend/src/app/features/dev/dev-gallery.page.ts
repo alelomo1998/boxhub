@@ -922,6 +922,10 @@ export class GalleryNotificationBellComponent implements OnInit {
              months/days picker sheet (R6b finding 4). States only checkable by hand: the sheet's
              months/days steps, the year stepper bounds, and focus return to the month button. -->
         <bh-week-calendar [jump]="true" [min]="-400" />
+        <!-- A FIFTH instance with toneWords -- Library History overrides "classes available/no
+             classes" with "pieces ran"/"nothing ran" (M14c-b F5); a tone with no override (full)
+             keeps the default word. -->
+        <bh-week-calendar [tones]="galleryTones()" [toneWords]="galleryToneWords" [min]="-30" />
         <p class="note" i18n="@@dev.gallery.weekCalendar.note">
           Offset is a model — two-way bound by the athlete book page, the coach classes page and
           the admin schedule page. Chevrons page a week and disable at the [min, max] bounds (min defaults to 0); a swipe
@@ -1471,6 +1475,11 @@ export class DevGalleryPage {
     };
     return { [iso(0)]: 'open', [iso(1)]: 'open', [iso(2)]: 'full' };
   });
+  /** M14c-b F5: Library History's override -- 'full' has none, so that tone keeps its default
+   *  "classes full" word on the fifth strip below. */
+  protected readonly galleryToneWords: Partial<Record<DayTone, string>> =
+    { open: $localize`:@@dev.gallery.weekCalendar.toneWords.open:pieces ran`,
+      none: $localize`:@@dev.gallery.weekCalendar.toneWords.none:nothing ran` };
 
   /** Fabricated facets, per this page's "no API call" rule -- one built-in single, one built-in
    *  multi, one custom (projected) facet, so the four preset triggers below can reach every kind

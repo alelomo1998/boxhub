@@ -131,7 +131,7 @@ const SNIPPET_CAP = 80;
                                 @for (r of rows; track $index) {
                                   @if (r.kind === 'label') {
                                     <p class="blocklabel" [class.sub]="r.sub">{{ r.text }}</p>
-                                  } @else {
+                                  } @else if (r.kind === 'line') {
                                     <p class="rxline" [class.sub]="r.sub">
                                       @if (r.reps) { <span class="mono">{{ r.reps }}</span> }
                                       <span>{{ r.text }}</span>
@@ -139,6 +139,8 @@ const SNIPPET_CAP = 80;
                                         <span class="mono">{{ r.load }}{{ r.unit ? ' ' + r.unit : '' }}</span>
                                       }
                                     </p>
+                                  } @else {
+                                    <p class="blocknote" [class.sub]="r.sub">{{ r.text }}</p>
                                   }
                                 }
                               } @else if (d.wod!.bodyText) {
@@ -317,7 +319,7 @@ const SNIPPET_CAP = 80;
                         @for (r of rows; track $index) {
                           @if (r.kind === 'label') {
                             <p class="blocklabel" [class.sub]="r.sub">{{ r.text }}</p>
-                          } @else {
+                          } @else if (r.kind === 'line') {
                             <p class="rxline" [class.sub]="r.sub">
                               @if (r.reps) { <span class="mono">{{ r.reps }}</span> }
                               <span>{{ r.text }}</span>
@@ -325,6 +327,8 @@ const SNIPPET_CAP = 80;
                                 <span class="mono">{{ r.load }}{{ r.unit ? ' ' + r.unit : '' }}</span>
                               }
                             </p>
+                          } @else {
+                            <p class="blocknote" [class.sub]="r.sub">{{ r.text }}</p>
                           }
                         }
                       } @else if (w.bodyText) {
@@ -458,6 +462,10 @@ const SNIPPET_CAP = 80;
       letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
     .blocklabel:first-child { margin-top: 0; }
     .blocklabel.sub { padding-left: var(--sp-3); }
+    .blocknote { margin: var(--sp-2) 0 0; font-family: var(--font-mono); font-size: var(--fs-meta);
+      letter-spacing: 0.08em; color: var(--bone-dim); }
+    .blocknote:first-child { margin-top: 0; }
+    .blocknote.sub { padding-left: var(--sp-3); }
     .rxline { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2); margin: 0;
       font-size: var(--fs-sm); color: var(--bone); }
     .rxline.sub { padding-left: var(--sp-3); }

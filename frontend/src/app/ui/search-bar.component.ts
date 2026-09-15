@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, input, model, output, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, input, model, output, signal, untracked } from '@angular/core';
 import { IconComponent } from './icon.component';
 
 let seq = 0;
@@ -60,12 +60,20 @@ export class SearchBarComponent {
   readonly id = `bh-sb${seq++}`;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private lastEmitted = signal<string | null>(null);
+  private lastTyped: string | null = null;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+    // A value the consumer sets (e.g. a "Clear search" action) is the new baseline: without this,
+    // retyping the query that was showing before the reset matched lastEmitted and never emitted.
+    effect(() => {
+      const v = this.value();
+      untracked(() => { if (v !== this.lastTyped) { clearTimeout(this.timer); this.lastEmitted.set(v); } });
+    });
   }
 
   onInput(v: string) {
+    this.lastTyped = v;
     this.value.set(v); // immediate: the field must never lag behind typing
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {

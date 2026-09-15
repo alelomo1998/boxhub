@@ -355,6 +355,22 @@ describe('WeekCalendarComponent', () => {
     expect(label).not.toContain('classes');
   });
 
+  // M14c-b F5: Library History wants "pieces ran" / "nothing ran" instead of the class-availability
+  // wording -- toneWords overrides per tone, and a tone with no override keeps the default word.
+  it('overrides a tone word when toneWords supplies one for that tone', () => {
+    const fixture = make();
+    const cmp = fixture.componentInstance;
+    const todayIso = cmp.week().find(d => d.offset === 0)!.iso;
+    fixture.componentRef.setInput('tones', { [todayIso]: 'open' });
+    fixture.componentRef.setInput('toneWords', { open: 'pieces ran', none: 'nothing ran' });
+    fixture.detectChanges();
+    const labels = Array.from(fixture.nativeElement.querySelectorAll('.day'))
+      .map((b: any) => b.getAttribute('aria-label'));
+    expect(labels.some((l: string) => l?.includes('pieces ran'))).toBeTrue();
+    expect(labels.some((l: string) => l?.includes('nothing ran'))).toBeTrue();
+    expect(labels.some((l: string) => l?.includes('classes'))).toBeFalse();
+  });
+
   it('gives every day an accessible name that states availability in words', () => {
     const fixture = make();
     const cmp = fixture.componentInstance;
@@ -365,5 +381,17 @@ describe('WeekCalendarComponent', () => {
       .map((b: any) => b.getAttribute('aria-label'));
     expect(labels.some((l: string) => l?.includes('classes full'))).toBeTrue();
     expect(labels.some((l: string) => l?.includes('no classes'))).toBeTrue();
+  });
+
+  // M14c-b critique fixes-3 #4: a day you can't select shouldn't announce a tone -- a future
+  // History day saying "nothing ran", or a booking day past max saying "no classes", is noise on
+  // a control you cannot press.
+  it('omits the tone word on a day that is not selectable, even when tones are supplied', () => {
+    const fixture = make(2);
+    const cmp = fixture.componentInstance;
+    const day = cmp.week().find(d => !d.selectable)!;
+    fixture.componentRef.setInput('tones', { [day.iso]: 'full' });
+    fixture.detectChanges();
+    expect(cmp.dayLabel(day)).not.toContain('classes');
   });
 });

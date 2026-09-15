@@ -181,6 +181,13 @@ export class ProgrammingService {
     return this.http.get<WodHistoryRow[]>('/api/box/wods/history', { params });
   }
 
+  /** `GET /api/box/wods/history/days` (M14c-b F5): the box-timezone dates in [from, to] on which
+   *  a class ran a piece -- ascending, distinct. Feeds the History tab's week-strip dots. */
+  historyDays(from: string, to: string): Observable<string[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<string[]>('/api/box/wods/history/days', { params });
+  }
+
   /** R3/R6: the Library page's paged, filtered read. Array fields append as repeated params. */
   libraryPage(query: LibraryQuery): Observable<LibraryPage> {
     let params = new HttpParams();

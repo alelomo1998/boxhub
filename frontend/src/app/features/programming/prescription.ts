@@ -20,7 +20,8 @@ export const PRESET_LABELS: Record<string, string> = {
  *  flat @for instead of nested loops. */
 export type ExpandedRow =
   | { kind: 'label'; text: string; sub: boolean }
-  | { kind: 'line'; reps?: string; text: string; load?: string; unit?: string; sub: boolean };
+  | { kind: 'line'; reps?: string; text: string; load?: string; unit?: string; sub: boolean }
+  | { kind: 'note'; text: string; sub: boolean };
 
 /** Walk one level of nesting -- blocks are exactly two levels deep (server rejects a third). */
 export function wodMatchesText(w: Wod, needle: string): boolean {
@@ -48,11 +49,13 @@ export function expandedRows(w: Wod | null): ExpandedRow[] {
     for (const l of b.lines ?? []) {
       rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, sub: false });
     }
+    if (b.note) rows.push({ kind: 'note', text: b.note, sub: false });
     for (const sb of b.blocks ?? []) {
       if (sb.label) rows.push({ kind: 'label', text: sb.label, sub: true });
       for (const l of sb.lines ?? []) {
         rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, sub: true });
       }
+      if (sb.note) rows.push({ kind: 'note', text: sb.note, sub: true });
     }
   }
   return rows;
@@ -77,17 +80,28 @@ export function libMeta(w: Wod): string {
   return w.timingPreset ? `${macro} · ${PRESET_LABELS[w.timingPreset] ?? w.timingPreset}` : macro;
 }
 
+/** Eyebrow for a card/sheet row. A benchmark's "BENCHMARK · GIRL" chip already carries the
+ *  category, so re-stating "Workout" there is noise (M14c-b critique F6) -- the timing preset
+ *  alone is enough: "BENCHMARK · GIRL · FOR TIME". Falls back to libMeta when there's no preset.
+ *  A plain piece (no benchmarkKind) is unchanged. */
+export function eyebrowFor(w: Wod, benchmarkKind: string | null | undefined): string {
+  if (benchmarkKind && w.timingPreset) return PRESET_LABELS[w.timingPreset] ?? w.timingPreset;
+  return libMeta(w);
+}
+
 /**
  * A piece's prescription as printable lines: every line of both block levels, "reps unit text
- * (load boxUnit)" -- e.g. "400 M Run", "21 Thrusters (43 kg)". `weightUnit` is the box's own
- * (R2/D22): a benchmark's load is stored in lb and WodService converts it server-side, so this
- * only lowercases whatever unit label the caller already resolved for display.
+ * (load boxUnit)" -- e.g. "400 m Run", "21 Thrusters (43 kg)". Units print lowercase (M14c-b
+ * critique fixes-3 #3) -- a coach reads a piece, doesn't shout it; REPS stays omitted, unchanged.
+ * `weightUnit` is the box's own (R2/D22): a benchmark's load is stored in lb and WodService
+ * converts it server-side, so this only lowercases whatever unit label the caller already
+ * resolved for display.
  */
 export function prescriptionLines(w: Wod, weightUnit?: string): string[] {
   return expandedRows(w)
     .filter((r): r is Extract<ExpandedRow, { kind: 'line' }> => r.kind === 'line')
     .map(l => [
-      (l.reps ?? '') + (l.unit && l.unit !== 'REPS' ? ' ' + l.unit : ''),
+      (l.reps ?? '') + (l.unit && l.unit !== 'REPS' ? ' ' + l.unit.toLowerCase() : ''),
       l.text,
       l.load ? `(${l.load}${weightUnit ? ' ' + weightUnit.toLowerCase() : ''})` : '',
     ].filter(Boolean).join(' '));

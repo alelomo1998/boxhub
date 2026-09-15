@@ -232,6 +232,10 @@ export class WeekCalendarComponent {
   /** Lets the month label open a months/days picker sheet reaching anywhere in [min, max] (R6b
    *  finding 4). Default false leaves every existing consumer identical. */
   jump = input(false);
+  /** Overrides a tone's word in dayLabel/aria-label -- e.g. Library History's days want "pieces
+   *  ran" rather than "classes available" (M14c-b F5). A tone with no override keeps the default
+   *  word below; default {} leaves every existing consumer identical. */
+  toneWords = input<Partial<Record<DayTone, string>>>({});
 
   private swiped = false;
   private downX = 0;
@@ -410,14 +414,19 @@ export class WeekCalendarComponent {
 
   /** Availability tone is omitted entirely when the consumer passed no `tones` -- otherwise every
    *  day reads "…, no classes" (every tone defaults to 'none'), which is false when nobody asked
-   *  this instance to track availability at all (M14c-b audit P2, e.g. Library's History strip). */
+   *  this instance to track availability at all (M14c-b audit P2, e.g. Library's History strip).
+   *  It's also omitted on a day you can't select at all (M14c-b critique fixes-3 #4) -- a future
+   *  History day announcing "nothing ran", or a booking day past `max` announcing "no classes", is
+   *  noise on a control you cannot press; the date alone is enough. */
   dayLabel(d: WeekDay): string {
     const date = formatDate(d.date, 'EEEE d MMMM', this.locale);
-    if (!Object.keys(this.tones()).length) return date;
+    if (!d.selectable || !Object.keys(this.tones()).length) return date;
     return `${date}, ${this.toneWord(d.tone)}`;
   }
 
   private toneWord(t: DayTone): string {
+    const override = this.toneWords()[t];
+    if (override) return override;
     if (t === 'open') return $localize`:@@ui.weekCalendar.tone.open:classes available`;
     if (t === 'full') return $localize`:@@ui.weekCalendar.tone.full:classes full`;
     return $localize`:@@ui.weekCalendar.tone.none:no classes`;
