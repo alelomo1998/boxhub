@@ -2929,3 +2929,21 @@ before handing back. Seven rounds. Every round found something the green suites 
 - **Task 14** — BACKLOG: growth bug, type loss, D-1 struck through (D-1 closed as M39's fix); §10
   deferrals and the milestone's open findings filed under "M14c-a §10". Roadmap row 10 → done.
 - **Dev data:** the `down -v` removed the hand-inserted second Burn It. Nothing to clean up.
+
+## M14c-b — Library critique (2026-09-15, session 3)
+
+- **Baselines re-run, not quoted:** backend 843/0/0/0, Karma 958, build zero warnings.
+- **Critique pass 1** (Chrome, 550px): 27/40 — P1 benchmark sheet dropped rounds/rest/Rx notes
+  (Barbara read as one round); P2s D9 flag missing in default list, search blanking, filters only a
+  badge, History no day hint.
+- **Batch 1** (spec'd): full sheet prescription + score/cap; D9 kinds in `libraryMode`.
+- **Batch 2** (user: "all 4 and drop workout"): dimmed refresh + request token; removable filter
+  chips; 3-letter hint; no-match clear actions; `GET /wods/history/days` + calendar `toneWords`;
+  benchmark eyebrow without "Workout". Orchestrator found live: `bh-search-bar` swallowed a retyped
+  term after an external reset (fixed, spec red-proven); chip removal dropped focus to body
+  (`setTimeout` → `afterNextRender`).
+- **Pass 2** 33/40. **Batch 3** (user: clear filters also clears search; P3s mine): hint inline in the
+  chip row, lowercase units, unselectable days drop tone word, month-grid marks → BACKLOG.
+- **Pass 3** first written from memory (35) — **withdrawn at the user's demand**; rescored in a fresh
+  Chrome tab at 330px: **34/40**, no P0/P1/P2. Detector injection attempted, CSP-blocked.
+- **Gates at commit `5baaa81`:** backend 848/0/0/0, Karma 975, build zero warnings, visual 33 passed.

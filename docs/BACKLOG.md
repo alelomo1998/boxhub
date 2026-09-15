@@ -969,3 +969,4 @@ Recorded at milestone close so the next reader knows these were decided, not mis
 - **`WodJsonValidator` does not cross-check `blockIndex`, and weight unit does not convert on
   switch.** Both deliberate, both carry `ponytail:` comments. **The TV must tolerate a block index it
   cannot resolve.**
+- **Library History: marks in the calendar's month jump sheet** — the week strip marks days that ran pieces (`GET /api/box/wods/history/days`, ≤62-day range); the jump sheet's month grid carries none. Needs `bh-week-calendar` to pass tones into the jump grid and a per-month fetch. (M14c-b critique pass 2 P3, user left to orchestrator.)
