@@ -41,10 +41,11 @@ describe('PieceEditorPage', () => {
     TestBed.resetTestingModule();
 
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
-      ['wod', 'createWod', 'patchWod', 'movements', 'weightUnit', 'createMovement']);
+      ['wod', 'createWod', 'patchWod', 'deleteWod', 'movements', 'weightUnit', 'createMovement']);
     prog.wod.and.returnValue(of(BLANK_WOD));
     prog.createWod.and.returnValue(of(BLANK_WOD));
     prog.patchWod.and.returnValue(of(BLANK_WOD));
+    prog.deleteWod.and.returnValue(of(undefined));
     prog.movements.and.returnValue(of([]));
     // Unused unless a spec exercises the create step; a safe default so an accidental call doesn't
     // throw "no return value configured" in an unrelated spec.
@@ -853,5 +854,169 @@ describe('PieceEditorPage', () => {
     const summary = el.querySelector('[data-testid="block-summary-0"]')!;
     expect(summary.textContent).toContain('1 line');
     expect(summary.textContent).not.toContain('1 lines');
+  });
+
+  // ---- Task 6: delete in the piece editor (standalone only) ----------------------------------
+
+  describe('deleting a standalone piece', () => {
+    function openStandaloneWithId(id = 'w1') {
+      createFixture({ id });
+      fixture.detectChanges();
+    }
+
+    function openDeleteSheet() {
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-open"]')!.click();
+      fixture.detectChanges();
+    }
+
+    it('coach/wods/new (no id) has no delete opener', () => {
+      routeWithoutSession();
+      expect(el.querySelector('[data-testid="piece-delete-open"]')).toBeNull();
+    });
+
+    it('a class piece route has no delete opener', () => {
+      // The default beforeEach fixture is the class-build route (piece/:index).
+      expect(component.standalone()).toBe(false);
+      expect(el.querySelector('[data-testid="piece-delete-open"]')).toBeNull();
+    });
+
+    it('coach/wods/w1 shows the opener; confirming deletes and navigates to the library', () => {
+      openStandaloneWithId('w1');
+      // createFixture forces title to 'Default piece' for every spec; empty it here to test the
+      // untitled-navigation-state case specifically.
+      component.title.set('');
+      const router = TestBed.inject(Router);
+      const navSpy = spyOn(router, 'navigate');
+
+      expect(component.canDelete()).toBe(true);
+      openDeleteSheet();
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-confirm"]')!.click();
+      fixture.detectChanges();
+
+      expect(prog.deleteWod).toHaveBeenCalledWith('w1');
+      expect(navSpy).toHaveBeenCalledWith(['/coach/wods'],
+        { replaceUrl: true, state: { deletedPiece: '' } });
+    });
+
+    it('carries the trimmed title in the navigation state on success', () => {
+      openStandaloneWithId('w1');
+      // createFixture forces title to 'Default piece'; overwrite it directly rather than through
+      // prog.wod, whose stubbed response that override already clobbers.
+      component.title.set('  Annie  ');
+      const router = TestBed.inject(Router);
+      const navSpy = spyOn(router, 'navigate');
+
+      openDeleteSheet();
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-confirm"]')!.click();
+      fixture.detectChanges();
+
+      expect(navSpy).toHaveBeenCalledWith(['/coach/wods'],
+        { replaceUrl: true, state: { deletedPiece: 'Annie' } });
+    });
+
+    it('the sheet title names the piece when it has one, and falls back when untitled', () => {
+      openStandaloneWithId('w1');
+      component.title.set('Annie');
+      fixture.detectChanges();
+      openDeleteSheet();
+      let title = el.querySelector('[data-testid="piece-delete-sheet"] .sh-title');
+      expect(title!.textContent).toContain('Delete Annie?');
+
+      component.title.set('');
+      fixture.detectChanges();
+      title = el.querySelector('[data-testid="piece-delete-sheet"] .sh-title');
+      expect(title!.textContent).toContain('Delete this piece?');
+    });
+
+    it('shows the benchmark reassurance only when the loaded piece carries a benchmarkTemplateId', () => {
+      openStandaloneWithId('w1'); // BLANK_WOD: benchmarkTemplateId null
+      openDeleteSheet();
+      expect(el.querySelector('[data-testid="piece-delete-benchmark"]')).toBeNull();
+
+      prog.wod.and.returnValue(of({ ...BLANK_WOD, id: 'w1', title: 'Annie', benchmarkTemplateId: 'bt1' }));
+      component.load('w1');
+      fixture.detectChanges();
+      const p = el.querySelector('[data-testid="piece-delete-benchmark"]');
+      expect(p!.textContent).toContain('Annie');
+      expect(p!.textContent).toContain('stays in Benchmarks');
+
+      component.title.set('');
+      fixture.detectChanges();
+      expect(el.querySelector('[data-testid="piece-delete-benchmark"]')!.textContent)
+        .toContain('The benchmark stays in Benchmarks');
+    });
+
+    it('a 409 reads "used by a class"; any other error reads "did not delete" -- sheet stays open, never navigates', () => {
+      openStandaloneWithId('w1');
+      const router = TestBed.inject(Router);
+      const navSpy = spyOn(router, 'navigate');
+
+      prog.deleteWod.and.returnValue(throwError(() => ({ status: 409 })));
+      openDeleteSheet();
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-confirm"]')!.click();
+      fixture.detectChanges();
+
+      let err = el.querySelector('[data-testid="piece-delete-error"]');
+      expect(err!.textContent).toContain('used by a class');
+      expect(component.deleteOpen()).toBe(true);
+      expect(navSpy).not.toHaveBeenCalled();
+
+      prog.deleteWod.and.returnValue(throwError(() => ({ status: 500 })));
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-confirm"]')!.click();
+      fixture.detectChanges();
+
+      err = el.querySelector('[data-testid="piece-delete-error"]');
+      expect(err!.textContent).toContain('did not delete');
+      expect(component.deleteOpen()).toBe(true);
+      expect(navSpy).not.toHaveBeenCalled();
+    });
+
+    it('clicking Keep it closes the sheet and never calls deleteWod', () => {
+      openStandaloneWithId('w1');
+      openDeleteSheet();
+
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-keep"]')!.click();
+      fixture.detectChanges();
+
+      expect(component.deleteOpen()).toBe(false);
+      expect(prog.deleteWod).not.toHaveBeenCalled();
+    });
+
+    it('Escape during a pending delete closes the dialog but reopens the sheet if the request then fails', () => {
+      openStandaloneWithId('w1');
+      const pending = new Subject<void>();
+      prog.deleteWod.and.returnValue(pending);
+      openDeleteSheet();
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-confirm"]')!.click();
+      fixture.detectChanges();
+
+      // Escape/backdrop closes the native dialog -- bh-sheet fires (closed) regardless of deleting().
+      component.onDeleteSheetClosed();
+      fixture.detectChanges();
+      expect(component.deleteOpen()).toBe(false);
+
+      pending.error({ status: 500 });
+      fixture.detectChanges();
+
+      expect(component.deleteOpen()).toBe(true);
+      const err = el.querySelector('[data-testid="piece-delete-error"]');
+      expect(err!.textContent).toContain('did not delete');
+    });
+
+    it('Keep it while pending does not close the sheet, and the delete stays in flight', () => {
+      openStandaloneWithId('w1');
+      const pending = new Subject<void>();
+      prog.deleteWod.and.returnValue(pending);
+      openDeleteSheet();
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-confirm"]')!.click();
+      fixture.detectChanges();
+
+      el.querySelector<HTMLElement>('[data-testid="piece-delete-keep"]')!.click();
+      fixture.detectChanges();
+
+      expect(component.deleteOpen()).toBe(true);
+      expect(component.deleting()).toBe(true);
+      expect(pending.observed).toBe(true);
+    });
   });
 });

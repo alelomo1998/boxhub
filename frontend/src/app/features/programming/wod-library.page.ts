@@ -77,6 +77,10 @@ type Load = 'loading' | 'ready' | 'error';
           }
         </div>
 
+        @if (deletedPiece() !== null) {
+          <bh-alert tone="good" data-testid="lib-deleted">{{ deletedPieceText() }}</bh-alert>
+        }
+
         @switch (libState()) {
           @case ('loading') { <p class="stateline" i18n="@@library.loading">Loading the library…</p> }
           @case ('error') {
@@ -334,6 +338,18 @@ export class WodLibraryPage {
   tab = signal<'library' | 'history'>('library');
   query = signal('');
   weightUnit = signal<string | null>(null);
+
+  /** Read ONCE at construction from THIS navigation's own state -- not history.state, which
+   *  survives a reload and would re-show a stale notice after the coach refreshes the page. Null
+   *  when the coach did not just arrive here from a delete. */
+  deletedPiece = signal<string | null>(
+    (inject(Router).getCurrentNavigation()?.extras.state?.['deletedPiece'] as string | undefined) ?? null);
+  deletedPieceText = computed(() => {
+    const name = this.deletedPiece();
+    return name
+      ? $localize`:@@library.deleted.named:${name}:name: deleted.`
+      : $localize`:@@library.deleted:Piece deleted.`;
+  });
 
   // ---- Library tab: server-paged rows, filtered by the applied query + facets + Benchmarks chip.
   rows = signal<LibraryEntry[]>([]);

@@ -41,7 +41,10 @@ describe('WodLibraryPage', () => {
   let prog: jasmine.SpyObj<ProgrammingService>;
   let router: Router;
 
-  function setup(entries: LibraryEntry[] = [], nextCursor: string | null = null) {
+  // deletedPieceState, when given, stubs Router.getCurrentNavigation() so the constructor reads it
+  // as if the coach had just been routed here from a delete -- there is no real in-test navigation
+  // to produce one, per provideRouter([]).
+  function setup(entries: LibraryEntry[] = [], nextCursor: string | null = null, deletedPieceState?: string) {
     TestBed.resetTestingModule();
 
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
@@ -60,10 +63,15 @@ describe('WodLibraryPage', () => {
       ],
     });
 
+    router = TestBed.inject(Router);
+    if (deletedPieceState !== undefined) {
+      spyOn(router, 'getCurrentNavigation').and.returnValue(
+        { extras: { state: { deletedPiece: deletedPieceState } } } as unknown as ReturnType<Router['getCurrentNavigation']>);
+    }
+
     fixture = TestBed.createComponent(WodLibraryPage);
     component = fixture.componentInstance;
     el = fixture.nativeElement;
-    router = TestBed.inject(Router);
     fixture.detectChanges();
   }
 
@@ -650,5 +658,27 @@ describe('WodLibraryPage', () => {
     const sheet = el.querySelector<HTMLDialogElement>('dialog[aria-label="Benchmark"]')!;
     expect(sheet.textContent).toContain('AMRAP');
     expect(sheet.textContent).not.toContain('Workout');
+  });
+
+  // ---- Task 6 fix 4: a transient "deleted" notice, read once from the navigation that landed here.
+  describe('the deleted-piece notice', () => {
+    it('shows "Annie deleted." when the navigation state carries deletedPiece "Annie"', () => {
+      setup([], null, 'Annie');
+      const alert = el.querySelector('[data-testid="lib-deleted"]');
+      expect(alert).not.toBeNull();
+      expect(alert!.textContent).toContain('Annie deleted.');
+    });
+
+    it('shows "Piece deleted." when the navigation state carries an empty title', () => {
+      setup([], null, '');
+      const alert = el.querySelector('[data-testid="lib-deleted"]');
+      expect(alert).not.toBeNull();
+      expect(alert!.textContent).toContain('Piece deleted.');
+    });
+
+    it('shows nothing when the route was not reached via a delete', () => {
+      setup([]);
+      expect(el.querySelector('[data-testid="lib-deleted"]')).toBeNull();
+    });
   });
 });
