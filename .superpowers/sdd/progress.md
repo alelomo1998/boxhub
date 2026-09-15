@@ -2947,3 +2947,13 @@ before handing back. Seven rounds. Every round found something the green suites 
 - **Pass 3** first written from memory (35) — **withdrawn at the user's demand**; rescored in a fresh
   Chrome tab at 330px: **34/40**, no P0/P1/P2. Detector injection attempted, CSP-blocked.
 - **Gates at commit `5baaa81`:** backend 848/0/0/0, Karma 975, build zero warnings, visual 33 passed.
+
+## Task 6 — Delete in the piece editor (2026-09-15)
+- **Shape:** user picked C (trash on the title row) + Keep it in the confirm sheet. Built by Sonnet executor.
+- **Audit 18/20** (Chrome visual + Playwright keyboard/error measurements, DELETEs intercepted). P1s fixed:
+  Escape mid-request stranded the sheet; focus fell to body on error. P2s fixed: Keep it `ariaDisabled`
+  while pending; `replaceUrl` on success.
+- **Critique pass 1 31/40** → user picked all 4 P2s (piece wording, named title, benchmark reassurance,
+  library "<name> deleted." notice via `bh-alert good`). **Pass 2 34/40** in a fresh Chrome tab, no P0/P1/P2.
+- **Gates at `76d2615`:** Karma 988, build zero warnings, visual 33 passed (icon baselines re-taken
+  twice). Backend untouched (848/0/0/0 at session start). Reviews: `docs/superpowers/reviews/2026-09-15-m14c-b-piece-delete-*.md`.
