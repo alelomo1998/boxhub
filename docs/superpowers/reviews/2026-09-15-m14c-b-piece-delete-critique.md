@@ -62,3 +62,35 @@ is correct for a destructive control.
 - Desktop dialog shows the X and Keep it — redundant but harmless; buttons stack full width in a 560px
   dialog (desktop would usually pair them right-aligned). P3.
 - Page `<title>` is "Edit WOD · rxed" while the page says piece — pre-existing, same terminology split.
+
+## Pass 2 — 34/40 (PASS: ≥32, no P0/P1/P2 open)
+
+⚠️ DEGRADED: single-context (user rule: critiques run inline). Detector preflight re-attempted in a
+fresh tab this pass: `detect.js` injection blocked, CSP `script-src 'self'`.
+
+Fresh Claude in Chrome tab, 330px, build `c642205`, walked this pass: Library → Angie (the remaining
+benchmark copy) → trash → sheet → Delete with the page's DELETE forced to a dead URL (nginx: one
+`DELETE /api/box/__audit_forced_error__ 404`, Angie untouched) → Keep it; then a real delete of
+Smoke piece 53 → library notice → browser Back. User review deleted Annie and Smoke piece 54 between
+passes (nginx 20:10–20:11, iPhone UA, 204).
+
+| # | Heuristic | Score | Key issue |
+|---|---|---|---|
+| 1 | Visibility of system status | 4 | Pending spinner; inline error; "Smoke piece 53 deleted." on arrival, `role="status"`, gone on reload. |
+| 2 | Match with the real world | 3 | Plain consequence copy; the browser tab still says "Edit WOD" (pre-existing). |
+| 3 | User control and freedom | 3 | Keep it / Escape / swipe; Back skipped the deleted piece to Angie's editor. No undo. |
+| 4 | Consistency and standards | 4 | "piece" throughout the flow, matching "New piece" / "Save piece"; opener/executor grammar matches account delete and block remove. |
+| 5 | Error prevention | 4 | "DELETE ANGIE?", "Angie stays in Benchmarks — this removes your box's copy.", Keep it before a filled Delete. |
+| 6 | Recognition rather than recall | 3 | The name is in the sheet now; the opener is still icon-only for sighted first-timers (named for AT). |
+| 7 | Flexibility and efficiency | 3 | Full keyboard path; after the forced error focus sat on Delete (measured `piece-delete-confirm`), Keep it returned it to the opener. |
+| 8 | Aesthetic and minimalist design | 4 | One control, one sheet, one quiet success line; no volt spent. |
+| 9 | Error recognition and recovery | 3 | "That did not delete — try again." with focus on Delete; 409 still has no next step (user left it out). |
+| 10 | Help and documentation | 3 | Body copy answers the classes question; benchmark line answers the Benchmarks one. |
+| **Total** | | **34/40** | **Good — bar met** |
+
+### Remaining P3s → BACKLOG at milestone close
+- 409 copy has no next step ("Remove it from that class first").
+- Library delete notice has no dismiss and stays until the coach leaves the page (search/filter keep it).
+- Desktop dialog shows both X and Keep it; buttons stack full width at 560px.
+- Browser tab title "Edit WOD · rxed" on a screen that says piece (pre-existing).
+- (Audit) Tab from a sheet's last control reached the shell box switcher in Chromium — cause unverified, all sheets.
