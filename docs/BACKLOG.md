@@ -978,3 +978,16 @@ Recorded at milestone close so the next reader knows these were decided, not mis
 - **`weightUnit` is fetched per page.** `piece-editor.page.ts` and now `class-builder.page.ts` each
   spend a `GET /api/box/current` round-trip to read one string, on top of the library and session
   fetches. It is a per-session constant; cache it once in `ProgrammingService`. (Task 7 audit P3-1.)
+- **Slot picker: "Nothing found" on a library that is full.** Opening a Warm-up slot pre-seeds CATEGORY
+  to WARMUP; every benchmark is macro WORKOUT, so the sheet opens on "Nothing found · No option matches
+  that search" while 19 pickable pieces sit one facet away — blaming a search the coach never made. Wants
+  an empty state that names the facet and offers the reset. (Task 7 critique P2, 2026-09-16.)
+- **Picker and Library card render the same eyebrow in different case.** Library: `BENCHMARK GIRL FOR
+  TIME` (uppercase, space-separated). Picker: `⌜Benchmark⌝ Girl · For time`. Same facts, two typographic
+  voices one flow apart. Uppercasing the picker changes every row in the sheet, not just benchmarks.
+  (Task 7 critique P3.)
+- **The slot picker has no benchmarks-only facet** though the Library page has exactly that chip. With 14
+  global benchmarks, a coach hunting their own piece scrolls past the Girls. Wants a shape pass — the
+  search step is already the densest view in the flow. (Task 7 critique P3.)
+- **`/admin/types` renders `h1` "Types" under route title "Class types".** Left alone deliberately: the
+  user ruled 2026-09-16 that Task 8 MOVES the page and the admin milestones rebuild it.

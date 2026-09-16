@@ -2984,3 +2984,19 @@ before handing back. Seven rounds. Every round found something the green suites 
 - **Stack residue:** the audit left one Fran piece saved in draft class BURN IT
   (`2d46610e-61cd-4a38-9480-417bca98c447`); the builder cannot save a class with zero pieces, so it needs
   a row delete or the `down -v` that R7 requires anyway.
+
+## Task 8 — Routes, dock, admin nav; Benchmarks page deleted (2026-09-16)
+- **User ruling:** Types **MOVES** to `/admin/types` loading the existing `TypesPage`; **not rebuilt** —
+  that belongs to the admin milestones. `types.page.ts` was not touched.
+- `/coach/benchmarks` → `wods`, `/coach/types` → `classes` (redirects carry no title, so the
+  `@@route.coach.types` / `@@route.coach.benchmarks` ids are gone). Coach dock down to **Classes + Library**.
+  Admin `nav` and `moreLinks` gain `Class types`; `mobileTabs` untouched. `benchmark-library.page.ts` deleted.
+- **Deviation from the plan:** dock labels stay **plain strings**. The plan wrapped the two surviving coach
+  tabs in `$localize`; the file — and admin-shell's twelve entries — use plain strings, and marking two
+  while leaving twelve is worse than leaving all. The new admin ROUTE does carry a `$localize` title.
+- **Verified end-to-end in Playwright, not by route config** (a config assertion cannot catch `pathMatch`):
+  `/admin/types` resolves and renders (`Class types · rxed`), both redirects land, "Class types" appears in
+  the admin nav and more-menu. Throwaway spec deleted after.
+- **No shape/audit/critique:** the task deletes a screen and moves a route; it composes nothing.
+- **Gates at `f7d4454`:** Karma **999** (995 + 4 new), build zero warnings, `BenchmarkLibraryPage` refs 0,
+  `coach/benchmarks`/`coach/types` links in src+e2e 0. Backend untouched (851/0/0/0 at `2b9753c`).
