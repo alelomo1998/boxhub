@@ -16,7 +16,7 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
   imports: [RouterLink, ButtonComponent, PillComponent, WeekCalendarComponent, DatePipe],
   template: `
     <section class="book">
-      <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
+      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
 
       @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
 

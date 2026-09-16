@@ -40,7 +40,7 @@ type SlotPatch = { name: string; weekday: number; startTime: string; durationMin
         <h1 class="title" i18n="@@admin.schedule.title">Schedule</h1>
       </header>
 
-      <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
+      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
 
       @switch (sessionsState()) {
         @case ('loading') {

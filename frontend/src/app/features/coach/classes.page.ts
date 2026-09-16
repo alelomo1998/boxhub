@@ -20,7 +20,7 @@ import { tonesOf } from '../booking/session-tones';
         <bh-button variant="ghost" size="sm" route="/coach/announcements" testId="announce-link"><span i18n="@@coach.classes.announce">Announce</span></bh-button>
       </header>
 
-      <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
+      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
 
       @if (loading()) { <p class="stateline">Loading classes…</p> }
       @else if (error()) {
