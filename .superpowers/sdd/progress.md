@@ -2957,3 +2957,30 @@ before handing back. Seven rounds. Every round found something the green suites 
   library "<name> deleted." notice via `bh-alert good`). **Pass 2 34/40** in a fresh Chrome tab, no P0/P1/P2.
 - **Gates at `76d2615`:** Karma 988, build zero warnings, visual 33 passed (icon baselines re-taken
   twice). Backend untouched (848/0/0/0 at session start). Reviews: `docs/superpowers/reviews/2026-09-15-m14c-b-piece-delete-*.md`.
+
+## Task 7 — Benchmarks in the class stack slot picker (2026-09-16)
+- **Shape:** user picked "Library parity" from 4 options — the benchmark row carries the same bordered
+  chip `bh-piece-card` uses, then kind + timing. **This overrides the plan's `entryMeta`**, which printed
+  a flat "Benchmark · Girl" and dropped the timing preset. `PickRow` gained an optional `chip`.
+- **Built by a Sonnet executor;** `detailWod` → `detailEntry`, pending-pick fix, `fromBenchmarkId`
+  through the draft store, the item mapping, copy-to-day and 6 new specs.
+- **Three correctness fixes, each at the source, not the screen that showed it:**
+  1. `.rxline` appended the REPS unit to the LOAD ("95 REPS"). The naive fix prints "95 kg" — plausible
+     and WRONG: `GET /benchmarks` served loads raw in lb while `/library` converted. `BenchmarkController.toDto`
+     now converts, so every caller gets the box's unit. Fran reads 43 kg, agreeing with its own block note.
+  2. `/benchmarks` carried **no `timingPreset` at all**, so the same benchmark read "Girl · For time" on the
+     Library page and "Girl · Workout" in the picker. Now serves `WodService.derivedTimingPreset`.
+  3. `editPiece` on an unsaved pick patched the library row itself / 404'd on a benchmark. Saves first.
+- **Audit 18/20** (Chrome live page; 360px/320px + keyboard via a temporary Playwright spec, deleted after).
+  No P0/P1. Fixed between audit and critique: `eyebrowFor` returned "Workout" for a preset-less benchmark.
+- **Critique 33/40** inline with the DEGRADED banner (project rule). User picked the save-honesty fix only:
+  the button reads **"Save and edit"** while a pick is pending, label and handler on one predicate.
+- **Deferred to BACKLOG:** the `Benchmark` chip's CSS now exists in **four** files (`piece-card`,
+  `wod-library` `.bchip`, `pick-sheet`, `class-builder`) — wants one `bh-chip` in `ui/`, which costs a
+  gallery section + baseline re-run; and the per-page `weightUnit` fetch.
+- **Gates at `2b9753c`:** backend **851/0/0/0**, Karma **995**, build zero warnings, `runAsRoot` in
+  controllers 0, `prog.wods()` in coach 0. Visual suite NOT re-run (pick-sheet has no baseline; its
+  `.s` flex change was verified by eye against the piece editor's movement picker).
+- **Stack residue:** the audit left one Fran piece saved in draft class BURN IT
+  (`2d46610e-61cd-4a38-9480-417bca98c447`); the builder cannot save a class with zero pieces, so it needs
+  a row delete or the `down -v` that R7 requires anyway.
