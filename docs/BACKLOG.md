@@ -970,3 +970,11 @@ Recorded at milestone close so the next reader knows these were decided, not mis
   switch.** Both deliberate, both carry `ponytail:` comments. **The TV must tolerate a block index it
   cannot resolve.**
 - **Library History: marks in the calendar's month jump sheet** — the week strip marks days that ran pieces (`GET /api/box/wods/history/days`, ≤62-day range); the jump sheet's month grid carries none. Needs `bh-week-calendar` to pass tones into the jump grid and a per-month fetch. (M14c-b critique pass 2 P3, user left to orchestrator.)
+- **The benchmark "Benchmark" chip is copy-pasted in FOUR files** — `piece-card.component.ts` `.chip`,
+  `wod-library.page.ts` `.bchip`, `pick-sheet.component.ts` `.chip`, `class-builder.page.ts`
+  `.detail-meta .chip`, all the same four token lines. Wants one `bh-chip` in `ui/`, which costs
+  signal inputs, a seven-states dev-gallery section and a container visual-baseline re-run — which is
+  why it was filed rather than done. (Task 7 audit P2-1, 2026-09-16; user: "not urgent".)
+- **`weightUnit` is fetched per page.** `piece-editor.page.ts` and now `class-builder.page.ts` each
+  spend a `GET /api/box/current` round-trip to read one string, on top of the library and session
+  fetches. It is a per-session constant; cache it once in `ProgrammingService`. (Task 7 audit P3-1.)

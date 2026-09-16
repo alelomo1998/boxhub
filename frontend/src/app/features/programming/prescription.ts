@@ -82,10 +82,13 @@ export function libMeta(w: Wod): string {
 
 /** Eyebrow for a card/sheet row. A benchmark's "BENCHMARK · GIRL" chip already carries the
  *  category, so re-stating "Workout" there is noise (M14c-b critique F6) -- the timing preset
- *  alone is enough: "BENCHMARK · GIRL · FOR TIME". Falls back to libMeta when there's no preset.
+ *  alone is enough: "BENCHMARK · GIRL · FOR TIME". A preset-less benchmark gets NOTHING rather
+ *  than the libMeta fallback, which put the noise straight back: Annie and Barbara read
+ *  "Benchmark | Girl · Workout", where the last word is true of every benchmark there is
+ *  (Task 7 audit P2-2, 2026-09-16). Callers must skip an empty eyebrow, separator and all.
  *  A plain piece (no benchmarkKind) is unchanged. */
 export function eyebrowFor(w: Wod, benchmarkKind: string | null | undefined): string {
-  if (benchmarkKind && w.timingPreset) return PRESET_LABELS[w.timingPreset] ?? w.timingPreset;
+  if (benchmarkKind) return w.timingPreset ? (PRESET_LABELS[w.timingPreset] ?? w.timingPreset) : '';
   return libMeta(w);
 }
 

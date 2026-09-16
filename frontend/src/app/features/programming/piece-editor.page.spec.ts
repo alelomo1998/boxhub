@@ -223,7 +223,7 @@ describe('PieceEditorPage', () => {
 
   function seededDraft(scoreable: boolean): PieceDraft {
     return {
-      itemId: 'item1', wod: null, fromLibraryWodId: 'lib1', label: 'Warmup', macro: 'WARMUP',
+      itemId: 'item1', wod: null, fromLibraryWodId: 'lib1', fromBenchmarkId: null, label: 'Warmup', macro: 'WARMUP',
       scoreable, scoreType: null,
     };
   }

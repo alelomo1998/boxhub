@@ -7,11 +7,14 @@ import { forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { BookingService, SessionDetail, SessionView } from '../booking/booking.service';
 import {
-  ProgrammingService, Wod, MACROS, TIMING_PRESETS, ItemInput, SessionItem,
+  ProgrammingService, Wod, MACROS, TIMING_PRESETS, ItemInput, SessionItem, LibraryEntry,
 } from '../programming/programming.service';
 import { ClassDraftStore, PieceDraft } from '../programming/class-draft.store';
 import { PickSheetComponent, PickRow, PickResult } from '../programming/pick-sheet.component';
-import { MACRO_LABELS, PRESET_LABELS, ExpandedRow, expandedRows, wodMatchesText, libMeta } from '../programming/prescription';
+import {
+  MACRO_LABELS, PRESET_LABELS, ExpandedRow, expandedRows, wodMatchesText, libMeta,
+  BENCHMARK_KIND_LABELS, eyebrowFor,
+} from '../programming/prescription';
 import { ButtonComponent } from '../../ui/button.component';
 import { AlertComponent } from '../../ui/alert.component';
 import { BannerComponent } from '../../ui/banner.component';
@@ -33,6 +36,9 @@ const scoredByDefault = (type: string): boolean =>
 
 const NOT_SCORED = $localize`:@@class.score.notScored:not scored`;
 const ANY_LABEL = $localize`:@@class.filter.any:Any`;
+/** Leading badge on a benchmark's picker row / detail step, same idiom as bh-piece-card's own
+ *  "Benchmark" chip (Library parity, user-ruled 2026-09-16). */
+const BENCHMARK_CHIP = $localize`:@@class.slot.benchmarkChip:Benchmark`;
 
 /** One row of the "copy to the day's other classes" sheet. `itemCount === null` means the fetch
  *  for that target's existing pieces hasn't resolved yet (or failed -- see `failed`); never
@@ -133,10 +139,12 @@ const SNIPPET_CAP = 80;
                                     <p class="blocklabel" [class.sub]="r.sub">{{ r.text }}</p>
                                   } @else if (r.kind === 'line') {
                                     <p class="rxline" [class.sub]="r.sub">
-                                      @if (r.reps) { <span class="mono">{{ r.reps }}</span> }
+                                      @if (r.reps) {
+                                        <span class="mono">{{ r.reps }}{{ r.unit && r.unit !== 'REPS' ? ' ' + r.unit.toLowerCase() : '' }}</span>
+                                      }
                                       <span>{{ r.text }}</span>
                                       @if (r.load) {
-                                        <span class="mono">{{ r.load }}{{ r.unit ? ' ' + r.unit : '' }}</span>
+                                        <span class="mono">{{ r.load }} {{ weightUnit().toLowerCase() }}</span>
                                       }
                                     </p>
                                   } @else {
@@ -150,7 +158,11 @@ const SNIPPET_CAP = 80;
                             <div class="expanded-foot">
                               <button type="button" class="editlink" (click)="editPiece(i)"
                                       [attr.data-testid]="'piece-edit-' + i">
-                                <span i18n="@@class.piece.edit">Edit this piece</span> &#x203A;
+                                @if (hasPendingSource(d)) {
+                                  <span i18n="@@class.piece.saveAndEdit">Save and edit</span>
+                                } @else {
+                                  <span i18n="@@class.piece.edit">Edit this piece</span>
+                                } &#x203A;
                               </button>
                               @if (confirmRemove() === i) {
                                 <div class="removeconfirm">
@@ -309,30 +321,35 @@ const SNIPPET_CAP = 80;
                   </div>
                 </div>
               }
-              @if (slotStep() === 'detail' && detailWod(); as w) {
+              @if (slotStep() === 'detail' && detailEntry(); as e) {
                 <div sheetOverlay class="stepbody" data-testid="slot-detail-step">
-                  <h3 class="detail-title">{{ w.title }}</h3>
-                  <p class="detail-meta">{{ libMeta(w) }}</p>
+                  <h3 class="detail-title">{{ e.wod.title }}</h3>
+                  <p class="detail-meta">
+                    @if (e.benchmarkKind) { <span class="chip">{{ benchmarkChipLabel }}</span> }
+                    <span>{{ entrySecondary(e) }}</span>
+                  </p>
                   <div class="detail-rx">
-                    @if (expandedRows(w); as rows) {
+                    @if (expandedRows(e.wod); as rows) {
                       @if (rows.length) {
                         @for (r of rows; track $index) {
                           @if (r.kind === 'label') {
                             <p class="blocklabel" [class.sub]="r.sub">{{ r.text }}</p>
                           } @else if (r.kind === 'line') {
                             <p class="rxline" [class.sub]="r.sub">
-                              @if (r.reps) { <span class="mono">{{ r.reps }}</span> }
+                              @if (r.reps) {
+                                <span class="mono">{{ r.reps }}{{ r.unit && r.unit !== 'REPS' ? ' ' + r.unit.toLowerCase() : '' }}</span>
+                              }
                               <span>{{ r.text }}</span>
                               @if (r.load) {
-                                <span class="mono">{{ r.load }}{{ r.unit ? ' ' + r.unit : '' }}</span>
+                                <span class="mono">{{ r.load }} {{ weightUnit().toLowerCase() }}</span>
                               }
                             </p>
                           } @else {
                             <p class="blocknote" [class.sub]="r.sub">{{ r.text }}</p>
                           }
                         }
-                      } @else if (w.bodyText) {
-                        <p class="rx">{{ w.bodyText }}</p>
+                      } @else if (e.wod.bodyText) {
+                        <p class="rx">{{ e.wod.bodyText }}</p>
                       }
                     }
                   </div>
@@ -546,8 +563,12 @@ const SNIPPET_CAP = 80;
        verbatim (same renderer as the stack's own expanded row), so only the step chrome is new. */
     .detail-title { margin: 0 0 2px; font-family: var(--font-display); font-weight: 800;
       font-size: var(--fs-h2); color: var(--bone); }
-    .detail-meta { margin: 0 0 var(--sp-3); font-family: var(--font-mono); font-size: var(--fs-meta);
+    .detail-meta { margin: 0 0 var(--sp-3); display: flex; align-items: baseline; flex-wrap: wrap;
+      gap: var(--sp-2); font-family: var(--font-mono); font-size: var(--fs-meta);
       letter-spacing: 0.04em; color: var(--bone-dim); }
+    /* Identical to bh-piece-card's own .chip (Library parity, user-ruled 2026-09-16). */
+    .detail-meta .chip { color: var(--bone); border: 1px solid var(--hairline); border-radius: var(--edge);
+      padding: 0 var(--sp-1); }
     .detail-rx { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-3); }
     .detail-actions { display: flex; gap: var(--sp-3); }
     .detail-actions bh-button { flex: 1; min-width: 0; }
@@ -599,10 +620,14 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   detail = signal<SessionDetail | null>(null);
   state = signal<'loading' | 'error' | 'ready'>('loading');
   published = signal(false);
-  library = signal<Wod[]>([]);
+  library = signal<LibraryEntry[]>([]);
   /** The library fetch's own state -- an empty `library` used to mean either "empty" or "failed"
    *  indistinguishably, and the fill-slot sheet rendered pick-sheet's "Nothing found" for both. */
   libraryState = signal<'loading' | 'ready' | 'error'>('loading');
+  /** The box's own weight unit (R2/D22), read once like piece-editor.page.ts's own copy -- feeds
+   *  a piece's load lines (stack + slot-picker detail step) so a benchmark's converted load and
+   *  a plain piece's load both print in the unit the coach reads in. */
+  weightUnit = signal<'KG' | 'LB'>('KG');
 
   drafts = this.store.drafts;
   expanded = signal<number | null>(null);
@@ -618,8 +643,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   /** Which step the fill-slot sheet shows. `search` drives [overlay]="slotStep() !== 'search'"
    *  on bh-pick-sheet -- every other value swaps in this component's own [sheetOverlay] content. */
   slotStep = signal<'search' | 'category' | 'type' | 'detail'>('search');
-  /** The result tapped on the search step, shown (not yet applied) on the detail step. */
-  detailWod = signal<Wod | null>(null);
+  /** The result tapped on the search step, shown (not yet applied) on the detail step. Holds the
+   *  whole LibraryEntry (not just the Wod), so a benchmark's kind/global-ness survives to Select. */
+  detailEntry = signal<LibraryEntry | null>(null);
 
   addSlotOpen = signal(false);
 
@@ -647,6 +673,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   readonly anyLabel = ANY_LABEL;
   readonly timingPresets = TIMING_PRESETS;
+  readonly benchmarkChipLabel = BENCHMARK_CHIP;
 
   categoryFilterLabel = computed(() => this.categoryFilter() ? this.macroLabel(this.categoryFilter()) : ANY_LABEL);
   typeFilterLabel = computed(() => this.typeFilter() ? this.presetLabel(this.typeFilter()) : ANY_LABEL);
@@ -695,12 +722,31 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     const cat = this.categoryFilter();
     const type = this.typeFilter();
     return this.library()
-      .filter(w => (!cat || w.macro === cat) && (!type || w.timingPreset === type) && wodMatchesText(w, q))
-      .map(w => ({ id: w.id, primary: w.title, secondary: this.libMeta(w), detail: this.wodSnippet(w) || undefined }));
+      .filter(e => (!cat || e.wod.macro === cat) && (!type || e.wod.timingPreset === type) && wodMatchesText(e.wod, q))
+      .map(e => ({
+        id: e.wod.id, primary: e.wod.title,
+        chip: e.benchmarkKind ? this.benchmarkChipLabel : undefined,
+        secondary: this.entrySecondary(e),
+        detail: this.wodSnippet(e.wod) || undefined,
+      }));
   });
 
-  /** "WORKOUT · for time" / "WARMUP" -- the result row's and the detail step's second line. */
+  /** "WORKOUT · for time" / "WARMUP" -- a plain piece's second line, unchanged. */
   libMeta(w: Wod): string { return libMeta(w); }
+
+  /** A benchmark row says so via its chip, so the text beside it is just kind + timing -- "Girl ·
+   *  For time" -- never "Benchmark" again (Library parity, user-ruled 2026-09-16). A preset-less
+   *  benchmark is the kind ALONE: eyebrowFor returns '' there, and appending it anyway left a
+   *  dangling "Girl · " (audit P2-2). A plain library entry is unchanged: libMeta, no chip.
+   *  Shared by the picker row and the detail step. */
+  entrySecondary(e: LibraryEntry): string {
+    if (!e.benchmarkKind) return this.libMeta(e.wod);
+    const kind = this.benchmarkKindLabel(e.benchmarkKind);
+    const timing = eyebrowFor(e.wod, e.benchmarkKind);
+    return timing ? `${kind} · ${timing}` : kind;
+  }
+
+  benchmarkKindLabel(k: string): string { return BENCHMARK_KIND_LABELS[k] ?? k; }
 
   /** The result row's third line: the prescription's movement text, so a coach can tell pieces
    *  apart without opening each one. Built from the SAME rows the detail step and the class
@@ -732,6 +778,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     this.sessionId = this.route.snapshot.paramMap.get('id')!;
     this.loadLibrary();
     this.load();
+    // Read-once, best-effort: a failed fetch just leaves the KG default in place (same as
+    // piece-editor.page.ts's own copy).
+    this.prog.weightUnit().subscribe({ next: u => this.weightUnit.set(u), error: () => {} });
   }
 
   retry() {
@@ -741,8 +790,8 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   private loadLibrary() {
     this.libraryState.set('loading');
-    this.prog.wods().subscribe({
-      next: w => { this.library.set(w); this.libraryState.set('ready'); },
+    this.prog.libraryEntries().subscribe({
+      next: e => { this.library.set(e); this.libraryState.set('ready'); },
       error: () => this.libraryState.set('error'),
     });
   }
@@ -803,7 +852,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   /** The one place a `SessionItem` becomes a `PieceDraft`. */
   private toDraft(i: SessionItem): PieceDraft {
     return {
-      itemId: i.id, wod: i.wod, fromLibraryWodId: null,
+      itemId: i.id, wod: i.wod, fromLibraryWodId: null, fromBenchmarkId: null,
       label: i.wod.title, macro: i.wod.macro, scoreable: i.scoreable, scoreType: null,
     };
   }
@@ -817,7 +866,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
         if (!t) { this.openDrafts([]); return; }
         this.prog.skeleton(t.id).subscribe({
           next: sk => this.openDrafts(sk.map(p => ({
-            itemId: null, wod: null, fromLibraryWodId: null, label: p.label,
+            itemId: null, wod: null, fromLibraryWodId: null, fromBenchmarkId: null, label: p.label,
             macro: macroOf(p.wodType), scoreable: scoredByDefault(p.wodType), scoreType: null,
           }))),
           error: () => this.openDrafts([]),
@@ -834,7 +883,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   // ---- row rendering ------------------------------------------------------------------------
 
-  isEmpty(d: PieceDraft): boolean { return d.wod === null && d.fromLibraryWodId === null; }
+  isEmpty(d: PieceDraft): boolean {
+    return d.wod === null && d.fromLibraryWodId === null && d.fromBenchmarkId === null;
+  }
 
   /** Flattens `wod.blocks` (label, lines, one level of sub-blocks) into printable rows. Empty
    *  when the piece has no blocks -- the caller falls back to the legacy `bodyText`. Takes the
@@ -930,7 +981,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     this.typeFilter.set('');
     this.searchTerm.set('');
     this.slotStep.set('search');
-    this.detailWod.set(null);
+    this.detailEntry.set(null);
     this.slotSheetOpen.set(true);
   }
 
@@ -940,9 +991,9 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
    *  below is the only path that actually fills it. */
   onSlotPicked(result: PickResult) {
     if ('freeText' in result) return; // allowFreeText is false for this sheet
-    const w = this.library().find(x => x.id === result.id);
-    if (!w) return;
-    this.detailWod.set(w);
+    const e = this.library().find(x => x.wod.id === result.id);
+    if (!e) return;
+    this.detailEntry.set(e);
     this.slotStep.set('detail');
   }
 
@@ -957,18 +1008,22 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   }
 
   selectDetailWod() {
-    const w = this.detailWod();
+    const e = this.detailEntry();
     const i = this.slotIndex();
     this.closeSlotSheet();
-    if (i === null || !w) return;
+    if (i === null || !e) return;
     const d = this.store.drafts()[i];
-    this.store.put(i, { ...d, wod: w, fromLibraryWodId: w.id });
+    this.store.put(i, {
+      ...d, wod: e.wod,
+      fromLibraryWodId: e.global ? null : e.wod.id,
+      fromBenchmarkId: e.global ? e.wod.id : null,
+    });
   }
 
   closeSlotSheet() {
     this.slotSheetOpen.set(false);
     this.slotStep.set('search');
-    this.detailWod.set(null);
+    this.detailEntry.set(null);
   }
 
   writeNewPiece() {
@@ -978,8 +1033,22 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     this.goToEditor(['/coach', 'classes', this.sessionId, 'build', 'piece', i]);
   }
 
+  /** True while a pick still points at its SOURCE rather than the class's own copy. The label and
+   *  the behaviour below read this same predicate, so the button cannot promise one and do the
+   *  other (critique P2, 2026-09-16). */
+  hasPendingSource(d: PieceDraft | undefined): boolean {
+    return !!(d?.fromLibraryWodId || d?.fromBenchmarkId);
+  }
+
+  /** A pick not yet saved holds the SOURCE's id (a library wod, or a global benchmark), so the
+   *  editor would load and patch the library row itself -- or 404 on a benchmark. Save first: the
+   *  server copies the source into the class, and the editor opens that copy. The save is a real
+   *  write the coach did not ask for, so the button SAYS so rather than doing it quietly -- the
+   *  "Saved" banner doesn't help, the navigation destroys the screen carrying it. */
   editPiece(i: number) {
-    this.goToEditor(this.editRoute(i));
+    const d = this.store.drafts()[i];
+    if (this.hasPendingSource(d)) this.doSave(false, () => this.goToEditor(this.editRoute(i)));
+    else this.goToEditor(this.editRoute(i));
   }
 
   /** The one route both entrances into the piece editor share -- see `toEditor` above. */
@@ -992,7 +1061,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
 
   appendSlot(macro: string) {
     this.store.drafts.update(ds => [...ds, {
-      itemId: null, wod: null, fromLibraryWodId: null, label: this.macroLabel(macro), macro,
+      itemId: null, wod: null, fromLibraryWodId: null, fromBenchmarkId: null, label: this.macroLabel(macro), macro,
       scoreable: true, scoreType: null,
     }]);
     this.addSlotOpen.set(false);
@@ -1012,7 +1081,7 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
   private doSave(publish: boolean, onSaved?: () => void) {
     if (this.saving()) return;
     const drafts = this.store.drafts();
-    if (drafts.every(d => d.wod === null && d.fromLibraryWodId === null)) {
+    if (drafts.every(d => this.isEmpty(d))) {
       this.formError.set($localize`:@@class.save.emptyError:Add at least one piece.`);
       return;
     }
@@ -1020,11 +1089,12 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     this.saving.set(true);
 
     const items: ItemInput[] = drafts
-      .filter(d => d.wod || d.fromLibraryWodId)
+      .filter(d => d.wod || d.fromLibraryWodId || d.fromBenchmarkId)
       .map(d => ({
         id: d.itemId,
-        wodId: d.fromLibraryWodId ? null : d.wod!.id,
+        wodId: d.fromLibraryWodId || d.fromBenchmarkId ? null : d.wod!.id,
         fromLibraryWodId: d.fromLibraryWodId,
+        fromBenchmarkId: d.fromBenchmarkId,
         scoreable: d.scoreable,
         scoreType: d.scoreType ?? undefined,
       }));
@@ -1120,7 +1190,12 @@ export class ClassBuilderPage implements OnInit, HasUnsaved {
     if (!ticked.length) return;
     const items: ItemInput[] = this.store.drafts()
       .filter(d => !this.isEmpty(d))
-      .map(d => ({ id: null, wodId: null, fromLibraryWodId: d.wod!.id, scoreable: d.scoreable, scoreType: d.scoreType ?? undefined }));
+      .map(d => ({
+        id: null, wodId: null,
+        fromLibraryWodId: d.fromBenchmarkId ? null : d.wod!.id,
+        fromBenchmarkId: d.fromBenchmarkId,
+        scoreable: d.scoreable, scoreType: d.scoreType ?? undefined,
+      }));
     if (!items.length) return;
     const publish = this.published();
 

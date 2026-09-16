@@ -1646,8 +1646,9 @@ export class PieceEditorPage {
             // that answer back. scoreType lives on the wod, scoreable on the session item, and
             // keeping the draft's skeleton-seeded flag silently overrode the coach's choice.
             scoreable: this.scoreable(),
-            // The piece now has its own content; it is no longer a pending library copy.
+            // The piece now has its own content; it is no longer a pending library or benchmark copy.
             fromLibraryWodId: null,
+            fromBenchmarkId: null,
             scoreType: null,
           });
         }

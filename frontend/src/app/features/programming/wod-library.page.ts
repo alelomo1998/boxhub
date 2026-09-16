@@ -164,7 +164,7 @@ type Load = 'loading' | 'ready' | 'error';
               <span class="bchip" i18n="@@library.card.benchmark">Benchmark</span>
               <span>{{ benchKindLabel() }}</span>
             }
-            <span>{{ eyebrowFor(b.wod, b.benchmarkKind) }}</span>
+            @if (eyebrowFor(b.wod, b.benchmarkKind); as eb) { <span>{{ eb }}</span> }
           </span>
           @if (benchScoreLabel()) { <span class="bscore">{{ benchScoreLabel() }}</span> }
         </div>

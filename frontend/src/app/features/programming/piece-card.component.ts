@@ -20,7 +20,7 @@ export const CARD_LINE_BUDGET = 3;
           <span class="chip" i18n="@@library.card.benchmark">Benchmark</span>
           <span>{{ kindLabel() }}</span>
         }
-        <span>{{ eyebrow() }}</span>
+        @if (eyebrow()) { <span>{{ eyebrow() }}</span> }
       </span>
       @if (scoreLabel()) { <span class="score">{{ scoreLabel() }}</span> }
     </div>

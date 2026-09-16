@@ -125,7 +125,8 @@ describe('ProgrammingService', () => {
 
 describe('mergeLibrary', () => {
   const bm = (id: string, name: string, kind: string): Benchmark =>
-    ({ id, name, kind, scoreType: 'TIME', timeCapSeconds: null, bodyText: '', blocks: { blocks: [] } });
+    ({ id, name, kind, scoreType: 'TIME', timingPreset: 'FOR_TIME', timeCapSeconds: null,
+       bodyText: '', blocks: { blocks: [] } });
   const wod = (id: string, benchmarkTemplateId: string | null): Wod => ({ ...benchmarkAsWod(bm(id, id, 'GIRL')),
     id, benchmarkTemplateId, library: true });
 

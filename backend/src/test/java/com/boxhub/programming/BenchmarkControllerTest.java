@@ -44,17 +44,18 @@ class BenchmarkControllerTest extends AbstractIntegrationTest {
         aAthlete = boxToken("bma-" + n + "@t.io", boxA, "ATHLETE");
         bCoach = boxToken("bmc2-" + n + "@t.io", boxB, "COACH");
         franName = "Fran " + n;
-        franId = seedBenchmark(franName, "GIRL");
-        seedBenchmark("Murph " + n, "HERO");
+        franId = seedBenchmark(franName, "GIRL",
+                "{\"blocks\":[{\"lines\":[{\"load\":\"95\"}]}]}");
+        seedBenchmark("Murph " + n, "HERO", "{\"blocks\":[]}");
     }
 
     // BenchmarkTemplate is intentionally read-only (no setters); seed via native SQL in the test DB.
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
-    private UUID seedBenchmark(String name, String kind) {
+    private UUID seedBenchmark(String name, String kind, String blocksJson) {
         UUID id = UUID.randomUUID();
         jdbc.update("insert into benchmark_template (id, name, kind, score_type, time_cap_seconds, body_text, blocks_json) "
-                        + "values (?, ?, ?, 'TIME', 600, ?, '{\"blocks\":[]}'::jsonb)",
-                id, name, kind, "21-15-9 thrusters/pullups");
+                        + "values (?, ?, ?, 'TIME', 600, ?, ?::jsonb)",
+                id, name, kind, "21-15-9 thrusters/pullups", blocksJson);
         return id;
     }
 
@@ -106,5 +107,38 @@ class BenchmarkControllerTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/box/benchmarks/" + franId + "/clone")
                         .header("Authorization", "Bearer " + aAthlete))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listConvertsLoadToBoxWeightUnit() throws Exception {
+        // boxA defaults to KG: Fran's stored lb load (95) converts.
+        mvc.perform(get("/api/box/benchmarks").header("Authorization", "Bearer " + aCoach))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id=='" + franId + "')].blocks.blocks[0].lines[0].load").value("43"));
+
+        long n = System.nanoTime();
+        Box boxLb = newBox("Bm Box Lb " + n, "bm-lb-" + n);
+        boxLb.setWeightUnit("LB");
+        boxes.save(boxLb);
+        String lbCoach = boxToken("bmlb-" + n + "@t.io", boxLb, "COACH");
+        mvc.perform(get("/api/box/benchmarks").header("Authorization", "Bearer " + lbCoach))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id=='" + franId + "')].blocks.blocks[0].lines[0].load").value("95"));
+    }
+
+    // Without this the same benchmark read "Girl · For time" on the Library page (which derives the
+    // preset) and "Girl" alone in the class picker, which reads /benchmarks.
+    @Test
+    void servesTheTimingPresetDerivedFromScoreType() throws Exception {
+        mvc.perform(get("/api/box/benchmarks").header("Authorization", "Bearer " + aCoach))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id=='" + franId + "')].timingPreset").value("FOR_TIME"));
+    }
+
+    @Test
+    void getConvertsLoadToBoxWeightUnit() throws Exception {
+        mvc.perform(get("/api/box/benchmarks/" + franId).header("Authorization", "Bearer " + aCoach))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.blocks.blocks[0].lines[0].load").value("43"));
     }
 }

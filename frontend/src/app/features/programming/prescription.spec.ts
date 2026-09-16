@@ -75,8 +75,10 @@ describe('eyebrowFor', () => {
     expect(eyebrowFor({ ...base, timingPreset: 'AMRAP' }, 'GIRL')).toBe('AMRAP');
   });
 
-  it('falls back to libMeta for a benchmark with no timing preset', () => {
-    expect(eyebrowFor(base, 'GIRL')).toBe('Workout');
+  // The libMeta fallback used to return "Workout" here, which is true of every benchmark and so
+  // told the reader nothing -- the chip beside it already says "Benchmark" (audit P2-2).
+  it('is EMPTY for a benchmark with no timing preset, so the kind stands alone', () => {
+    expect(eyebrowFor(base, 'GIRL')).toBe('');
   });
 
   it('a plain piece (no benchmarkKind) is unchanged -- always libMeta', () => {

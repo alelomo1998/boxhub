@@ -67,6 +67,9 @@ export interface Wod {
 }
 export interface Benchmark {
   id: string; name: string; kind: string; scoreType: string;
+  /** Derived server-side from scoreType, same as GET /library does -- without it a global
+   *  benchmark had no timing anywhere it was shown outside the Library page. */
+  timingPreset: string | null;
   timeCapSeconds: number | null; bodyText: string; blocks: WodBlocks;
 }
 export interface SessionItem {
@@ -104,7 +107,7 @@ export interface LibraryPage { rows: LibraryEntry[]; nextCursor: string | null; 
 
 export function benchmarkAsWod(b: Benchmark): Wod {
   return {
-    id: b.id, title: b.name, wodType: 'CUSTOM', macro: 'WORKOUT', timingPreset: null,
+    id: b.id, title: b.name, wodType: 'CUSTOM', macro: 'WORKOUT', timingPreset: b.timingPreset,
     timing: { rounds: 1, segments: [] }, library: true, teamSize: 1, teamShare: null,
     scoreType: b.scoreType, timeCapSeconds: b.timeCapSeconds, bodyText: b.bodyText, blocks: b.blocks,
     scalingNotes: null, benchmarkTemplateId: b.id,
