@@ -78,4 +78,12 @@ describe('CoachShellPage', () => {
     const badge = fixture.nativeElement.querySelector('[data-testid="coach-messages-link"] .badge');
     expect(badge.textContent.trim()).toBe('4');
   });
+
+  it('keeps only Classes and Library on the coach dock — Benchmarks merged into the library and ' +
+     'Types moved admin-only (M14c-b)', () => {
+    const { fixture } = setup();
+    const tabs = fixture.componentInstance.tabs;
+    expect(tabs.map(t => t.link)).toEqual(['classes', 'wods']);
+    expect(tabs[1].label).toBe('Library');
+  });
 });

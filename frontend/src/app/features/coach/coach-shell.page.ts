@@ -81,15 +81,13 @@ export class CoachShellPage implements OnInit {
   avatarPath = signal<string | null>(null);
   userName = '';
 
-  // Four, not five: Inbox left the dock when the header envelope arrived in every shell (M29a
-  // A1.12.3). The envelope is where unread messages are signalled, so a dock tab to the same place
-  // put one meaning in two spots and only the header one carried the count. The /coach/inbox route
-  // stays — the envelope is what points at it.
+  // Two since M14c-b: Benchmarks became library entries and Types went admin-only. Inbox stays off
+  // the dock (Four, not five, M29a A1.12.3) — the header envelope is where unread messages are
+  // signalled, so a dock tab to the same place put one meaning in two spots and only the header one
+  // carried the count. The /coach/inbox route stays — the envelope is what points at it.
   tabs: DockTab[] = [
     { link: 'classes', label: 'Classes', icon: 'calendar' },
     { link: 'wods', label: 'Library', icon: 'clipboard-list' },
-    { link: 'benchmarks', label: 'Bench', icon: 'dumbbell' },
-    { link: 'types', label: 'Types', icon: 'layout-grid' },
   ];
 
   ngOnInit() {
