@@ -147,7 +147,7 @@ class BookingEntitlementTest extends AbstractIntegrationTest {
         assertThatThrownBy(() -> bookingService.book(sessionB, m1))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
                     assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-                    assertThat(ex.getReason()).isEqualTo("LIMIT_REACHED");
+                    assertThat(ex.getReason()).isEqualTo("ENTRIES_PER_WEEK");
                 });
     }
 

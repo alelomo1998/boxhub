@@ -174,7 +174,7 @@ class EntitlementLimitsTest extends AbstractIntegrationTest {
         Booking again = bookingService.book(freshSessionId, membershipId);
         assertThat(again.getStatus()).isEqualTo("BOOKED");
         assertThatThrownBy(() -> bookingService.cancel(freshSessionId, membershipId))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "CANCEL_LIMIT_REACHED"));
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "CANCELLATIONS_PER_WEEK"));
     }
 
     @Test
@@ -191,7 +191,7 @@ class EntitlementLimitsTest extends AbstractIntegrationTest {
 
         UUID fourthSessionId = newSession(at(MONDAY, 9));
         assertThatThrownBy(() -> bookingService.book(fourthSessionId, membershipId))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "LIMIT_REACHED"));
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "ENTRIES_PER_DAY"));
 
         Plan plan = plans.findById(planId).orElseThrow();
         Subscription sub = subscriptions.findByMembershipIdAndStatus(membershipId, "ACTIVE").orElseThrow();
@@ -221,7 +221,7 @@ class EntitlementLimitsTest extends AbstractIntegrationTest {
         // Friday holds nothing, so this can only be the weekly rule.
         UUID fridaySessionId = newSession(at(MONDAY.plusDays(4), 6));
         assertThatThrownBy(() -> bookingService.book(fridaySessionId, membershipId))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "LIMIT_REACHED"));
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "ENTRIES_PER_WEEK"));
 
         Plan plan = plans.findById(planId).orElseThrow();
         Subscription sub = subscriptions.findByMembershipIdAndStatus(membershipId, "ACTIVE").orElseThrow();
@@ -273,7 +273,7 @@ class EntitlementLimitsTest extends AbstractIntegrationTest {
         // waitlist cancel (BookingCancellationTest:182). The flag is what makes the rule reachable.
         UUID nextSessionId = newSession(at(MONDAY, 18));
         assertThatThrownBy(() -> bookingService.book(nextSessionId, membershipId))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "LIMIT_REACHED"));
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "ENTRIES_PER_WEEK"));
     }
 
     @Test
@@ -292,7 +292,7 @@ class EntitlementLimitsTest extends AbstractIntegrationTest {
         bookingService.cancel(session1, membershipId); // fine, first cancellation this week
 
         assertThatThrownBy(() -> bookingService.cancel(session2, membershipId))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "CANCEL_LIMIT_REACHED"));
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "CANCELLATIONS_PER_WEEK"));
         // Entries were unlimited throughout, so only the cancellation rule can have fired.
     }
 
@@ -319,7 +319,7 @@ class EntitlementLimitsTest extends AbstractIntegrationTest {
         // either, and this assertion is the one that would silently pass either way otherwise.
         UUID thirdSessionId = newSession(at(MONDAY, 18));
         assertThatThrownBy(() -> bookingService.book(thirdSessionId, membershipId))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "LIMIT_REACHED"));
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "ENTRIES_PER_WEEK"));
     }
 
     @Test
@@ -346,7 +346,7 @@ class EntitlementLimitsTest extends AbstractIntegrationTest {
 
         UUID thirdSessionId = newSession(at(MONDAY, 10));
         assertThatThrownBy(() -> bookingService.book(thirdSessionId, membershipId))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "LIMIT_REACHED"));
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertConflict(ex, "ENTRIES_TOTAL"));
 
         Plan plan = plans.findById(planId).orElseThrow();
         Subscription active = subscriptions.findByMembershipIdAndStatus(membershipId, "ACTIVE").orElseThrow();

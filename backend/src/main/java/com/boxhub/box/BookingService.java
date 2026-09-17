@@ -57,11 +57,9 @@ public class BookingService {
         // allowed (last-minute booking is fine; last-minute self-cancel is not). See cancel() below.
         Subscription active = subscriptions.activeFor(membershipId)
                 .orElseThrow(() -> conflict("NO_ACTIVE_SUBSCRIPTION"));
-        // ponytail: the reason string stays the bare "LIMIT_REACHED" that book.page.ts:166 switches
-        // on. entryLimitViolated() names WHICH of the eight limits bound (spec §2.2) and the tests
-        // assert it; it reaches the wire when M14b/M17 rebuilds the athlete booking screen and can
-        // render it. Recorded in docs/BACKLOG.md rather than left implicit.
-        if (entryLimitViolated(session, box, membershipId, active) != null) throw conflict("LIMIT_REACHED");
+        // The rule's own code reaches the wire (M17a): the athlete is told WHICH limit stopped them.
+        String violated = entryLimitViolated(session, box, membershipId, active);
+        if (violated != null) throw conflict(violated);
 
         Booking b = new Booking();
         b.setSessionId(sessionId);
@@ -115,10 +113,9 @@ public class BookingService {
         Subscription active = subscriptions.activeFor(membershipId).orElse(null);
         if (active != null && countsCancellation) {
             Plan plan = plans.findById(active.getPlanId()).orElseThrow();
-            if (ledger.firstViolated(PlanLimits.CANCELLATION_RULES, plan, active,
-                    session.getStartAt(), ZoneId.of(box.getTimezone()), membershipId) != null) {
-                throw conflict("CANCEL_LIMIT_REACHED");
-            }
+            String violated = ledger.firstViolated(PlanLimits.CANCELLATION_RULES, plan, active,
+                    session.getStartAt(), ZoneId.of(box.getTimezone()), membershipId);
+            if (violated != null) throw conflict(violated);
         }
 
         booking.setStatus("CANCELLED");
