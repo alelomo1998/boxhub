@@ -9,7 +9,7 @@ function session(id: string, startAt: string, overrides: Partial<SessionView> = 
   return {
     id, name: 'WOD', startAt, durationMin: 60, capacity: 10, coachId: null, coachName: null,
     status: 'ACTIVE', programmingStatus: 'PUBLISHED', bookedCount: 3, waitlistCount: 0, booked: [],
-    myBookingStatus: null, myPosition: null, ...overrides,
+    myBookingStatus: null, myPosition: null, imagePath: null, ...overrides,
   };
 }
 

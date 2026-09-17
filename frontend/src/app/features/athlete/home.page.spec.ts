@@ -10,7 +10,10 @@ const STATS = { checkinsThisWeek: 3, streakWeeks: 2, planDaysLeft: null, lastPr:
 
 /** unread defaults to 0 — most specs care about the announcement body, not the count. */
 function homeWith(announcement: Home['announcement'], unread = 0): Home {
-  return { nextBooking: null, announcement, stats: STATS, planExpiringSoon: false, announcementUnread: unread };
+  return {
+    nextBooking: null, announcement, stats: STATS, planExpiringSoon: false, announcementUnread: unread,
+    hasActivePlan: true, attendedThisWeek: [], suggestion: null,
+  };
 }
 
 const HOME_ANNOUNCEMENT: Home['announcement'] = {

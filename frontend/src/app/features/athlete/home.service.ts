@@ -13,9 +13,14 @@ export interface HomeStats { checkinsThisWeek: number; streakWeeks: number; plan
 /** `sentByName` is null for a system/seed send (no author) — the caller renders its own neutral
  *  fallback, never "null" and never a blank line. */
 export interface Announcement { body: string; updatedAt: string; sentByName: string | null; }
+export interface Suggestion {
+  sessionId: string; name: string; startAt: string; imagePath: string | null;
+  bookedCount: number; capacity: number;
+}
 export interface Home {
   nextBooking: NextBooking | null; announcement: Announcement | null;
   stats: HomeStats; planExpiringSoon: boolean; announcementUnread: number;
+  hasActivePlan: boolean; attendedThisWeek: string[]; suggestion: Suggestion | null;
 }
 
 export interface Profile {

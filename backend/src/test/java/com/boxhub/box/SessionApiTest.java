@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +35,8 @@ class SessionApiTest extends AbstractIntegrationTest {
     @Autowired TokenService tokenService;
     @Autowired ClassSessionRepository sessions;
     @Autowired BookingRepository bookings;
+    @Autowired ScheduleSlotRepository slots;
+    @Autowired ClassTypeRepository types;
 
     Box boxA;
     String coachToken, athleteToken, otherCoachToken;
@@ -155,6 +158,39 @@ class SessionApiTest extends AbstractIntegrationTest {
     void crossTenantRosterIs404() throws Exception {
         mvc.perform(get("/api/box/sessions/" + sessionId + "/roster").header("Authorization", "Bearer " + otherCoachToken))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listCarriesTheClassTypeImageThroughTheSlot() throws Exception {
+        actAsBox(boxA.getId());
+        ClassType t = new ClassType();
+        t.setName("Type " + System.nanoTime());
+        t.setImagePath("cl-test.png");
+        UUID typeId = types.save(t).getId();
+
+        ScheduleSlot sl = new ScheduleSlot();
+        sl.setClassTypeId(typeId);
+        sl.setWeekday(0);
+        sl.setStartTime(LocalTime.of(9, 0));
+        sl.setDurationMin(60);
+        sl.setCapacity(10);
+        UUID slotId = slots.save(sl).getId();
+
+        ClassSession slotted = new ClassSession();
+        slotted.setName("Slotted WOD");
+        slotted.setStartAt(Instant.now().plusSeconds(4 * 24 * 3600));
+        slotted.setDurationMin(60);
+        slotted.setCapacity(10);
+        slotted.setScheduleSlotId(slotId);
+        UUID slottedId = sessions.save(slotted).getId();
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/sessions" + range()).header("Authorization", "Bearer " + coachToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id=='" + slottedId + "')].imagePath",
+                        org.hamcrest.Matchers.contains(org.hamcrest.Matchers.containsString("cl-test"))))
+                .andExpect(jsonPath("$[?(@.id=='" + sessionId + "')].imagePath",
+                        org.hamcrest.Matchers.contains(org.hamcrest.Matchers.nullValue())));
     }
 
 }

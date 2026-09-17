@@ -9,7 +9,7 @@ function session(id: string, startAt: string): SessionView {
   return {
     id, name: 'WOD', startAt, durationMin: 60, capacity: 10, coachId: null, coachName: null,
     status: 'ACTIVE', programmingStatus: 'PUBLISHED', bookedCount: 0, waitlistCount: 0, booked: [],
-    myBookingStatus: null, myPosition: null,
+    myBookingStatus: null, myPosition: null, imagePath: null,
   };
 }
 

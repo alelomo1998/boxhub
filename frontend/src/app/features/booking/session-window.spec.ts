@@ -76,4 +76,9 @@ describe('isPastDay', () => {
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0);
     expect(isPastDay(tomorrow.toISOString())).toBe(false);
   });
+
+  it('judges against the given now, not the real clock', () => {
+    expect(isPastDay('2026-01-01T23:00:00', new Date('2026-01-02T00:30:00'))).toBe(true);
+    expect(isPastDay('2026-01-02T00:10:00', new Date('2026-01-02T23:59:00'))).toBe(false);
+  });
 });

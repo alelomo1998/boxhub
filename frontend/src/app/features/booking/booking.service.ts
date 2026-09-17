@@ -6,7 +6,7 @@ export interface SessionView {
   id: string; name: string; startAt: string; durationMin: number;
   capacity: number; coachId: string | null; coachName: string | null; status: string; programmingStatus: string;
   bookedCount: number; waitlistCount: number; booked: string[];
-  myBookingStatus: string | null; myPosition: number | null;
+  myBookingStatus: string | null; myPosition: number | null; imagePath: string | null;
 }
 export interface BookingResult { bookingId: string; status: string; position: number | null; }
 export interface MyBooking { sessionId: string; sessionName: string; startAt: string; status: string; position: number | null; }
