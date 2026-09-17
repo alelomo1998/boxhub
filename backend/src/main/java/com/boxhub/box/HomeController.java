@@ -24,6 +24,7 @@ import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -44,12 +45,14 @@ public class HomeController {
     private final SubscriptionService subscriptions;
     private final MediaSigner mediaSigner;
     private final UserRepository users;
+    private final BoxRepository boxes;
 
     public HomeController(BookingRepository bookings, ClassSessionRepository sessions,
                           ScheduleSlotRepository slots, ClassTypeRepository types, MembershipRepository memberships,
                           AnnouncementRecipientRepository recipients, PerformanceQueries queries,
                           LiftEntryRepository lifts, MovementRepository movements,
-                          SubscriptionService subscriptions, MediaSigner mediaSigner, UserRepository users) {
+                          SubscriptionService subscriptions, MediaSigner mediaSigner, UserRepository users,
+                          BoxRepository boxes) {
         this.bookings = bookings;
         this.sessions = sessions;
         this.slots = slots;
@@ -62,6 +65,7 @@ public class HomeController {
         this.subscriptions = subscriptions;
         this.mediaSigner = mediaSigner;
         this.users = users;
+        this.boxes = boxes;
     }
 
     public record Participant(String name, String avatarPath) {}
@@ -72,8 +76,11 @@ public class HomeController {
     public record Stats(long checkinsThisWeek, int streakWeeks, Long planDaysLeft, LastPr lastPr) {}
     /** sentByName is null for a system/seed send (sentBy null) — never the box name or a placeholder. */
     public record AnnouncementView(String body, Instant updatedAt, String sentByName) {}
+    public record Suggestion(UUID sessionId, String name, Instant startAt, String imagePath,
+                             int bookedCount, int capacity) {}
     public record HomeDto(NextBooking nextBooking, AnnouncementView announcement, Stats stats,
-                          boolean planExpiringSoon, long announcementUnread) {}
+                          boolean planExpiringSoon, long announcementUnread, boolean hasActivePlan,
+                          List<LocalDate> attendedThisWeek, Suggestion suggestion) {}
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -90,18 +97,23 @@ public class HomeController {
                 .map(a -> new AnnouncementView(a.getBody(), a.getSentAt(), senderName(a.getSentBy())))
                 .orElse(null);
 
-        ZoneId zone = ZoneId.systemDefault();
+        ZoneId zone = boxes.findById(TenantContext.requireBoxId())
+                .map(b -> ZoneId.of(b.getTimezone())).orElse(ZoneId.systemDefault());
         Instant weekStart = LocalDate.now(zone).with(DayOfWeek.MONDAY).atStartOfDay(zone).toInstant();
         Instant weekEnd = LocalDate.now(zone).with(DayOfWeek.MONDAY).plusWeeks(1).atStartOfDay(zone).toInstant();
         long checkins = bookings.countInWeek(me.getId(), weekStart, weekEnd);
+        List<LocalDate> attended = bookings.attendedStartsBetween(me.getId(), weekStart, weekEnd).stream()
+                .map(i -> i.atZone(zone).toLocalDate()).distinct().sorted().toList();
 
         // M10: sourced from the active Subscription's currentPeriodEnd, not the dead
         // Membership.expiresAt column — nothing writes that any more (recordPeriod, invite accept,
         // the webhook and the lapse job all write Subscription.currentPeriodEnd instead). A
         // grandfathered subscription (null end) is never expiring.
-        Instant subEnd = subscriptions.activeFor(me.getId()).map(Subscription::getCurrentPeriodEnd).orElse(null);
+        Optional<Subscription> activeSub = subscriptions.activeFor(me.getId());
+        boolean hasActivePlan = activeSub.isPresent();
+        Instant subEnd = activeSub.map(Subscription::getCurrentPeriodEnd).orElse(null);
         Long planDaysLeft = subEnd == null ? null
-                : java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), subEnd.atZone(zone).toLocalDate());
+                : java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(zone), subEnd.atZone(zone).toLocalDate());
 
         LastPr lastPr = lifts.findByMembershipIdOrderByPerformedOnDesc(me.getId()).stream()
                 .filter(LiftEntry::isPr).findFirst()
@@ -114,7 +126,7 @@ public class HomeController {
         // disagreed with a badge about who is expiring is worse than either (M29b D-12).
         boolean expiring = planDaysLeft != null && planDaysLeft >= 0 && planDaysLeft <= EXPIRING_SOON_DAYS;
         long unread = recipients.countByMembershipIdAndReadAtIsNull(me.getId());
-        return new HomeDto(next, ann, stats, expiring, unread);
+        return new HomeDto(next, ann, stats, expiring, unread, hasActivePlan, attended, null);
     }
 
     /** Null sentBy (system/seed sends) skips the lookup entirely rather than calling findById(null). */
