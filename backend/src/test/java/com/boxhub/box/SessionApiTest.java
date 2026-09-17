@@ -121,6 +121,10 @@ class SessionApiTest extends AbstractIntegrationTest {
 
         mvc.perform(get("/api/box/sessions/" + sessionId + "/roster").header("Authorization", "Bearer " + coachToken))
                 .andExpect(jsonPath("$[0].status").value("CHECKED_IN"));
+        // A checked-in athlete is still in the class: the list keeps counting and naming them.
+        mvc.perform(get("/api/box/sessions" + range()).header("Authorization", "Bearer " + coachToken))
+                .andExpect(jsonPath("$[0].bookedCount").value(1))
+                .andExpect(jsonPath("$[0].booked.length()").value(1));
     }
 
     @Test

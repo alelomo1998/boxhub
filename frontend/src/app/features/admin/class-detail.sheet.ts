@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, effect, inject, input, ou
 import { DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { BookingService, SessionDetail } from '../booking/booking.service';
+import { isPastDay } from '../booking/session-window';
 import { SheetComponent } from '../../ui/sheet.component';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
@@ -225,13 +226,8 @@ export class ClassDetailSheet {
     return $localize`:@@admin.classDetail.meta.duration:${d.durationMin}:duration: min`;
   }
 
-  /** A session is past when its start is on a calendar day before today (local time) — today's
-   *  classes keep every action, so this is day-level, not "already started". */
   protected isPast(d: SessionDetail): boolean {
-    const start = new Date(d.startAt);
-    const day = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return day.getTime() < today.getTime();
+    return isPastDay(d.startAt);
   }
 
   protected openCancelConfirm(): void {

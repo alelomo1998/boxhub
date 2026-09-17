@@ -44,6 +44,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     // exclude them explicitly, or a cancelled row reads back as still active.
     Optional<Booking> findBySessionIdAndMembershipIdAndStatusNot(UUID sessionId, UUID membershipId, String status);
     long countBySessionIdAndStatus(UUID sessionId, String status);
+    // A checked-in athlete still holds their place: capacity and "N booked" count BOTH statuses.
+    List<String> IN_CLASS = List.of("BOOKED", "CHECKED_IN");
+    long countBySessionIdAndStatusIn(UUID sessionId, Collection<String> statuses);
+    List<Booking> findBySessionIdAndStatusInOrderByPosition(UUID sessionId, Collection<String> statuses);
     List<Booking> findBySessionIdAndStatusOrderByPosition(UUID sessionId, String status);
     boolean existsBySessionIdAndStatusIn(UUID sessionId, List<String> statuses);
     // Regeneration deletes in-range sessions; bookings.session_id has no ON DELETE CASCADE (V3), so

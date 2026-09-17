@@ -6,7 +6,7 @@ import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
-import { sessionWindow, covers, SessionWindow } from '../booking/session-window';
+import { sessionWindow, covers, SessionWindow, isPastDay } from '../booking/session-window';
 
 function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
 
@@ -32,10 +32,12 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
                 <div class="info">
                   <span class="nm">{{ s.name }}</span>
                   @if (s.coachName) { <span class="coach">Coach {{ s.coachName }}</span> }
-                  <span class="spots num">
-                    @if (s.bookedCount >= s.capacity) { Full · {{ s.waitlistCount }} in line }
-                    @else { {{ s.capacity - s.bookedCount }} spots left }
-                  </span>
+                  @if (!isPastDay(s.startAt)) {
+                    <span class="spots num">
+                      @if (s.bookedCount >= s.capacity) { Full · {{ s.waitlistCount }} in line }
+                      @else { {{ s.capacity - s.bookedCount }} spots left }
+                    </span>
+                  }
                 </div>
                 <div class="time">
                   <span class="t-start num">{{ s.startAt | date:'HH:mm' }}</span>
@@ -43,12 +45,19 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
                 </div>
               </a>
               <div class="foot">
-                @if (started(s)) {
+                @if (isPastDay(s.startAt)) {
+                  <span class="mut" i18n="@@athlete.book.finished">Finished</span>
+                  @if (s.myBookingStatus === 'CHECKED_IN') { <bh-pill tone="active" [label]="attendedLabel" /> }
+                  @else if (s.myBookingStatus === 'BOOKED') { <bh-pill tone="active" label="Booked" /> }
+                } @else if (started(s)) {
                   <span class="mut">Started {{ s.startAt | date:'HH:mm' }}</span>
-                  @if (s.myBookingStatus === 'BOOKED') { <bh-pill tone="active" label="Booked" /> }
-                } @else if (s.myBookingStatus === 'BOOKED') {
+                  @if (s.myBookingStatus === 'CHECKED_IN') { <bh-pill tone="active" [label]="attendedLabel" /> }
+                  @else if (s.myBookingStatus === 'BOOKED') { <bh-pill tone="active" label="Booked" /> }
+                } @else if (s.myBookingStatus === 'BOOKED' || s.myBookingStatus === 'CHECKED_IN') {
                   <bh-pill tone="active" label="Booked" />
-                  <bh-button variant="ghost" size="sm" data-testid="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)">Cancel</bh-button>
+                  @if (s.myBookingStatus === 'BOOKED') {
+                    <bh-button variant="ghost" size="sm" data-testid="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)">Cancel</bh-button>
+                  }
                 } @else if (s.myBookingStatus === 'WAITLIST') {
                   <bh-pill tone="warn" [label]="'Waitlist #' + s.myPosition" />
                   <bh-button variant="ghost" size="sm" data-testid="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)">Leave</bh-button>
@@ -110,6 +119,9 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
 })
 export class BookPage implements OnInit {
   private booking = inject(BookingService);
+
+  protected readonly isPastDay = isPastDay;
+  protected readonly attendedLabel = $localize`:@@athlete.book.attended:Attended`;
 
   readonly sessions = signal<SessionView[]>([]);
   readonly images = signal<Map<string, string>>(new Map());

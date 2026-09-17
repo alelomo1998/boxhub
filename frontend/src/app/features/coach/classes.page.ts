@@ -4,7 +4,7 @@ import { BookingService, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
-import { sessionWindow, covers, SessionWindow } from '../booking/session-window';
+import { sessionWindow, covers, SessionWindow, isPastDay } from '../booking/session-window';
 
 /** Coach home: one day's classes at a time (same week strip as Book); tap into check-in or the builder. */
 @Component({
@@ -15,7 +15,6 @@ import { sessionWindow, covers, SessionWindow } from '../booking/session-window'
     <section class="cls">
       <header class="head">
         <div class="head-text">
-          <span class="eyebrow">This week</span>
           <h1 class="title">Classes</h1>
         </div>
         <bh-button variant="ghost" size="sm" route="/coach/announcements" testId="announce-link"><span i18n="@@coach.classes.announce">Announce</span></bh-button>
@@ -45,11 +44,11 @@ import { sessionWindow, covers, SessionWindow } from '../booking/session-window'
                 {{ s.programmingStatus === 'PUBLISHED' ? 'Published' : 'Draft' }}
               </span>
               <div class="acts">
-                @if (!isPast(s)) {
+                @if (!isPastDay(s.startAt)) {
                   <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'build']" testId="build-link"><span i18n="@@coach.classes.action.build">Build</span></bh-button>
                 }
                 <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'checkin']" testId="checkin-link"><span i18n="@@coach.classes.action.checkin">Check-in</span></bh-button>
-                @if (!isPast(s)) {
+                @if (!isPastDay(s.startAt)) {
                   <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'run']" testId="run-link"><span i18n="@@coach.classes.action.run">Run</span></bh-button>
                 }
               </div>
@@ -72,10 +71,8 @@ import { sessionWindow, covers, SessionWindow } from '../booking/session-window'
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .head { margin-bottom: var(--sp-4); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
-    .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
-      text-transform: uppercase; color: var(--faint); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
-      text-transform: uppercase; margin: 2px 0 0; }
+      text-transform: uppercase; margin: 0; }
     .list { display: flex; flex-direction: column; gap: var(--sp-3); }
     .row { display: grid; grid-template-columns: 56px 1fr auto auto; align-items: center; gap: var(--sp-3);
       padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--r-card);
@@ -141,12 +138,5 @@ export class CoachClassesPage implements OnInit {
     });
   }
 
-  /** A session is past when its start is on a calendar day before today (local time) — Today's
-   *  classes keep every action, so this is day-level, not "already started". */
-  protected isPast(s: SessionView): boolean {
-    const d = new Date(s.startAt);
-    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return day.getTime() < today.getTime();
-  }
+  protected readonly isPastDay = isPastDay;
 }

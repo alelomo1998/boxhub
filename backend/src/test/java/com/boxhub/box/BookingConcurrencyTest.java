@@ -111,6 +111,34 @@ class BookingConcurrencyTest extends AbstractIntegrationTest {
         assertThat(waitlistCount).isEqualTo(1);
     }
 
+    /** A check-in must not free the place: before the fix capacity counted BOOKED only, so the
+     *  first check-in on a full class let the next athlete book past capacity. */
+    @Test
+    void checkedInAthleteStillHoldsTheirPlace() {
+        long n = System.nanoTime();
+        Box box = new Box();
+        box.setName("Held " + n);
+        box.setSlug("held-" + n);
+        box.setTimezone("Europe/Rome");
+        UUID boxId = boxes.save(box).getId();
+
+        actAsBox(boxId);
+        ClassSession s = new ClassSession();
+        s.setName("One spot");
+        s.setStartAt(Instant.now().plusSeconds(3600 * 24));
+        s.setDurationMin(60);
+        s.setCapacity(1);
+        UUID sessionId = sessions.save(s).getId();
+        UUID m1 = newMembership(boxId);
+        UUID m2 = newMembership(boxId);
+
+        bookingService.checkIn(bookingService.book(sessionId, m1).getId());
+        Booking second = bookingService.book(sessionId, m2);
+        SecurityContextHolder.clearContext();
+
+        assertThat(second.getStatus()).isEqualTo("WAITLIST");
+    }
+
     private void raceBook(UUID boxId, UUID sessionId, UUID membershipId, CountDownLatch ready, CountDownLatch go) {
         try {
             actAsBox(boxId);

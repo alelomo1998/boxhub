@@ -35,3 +35,12 @@ export function covers(window: SessionWindow, offset: number): boolean {
   next.setDate(next.getDate() + 1);
   return day.getTime() >= window.from.getTime() && next.getTime() <= window.to.getTime();
 }
+
+/** A session is past when its start is on a calendar day before today (local time) — today's
+ *  classes keep every action, so this is day-level, not "already started". */
+export function isPastDay(startAt: string): boolean {
+  const d = new Date(startAt);
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return day.getTime() < today.getTime();
+}

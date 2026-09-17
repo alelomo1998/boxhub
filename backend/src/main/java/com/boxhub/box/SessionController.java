@@ -72,9 +72,10 @@ public class SessionController {
 
         List<SessionView> out = new ArrayList<>();
         for (ClassSession s : sessionList) {
-            List<Booking> bookedRows = bookings.findBySessionIdAndStatusOrderByPosition(s.getId(), "BOOKED");
+            List<Booking> bookedRows = bookings.findBySessionIdAndStatusInOrderByPosition(s.getId(), BookingRepository.IN_CLASS);
             List<String> bookedNames = new ArrayList<>();
             for (Booking b : bookedRows) {
+                if (b.getMembershipId() == null) continue; // a drop-in visitor: counted, not named
                 memberships.findById(b.getMembershipId()).ifPresent(m -> bookedNames.add(m.getUser().getName()));
             }
             long waitlist = bookings.countBySessionIdAndStatus(s.getId(), "WAITLIST");
@@ -85,7 +86,7 @@ public class SessionController {
             }
             out.add(new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
                     s.getCoachId(), s.getCoachId() == null ? null : coachNames.get(s.getCoachId()),
-                    s.getStatus(), s.getProgrammingStatus(), bookedNames.size(), waitlist, bookedNames, myStatus, myPos));
+                    s.getStatus(), s.getProgrammingStatus(), bookedRows.size(), waitlist, bookedNames, myStatus, myPos));
         }
         return out;
     }
@@ -111,7 +112,7 @@ public class SessionController {
         if (req.startAt() != null) s.setStartAt(req.startAt());
         if ("CANCELLED".equals(req.status()) || "SCHEDULED".equals(req.status())) s.setStatus(req.status());
         sessions.save(s);
-        long booked = bookings.countBySessionIdAndStatus(s.getId(), "BOOKED");
+        long booked = bookings.countBySessionIdAndStatusIn(s.getId(), BookingRepository.IN_CLASS);
         long waitlist = bookings.countBySessionIdAndStatus(s.getId(), "WAITLIST");
         String coachName = s.getCoachId() == null ? null :
                 users.findById(s.getCoachId()).map(User::getName).orElse(null);

@@ -991,3 +991,7 @@ Recorded at milestone close so the next reader knows these were decided, not mis
   search step is already the densest view in the flow. (Task 7 critique P3.)
 - **`/admin/types` renders `h1` "Types" under route title "Class types".** Left alone deliberately: the
   user ruled 2026-09-16 that Task 8 MOVES the page and the admin milestones rebuild it.
+- **Coach Classes empty state points at a tab that moved.** "Pick another day from the strip above — or
+  schedule class types in the Types tab." Types left the coach dock for `/admin/types` in Task 8, so a
+  coach has no Types tab to open. Rewrite when the coach shell is rebuilt (copy + i18n id change).
+  (Found 2026-09-17 during the past-days change.)

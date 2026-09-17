@@ -1,4 +1,4 @@
-import { sessionWindow, covers } from './session-window';
+import { sessionWindow, covers, isPastDay } from './session-window';
 
 function startOfDay(d: Date): Date { const c = new Date(d); c.setHours(0, 0, 0, 0); return c; }
 function addDays(d: Date, n: number): Date { const c = new Date(d); c.setDate(c.getDate() + n); return c; }
@@ -53,5 +53,27 @@ describe('covers', () => {
 
   it('covers the last bookable day from today\'s window', () => {
     expect(covers(sessionWindow(0), 13)).toBe(true);
+  });
+});
+
+describe('isPastDay', () => {
+  it('is false for a class earlier today (day-level, not "already started")', () => {
+    const earlier = new Date(); earlier.setHours(0, 0, 1, 0);
+    expect(isPastDay(earlier.toISOString())).toBe(false);
+  });
+
+  it('is false for a class later today', () => {
+    const later = new Date(); later.setHours(23, 59, 0, 0);
+    expect(isPastDay(later.toISOString())).toBe(false);
+  });
+
+  it('is true for a class on a day before today', () => {
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(9, 0, 0, 0);
+    expect(isPastDay(yesterday.toISOString())).toBe(true);
+  });
+
+  it('is false for a class on a day after today', () => {
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0);
+    expect(isPastDay(tomorrow.toISOString())).toBe(false);
   });
 });
