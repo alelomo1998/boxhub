@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 
 export interface Movement { id: string; name: string; category: string; modality: string | null;
                             global: boolean; units: string[]; loadable: boolean; }
@@ -67,6 +67,9 @@ export interface Wod {
 }
 export interface Benchmark {
   id: string; name: string; kind: string; scoreType: string;
+  /** Derived server-side from scoreType, same as GET /library does -- without it a global
+   *  benchmark had no timing anywhere it was shown outside the Library page. */
+  timingPreset: string | null;
   timeCapSeconds: number | null; bodyText: string; blocks: WodBlocks;
 }
 export interface SessionItem {
@@ -77,9 +80,58 @@ export interface ItemInput {
   id?: string | null;
   wodId?: string | null;
   fromLibraryWodId?: string | null;
+  fromBenchmarkId?: string | null;
   scoreable: boolean;
   scoreType?: string | null;
 }
+
+/** One row of the library: a box wod, or a global benchmark adapted to the Wod shape. */
+export interface LibraryEntry {
+  wod: Wod;
+  /** GIRL / HERO / OTHER for a benchmark -- global, or the box's own copy of one. null otherwise. */
+  benchmarkKind: string | null;
+  /** A global benchmark (wod.id IS the benchmark id): opening it shows the add sheet, picking it
+   *  into a class sends fromBenchmarkId. */
+  global: boolean;
+}
+
+export interface WodHistoryRow { itemId: string; sessionId: string; className: string; startAt: string; wod: Wod; }
+
+/** `GET /api/box/library` (R3/R6): `q` only applies at >=3 chars (server enforces too); `movement`
+ *  and `kind` are repeated params. `cursor` null/omitted asks for page one. */
+export interface LibraryQuery {
+  q?: string; macro?: string; timing?: string; movement?: string[];
+  benchmarks?: boolean; kind?: string[]; cursor?: string | null;
+}
+export interface LibraryPage { rows: LibraryEntry[]; nextCursor: string | null; total: number; }
+
+export function benchmarkAsWod(b: Benchmark): Wod {
+  return {
+    id: b.id, title: b.name, wodType: 'CUSTOM', macro: 'WORKOUT', timingPreset: b.timingPreset,
+    timing: { rounds: 1, segments: [] }, library: true, teamSize: 1, teamShare: null,
+    scoreType: b.scoreType, timeCapSeconds: b.timeCapSeconds, bodyText: b.bodyText, blocks: b.blocks,
+    scalingNotes: null, benchmarkTemplateId: b.id,
+  };
+}
+
+/**
+ * Saved pieces first (server order: newest updated), then every benchmark the box has NOT copied,
+ * in the server's kind-then-name order. Once a box piece carries a benchmark's id the global row
+ * hides (spec D9) -- never two Frans.
+ */
+export function mergeLibrary(wods: Wod[], benchmarks: Benchmark[]): LibraryEntry[] {
+  const kindById = new Map(benchmarks.map(b => [b.id, b.kind]));
+  const copied = new Set(wods.map(w => w.benchmarkTemplateId).filter((id): id is string => !!id));
+  return [
+    ...wods.map(w => ({
+      wod: w, global: false,
+      benchmarkKind: w.benchmarkTemplateId ? kindById.get(w.benchmarkTemplateId) ?? null : null,
+    })),
+    ...benchmarks.filter(b => !copied.has(b.id))
+      .map(b => ({ wod: benchmarkAsWod(b), benchmarkKind: b.kind, global: true })),
+  ];
+}
+
 export interface TeamScoreInput {
   membershipIds: string[]; teamName?: string | null;
   rx: boolean; timeSeconds?: number | null; rounds?: number | null; reps?: number | null;
@@ -122,7 +174,35 @@ export class ProgrammingService {
   createWod(w: WodInput): Observable<Wod> { return this.http.post<Wod>('/api/box/wods', w); }
   patchWod(id: string, w: WodInput): Observable<Wod> { return this.http.patch<Wod>(`/api/box/wods/${id}`, w); }
   deleteWod(id: string): Observable<void> { return this.http.delete<void>(`/api/box/wods/${id}`); }
-  duplicateWod(id: string): Observable<Wod> { return this.http.post<Wod>(`/api/box/wods/${id}/duplicate`, {}); }
+
+  libraryEntries(): Observable<LibraryEntry[]> {
+    return forkJoin([this.wods(), this.benchmarks()]).pipe(map(([w, b]) => mergeLibrary(w, b)));
+  }
+
+  wodHistory(day: string): Observable<WodHistoryRow[]> {
+    const params = new HttpParams().set('day', day);
+    return this.http.get<WodHistoryRow[]>('/api/box/wods/history', { params });
+  }
+
+  /** `GET /api/box/wods/history/days` (M14c-b F5): the box-timezone dates in [from, to] on which
+   *  a class ran a piece -- ascending, distinct. Feeds the History tab's week-strip dots. */
+  historyDays(from: string, to: string): Observable<string[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<string[]>('/api/box/wods/history/days', { params });
+  }
+
+  /** R3/R6: the Library page's paged, filtered read. Array fields append as repeated params. */
+  libraryPage(query: LibraryQuery): Observable<LibraryPage> {
+    let params = new HttpParams();
+    if (query.q) params = params.set('q', query.q);
+    if (query.macro) params = params.set('macro', query.macro);
+    if (query.timing) params = params.set('timing', query.timing);
+    for (const m of query.movement ?? []) params = params.append('movement', m);
+    if (query.benchmarks) params = params.set('benchmarks', 'true');
+    for (const k of query.kind ?? []) params = params.append('kind', k);
+    if (query.cursor) params = params.set('cursor', query.cursor);
+    return this.http.get<LibraryPage>('/api/box/library', { params });
+  }
 
   // benchmarks (unchanged)
   benchmarks(kind?: string): Observable<Benchmark[]> {

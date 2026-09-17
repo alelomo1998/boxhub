@@ -2929,3 +2929,128 @@ before handing back. Seven rounds. Every round found something the green suites 
 - **Task 14** — BACKLOG: growth bug, type loss, D-1 struck through (D-1 closed as M39's fix); §10
   deferrals and the milestone's open findings filed under "M14c-a §10". Roadmap row 10 → done.
 - **Dev data:** the `down -v` removed the hand-inserted second Burn It. Nothing to clean up.
+
+## M14c-b — Library critique (2026-09-15, session 3)
+
+- **Baselines re-run, not quoted:** backend 843/0/0/0, Karma 958, build zero warnings.
+- **Critique pass 1** (Chrome, 550px): 27/40 — P1 benchmark sheet dropped rounds/rest/Rx notes
+  (Barbara read as one round); P2s D9 flag missing in default list, search blanking, filters only a
+  badge, History no day hint.
+- **Batch 1** (spec'd): full sheet prescription + score/cap; D9 kinds in `libraryMode`.
+- **Batch 2** (user: "all 4 and drop workout"): dimmed refresh + request token; removable filter
+  chips; 3-letter hint; no-match clear actions; `GET /wods/history/days` + calendar `toneWords`;
+  benchmark eyebrow without "Workout". Orchestrator found live: `bh-search-bar` swallowed a retyped
+  term after an external reset (fixed, spec red-proven); chip removal dropped focus to body
+  (`setTimeout` → `afterNextRender`).
+- **Pass 2** 33/40. **Batch 3** (user: clear filters also clears search; P3s mine): hint inline in the
+  chip row, lowercase units, unselectable days drop tone word, month-grid marks → BACKLOG.
+- **Pass 3** first written from memory (35) — **withdrawn at the user's demand**; rescored in a fresh
+  Chrome tab at 330px: **34/40**, no P0/P1/P2. Detector injection attempted, CSP-blocked.
+- **Gates at commit `5baaa81`:** backend 848/0/0/0, Karma 975, build zero warnings, visual 33 passed.
+
+## Task 6 — Delete in the piece editor (2026-09-15)
+- **Shape:** user picked C (trash on the title row) + Keep it in the confirm sheet. Built by Sonnet executor.
+- **Audit 18/20** (Chrome visual + Playwright keyboard/error measurements, DELETEs intercepted). P1s fixed:
+  Escape mid-request stranded the sheet; focus fell to body on error. P2s fixed: Keep it `ariaDisabled`
+  while pending; `replaceUrl` on success.
+- **Critique pass 1 31/40** → user picked all 4 P2s (piece wording, named title, benchmark reassurance,
+  library "<name> deleted." notice via `bh-alert good`). **Pass 2 34/40** in a fresh Chrome tab, no P0/P1/P2.
+- **Gates at `76d2615`:** Karma 988, build zero warnings, visual 33 passed (icon baselines re-taken
+  twice). Backend untouched (848/0/0/0 at session start). Reviews: `docs/superpowers/reviews/2026-09-15-m14c-b-piece-delete-*.md`.
+
+## Task 7 — Benchmarks in the class stack slot picker (2026-09-16)
+- **Shape:** user picked "Library parity" from 4 options — the benchmark row carries the same bordered
+  chip `bh-piece-card` uses, then kind + timing. **This overrides the plan's `entryMeta`**, which printed
+  a flat "Benchmark · Girl" and dropped the timing preset. `PickRow` gained an optional `chip`.
+- **Built by a Sonnet executor;** `detailWod` → `detailEntry`, pending-pick fix, `fromBenchmarkId`
+  through the draft store, the item mapping, copy-to-day and 6 new specs.
+- **Three correctness fixes, each at the source, not the screen that showed it:**
+  1. `.rxline` appended the REPS unit to the LOAD ("95 REPS"). The naive fix prints "95 kg" — plausible
+     and WRONG: `GET /benchmarks` served loads raw in lb while `/library` converted. `BenchmarkController.toDto`
+     now converts, so every caller gets the box's unit. Fran reads 43 kg, agreeing with its own block note.
+  2. `/benchmarks` carried **no `timingPreset` at all**, so the same benchmark read "Girl · For time" on the
+     Library page and "Girl · Workout" in the picker. Now serves `WodService.derivedTimingPreset`.
+  3. `editPiece` on an unsaved pick patched the library row itself / 404'd on a benchmark. Saves first.
+- **Audit 18/20** (Chrome live page; 360px/320px + keyboard via a temporary Playwright spec, deleted after).
+  No P0/P1. Fixed between audit and critique: `eyebrowFor` returned "Workout" for a preset-less benchmark.
+- **Critique 33/40** inline with the DEGRADED banner (project rule). User picked the save-honesty fix only:
+  the button reads **"Save and edit"** while a pick is pending, label and handler on one predicate.
+- **Deferred to BACKLOG:** the `Benchmark` chip's CSS now exists in **four** files (`piece-card`,
+  `wod-library` `.bchip`, `pick-sheet`, `class-builder`) — wants one `bh-chip` in `ui/`, which costs a
+  gallery section + baseline re-run; and the per-page `weightUnit` fetch.
+- **Gates at `2b9753c`:** backend **851/0/0/0**, Karma **995**, build zero warnings, `runAsRoot` in
+  controllers 0, `prog.wods()` in coach 0. Visual suite NOT re-run (pick-sheet has no baseline; its
+  `.s` flex change was verified by eye against the piece editor's movement picker).
+- **Stack residue:** the audit left one Fran piece saved in draft class BURN IT
+  (`2d46610e-61cd-4a38-9480-417bca98c447`); the builder cannot save a class with zero pieces, so it needs
+  a row delete or the `down -v` that R7 requires anyway.
+
+## Task 8 — Routes, dock, admin nav; Benchmarks page deleted (2026-09-16)
+- **User ruling:** Types **MOVES** to `/admin/types` loading the existing `TypesPage`; **not rebuilt** —
+  that belongs to the admin milestones. `types.page.ts` was not touched.
+- `/coach/benchmarks` → `wods`, `/coach/types` → `classes` (redirects carry no title, so the
+  `@@route.coach.types` / `@@route.coach.benchmarks` ids are gone). Coach dock down to **Classes + Library**.
+  Admin `nav` and `moreLinks` gain `Class types`; `mobileTabs` untouched. `benchmark-library.page.ts` deleted.
+- **Deviation from the plan:** dock labels stay **plain strings**. The plan wrapped the two surviving coach
+  tabs in `$localize`; the file — and admin-shell's twelve entries — use plain strings, and marking two
+  while leaving twelve is worse than leaving all. The new admin ROUTE does carry a `$localize` title.
+- **Verified end-to-end in Playwright, not by route config** (a config assertion cannot catch `pathMatch`):
+  `/admin/types` resolves and renders (`Class types · rxed`), both redirects land, "Class types" appears in
+  the admin nav and more-menu. Throwaway spec deleted after.
+- **No shape/audit/critique:** the task deletes a screen and moves a route; it composes nothing.
+- **Gates at `f7d4454`:** Karma **999** (995 + 4 new), build zero warnings, `BenchmarkLibraryPage` refs 0,
+  `coach/benchmarks`/`coach/types` links in src+e2e 0. Backend untouched (851/0/0/0 at `2b9753c`).
+
+## R6d — month/year jump on the other four calendars (2026-09-16, `a83b788`)
+- `[jump]="true"` on book, classes, schedule, announcements. Enable-only, no shape/audit/critique.
+- Measured at 360 and 1280 before/after with a throwaway Playwright spec: the label keeps font, size,
+  weight, case, colour, width and vertical centre; header and host heights unchanged. The label is now a
+  44px button (min tap) instead of a 30px span. Booking strip day labels byte-identical.
+- Jump verified on all four; on announcements the jump sheet opens from inside the class-picker sheet,
+  and a day pick or Escape closes only the inner one.
+
+## Past days on the calendars (user-ruled 2026-09-16, `e5c60a0`)
+- Book, coach classes, admin schedule: `[min]="-3650"`. Announcements stays forward-only.
+- Past day (calendar day before today): coach keeps Check-in only (no Build/Run); admin sheet drops
+  "Open in builder" and cancel; athlete Book already hid actions once started.
+- Sessions load a window around the selected day (`booking/session-window.ts`), reloading when the strip
+  leaves it. Orchestrator fixed an off-by-one: `covers` accepted the day starting at `to`, whose classes
+  were never fetched.
+- e2e: `schedule.spec.ts` `revealDay` walked back "to the earliest week" first — ten years now. It pages
+  toward the target instead. First full run 99/3 because of that (plus one dirty-stack echo).
+
+## R7 — `e2e/tests/library.spec.ts` (2026-09-17, `698c60d`)
+- Nine tests (plan scope + critique additions + Tasks 6/7/8). Re-runnable on one stack. Orchestrator
+  tightened the benchmark pick to exactly one `fromBenchmarkId` in the PUT body.
+
+## Fixes from the past-days review (user: "fix all three", 2026-09-17, `a87252a`)
+- **Live overbooking bug:** capacity counted BOOKED only, so a check-in freed the place. `BookingService`
+  and the sessions list count `BookingRepository.IN_CLASS` (BOOKED + CHECKED_IN). List `bookedCount` is
+  the row count (drop-in visitors count; a visitor row no longer hits `findById(null)`). New
+  `checkedInAthleteStillHoldsTheirPlace` — proven red without the fix.
+- Book: past day → "Finished" + "Attended" pill, no spots line; started today + checked in → "Attended";
+  a checked-in athlete never sees Book. Coach Classes: "This week" eyebrow removed. `isPastDay` once.
+- **Gates at `a87252a`:** backend **852/0/0/0**, Karma **1018**, build zero warnings, full e2e **102/102**
+  on a `down -v` stack. Visual suite NOT re-run (no gallery change this session).
+
+## Close (2026-09-17)
+- BACKLOG: M14c-b close section (audit/critique/Task 6 P3s, picker onto `/library`, duplicated label
+  maps, the M17a carry-overs). Roadmap row 11 → done.
+- **Seeding past classes on a fresh stack** (the seed has none):
+  ```sql
+  BEGIN;
+  CREATE TEMP TABLE past AS
+    SELECT gen_random_uuid() AS id, box_id, name, start_at - interval '7 days' AS start_at,
+           duration_min, capacity, coach_id, programming_status
+    FROM class_sessions
+    WHERE status = 'SCHEDULED' AND start_at >= date_trunc('day', now())
+      AND start_at < date_trunc('day', now()) + interval '7 days';
+  INSERT INTO class_sessions (id, box_id, name, start_at, duration_min, capacity, coach_id, programming_status)
+    SELECT id, box_id, name, start_at, duration_min, capacity, coach_id, programming_status FROM past;
+  INSERT INTO bookings (box_id, session_id, membership_id, status, position, booked_at, checked_in_at)
+    SELECT p.box_id, p.id, m.id, 'CHECKED_IN', 1, p.start_at - interval '1 day', p.start_at
+    FROM past p JOIN memberships m ON m.box_id = p.box_id
+    JOIN users u ON u.id = m.user_id AND u.email = 'athlete@demo.io';
+  COMMIT;
+  ```
+  Run with `docker exec -i docker-db-1 psql -U boxhub -d boxhub`.

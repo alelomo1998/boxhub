@@ -25,7 +25,7 @@ class SkeletonApiTest extends AbstractIntegrationTest {
     @Autowired TokenService tokenService;
     @Autowired ObjectMapper om;
 
-    String coach, athlete, otherCoach;
+    String coach, athlete, otherCoach, admin, otherAdmin;
     UUID templateId;
 
     @BeforeEach
@@ -36,8 +36,10 @@ class SkeletonApiTest extends AbstractIntegrationTest {
         coach = boxToken("skc-" + n + "@t.io", a, "COACH");
         athlete = boxToken("ska-" + n + "@t.io", a, "ATHLETE");
         otherCoach = boxToken("sko-" + n + "@t.io", b, "COACH");
+        admin = boxToken("ska2-" + n + "@t.io", a, "BOX_ADMIN");
+        otherAdmin = boxToken("sko2-" + n + "@t.io", b, "BOX_ADMIN");
         String body = mvc.perform(post("/api/box/class-templates").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach)
+                        .header("Authorization", "Bearer " + admin)
                         .content("{\"name\":\"Muscle Class\",\"weekday\":0,\"startTime\":\"18:00\",\"durationMin\":60,\"capacity\":12}"))
                 .andReturn().getResponse().getContentAsString();
         templateId = UUID.fromString(om.readTree(body).get("id").asText());
@@ -56,12 +58,12 @@ class SkeletonApiTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void coachDefinesAndReordersSkeleton() throws Exception {
+    void adminDefinesAndReordersSkeleton() throws Exception {
         String skel = "{\"pieces\":[{\"label\":\"Warm-up\",\"wodType\":\"WARMUP\"}," +
                 "{\"label\":\"Strength circuit 1\",\"wodType\":\"STRENGTH\"}," +
                 "{\"label\":\"Stretching\",\"wodType\":\"SKILL\"}]}";
         mvc.perform(put("/api/box/class-templates/" + templateId + "/skeleton").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach).content(skel))
+                        .header("Authorization", "Bearer " + admin).content(skel))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[0].label").value("Warm-up"))
@@ -77,7 +79,7 @@ class SkeletonApiTest extends AbstractIntegrationTest {
     @Test
     void unknownPieceTypeIs400() throws Exception {
         mvc.perform(put("/api/box/class-templates/" + templateId + "/skeleton").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + coach)
+                        .header("Authorization", "Bearer " + admin)
                         .content("{\"pieces\":[{\"label\":\"X\",\"wodType\":\"NOPE\"}]}"))
                 .andExpect(status().isBadRequest());
     }
@@ -90,9 +92,16 @@ class SkeletonApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void coachCannotWriteSkeleton() throws Exception {
+        mvc.perform(put("/api/box/class-templates/" + templateId + "/skeleton").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + coach).content("{\"pieces\":[]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void crossTenantTemplateIs404() throws Exception {
         mvc.perform(put("/api/box/class-templates/" + templateId + "/skeleton").contentType(APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + otherCoach).content("{\"pieces\":[]}"))
+                        .header("Authorization", "Bearer " + otherAdmin).content("{\"pieces\":[]}"))
                 .andExpect(status().isNotFound());
     }
 }

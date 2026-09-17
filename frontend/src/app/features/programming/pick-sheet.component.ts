@@ -7,10 +7,12 @@ import { SheetComponent } from '../../ui/sheet.component';
 import { MOVEMENT_CATEGORIES, MOVEMENT_UNITS, movementCategoryLabel } from './programming.service';
 
 /** One offered option, whatever the domain object behind it is. `detail` is an optional third
- *  line -- a one-line content snippet -- rendered dimmer and smaller than `secondary`. Domain
+ *  line -- a one-line content snippet -- rendered dimmer and smaller than `secondary`. `chip` is
+ *  an optional leading badge on the secondary line (Library parity, user-ruled 2026-09-16 --
+ *  e.g. a benchmark row's "Benchmark" chip, same idiom as bh-piece-card's own `.chip`). Domain
  *  content (a prescription, a movement list) belongs to the caller; this component just renders
- *  a string. */
-export interface PickRow { id: string; primary: string; secondary?: string; detail?: string }
+ *  strings. */
+export interface PickRow { id: string; primary: string; secondary?: string; detail?: string; chip?: string }
 
 /** Either an option was chosen, or the coach kept what they typed. */
 export type PickResult = { id: string } | { freeText: string };
@@ -73,7 +75,12 @@ export type PickResult = { id: string } | { freeText: string };
               <button type="button" class="row" [attr.data-testid]="'pick-row-' + r.id"
                       (click)="picked.emit({ id: r.id })">
                 <span class="p">{{ r.primary }}</span>
-                @if (r.secondary) { <span class="s">{{ r.secondary }}</span> }
+                @if (r.chip || r.secondary) {
+                  <span class="s">
+                    @if (r.chip) { <span class="chip">{{ r.chip }}</span> }
+                    @if (r.secondary) { <span>{{ r.secondary }}</span> }
+                  </span>
+                }
                 @if (r.detail) { <span class="d">{{ r.detail }}</span> }
               </button>
             }
@@ -173,9 +180,16 @@ export type PickResult = { id: string } | { freeText: string };
     /* The free-text row is an escape hatch, not another result — a heavier rule separates it. */
     .free { border-top: 1px solid var(--hairline); }
     .p { font-family: var(--font-body); font-size: var(--fs-body); font-weight: 500; }
-    /* Mono because a secondary line is meta (category, modality, preset), never prose. */
-    .s { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
+    /* Mono because a secondary line is meta (category, modality, preset), never prose. Flex so an
+       optional leading .chip sits beside the text with a gap, same row it always was when no
+       chip is present (one flex item renders identically to plain inline text). */
+    .s { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2);
+      font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim);
       letter-spacing: 0.04em; }
+    /* Identical to bh-piece-card's own .chip (Library parity, user-ruled 2026-09-16) -- a
+       benchmark row says so before its kind/timing, never a colour, just a bordered badge. */
+    .chip { color: var(--bone); border: 1px solid var(--hairline); border-radius: var(--edge);
+      padding: 0 var(--sp-1); }
     /* The content snippet. It does NOT get a dimmer colour than .s: these rows paint on
        --surface-2, where --faint measures 4.27:1 and fails AA for body-sized text (it passes at
        4.70:1 on --surface, which is why it is fine elsewhere -- axe caught this one here and only

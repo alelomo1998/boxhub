@@ -1,106 +1,90 @@
-# Next session — **M14c-a is merged. Start M14c-b.**
+# Next session — **M17a: athlete home, book, class detail — and the shared class row**
 
 | | |
 |---|---|
-| Branch | **`main`** at `a0512aa` — M14c-a merged (`f09d574`, 2026-09-13), `m14c-a-builder` deleted locally and on origin. |
-| CI | **GREEN on `main`** at `a0512aa` — first green `ci` since 2026-09-07 (see below). |
-| Next milestone | **M14c-b** library, benchmarks & types — roadmap row 11. **No spec, no plan yet**: starts at brainstorming. |
-| Backend | 821 / 0 / 0 / 0, `BUILD SUCCESS` (re-run 2026-09-13) |
-| Karma | 874 SUCCESS |
-| Production build | zero warnings |
-| Playwright e2e | **92 passed, 0 failed** on a fresh `down -v` stack |
-| Visual regression | 33 passed (gallery untouched since) |
-| Piece editor | `audit` 19/20, `critique` 35/40 |
-| Class stack | `audit` 20/20, `critique` 34/40 |
+| Branch | none yet — cut `m17a-athlete-daily` from `main` |
+| Spec | **none yet** — start with `superpowers:brainstorming` |
+| Plan | none yet |
+| Roadmap | `docs/ROADMAP-AT-A-GLANCE.md` row 12 |
+| Backend | **852 / 0 / 0 / 0** at M14c-b close |
+| Karma | **1018 SUCCESS** at M14c-b close |
+| e2e | **102 / 102** on a `down -v` stack at M14c-b close |
+| Visual | 33 baselines from `76d2615`; not re-run since (no gallery change after). `pick-sheet` has none. |
 
-## Ruled by the user at the close (2026-09-13)
+**Never quote these numbers — re-run them first.**
 
-1. **Piece editor's 38px collapsed name field** — stays filed in `docs/BACKLOG.md` ("M14c-a §10"). Not scheduled.
-2. **Routine order amended in `CLAUDE.md`:** `audit → fix → critique`.
+## What M17a is
 
-## CI was red on `main` from 2026-09-07 to 2026-09-13 — fixed, and why it hid
+Read roadmap row 12, then `docs/POSITIONING.md` §4. In short:
 
-`SessionNotificationTest` (2 tests) failed ONLY on the Linux runner. Linux `Instant.now()` carries
-nanoseconds, Postgres `timestamptz` stores microseconds, macOS clocks are micro-precision — so the
-test's seeded value differed from the row it read back on CI and matched locally. Fixed `a0512aa` by
-truncating to `ChronoUnit.MICROS`. **Trap for any new test: an `Instant` compared after a DB
-round-trip must be truncated to MICROS, or it is green on a Mac and red in CI.** Because the backend
-job was red, **the e2e CI job was SKIPPED for that whole week** — it ran again on `a0512aa`.
+- **Athlete Home, Book and class detail**, rebuilt through the impeccable routine (per screen).
+- **The class row/card as ONE shared component across athlete Book and coach Classes**, actions
+  differing by role (user-ruled 2026-09-06). Today each screen draws its own row.
+- **`docs/design-ref/screens/booking-screen-example.webp` is the binding card shape** — full-bleed
+  image, text on a scrim over it, not a thumbnail beside text. Nothing implements it yet.
+- Filed defect: `athlete/home.page.ts` — the next-booking card links to `/athlete/book` instead of
+  `/athlete/class/:id`.
+- Grep `docs/BACKLOG.md` for `M17a` and `M17` before shaping — several entries are filed there by
+  destination (Book's plain-string pill labels, `LIMIT_REACHED` copy, the missing
+  `CANCEL_LIMIT_REACHED` case, the per-limit 409 reason).
 
-## After M14c-b
+## Rules the shared row MUST keep (shipped in M14c-b, user-ruled)
 
-**M17a** (row 12) reworks both main pages: athlete home / book / class detail, and the ONE shared
-class row for athlete Book and coach Classes (user-ruled 2026-09-06), implementing
-`docs/design-ref/screens/booking-screen-example.webp`. Coach Classes' week strip already landed in M14b.
+- **Past day** (`isPastDay` in `features/booking/session-window.ts` — calendar day before today, local):
+  coach row shows **Check-in only** (no Build, no Run); athlete card shows **"Finished"**, an
+  **"Attended"** pill if checked in, the **Booked** pill if booked, **no spots line, no Book**.
+- **Today, started:** athlete sees "Started HH:mm" + Attended/Booked. **Checked-in athletes never see
+  Book or Cancel.**
+- Calendars reach **ten years back** (`[min]="-3650"`) and jump by month/year (`[jump]="true"`);
+  announcements stays forward-only. Sessions load a window around the selected day
+  (`sessionWindow`/`covers`) — keep that, don't go back to one fixed fetch.
+- `bookedCount` includes CHECKED_IN (`BookingRepository.IN_CLASS`). Any new count of "who is in the
+  class" uses that constant.
 
-## What M14c-b inherits from M14c-a
+## Process (binding — see CLAUDE.md)
 
-- **`POST /api/box/wods/{id}/duplicate`** — the builder no longer calls it; the library page is its
-  last caller. M14c-b decides its fate.
-- **The seven remaining `wodType` consumers** — some are M14c-b's.
-- **The library list already excludes class-owned copies** (`e978f55`); a standalone wod at
-  `/coach/wods/new` IS a library row. The piece editor serves both `wods/new` and `wods/:id`.
-- **`--faint` on `--surface-2` fails AA (4.27:1)** — a live trap for any new sheet or list row.
-- **Disabled `bh-button` label is 2.18:1** — system-wide decision, still open.
+- brainstorm → spec → plan → per screen: **shape (3–4 options for a new screen) → build → user visual
+  sign-off → audit ≥16/20 → fix P0/P1 → critique ≥32/40 in Chrome** → the user picks fixes → one batch.
+- Always subagent (Sonnet) for plan tasks; short brief pointing at the plan; executors never commit.
+- Critiques run inline with the DEGRADED banner; the impeccable detector is CSP-blocked — say so.
+- Chrome cannot size below ~500px and its synthetic keys don't reach the page: keyboard/focus and
+  320/360/393 measurements go through a **throwaway Playwright spec**, deleted after.
+- Verify navigation end-to-end, never by asserting route config.
 
-## Environment traps (unchanged, still bite)
+## Traps (still bite)
 
-- `env -u NODE_OPTIONS` always. No `./mvnw`, no `timeout`; `JAVA_HOME=/opt/homebrew/opt/openjdk@21`.
-- Backend image needs `up -d --build` — the jar is baked in.
-- `down -v` before a full e2e run — `runner`/`tracking`/`tv`/`schedule`/`booking-flow` are
-  non-idempotent.
-- Gallery change → the WHOLE visual set churns (scroll offset sets glyph sub-pixel phase). The
-  per-section loop aborts at its first failure; run `./visual.sh --update-snapshots` TWICE.
-- Never chain a grep gate with `&&`. Commit messages through a quoted heredoc. No backticks in
-  comments inside Angular `template:`/`styles:` literals.
-- Subagents: short brief, ONE file, detail in a contract file on disk; foreground only; ignore the
-  graphify hook; leave the stack up.
-- A seeded class may already be `PUBLISHED` — an e2e asserting the LIVE pill after a publish click
-  proves nothing. Assert the outcome the click alone produces.
+- Dev stack is `http://localhost` (nginx :80). Rebuild with `cd docker && docker compose up -d --build`.
+  **`down -v` before a full e2e run** — `runner`/`tracking`/`tv`/`schedule` fail on a dirty stack.
+- **The seed has no past classes.** To see past days, copy the next 7 days' sessions back 7 days and add a
+  CHECKED_IN booking for athlete@demo.io (SQL in `progress.md`'s M14c-b notes is the shape; tables are
+  `class_sessions` and `bookings`).
+- `schedule.spec.ts` `revealDay` pages TOWARD its target; don't reintroduce a walk-back.
+- Raw `page.request` writes need the `X-XSRF-TOKEN` header (see `library.spec.ts` `csrfHeaders`).
+- DB score type is `NONE`, not `NOT_SCORED` (that is only the editor's label).
+- `bh-sheet` is a native `<dialog>`; `bh-button [loading]` renders native `disabled` (restore focus with
+  `afterNextRender`). A mouse drag is not a touch swipe (CDP, see `sheet-swipe.spec.ts`).
+- No backticks in Angular template/style comments. `env -u NODE_OPTIONS` for npm. `JAVA_HOME` for mvn.
+  `-Dtest=A,B` (comma). A zsh glob in `--include=*.ts` fails unquoted, and a failed glob aborts a `&&` chain.
+- Signing in: the user signs in to Chrome; never type a password. Playwright may use the demo accounts
+  (`boxhub-demo-2026`). A coach Chrome session bounces off `/admin/**` — the guard, not a bug.
 
 ## Paste this into the new session
 
 ```
-Read .superpowers/sdd/NEXT-SESSION.md and start M14c-b: library, benchmarks & types
-(roadmap row 11). Read the roadmap row and docs/ROADMAP-AT-A-GLANCE.md for order.
+Read .superpowers/sdd/NEXT-SESSION.md and start M17a.
 
 cd ~/dev/boxhub && git checkout main && git pull && git status
-# expect a CLEAN tree at a0512aa (or later), CI green
+# expect a CLEAN tree at the M14c-b merge (or later).
 
 FIRST: confirm the baselines yourself. Never quote a number from the handoff.
   cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
   cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless
   cd frontend && env -u NODE_OPTIONS npm run build
-Expect 821/0/0/0, TOTAL: 874 SUCCESS, zero warnings. The "Mailer ... port:
-localhost, 1025" ERROR lines are pre-existing SMTP noise -- judge only by
-"Tests run:" and "BUILD SUCCESS".
+Expect 852/0/0/0, TOTAL: 1018 SUCCESS, zero warnings.
 
-NO SPEC, NO PLAN EXISTS. Start at superpowers:brainstorming. Branch
-m14c-b-library off main (a branch, never a worktree). A new screen gets 3-4
-real layout options to pick from; ask, never invent a button/tab/field.
+THEN: git checkout -b m17a-athlete-daily, and brainstorm M17a (superpowers:brainstorming) from
+roadmap row 12, the BACKLOG entries filed to M17a/M17, and docs/design-ref/. The shared class row
+must keep the past-day rules listed in the handoff.
 
-Per screen: shape -> build -> my visual sign-off -> audit (>=16/20) -> fix
-every P0/P1 -> critique (>=32/40). A SCORED PASS NEEDS CLAUDE IN CHROME, not
-just Playwright and never just source. MEASURE AT 320 / 360 / 393 / 768 /
-1024 / 1280. Mobile first at 360px is binding.
-
-ALWAYS SUBAGENT. One executor per task. The orchestrator dispatches, reviews
-every diff, runs every gate ITSELF, and commits. NEVER accept an executor's
-reported test numbers.
-
-SUBAGENTS STALL ON THIS REPO. Short brief naming ONE file, detail in a
-contract file on disk. Tell them: run everything in the FOREGROUND, never wait
-on a monitor, IGNORE the graphify PreToolUse hook, leave the docker stack UP.
-
-Environment: NODE_OPTIONS is poisoned, always `env -u NODE_OPTIONS`. No
-./mvnw, no `timeout`. NEVER chain a grep gate with &&. Compose from the repo
-root (docker/docker-compose.yml), Playwright from e2e/. The backend image
-needs `up -d --build`. `down -v` before a full e2e run. Visual baselines only
-via e2e/visual.sh; a gallery change churns the whole set, run
---update-snapshots TWICE. An Instant compared after a DB round-trip must be
-truncated to MICROS or CI (Linux) goes red while the Mac stays green.
-
-A backtick inside a comment in an Angular template:/styles: literal closes
-the string. Commit messages through a quoted heredoc or -F file (git merge
-does NOT accept -F -).
+ALWAYS SUBAGENT (Sonnet) for plan tasks. Per-screen impeccable routine, browser-verified.
 ```

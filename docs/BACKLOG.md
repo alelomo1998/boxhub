@@ -969,3 +969,77 @@ Recorded at milestone close so the next reader knows these were decided, not mis
 - **`WodJsonValidator` does not cross-check `blockIndex`, and weight unit does not convert on
   switch.** Both deliberate, both carry `ponytail:` comments. **The TV must tolerate a block index it
   cannot resolve.**
+- **Library History: marks in the calendar's month jump sheet** — the week strip marks days that ran pieces (`GET /api/box/wods/history/days`, ≤62-day range); the jump sheet's month grid carries none. Needs `bh-week-calendar` to pass tones into the jump grid and a per-month fetch. (M14c-b critique pass 2 P3, user left to orchestrator.)
+- **The benchmark "Benchmark" chip is copy-pasted in FOUR files** — `piece-card.component.ts` `.chip`,
+  `wod-library.page.ts` `.bchip`, `pick-sheet.component.ts` `.chip`, `class-builder.page.ts`
+  `.detail-meta .chip`, all the same four token lines. Wants one `bh-chip` in `ui/`, which costs
+  signal inputs, a seven-states dev-gallery section and a container visual-baseline re-run — which is
+  why it was filed rather than done. (Task 7 audit P2-1, 2026-09-16; user: "not urgent".)
+- **`weightUnit` is fetched per page.** `piece-editor.page.ts` and now `class-builder.page.ts` each
+  spend a `GET /api/box/current` round-trip to read one string, on top of the library and session
+  fetches. It is a per-session constant; cache it once in `ProgrammingService`. (Task 7 audit P3-1.)
+- **Slot picker: "Nothing found" on a library that is full.** Opening a Warm-up slot pre-seeds CATEGORY
+  to WARMUP; every benchmark is macro WORKOUT, so the sheet opens on "Nothing found · No option matches
+  that search" while 19 pickable pieces sit one facet away — blaming a search the coach never made. Wants
+  an empty state that names the facet and offers the reset. (Task 7 critique P2, 2026-09-16.)
+- **Picker and Library card render the same eyebrow in different case.** Library: `BENCHMARK GIRL FOR
+  TIME` (uppercase, space-separated). Picker: `⌜Benchmark⌝ Girl · For time`. Same facts, two typographic
+  voices one flow apart. Uppercasing the picker changes every row in the sheet, not just benchmarks.
+  (Task 7 critique P3.)
+- **The slot picker has no benchmarks-only facet** though the Library page has exactly that chip. With 14
+  global benchmarks, a coach hunting their own piece scrolls past the Girls. Wants a shape pass — the
+  search step is already the densest view in the flow. (Task 7 critique P3.)
+- **`/admin/types` renders `h1` "Types" under route title "Class types".** Left alone deliberately: the
+  user ruled 2026-09-16 that Task 8 MOVES the page and the admin milestones rebuild it.
+- **Coach Classes empty state points at a tab that moved.** "Pick another day from the strip above — or
+  schedule class types in the Types tab." Types left the coach dock for `/admin/types` in Task 8, so a
+  coach has no Types tab to open. Rewrite when the coach shell is rebuilt (copy + i18n id change).
+  (Found 2026-09-17 during the past-days change.)
+
+## M14c-b — deferred out of the library, closed 2026-09-17
+
+Recorded at milestone close so the next reader knows these were decided, not missed. The Task 7–8
+items and the chip/unit/picker entries above were filed during the milestone.
+
+- **Types page rebuild and the admin builder entry point** — **M15b**. Task 8 only MOVED Types to
+  `/admin/types`.
+- **The remaining `wodType` consumers** (`types.page`, `runner.page`, `athlete/wod.page`,
+  `class-builder.page`) — **M15b / M17b / M34**.
+- **Box-authored benchmarks** (a coach flagging their own piece) — not built; needs a column and a
+  second history key.
+- **The slot picker still builds its list client-side** (`libraryEntries`/`mergeLibrary` over
+  `wods()` + `/benchmarks`) instead of calling `GET /library`. Two paths is why a copied and a global
+  benchmark behave differently. Move it onto `/library` when the picker is next touched.
+- **Piece editor duplicates the macro/preset label maps** the Library page also owns. One map in
+  `programming/`.
+
+### Audit P3s (Library page)
+- Desktop top-nav links are 40px tall, under `--tap`.
+- Heading order skips h1 → h3 on the Library page.
+- Two `nav` landmarks both named "Coach" (dock + desktop nav).
+- The shell header reads `offsetHeight` on every scroll event (layout read per frame).
+- Week-strip day cells are 38px wide at 320px.
+
+### Critique P3s (Library page)
+- The movement facet needs recall — no list of common movements before typing.
+- The "Type at least 3 letters" hint sits alone on its line at phone width.
+- The search placeholder truncates at 330px.
+- The volt focus box lands on a filter step's heading after a pick.
+- The movement step has no direct "Show N" apply; it returns via Back only.
+- No on-page result count once filters apply.
+- The gym name in the shell header collapses to "D" at 330px.
+
+### Task 6 P3s (piece delete)
+- A 409 on delete (piece in use) names the problem but offers no next step.
+- The "<name> deleted." notice has no dismiss and survives a later search or filter.
+- Desktop delete dialog carries both an X and "Keep it", with full-width stacked buttons.
+- The tab title reads "Edit WOD · rxed" on a piece screen.
+- In Chromium, Tab from a sheet's last control reached the shell box switcher — seen on every sheet,
+  cause unverified (native `<dialog>` focus containment vs. the shell).
+
+### Found during M14c-b, not owned by it
+- **Athlete Book's pill labels are plain strings** ("Booked", "Waitlist #n", "Full · n in line") —
+  **M17a**, which rebuilds the class row. "Attended" is already `$localize`d.
+- **Past-class rows now branch on `isPastDay`** in both `athlete/book.page.ts` and
+  `coach/classes.page.ts` (user-ruled 2026-09-16) — **M17a**'s shared class row must keep that rule:
+  past day → coach keeps Check-in only, athlete sees Finished / Attended, no Book.

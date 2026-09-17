@@ -110,7 +110,7 @@ import { SearchBarComponent } from '../../ui/search-bar.component';
                 label="Choose a class" i18n-label="@@announcements.picker.title"
                 data-testid="announcement-picker-sheet" (closed)="pickerOpen.set(false)">
         <div class="picker">
-          <bh-week-calendar [offset]="pickerDayOffset()" (offsetChange)="onPickerDayChange($event)" [max]="13" />
+          <bh-week-calendar [jump]="true" [offset]="pickerDayOffset()" (offsetChange)="onPickerDayChange($event)" [max]="13" />
           <div class="picker-body" #pickerBody>
           @switch (targetsState()) {
             @case ('loading') {

@@ -41,6 +41,81 @@ describe('ShellHeaderComponent', () => {
   it('is a banner landmark exactly once', () => {
     expect(f.nativeElement.querySelectorAll('header').length).toBe(1);
   });
+
+  it('is sticky on the host — D23, the inner <header> never had a containing block to stick to', () => {
+    const host: HTMLElement = f.nativeElement.querySelector('bh-shell-header');
+    expect(getComputedStyle(host).position).toBe('sticky');
+  });
+});
+
+/** Stubs window.matchMedia to report `matches` for every query, with a no-op listener API. Must
+ *  run BEFORE TestBed.createComponent — the component reads matchMedia in its constructor. */
+function stubMatchMedia(matches: boolean): void {
+  spyOn(window, 'matchMedia').and.callFake((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  } as unknown as MediaQueryList));
+}
+
+function scrollTo(y: number): void {
+  Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+  window.dispatchEvent(new Event('scroll'));
+}
+
+describe('ShellHeaderComponent scroll-hide (D23, below 768px)', () => {
+  afterEach(() => {
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+  });
+
+  it('hides on scroll down past the header height, shows again on scroll up', async () => {
+    stubMatchMedia(true); // phone query matches
+    await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
+    const f = TestBed.createComponent(Host);
+    f.detectChanges();
+    const host: HTMLElement = f.nativeElement.querySelector('bh-shell-header');
+
+    scrollTo(600);
+    f.detectChanges();
+    expect(host.classList.contains('hide')).toBe(true);
+
+    scrollTo(100);
+    f.detectChanges();
+    expect(host.classList.contains('hide')).toBe(false);
+  });
+
+  it('shows again when focus moves inside the header', async () => {
+    stubMatchMedia(true);
+    await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
+    const f = TestBed.createComponent(Host);
+    f.detectChanges();
+    const host: HTMLElement = f.nativeElement.querySelector('bh-shell-header');
+
+    scrollTo(600);
+    f.detectChanges();
+    expect(host.classList.contains('hide')).toBe(true);
+
+    host.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    f.detectChanges();
+    expect(host.classList.contains('hide')).toBe(false);
+  });
+
+  it('never hides when the phone media query does not match', async () => {
+    stubMatchMedia(false); // desktop
+    await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
+    const f = TestBed.createComponent(Host);
+    f.detectChanges();
+    const host: HTMLElement = f.nativeElement.querySelector('bh-shell-header');
+
+    scrollTo(600);
+    f.detectChanges();
+    expect(host.classList.contains('hide')).toBe(false);
+  });
 });
 
 @Component({

@@ -45,6 +45,10 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   (inputs, remove buttons, add affordances) stays `--bone`/`--surface`; the **prescription** — the
   block the coach is writing, the selected macro/timing, the live segment — is what may carry it.
   This does NOT reopen volt on genuinely plumbing screens (account, settings, admin forms).
+- **THE LIBRARY'S "NEW PIECE" IS VOLT (user-ruled 2026-09-14, M14c-b D14).** The first build put a
+  `strong` "New WOD" first on the page and it was sent back as *"orrible and misleading"*: it creates
+  a piece, and it is the one thing a coach does on that screen. It is a volt `+` at the end of the
+  search row. Same boundary as the builder ruling: one element, a button, never a card or panel.
 - **A screen's ONE primary action is `bh-button variant="strong"` when it has no volt to spend.**
   Volt means live / now / winning, so a plumbing screen's save never gets it — but `solid` is the
   wrong answer for a lone primary action: it is `--surface-2` on a `--surface` card, one token step

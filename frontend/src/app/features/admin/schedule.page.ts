@@ -1,7 +1,8 @@
-import { Component, ChangeDetectionStrategy, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, Injector, OnInit, afterNextRender, computed, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { BookingService, ClassTemplate, SessionView } from '../booking/booking.service';
 import { tonesOf } from '../booking/session-tones';
+import { sessionWindow, covers, SessionWindow } from '../booking/session-window';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { FieldComponent } from '../../ui/field.component';
@@ -40,7 +41,7 @@ type SlotPatch = { name: string; weekday: number; startTime: string; durationMin
         <h1 class="title" i18n="@@admin.schedule.title">Schedule</h1>
       </header>
 
-      <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
+      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [min]="-3650" [max]="13" [tones]="tones()" />
 
       @switch (sessionsState()) {
         @case ('loading') {
@@ -232,6 +233,9 @@ export class SchedulePage implements OnInit {
   protected sessions = signal<SessionView[]>([]);
   protected sessionsState = signal<FetchState>('loading');
 
+  /** The [from, to] this page last fetched — reloaded only when the selected day leaves it. */
+  private sessionsWindow: SessionWindow = sessionWindow(0);
+
   protected daySessions = computed(() => {
     const d = new Date(); d.setDate(d.getDate() + this.dayOffset());
     const key = d.toDateString();
@@ -301,6 +305,13 @@ export class SchedulePage implements OnInit {
    *  cancelling would mail everyone booked. Also the fallback for any other save failure. */
   private readonly genericSaveError = $localize`:@@admin.schedule.saveFailed:Could not save — try again.`;
 
+  constructor() {
+    effect(() => {
+      const offset = this.dayOffset();
+      if (!covers(this.sessionsWindow, offset)) this.loadSessions();
+    });
+  }
+
   ngOnInit(): void {
     this.loadSessions();
     this.loadTemplates();
@@ -308,9 +319,8 @@ export class SchedulePage implements OnInit {
 
   protected loadSessions(): void {
     this.sessionsState.set('loading');
-    const from = new Date(); from.setHours(0, 0, 0, 0);
-    const to = new Date(Date.now() + 14 * 864e5); // match the coach/athlete windows so any upcoming class is reachable
-    this.booking.listSessions(from.toISOString(), to.toISOString()).subscribe({
+    this.sessionsWindow = sessionWindow(this.dayOffset());
+    this.booking.listSessions(this.sessionsWindow.from.toISOString(), this.sessionsWindow.to.toISOString()).subscribe({
       next: s => { this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.sessionsState.set('ready'); },
       error: () => this.sessionsState.set('error'),
     });

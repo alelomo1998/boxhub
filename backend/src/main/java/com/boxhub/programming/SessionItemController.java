@@ -54,8 +54,8 @@ public class SessionItemController {
 
     public record ItemDto(UUID id, UUID wodId, WodController.WodDto wod, int sortOrder,
                           boolean scoreable, String scoreType, boolean myScoreLogged) {}
-    /** Exactly one of wodId (a piece the class already owns) and fromLibraryWodId (copy it in). */
-    record ItemInput(UUID id, UUID wodId, UUID fromLibraryWodId, boolean scoreable, String scoreType) {}
+    /** Exactly one of wodId (a piece the class already owns), fromLibraryWodId or fromBenchmarkId (copy it in). */
+    record ItemInput(UUID id, UUID wodId, UUID fromLibraryWodId, UUID fromBenchmarkId, boolean scoreable, String scoreType) {}
     record ItemsRequest(@NotNull List<ItemInput> items) {}
     record ProgrammingRequest(@NotNull String status) {}
 
@@ -100,18 +100,20 @@ public class SessionItemController {
         Map<UUID, Wod> wodByInputId = new java.util.HashMap<>();
         List<UUID> resolvedWodIds = new java.util.ArrayList<>(req.items().size());
         for (ItemInput in : req.items()) {
-            boolean hasWod = in.wodId() != null, hasLib = in.fromLibraryWodId() != null;
-            if (hasWod == hasLib)
+            boolean hasWod = in.wodId() != null, hasLib = in.fromLibraryWodId() != null,
+                    hasBench = in.fromBenchmarkId() != null;
+            if ((hasWod ? 1 : 0) + (hasLib ? 1 : 0) + (hasBench ? 1 : 0) != 1)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Give exactly one of wodId or fromLibraryWodId");
+                        "Give exactly one of wodId, fromLibraryWodId or fromBenchmarkId");
             Wod w;
-            if (hasLib) {
+            if (hasLib || hasBench) {
                 if (in.id() != null)
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "An existing item already owns its copy");
-                // tenant-filtered -> foreign 404
-                Wod source = wods.findById(in.fromLibraryWodId()).orElseThrow(NoSuchElementException::new);
-                w = wodService.copyForSession(source);
+                // tenant-filtered -> foreign 404 for a library wod; benchmarks are global, unknown -> 404
+                w = hasLib
+                        ? wodService.copyForSession(wods.findById(in.fromLibraryWodId()).orElseThrow(NoSuchElementException::new))
+                        : wodService.cloneFromBenchmark(in.fromBenchmarkId(), false);
             } else {
                 // tenant-filtered -> foreign 404; kept for the write-time score-type derivation below
                 w = wods.findById(in.wodId()).orElseThrow(NoSuchElementException::new);

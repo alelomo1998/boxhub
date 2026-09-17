@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angul
 import { of, throwError, Subject } from 'rxjs';
 import { ClassBuilderPage } from './class-builder.page';
 import { BookingService, ClassTemplate, SessionDetail, SessionView } from '../booking/booking.service';
-import { ProgrammingService, SessionItem, SkeletonPiece, Wod } from '../programming/programming.service';
+import { LibraryEntry, ProgrammingService, SessionItem, SkeletonPiece, Wod } from '../programming/programming.service';
 import { ClassDraftStore, PieceDraft } from '../programming/class-draft.store';
 
 const DETAIL: SessionDetail = {
@@ -21,10 +21,16 @@ const BLANK_WOD: Wod = {
 };
 
 function emptyDraft(label: string, macro: string): PieceDraft {
-  return { itemId: null, wod: null, fromLibraryWodId: null, label, macro, scoreable: true, scoreType: null };
+  return { itemId: null, wod: null, fromLibraryWodId: null, fromBenchmarkId: null, label, macro, scoreable: true, scoreType: null };
 }
 function filledDraft(itemId: string | null, wod: Wod, scoreable = true): PieceDraft {
-  return { itemId, wod, fromLibraryWodId: null, label: wod.title, macro: wod.macro, scoreable, scoreType: null };
+  return { itemId, wod, fromLibraryWodId: null, fromBenchmarkId: null, label: wod.title, macro: wod.macro, scoreable, scoreType: null };
+}
+/** Wraps a plain Wod as a non-benchmark, box-owned LibraryEntry -- what `component.library` holds
+ *  since Task 7's `wods()` -> `libraryEntries()` swap. A benchmark row (chip: true) gets its own
+ *  literal at the point of use. */
+function libEntry(wod: Wod): LibraryEntry {
+  return { wod, benchmarkKind: null, global: false };
 }
 function sessionItem(id: string, wod: Wod, scoreable = true): SessionItem {
   return { id, wodId: wod.id, wod, sortOrder: 0, scoreable, scoreType: wod.scoreType, myScoreLogged: false };
@@ -55,7 +61,7 @@ describe('ClassBuilderPage', () => {
 
     booking = jasmine.createSpyObj<BookingService>('BookingService', ['sessionDetail', 'listTemplates', 'listSessions']);
     prog = jasmine.createSpyObj<ProgrammingService>('ProgrammingService',
-      ['sessionItems', 'putItems', 'publishProgramming', 'skeleton', 'wods']);
+      ['sessionItems', 'putItems', 'publishProgramming', 'skeleton', 'libraryEntries', 'weightUnit']);
 
     booking.sessionDetail.and.returnValue(of(DETAIL));
     booking.listTemplates.and.returnValue(of([] as ClassTemplate[]));
@@ -64,7 +70,8 @@ describe('ClassBuilderPage', () => {
     prog.putItems.and.returnValue(of([] as SessionItem[]));
     prog.publishProgramming.and.returnValue(of({ programmingStatus: 'PUBLISHED' }));
     prog.skeleton.and.returnValue(of([] as SkeletonPiece[]));
-    prog.wods.and.returnValue(of([] as Wod[]));
+    prog.libraryEntries.and.returnValue(of([] as LibraryEntry[]));
+    prog.weightUnit.and.returnValue(of('KG'));
 
     TestBed.configureTestingModule({
       imports: [ClassBuilderPage],
@@ -96,8 +103,8 @@ describe('ClassBuilderPage', () => {
 
     expect(component.state()).toBe('ready');
     expect(component.drafts()).toEqual([
-      { itemId: null, wod: null, fromLibraryWodId: null, label: 'Shoulder prep', macro: 'WARMUP', scoreable: false, scoreType: null },
-      { itemId: null, wod: null, fromLibraryWodId: null, label: 'Back squat', macro: 'STRENGTH', scoreable: true, scoreType: null },
+      { itemId: null, wod: null, fromLibraryWodId: null, fromBenchmarkId: null, label: 'Shoulder prep', macro: 'WARMUP', scoreable: false, scoreType: null },
+      { itemId: null, wod: null, fromLibraryWodId: null, fromBenchmarkId: null, label: 'Back squat', macro: 'STRENGTH', scoreable: true, scoreType: null },
     ]);
   });
 
@@ -143,7 +150,7 @@ describe('ClassBuilderPage', () => {
     store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
     fixture.detectChanges();
     const picked = { ...BLANK_WOD, id: 'lib-1', title: 'Grace' };
-    component.library.set([picked]);
+    component.library.set([libEntry(picked)]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -158,15 +165,155 @@ describe('ClassBuilderPage', () => {
     fixture.detectChanges();
 
     expect(store.drafts()[0].fromLibraryWodId).toBe('lib-1');
+    expect(store.drafts()[0].fromBenchmarkId).toBeNull();
     expect(store.drafts()[0].wod).toBe(picked);
     expect(component.slotSheetOpen()).toBe(false);
+  });
+
+  it('the slot search lists a global benchmark entry as a pick row carrying a Benchmark chip', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    const fran = { ...BLANK_WOD, id: 'fran-1', benchmarkTemplateId: 'fran-1' };
+    component.library.set([{ wod: fran, benchmarkKind: 'GIRL', global: true }]);
+    fixture.detectChanges();
+
+    const row = component.filteredLibraryRows().find(r => r.id === 'fran-1');
+    expect(row?.chip).toContain('Benchmark');
+    expect(row?.secondary).toContain('Girl');
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+
+    const chipEl = el.querySelector('[data-testid="pick-row-fran-1"] .chip');
+    expect(chipEl?.textContent).toContain('Benchmark');
+  });
+
+  it('selecting a global benchmark sends putItems with fromBenchmarkId set and fromLibraryWodId null', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    const fran = { ...BLANK_WOD, id: 'fran-1', benchmarkTemplateId: 'fran-1' };
+    component.library.set([{ wod: fran, benchmarkKind: 'GIRL', global: true }]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-row-fran-1"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="slot-detail-select"]')!.click();
+    fixture.detectChanges();
+
+    expect(store.drafts()[0].fromBenchmarkId).toBe('fran-1');
+    expect(store.drafts()[0].fromLibraryWodId).toBeNull();
+
+    prog.sessionItems.and.returnValue(of([sessionItem('item1', fran)]));
+    el.querySelector<HTMLElement>('[data-testid="save-publish"]')!.click();
+    fixture.detectChanges();
+
+    expect(prog.putItems).toHaveBeenCalledWith('sess1', [
+      { id: null, wodId: null, fromLibraryWodId: null, fromBenchmarkId: 'fran-1', scoreable: true, scoreType: undefined },
+    ]);
+  });
+
+  it('selecting a saved library entry still sends fromLibraryWodId, with fromBenchmarkId null', () => {
+    setup();
+    store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
+    fixture.detectChanges();
+    const picked = { ...BLANK_WOD, id: 'lib-1', title: 'Grace' };
+    component.library.set([libEntry(picked)]);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="pick-row-lib-1"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLElement>('[data-testid="slot-detail-select"]')!.click();
+    fixture.detectChanges();
+
+    prog.sessionItems.and.returnValue(of([sessionItem('item1', picked)]));
+    el.querySelector<HTMLElement>('[data-testid="save-publish"]')!.click();
+    fixture.detectChanges();
+
+    expect(prog.putItems).toHaveBeenCalledWith('sess1', [
+      { id: null, wodId: null, fromLibraryWodId: 'lib-1', fromBenchmarkId: null, scoreable: true, scoreType: undefined },
+    ]);
+  });
+
+  describe('editing a piece with a pending pick', () => {
+    // The button performs a write the coach never asked for, so it has to say so. Both labels are
+    // asserted from the SAME predicate the handler branches on, so they cannot drift apart.
+    it('says "Save and edit" only while a pick is still pending', () => {
+      setup();
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      store.put(0, { ...store.drafts()[0], fromLibraryWodId: 'lib1' });
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      expect(el.querySelector('[data-testid="piece-edit-0"]')!.textContent).toContain('Save and edit');
+
+      store.put(0, { ...store.drafts()[0], fromLibraryWodId: null, fromBenchmarkId: null });
+      fixture.detectChanges();
+      const label = el.querySelector('[data-testid="piece-edit-0"]')!.textContent!;
+      expect(label).toContain('Edit this piece');
+      expect(label).not.toContain('Save and edit');
+    });
+
+    it('saves first when the draft holds a pending library pick, then navigates', () => {
+      setup();
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      store.put(0, { ...store.drafts()[0], fromLibraryWodId: 'lib1' });
+      fixture.detectChanges();
+      prog.sessionItems.and.returnValue(of([sessionItem('item1', BLANK_WOD)]));
+      const navSpy = spyOn(router, 'navigate').and.returnValue(Promise.resolve(true));
+
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-edit-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(prog.putItems).toHaveBeenCalled();
+      expect(navSpy).toHaveBeenCalledWith(component.editRoute(0));
+    });
+
+    it('navigates without saving when the draft has no pending source', () => {
+      setup();
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      fixture.detectChanges();
+      const navSpy = spyOn(router, 'navigate').and.returnValue(Promise.resolve(true));
+
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-edit-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(prog.putItems).not.toHaveBeenCalled();
+      expect(navSpy).toHaveBeenCalledWith(component.editRoute(0));
+    });
+
+    it('a failed save does not navigate, and formError shows', () => {
+      setup();
+      store.open('sess1', [filledDraft('item1', BLANK_WOD)]);
+      store.put(0, { ...store.drafts()[0], fromLibraryWodId: 'lib1' });
+      fixture.detectChanges();
+      prog.putItems.and.returnValue(throwError(() => new Error('boom')));
+      const navSpy = spyOn(router, 'navigate');
+
+      el.querySelector<HTMLElement>('[data-testid="piece-toggle-0"]')!.click();
+      fixture.detectChanges();
+      el.querySelector<HTMLElement>('[data-testid="piece-edit-0"]')!.click();
+      fixture.detectChanges();
+
+      expect(navSpy).not.toHaveBeenCalled();
+      expect(el.querySelector('[data-testid="stack-save-error"]')).toBeTruthy();
+    });
   });
 
   it('pressing the category button shows the category step and hides the results list', () => {
     setup();
     store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
     fixture.detectChanges();
-    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    component.library.set([libEntry({ ...BLANK_WOD, id: 'lib-1', title: 'Grace' })]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -224,7 +371,7 @@ describe('ClassBuilderPage', () => {
     setup();
     store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
     fixture.detectChanges();
-    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    component.library.set([libEntry({ ...BLANK_WOD, id: 'lib-1', title: 'Grace' })]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -259,7 +406,7 @@ describe('ClassBuilderPage', () => {
       ...BLANK_WOD, id: 'lib-1', title: 'Grace', bodyText: '',
       blocks: { blocks: [{ label: '', lines: [{ text: 'Clean and Jerk', reps: '30' }] }] },
     };
-    component.library.set([picked]);
+    component.library.set([libEntry(picked)]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -278,7 +425,7 @@ describe('ClassBuilderPage', () => {
     setup();
     store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
     fixture.detectChanges();
-    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    component.library.set([libEntry({ ...BLANK_WOD, id: 'lib-1', title: 'Grace' })]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -297,7 +444,7 @@ describe('ClassBuilderPage', () => {
     setup();
     store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
     fixture.detectChanges();
-    component.library.set([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]);
+    component.library.set([libEntry({ ...BLANK_WOD, id: 'lib-1', title: 'Grace' })]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -329,7 +476,7 @@ describe('ClassBuilderPage', () => {
         label: '', lines: [{ text: 'Thruster', reps: '21-15-9' }, { text: 'Pull-up', reps: '21-15-9' }],
       }] },
     };
-    component.library.set([w]);
+    component.library.set([libEntry(w)]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -345,7 +492,7 @@ describe('ClassBuilderPage', () => {
     store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
     fixture.detectChanges();
     const w: Wod = { ...BLANK_WOD, id: 'lib-1', title: 'Blank', bodyText: '', blocks: { blocks: [] } };
-    component.library.set([w]);
+    component.library.set([libEntry(w)]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -363,7 +510,7 @@ describe('ClassBuilderPage', () => {
       ...BLANK_WOD, id: 'lib-1', title: 'Long', bodyText: '',
       blocks: { blocks: [{ label: '', lines: [{ text: longText }] }] },
     };
-    component.library.set([w]);
+    component.library.set([libEntry(w)]);
     fixture.detectChanges();
 
     el.querySelector<HTMLElement>('[data-testid="slot-open-0"]')!.click();
@@ -414,7 +561,7 @@ describe('ClassBuilderPage', () => {
     fixture.detectChanges();
 
     expect(prog.putItems).toHaveBeenCalledWith('sess1', [
-      { id: 'item1', wodId: 'w1', fromLibraryWodId: null, scoreable: true, scoreType: undefined },
+      { id: 'item1', wodId: 'w1', fromLibraryWodId: null, fromBenchmarkId: null, scoreable: true, scoreType: undefined },
     ]);
   });
 
@@ -580,7 +727,7 @@ describe('ClassBuilderPage', () => {
       ...BLANK_WOD, id: 'w-random', title: 'Random Piece',
       blocks: { blocks: [{ label: '', lines: [{ text: 'Burpee' }], blocks: [] }] },
     };
-    component.library.set([w]);
+    component.library.set([libEntry(w)]);
 
     component.onLibrarySearch('burpee');
     const ids = component.filteredLibraryRows().map(r => r.id);
@@ -591,7 +738,7 @@ describe('ClassBuilderPage', () => {
   describe('the fill-slot sheet\'s library fetch', () => {
     it('shows a distinct error state (never "nothing found"), and retry refetches', () => {
       setup();
-      prog.wods.and.returnValue(throwError(() => new Error('boom')));
+      prog.libraryEntries.and.returnValue(throwError(() => new Error('boom')));
       store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
       fixture.detectChanges();
 
@@ -602,7 +749,7 @@ describe('ClassBuilderPage', () => {
       expect(el.querySelector('bh-empty')).toBeNull();
       expect(el.querySelector('[data-testid="pick-search"]')).toBeNull();
 
-      prog.wods.and.returnValue(of([{ ...BLANK_WOD, id: 'lib-1', title: 'Grace' }]));
+      prog.libraryEntries.and.returnValue(of([libEntry({ ...BLANK_WOD, id: 'lib-1', title: 'Grace' })]));
       el.querySelector<HTMLElement>('[data-testid="slot-library-retry"]')!.click();
       fixture.detectChanges();
 
@@ -612,8 +759,8 @@ describe('ClassBuilderPage', () => {
 
     it('shows a loading state, distinct from pick-sheet\'s own empty state', () => {
       setup();
-      const pending = new Subject<Wod[]>();
-      prog.wods.and.returnValue(pending.asObservable());
+      const pending = new Subject<LibraryEntry[]>();
+      prog.libraryEntries.and.returnValue(pending.asObservable());
       store.open('sess1', [emptyDraft('Workout', 'WORKOUT')]);
       fixture.detectChanges();
 
@@ -1007,7 +1154,7 @@ describe('ClassBuilderPage', () => {
 
       expect(prog.putItems).toHaveBeenCalledTimes(1);
       expect(prog.putItems).toHaveBeenCalledWith('sess2', [
-        { id: null, wodId: null, fromLibraryWodId: 'w1', scoreable: true, scoreType: undefined },
+        { id: null, wodId: null, fromLibraryWodId: 'w1', fromBenchmarkId: null, scoreable: true, scoreType: undefined },
       ]);
     });
 

@@ -14,6 +14,9 @@ export interface PieceDraft {
   /** Set by a library pick and left set until the class is saved: the SERVER copies the library
    *  row, so the class owns its content and editing it never edits the library. */
   fromLibraryWodId: string | null;
+  /** Set by a benchmark pick, same lifecycle as fromLibraryWodId: the SERVER maps the global
+   *  benchmark into the class's own copy on save. Never both set. */
+  fromBenchmarkId: string | null;
   /** Shown while the slot is empty (the skeleton's label, e.g. "Warmup"). */
   label: string;
   /** The slot's category, one of MACROS. Seeds the library filter and the new piece's macro. */

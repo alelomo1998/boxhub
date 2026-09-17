@@ -66,7 +66,7 @@ public class BookingService {
         Booking b = new Booking();
         b.setSessionId(sessionId);
         b.setMembershipId(membershipId);
-        long bookedCount = bookings.countBySessionIdAndStatus(sessionId, "BOOKED");
+        long bookedCount = bookings.countBySessionIdAndStatusIn(sessionId, BookingRepository.IN_CLASS);
         if (bookedCount < session.getCapacity()) {
             b.setStatus("BOOKED");
         } else {

@@ -1,7 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../ui/button.component';
 import { AlertComponent } from '../../ui/alert.component';
+import { IconComponent } from '../../ui/icon.component';
 import { SegOption } from '../../ui/segmented.component';
 import { SortableListComponent } from '../../ui/sortable-list.component';
 import { SheetComponent } from '../../ui/sheet.component';
@@ -76,7 +77,7 @@ type PickTarget = { block: number; line: number; scale: number | null };
   selector: 'bh-piece-editor',
   standalone: true,
   imports: [
-    ButtonComponent, AlertComponent,
+    ButtonComponent, AlertComponent, IconComponent,
     SortableListComponent, PickSheetComponent, SheetComponent, NumberStepperComponent,
   ],
   template: `
@@ -92,10 +93,18 @@ type PickTarget = { block: number; line: number; scale: number | null };
         </div>
       } @else {
         <header class="head">
-          <input class="title-input" [value]="title()" (input)="setTitle($any($event.target).value)"
-                 placeholder="Untitled piece" i18n-placeholder="@@piece.title.placeholder"
-                 aria-label="Title" i18n-aria-label="@@piece.title.label"
-                 data-testid="piece-title" />
+          <div class="title-row">
+            <input class="title-input" [value]="title()" (input)="setTitle($any($event.target).value)"
+                   placeholder="Untitled piece" i18n-placeholder="@@piece.title.placeholder"
+                   aria-label="Title" i18n-aria-label="@@piece.title.label"
+                   data-testid="piece-title" />
+            @if (canDelete()) {
+              <bh-button variant="ghost-danger" size="sm" label="Delete this piece" i18n-label="@@piece.delete.open"
+                         (click)="deleteOpen.set(true)" testId="piece-delete-open">
+                <bh-icon name="trash-2" [size]="18" />
+              </bh-button>
+            }
+          </div>
           @if (titleError()) {
             <span class="title-err" role="alert">{{ titleError() }}</span>
           }
@@ -453,6 +462,24 @@ type PickTarget = { block: number; line: number; scale: number | null };
                    [allowCreate]="true" [createPending]="createPending()" [createError]="createError()"
                    (search)="searchMovements($event)" (create)="onCreateMovement($event)"
                    (picked)="onPicked($event)" (closed)="closePick()" />
+
+    <bh-sheet [open]="deleteOpen()" [title]="deleteTitle()"
+              label="Delete this piece" i18n-label="@@piece.delete.aria" (closed)="onDeleteSheetClosed()" data-testid="piece-delete-sheet">
+      <div class="delete-body">
+        <p i18n="@@piece.delete.body">It leaves the library. Classes that already ran it keep their own copy.</p>
+        @if (benchmarkTemplateId() !== null) {
+          <p data-testid="piece-delete-benchmark">{{ deleteBenchmarkText() }}</p>
+        }
+        @if (deleteError()) { <bh-alert tone="danger" data-testid="piece-delete-error">{{ deleteError() }}</bh-alert> }
+        <bh-button variant="ghost" size="lg" class="full" [ariaDisabled]="deleting()"
+                   (click)="closeDelete()" testId="piece-delete-keep">
+          <span i18n="@@piece.delete.keep">Keep it</span>
+        </bh-button>
+        <bh-button variant="danger" size="lg" class="full" [loading]="deleting()" (click)="confirmDelete()" testId="piece-delete-confirm">
+          <span i18n="@@piece.delete.confirm">Delete</span>
+        </bh-button>
+      </div>
+    </bh-sheet>
   `,
   styles: [`
     :host { display: block; }
@@ -464,6 +491,12 @@ type PickTarget = { block: number; line: number; scale: number | null };
 
     /* ---- header: title + meta strip ------------------------------------------------------- */
     .head { display: flex; flex-direction: column; gap: var(--sp-3); }
+    /* The delete opener sits beside the title, not the footer (user-ruled): a coach checking a
+       piece sees the destructive control up front, without scrolling past the whole build. The
+       title keeps the row's remaining space; bh-button's own sm padding already makes it a
+       --tap square, so no extra sizing is needed here. */
+    .title-row { display: flex; align-items: center; gap: var(--sp-2); }
+    .title-row .title-input { flex: 1; min-width: 0; }
     .title-input { width: 100%; box-sizing: border-box; background: transparent; border: none;
       padding: 0; margin: 0; color: var(--bone); font-family: var(--font-display); font-weight: 800;
       font-size: var(--fs-hero); line-height: 1.1; }
@@ -726,6 +759,11 @@ type PickTarget = { block: number; line: number; scale: number | null };
        it, same as .free in pick-sheet.component.ts. */
     .rest-row { border-top: 1px solid var(--hairline); }
 
+    /* Delete-confirm sheet: body copy, an optional error and the Keep it / Delete pair, each
+       given breathing room so the two buttons never touch. */
+    .delete-body { display: flex; flex-direction: column; gap: var(--sp-3); }
+    .delete-body p { margin: 0; color: var(--bone); font-size: var(--fs-body); }
+
     /* Bottom bar: a hairline separates it from the last block card, echoing the composition's
        horizontal rule ahead of "Save piece". */
     .foot { display: flex; flex-direction: column; gap: var(--sp-3);
@@ -740,6 +778,8 @@ export class PieceEditorPage {
   private prog = inject(ProgrammingService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private el: ElementRef<HTMLElement> = inject(ElementRef);
+  private injector = inject(Injector);
 
   state = signal<'loading' | 'error' | 'ready'>('ready');
 
@@ -792,6 +832,31 @@ export class PieceEditorPage {
   standalone = computed(() => !this.routeIndex);
   private routeIndex = this.route.snapshot.paramMap.get('index');
   private sessionId = this.route.snapshot.paramMap.get('id');
+
+  /** Delete only exists for a standalone piece that already has an id -- a brand-new,
+   *  not-yet-saved piece has nothing to delete, and a class-build piece is deleted by removing
+   *  it from the class, not from here. */
+  canDelete = computed(() => this.standalone() && !!this.wodId());
+  deleteOpen = signal(false);
+  deleting = signal(false);
+  deleteError = signal('');
+  /** Set from the loaded wod's own field (null for a brand-new piece); reset in load() like every
+   *  other loaded field. Non-null only when this piece is a coach's copy of a benchmark template. */
+  benchmarkTemplateId = signal<string | null>(null);
+
+  deleteTitle = computed(() => {
+    const name = this.title().trim();
+    return name
+      ? $localize`:@@piece.delete.titleNamed:Delete ${name}:name:?`
+      : $localize`:@@piece.delete.title:Delete this piece?`;
+  });
+
+  deleteBenchmarkText = computed(() => {
+    const name = this.title().trim();
+    return name
+      ? $localize`:@@piece.delete.benchmarkNamed:${name}:name: stays in Benchmarks — this removes your box's copy.`
+      : $localize`:@@piece.delete.benchmark:The benchmark stays in Benchmarks — this removes your box's copy.`;
+  });
 
   private drafts = inject(ClassDraftStore);
   /** The draft this route is editing, or null in standalone mode / when the store is cold. */
@@ -1079,11 +1144,13 @@ export class PieceEditorPage {
     this.saveToLibrary.set(false);
     this.titleError.set('');
     this.formError.set('');
+    this.benchmarkTemplateId.set(null);
     this.state.set('loading');
 
     this.prog.wod(id).subscribe({
       next: w => {
         this.title.set(w.title ?? '');
+        this.benchmarkTemplateId.set(w.benchmarkTemplateId);
         this.macro.set(w.macro || 'WORKOUT');
         this.timingPreset.set(w.timingPreset);
         this.rounds.set(w.timing?.rounds ?? 1);
@@ -1098,6 +1165,54 @@ export class PieceEditorPage {
         this.state.set('ready');
       },
       error: () => this.state.set('error'),
+    });
+  }
+
+  // ---- delete -------------------------------------------------------------------------------
+
+  /** bh-sheet (closed): the native dialog is already shut (Escape, backdrop, or Keep it), so
+   *  deleteOpen always follows it to false. The error only clears when nothing is in flight --
+   *  a pending request that then fails must reopen the sheet with the error still readable. */
+  onDeleteSheetClosed() {
+    this.deleteOpen.set(false);
+    if (!this.deleting()) this.deleteError.set('');
+  }
+
+  /** Keep it: ignored while pending (the request already in flight must not be abandoned mid-air). */
+  closeDelete() {
+    if (this.deleting()) return;
+    this.deleteOpen.set(false);
+    this.deleteError.set('');
+  }
+
+  confirmDelete() {
+    const id = this.wodId();
+    if (!id || this.deleting()) return;
+    this.deleting.set(true);
+    this.deleteError.set('');
+    this.prog.deleteWod(id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.deleteOpen.set(false);
+        this.router.navigate(['/coach/wods'], {
+          replaceUrl: true,
+          state: { deletedPiece: this.title().trim() },
+        });
+      },
+      error: (e: { status?: number }) => {
+        this.deleting.set(false);
+        this.deleteError.set(e?.status === 409
+          ? $localize`:@@piece.delete.inUse:This piece is still used by a class, so it can't be deleted.`
+          : $localize`:@@piece.delete.error:That did not delete — try again.`);
+        // Escape/backdrop may have closed the dialog while the request was in flight; reopen it
+        // so the error is seen, and restore focus onto the control a screen-reader user pressed.
+        this.deleteOpen.set(true);
+        afterNextRender(() => {
+          this.el.nativeElement
+            .querySelector<HTMLButtonElement>('[data-testid="piece-delete-confirm"]')
+            ?.focus();
+        }, { injector: this.injector });
+      },
     });
   }
 
@@ -1531,8 +1646,9 @@ export class PieceEditorPage {
             // that answer back. scoreType lives on the wod, scoreable on the session item, and
             // keeping the draft's skeleton-seeded flag silently overrode the coach's choice.
             scoreable: this.scoreable(),
-            // The piece now has its own content; it is no longer a pending library copy.
+            // The piece now has its own content; it is no longer a pending library or benchmark copy.
             fromLibraryWodId: null,
+            fromBenchmarkId: null,
             scoreType: null,
           });
         }

@@ -1,5 +1,6 @@
 package com.boxhub.programming;
 
+import com.boxhub.box.BoxRepository;
 import com.boxhub.shared.RoleGuard;
 import com.boxhub.shared.TenantContext;
 import jakarta.validation.Valid;
@@ -9,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -20,11 +23,13 @@ public class WodController {
     private final WodRepository wods;
     private final SessionItemRepository items;
     private final WodService service;
+    private final BoxRepository boxes;
 
-    public WodController(WodRepository wods, SessionItemRepository items, WodService service) {
+    public WodController(WodRepository wods, SessionItemRepository items, WodService service, BoxRepository boxes) {
         this.wods = wods;
         this.items = items;
         this.service = service;
+        this.boxes = boxes;
     }
 
     public record WodDto(UUID id, String title, String wodType,
@@ -95,6 +100,55 @@ public class WodController {
         return toDto(wods.findById(id).orElseThrow(NoSuchElementException::new));
     }
 
+    public record HistoryRowDto(UUID itemId, UUID sessionId, String className, Instant startAt, WodDto wod) {}
+
+    @GetMapping("/history")
+    public List<HistoryRowDto> history(@RequestParam String day) {
+        RoleGuard.requireStaff();
+        LocalDate date;
+        try { date = LocalDate.parse(day); }
+        catch (java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "day must be YYYY-MM-DD");
+        }
+        // The box's own day, not the server's: a 23:30 class in Rome is "today" there.
+        ZoneId zone = ZoneId.of(boxes.findById(TenantContext.requireBoxId()).orElseThrow().getTimezone());
+        Instant from = date.atStartOfDay(zone).toInstant();
+        Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
+        return items.history(from, to, service.now()).stream()
+                .map(r -> new HistoryRowDto(r.itemId(), r.sessionId(), r.className(), r.startAt(), toDto(r.wod())))
+                .toList();
+    }
+
+    /**
+     * Which box-local days in [from, to] (inclusive) had at least one piece run -- same rules as
+     * {@link #history}, bucketed by day instead of returned row by row, so a calendar can mark days
+     * without fetching every row for the visible range.
+     */
+    @GetMapping("/history/days")
+    public List<String> historyDays(@RequestParam String from, @RequestParam String to) {
+        RoleGuard.requireStaff();
+        LocalDate fromDate, toDate;
+        try {
+            fromDate = LocalDate.parse(from);
+            toDate = LocalDate.parse(to);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from/to must be YYYY-MM-DD");
+        }
+        if (toDate.isBefore(fromDate))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "to must not be before from");
+        if (java.time.temporal.ChronoUnit.DAYS.between(fromDate, toDate) > 62)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "range must not exceed 62 days");
+        ZoneId zone = ZoneId.of(boxes.findById(TenantContext.requireBoxId()).orElseThrow().getTimezone());
+        Instant fromInstant = fromDate.atStartOfDay(zone).toInstant();
+        Instant toInstant = toDate.plusDays(1).atStartOfDay(zone).toInstant();
+        return items.history(fromInstant, toInstant, service.now()).stream()
+                .map(r -> LocalDate.ofInstant(r.startAt(), zone))
+                .distinct()
+                .sorted()
+                .map(LocalDate::toString)
+                .toList();
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public WodDto create(@Valid @RequestBody CreateWodRequest req) {
@@ -145,25 +199,5 @@ public class WodController {
         if (items.existsByWodId(w.getId()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "WOD in use");
         wods.delete(w);
-    }
-
-    @PostMapping("/{id}/duplicate")
-    @ResponseStatus(HttpStatus.CREATED)
-    public WodDto duplicate(@PathVariable UUID id) {
-        RoleGuard.requireStaff();
-        Wod src = wods.findById(id).orElseThrow(NoSuchElementException::new);
-        Wod copy = new Wod();
-        copy.setTitle(src.getTitle() + " (copy)");
-        copy.setMacro(src.getMacro());
-        copy.setTimingPreset(src.getTimingPreset());
-        copy.setTimingJson(src.getTimingJson());
-        copy.setScoreType(src.getScoreType());
-        copy.setTimeCapSeconds(src.getTimeCapSeconds());
-        copy.setBodyText(src.getBodyText());
-        copy.setBlocksJson(src.getBlocksJson());
-        copy.setScalingNotes(src.getScalingNotes());
-        copy.setBenchmarkTemplateId(src.getBenchmarkTemplateId());
-        copy.setCreatedBy(TenantContext.userId());
-        return toDto(wods.save(copy));
     }
 }

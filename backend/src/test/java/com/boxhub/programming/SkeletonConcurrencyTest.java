@@ -48,7 +48,7 @@ class SkeletonConcurrencyTest extends AbstractIntegrationTest {
     private void actAsBox(UUID boxId) {
         Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256")
                 .subject(UUID.randomUUID().toString())
-                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "COACH")
+                .claim("scope", "box").claim("box_id", boxId.toString()).claim("role", "BOX_ADMIN")
                 .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
         SecurityContextHolder.getContext()
                 .setAuthentication(new TestingAuthenticationToken(jwt, null, "SCOPE_box"));

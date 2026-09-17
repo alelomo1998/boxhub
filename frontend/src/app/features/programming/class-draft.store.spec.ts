@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ClassDraftStore, PieceDraft } from './class-draft.store';
 
 function draft(label: string): PieceDraft {
-  return { itemId: null, wod: null, fromLibraryWodId: null, label, macro: 'WORKOUT', scoreable: true, scoreType: null };
+  return { itemId: null, wod: null, fromLibraryWodId: null, fromBenchmarkId: null, label, macro: 'WORKOUT', scoreable: true, scoreType: null };
 }
 
 describe('ClassDraftStore', () => {

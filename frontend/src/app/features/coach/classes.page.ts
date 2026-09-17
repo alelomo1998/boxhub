@@ -1,9 +1,10 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { BookingService, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
+import { sessionWindow, covers, SessionWindow, isPastDay } from '../booking/session-window';
 
 /** Coach home: one day's classes at a time (same week strip as Book); tap into check-in or the builder. */
 @Component({
@@ -14,13 +15,12 @@ import { tonesOf } from '../booking/session-tones';
     <section class="cls">
       <header class="head">
         <div class="head-text">
-          <span class="eyebrow">This week</span>
           <h1 class="title">Classes</h1>
         </div>
         <bh-button variant="ghost" size="sm" route="/coach/announcements" testId="announce-link"><span i18n="@@coach.classes.announce">Announce</span></bh-button>
       </header>
 
-      <bh-week-calendar [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
+      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [min]="-3650" [max]="13" [tones]="tones()" />
 
       @if (loading()) { <p class="stateline">Loading classes…</p> }
       @else if (error()) {
@@ -44,9 +44,13 @@ import { tonesOf } from '../booking/session-tones';
                 {{ s.programmingStatus === 'PUBLISHED' ? 'Published' : 'Draft' }}
               </span>
               <div class="acts">
-                <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'build']" testId="build-link"><span i18n="@@coach.classes.action.build">Build</span></bh-button>
+                @if (!isPastDay(s.startAt)) {
+                  <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'build']" testId="build-link"><span i18n="@@coach.classes.action.build">Build</span></bh-button>
+                }
                 <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'checkin']" testId="checkin-link"><span i18n="@@coach.classes.action.checkin">Check-in</span></bh-button>
-                <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'run']" testId="run-link"><span i18n="@@coach.classes.action.run">Run</span></bh-button>
+                @if (!isPastDay(s.startAt)) {
+                  <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'run']" testId="run-link"><span i18n="@@coach.classes.action.run">Run</span></bh-button>
+                }
               </div>
             </div>
           } @empty {
@@ -67,10 +71,8 @@ import { tonesOf } from '../booking/session-tones';
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
     .head { margin-bottom: var(--sp-4); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
-    .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.14em;
-      text-transform: uppercase; color: var(--faint); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
-      text-transform: uppercase; margin: 2px 0 0; }
+      text-transform: uppercase; margin: 0; }
     .list { display: flex; flex-direction: column; gap: var(--sp-3); }
     .row { display: grid; grid-template-columns: 56px 1fr auto auto; align-items: center; gap: var(--sp-3);
       padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--r-card);
@@ -105,6 +107,9 @@ export class CoachClassesPage implements OnInit {
 
   dayOffset = signal(0);
 
+  /** The [from, to] this page last fetched — reloaded only when the selected day leaves it. */
+  private window: SessionWindow = sessionWindow(0);
+
   daySessions = computed(() => {
     const d = new Date(); d.setDate(d.getDate() + this.dayOffset());
     const key = d.toDateString();
@@ -114,16 +119,24 @@ export class CoachClassesPage implements OnInit {
   /** Per-day availability for the strip's dots, from sessions this page already fetched — no extra request. */
   readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
+  constructor() {
+    effect(() => {
+      const offset = this.dayOffset();
+      if (!covers(this.window, offset)) this.load();
+    });
+  }
+
   ngOnInit() { this.load(); }
 
   load() {
     this.loading.set(true);
     this.error.set(false);
-    const from = new Date(); from.setHours(0, 0, 0, 0);
-    const to = new Date(Date.now() + 14 * 864e5); // match the athlete Book window so the coach can reach any upcoming class
-    this.booking.listSessions(from.toISOString(), to.toISOString()).subscribe({
+    this.window = sessionWindow(this.dayOffset());
+    this.booking.listSessions(this.window.from.toISOString(), this.window.to.toISOString()).subscribe({
       next: s => { this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
       error: () => { this.loading.set(false); this.error.set(true); },
     });
   }
+
+  protected readonly isPastDay = isPastDay;
 }

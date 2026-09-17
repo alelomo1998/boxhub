@@ -47,4 +47,45 @@ describe('SearchBarComponent', () => {
     type('ada'); tick(300);
     expect(f.componentInstance.hits.length).toBe(1);
   }));
+
+
+  // M14c-b audit P2: the field stayed ~340px wide inside a much wider host (a gap before Library's
+  // filter/+ buttons). stretch lets a consumer fill its row; default keeps every other screen as-is.
+  it('stretch removes the 340px cap; default consumers keep it', () => {
+    const fixture = TestBed.createComponent(SearchBarComponent);
+    fixture.componentRef.setInput('label', 'Search');
+    fixture.detectChanges();
+    document.body.appendChild(fixture.nativeElement);
+
+    expect(getComputedStyle(fixture.nativeElement.querySelector('.sb')).maxWidth).toBe('340px');
+
+    fixture.componentRef.setInput('stretch', true);
+    fixture.detectChanges();
+    expect(getComputedStyle(fixture.nativeElement.querySelector('.sb')).maxWidth).toBe('none');
+
+    fixture.nativeElement.remove();
+  });
+});
+
+// M14c-b critique: Library binds [value] one way and resets it from a "Clear search" action. Retyping
+// the term that was showing before the reset must search again, not be swallowed as "unchanged".
+@Component({
+  standalone: true,
+  imports: [SearchBarComponent],
+  template: `<bh-search-bar label="Search" [value]="q()" (search)="q.set($event); hits.push($event)" />`,
+})
+class ResetHost { q = signal(''); hits: string[] = []; }
+
+describe('SearchBarComponent reset by its consumer', () => {
+  it('re-emits a term typed again after the consumer reset the value', fakeAsync(() => {
+    TestBed.configureTestingModule({ imports: [ResetHost] });
+    const f = TestBed.createComponent(ResetHost);
+    f.detectChanges();
+    const el = (): HTMLInputElement => f.nativeElement.querySelector('input');
+    const type = (s: string) => { el().value = s; el().dispatchEvent(new Event('input')); };
+    type('ada'); tick(300); f.detectChanges();
+    f.componentInstance.q.set(''); f.detectChanges(); tick();
+    type('ada'); tick(300);
+    expect(f.componentInstance.hits).toEqual(['ada', 'ada']);
+  }));
 });

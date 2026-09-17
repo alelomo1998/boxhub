@@ -87,15 +87,6 @@ class WodControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void duplicateProducesIndependentCopy() throws Exception {
-        String id = createFran();
-        mvc.perform(post("/api/box/wods/" + id + "/duplicate").header("Authorization", "Bearer " + coachToken))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.title").value("Fran (copy)"))
-                .andExpect(jsonPath("$.blocks.blocks[0].lines[1].text").value("Pull-ups"));
-    }
-
-    @Test
     void deleteUnreferencedWod() throws Exception {
         String id = createFran();
         mvc.perform(delete("/api/box/wods/" + id).header("Authorization", "Bearer " + coachToken))
