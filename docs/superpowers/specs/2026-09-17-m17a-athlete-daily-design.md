@@ -43,6 +43,11 @@ shape: full-bleed image, text on a scrim over it, not a thumbnail beside text.
 1. **`SessionView.imagePath`** — signed class-type image, resolved session → schedule slot → class
    type exactly as `SessionDetailController.detail` does. Slots and types resolved once per request,
    not per row. Book's name-matched `listTemplates()` lookup is deleted.
+1b. **`SessionView.coachAvatarPath` and `SessionView.people`** (added at shape, 2026-09-17) — the
+   coach's signed avatar, and the first 5 IN_CLASS athletes as `{name, avatarPath}` (signed), in
+   booking order. `bookedCount` stays the total, so the card's `+N` is `bookedCount − people.length`
+   (drop-in visitors are counted but not named, as `booked` already does). Same exposure as class
+   detail's grid, which every member can already see.
 2. **Per-limit 409 reason.** `BookingService.book` returns the violated rule's code
    (`ENTRIES_TOTAL | ENTRIES_PER_MONTH | ENTRIES_PER_WEEK | ENTRIES_PER_DAY`) as the 409 detail
    instead of `LIMIT_REACHED`; cancel returns `CANCELLATIONS_*` instead of `CANCEL_LIMIT_REACHED`.
@@ -67,15 +72,42 @@ shape: full-bleed image, text on a scrim over it, not a thumbnail beside text.
 
 ### 3.1 `ui/class-card` (new component — clean `ui/` rules apply)
 
-- Signal inputs only: `image`, `title`, `coach`, `start`, `end`, `meta`, `href`, `tone`
-  (`default | past`), `testId` (bound on the inner link — host attributes don't reach it).
-- Projected slots: **badge** (over the image) and **actions** (card foot). The card owns layout; the
-  page owns role logic.
-- Full-bleed image under a `--scrim` gradient, text on the scrim. No image → `--surface-2` block with
-  the class initials. Tokens only; mono for times/counts, tabular numbers.
-- Gallery section at `/app/dev/components` with every state; states it cannot have (e.g. disabled on
-  a link card) are declared. Visual baselines via `e2e/visual.sh`.
-- `interaction-design` pass applies (new component).
+**Shape decided 2026-09-17 ("A2", user-picked after four options and three revisions).** Reference
+render: `docs/superpowers/sketches/m17a-class-card-a2.html` (bone-ring column) with the title from
+`m17a-class-card-title.html` ("500 · Title case").
+
+- **Photo block, 170px tall**, full-bleed class-type image. No image → `--surface-2` with the class
+  initials large in `--hairline`, top-right.
+- **Light scrim, not adaptive (user-ruled 2026-09-17):** `linear-gradient(180deg, transparent 28%,
+  rgba(6,9,7,.5) 55%, rgba(6,9,7,.5) 100%)` — a new token `--scrim-card` holds the .5 colour. The user
+  rejected both a darker scrim ("way too dark", "big shadow") and an adaptive one. **Known cost,
+  accepted:** on a very bright upload the title can drop below AA (measured 3.4:1 on a pure-white
+  photo). The audit will flag it; it is a recorded user decision, not an open P1. Past-day photos are
+  greyscaled (`filter: grayscale(.85) brightness(.75)`), which also darkens them.
+- **On the photo, bottom-left, two lines:**
+  1. **Title · coach** — title Archivo **500, title case**, `--fs-h2`,
+     ellipsis; a `·` in `--bone-dim`; the coach's `bh-avatar size="sm"` + first name in `--bone`,
+     `--fs-sm`, max 45% of the line. No coach → title only.
+  2. **Who's going** — the first **5** athletes as `bh-avatar size="sm"`, overlapped (−9px), each with
+     a **2px `--bone` ring** (volt was asked for and declined on the design law; user accepted bone),
+     then a `+N` chip (mono, `--fs-meta`, dark translucent fill, hairline border) when more are in.
+     Nobody → the text "No one yet — be the first" (`--bone-dim`, `--fs-sm`). The stack is
+     `aria-hidden`; the card's accessible text carries "N going".
+- **Badge, top-right on the photo**: the state, said once — Booked · Waitlist #n · Full · ✓ Attended
+  (and for coaches Draft · Published). Mono uppercase chip with its own dark fill, so it reads on any
+  photo. Tones: Attended/Published `--good`, Full `--warn`, others neutral.
+- **Strip below the photo** (`--surface`, min-height 56px): left, mono bold time range + a regular
+  `--bone-dim` suffix that carries the count or phase ("· 4 left", "· 3 in line", "· 1 ahead",
+  "· started", "· finished"; coach: "· 8/12 booked"); right, the projected action. The badge never
+  repeats the strip ("Full · 3 in line" was rejected as redundant).
+- Buttons are never on the photo. Cancel / Leave / Join waitlist / coach actions are `bh-button`
+  `ghost`; **Book is `solid`** — a list holds several co-equal Book buttons, and the design law caps
+  `strong` (the bone fill the sketch showed) at one per screen.
+- Inputs (signal): `title`, `image`, `coach`, `coachAvatar`, `people: {name, avatarPath}[]`,
+  `peopleCount`, `emptyText`, `start`, `end`, `suffix`, `href`, `tone` (`default | past`), `testId`.
+  Projected slots: `[badge]`, `[actions]`, `[error]`.
+- Gallery section at `/app/dev/components` with every state; states it cannot have are declared.
+  Visual baselines via `e2e/visual.sh`. `interaction-design` pass applies (new component).
 
 ### 3.2 `features/booking/class-state.ts`
 
@@ -109,8 +141,9 @@ critique ≥32/40 in Chrome.** All four are plumbing under the shell volt rule: 
 primary action is `bh-button variant="strong"`.
 
 ### 5.1 Book
-Week strip (unchanged) → class cards. Badge + action from `athleteState`. No-plan athletes still see
-Book; pressing it shows the plan message inline. *Shape: pending.*
+Week strip (unchanged) → a list of §3.1 cards, 12px apart. Badge + suffix + action from
+`athleteState`. No-plan athletes still see Book; pressing it shows the plan message inline in that card.
+**Shape: decided 2026-09-17 — §3.1's A2 card, nothing else on the screen changes.**
 
 ### 5.2 Coach Classes
 Same card, coach actions, Draft/Published badge. Keeps the Announce link and the `aria-live` list.

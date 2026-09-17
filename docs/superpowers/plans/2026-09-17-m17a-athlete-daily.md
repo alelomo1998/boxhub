@@ -106,6 +106,62 @@ and pass `s.getScheduleSlotId() == null ? null : imageBySlot.get(s.getScheduleSl
 
 ---
 
+### Task 1b: coach avatar and the first five athletes on the session list
+
+**Files:**
+- Modify: `backend/src/main/java/com/boxhub/box/SessionController.java` (`SessionView`, `list`, `patch`)
+- Test: `backend/src/test/java/com/boxhub/box/SessionApiTest.java`
+- Modify: `frontend/src/app/features/booking/booking.service.ts` (`SessionView` gains `coachAvatarPath: string | null; people: Person[]`, plus `export interface Person { name: string; avatarPath: string | null; }`) and every spec fixture building a `SessionView` (`grep -rln "myBookingStatus" /Users/alessandrolomonaco/dev/boxhub/frontend/src` — add `coachAvatarPath: null, people: []`).
+
+**Interfaces:**
+- Produces: `SessionView(..., String imagePath, String coachAvatarPath, List<Person> people)` with `public record Person(String name, String avatarPath) {}` nested in `SessionController`. `people` = the first **5** IN_CLASS bookings that have a membership, in the order `findBySessionIdAndStatusInOrderByPosition` already returns, each with the member's name and `mediaSigner.sign(avatarPath)`. `coachAvatarPath` = the coach's membership avatar in the caller's box, signed; null when no coach or no avatar. `booked` (names) stays as is. `patch` passes `null, List.of()`.
+
+- [ ] **Step 1: Failing test** in `SessionApiTest`:
+
+```java
+@Test
+void listCarriesTheCoachAvatarAndTheFirstFiveAthletes() throws Exception {
+    // Arrange (actAsBox(boxA)): give the coach membership an avatarPath "av-coach.png"; set the
+    // session's coachId to the coach's user id; create 6 athlete memberships in boxA (names A1..A6,
+    // A1 with avatarPath "av-a1.png") and a BOOKED booking for each on sessionId, positions 1..6.
+    // Act: GET /api/box/sessions as coachToken.
+    // Assert on the session with id == sessionId:
+    //   coachAvatarPath contains "av-coach"
+    //   people has length 5; people[0].name == "A1"; people[0].avatarPath contains "av-a1";
+    //   people[1].avatarPath is null; bookedCount == 6
+}
+```
+
+Read the file's fixture first: reuse how it registers users/memberships (`authService.register`, `memberships.save`) and how the coach is created. Booking needs `setSessionId`, `setMembershipId`, `setStatus("BOOKED")`, `setPosition(i)`.
+
+- [ ] **Step 2: Run `-Dtest=com.boxhub.box.SessionApiTest` — expect FAIL** (the bare name also matches `identity.SessionApiTest`).
+
+- [ ] **Step 3: Implement.** In `list`, the coach lookup already resolves users once per coach id; extend it to also resolve the coach's membership avatar once per coach id:
+
+```java
+Map<UUID, String> coachAvatars = new HashMap<>();
+// inside the existing coach loop, once per coach id:
+memberships.findByUserIdAndBoxId(s.getCoachId(), TenantContext.requireBoxId())
+        .map(Membership::getAvatarPath).map(mediaSigner::sign)
+        .ifPresent(a -> coachAvatars.put(s.getCoachId(), a));
+```
+
+In the per-session loop, build `people` from the membership lookups the loop already does for `bookedNames` (do not add a second query per booking):
+
+```java
+List<Person> people = new ArrayList<>();
+// in the existing for (Booking b : bookedRows) loop, after resolving m:
+if (people.size() < 5) people.add(new Person(m.getUser().getName(), mediaSigner.sign(m.getAvatarPath())));
+```
+
+Check `MediaSigner.sign(null)` returns null (it is already called with nullable paths elsewhere). Pass `coachAvatars.get(s.getCoachId())` (null-safe for a null coach id — guard it) and `people`.
+
+- [ ] **Step 4: Frontend types + fixtures** as listed under Files.
+
+- [ ] **Step 5: Verify.** `-Dtest=com.boxhub.box.SessionApiTest` PASS; full backend suite green; Karma green; build zero warnings.
+
+---
+
 ### Task 2: Per-limit 409 reason
 
 **Files:**
@@ -523,26 +579,51 @@ Before any browser pass: `cd /Users/alessandrolomonaco/dev/boxhub/docker && dock
 
 **Files:**
 - Create: `frontend/src/app/ui/class-card.component.ts`, `class-card.component.spec.ts`
+- Modify: `frontend/src/styles/_tokens.scss` (add `--scrim-card: rgba(6, 9, 7, 0.5);` next to `--scrim-text`, with a one-line comment: light scrim for class-card photos, user-ruled 2026-09-17, spec §3.1)
 - Modify: `frontend/src/app/features/dev/dev-gallery.page.ts` (new `data-gallery="class-card"` section + ledger), `dev-gallery.page.spec.ts` (add `'class-card'` to the exhaustive list)
 
-**Interfaces:**
-- Produces: `<bh-class-card>` — inputs `title: string` (required), `image: string | null`, `coach: string | null`, `start: string` (ISO), `end: string | null` (ISO), `meta: string | null`, `href: string | readonly unknown[] | null`, `tone: 'default' | 'past'`, `testId: string | null`. Content slots: `<ng-content select="[badge]">`, `<ng-content select="[actions]">`, `<ng-content select="[error]">`. Root element carries class `class-card` and `[attr.data-testid]="testId()"`.
+**Read first:** spec §3.1 (the decided shape, binding) and the reference render `docs/superpowers/sketches/m17a-class-card-a2.html` — the **"A2 · bone ring (law-safe)"** column — with the title treatment "500 · Title case" from `m17a-class-card-title.html`. Match that render; translate every raw value in the sketch to the nearest token (`--fs-h2`, `--fs-sm`, `--fs-meta`, `--sp-*`, `--r-card`, `--r-full`, `--surface`, `--surface-2`, `--hairline`, `--bone`, `--bone-dim`, `--good`, `--warn`, `--scrim-card`). The sketch's `rgba(13,17,14,.86)` chip fill → `--scrim-text`.
 
-Behaviour contract (tests — write first):
+**Interfaces:**
+- Consumes: `Person` from `features/booking/booking.service.ts` is a FEATURE type — do not import it into `ui/`. Declare the card's own `export interface CardPerson { name: string; avatarPath: string | null; }` in the component file (structurally identical, so pages pass `s.people` directly). Reuse `bh-avatar` (`ui/avatar.component.ts`, `size="sm"` = 28px).
+- Produces: `<bh-class-card>` with signal inputs
+  `title: string` (required) · `image: string | null` · `coach: string | null` · `coachAvatar: string | null` ·
+  `people: readonly CardPerson[]` (default `[]`) · `peopleCount: number` (default 0; the total going) ·
+  `emptyText: string | null` (shown when `peopleCount === 0`; null hides the line) ·
+  `start: string` (ISO) · `end: string | null` (ISO) · `suffix: string | null` (e.g. "4 left") ·
+  `href: string | readonly unknown[] | null` · `tone: 'default' | 'past'` · `testId: string | null`.
+  Content slots: `<ng-content select="[badge]">` (top-right on the photo), `<ng-content select="[actions]">` (strip, right), `<ng-content select="[error]">` (below the strip).
+  Root is `<article class="class-card" [attr.data-testid]="testId()">`. The photo block and title are inside `<a class="body" [routerLink]="href()">` when `href` is set, a `<div class="body">` otherwise. The strip is OUTSIDE the link (buttons must not nest in an anchor).
+  The link's accessible name: title, coach, time range and "N going" — give the anchor an `aria-label` built from those (localized: `$localize\`:@@classCard.aria:${title}:title:, ${time}:time:, ${going}:going:\``, with `going` = `$localize\`:@@classCard.going:${n}:count: going\``), and mark the avatar stack `aria-hidden="true"`.
+  `+N` = `peopleCount - people.length` when > 0. Only the first 5 of `people` render.
+  Time range rendered with `DatePipe` `'HH:mm'` as `start–end` (en dash), in mono bold; `suffix` follows as ` · {suffix}` in regular `--bone-dim`.
+  No image → `--surface-2` block with the title's initials (first letters of the first two words, uppercase) in large `--hairline` type, top-right, `aria-hidden`.
+  `tone === 'past'` greyscales the photo only (`filter: grayscale(.85) brightness(.75)` on the image element — never on the badge or text).
+
+- [ ] **Step 1: Write `class-card.component.spec.ts`** with a host component that projects `<span badge>`, `<button actions>` and `<p error>`:
 
 ```ts
-// class-card.component.spec.ts — host component projects badge/actions/error
-it('renders the image when given, initials placeholder when not');
-it('links the body to href and binds testId on the inner root, not the host');
-it('shows time as HH:mm range through DatePipe and coach when given');
-it('omits meta when null');
-it('projects badge, actions and error content');
-it('marks tone past with a class the stylesheet dims, without removing actions');
-it('image alt is empty (decorative) and the link has an accessible name containing title and start time');
+it('renders the image as a decorative img when given, initials block when not');
+it('binds testId on the inner article, not the host');
+it('wraps the photo in a link to href and keeps the actions outside the link');
+it('renders start–end as HH:mm with the suffix after a middle dot');
+it('shows coach name and avatar only when coach is set');
+it('renders at most five people and a +N chip for the rest (peopleCount 8, people 6 → 5 avatars, "+3")');
+it('shows emptyText when peopleCount is 0 and no stack');
+it('projects badge, actions and error');
+it('past tone greyscales the image element only');
+it('gives the link an aria-label containing title, time and the going count');
 ```
 
-- [ ] Steps: write spec → run (FAIL) → implement from the Task 6 shape (baseline structure: a root `<article class="class-card">`; a link `<a class="body">` wrapping `<img>`/placeholder, a `--scrim-text` gradient, and the text block; badge absolutely positioned over the image; a `.foot` holding `[actions]` then `[error]`) → run (PASS) → gallery section rendering: with image, no image, long title (ellipsis at 320px), badge, actions, past tone, loading skeleton (if the shape defines one; otherwise ledger `na` with reason) → gallery ledger declares all seven states → Karma green, build clean.
-- [ ] Gate greps (must return nothing): `grep -nE "@Input|@Output|ChangeDetectionStrategy.Eager|#[0-9a-fA-F]{3,8}\b|font-size: *[0-9]+px" /Users/alessandrolomonaco/dev/boxhub/frontend/src/app/ui/class-card.component.ts`
+Write each as a real assertion against the DOM (query selectors, `textContent`, attributes). For "greyscales the image element only": assert the `past` class lands on the image element and not on the article.
+
+- [ ] **Step 2: Run Karma — expect FAIL.**
+- [ ] **Step 3: Implement** the component to match the reference column, OnPush, standalone, imports `RouterLink`, `DatePipe`, `AvatarComponent`.
+- [ ] **Step 4: Run Karma — PASS.**
+- [ ] **Step 5: Gallery section** `data-gallery="class-card"`, rendered at a 360px-wide frame: (1) photo + coach + 8 going + Booked badge + ghost Cancel, (2) no photo + nobody going + solid Book, (3) Full badge + ghost Join waitlist, (4) past tone + Attended badge, no action, (5) a long title + long coach name (ellipsis), (6) an inline error under the strip. Use images already in the repo (`frontend/src/assets` — `ls` it; if none suit, use no-image cards and note it). Ledger: default, hover (link underline/none — declare), focus (hand-checked, the link's focus ring), active, disabled (`na` — a link card has no disabled state; its actions carry their own), loading (`na` — the page renders a stateline, the card has no skeleton), error (rendered, #6). Use the existing ledger template exactly as other sections do.
+- [ ] **Step 6: Gates** — Karma green, build zero warnings, and these greps return nothing:
+  `grep -nE "@Input|@Output|ChangeDetectionStrategy.Eager|#[0-9a-fA-F]{3,8}\b|rgba?\(|font-size: *[0-9]+px" /Users/alessandrolomonaco/dev/boxhub/frontend/src/app/ui/class-card.component.ts`
+  and no backtick inside a comment in the component's template/styles.
 
 ### Task 8: Book rebuild
 
@@ -551,8 +632,8 @@ it('image alt is empty (decorative) and the link has an accessible name containi
 - Modify e2e locators: `booking-flow.spec.ts:24`, `memberships.spec.ts:103`, `messaging.spec.ts:197`, `schedule.spec.ts:246,314`, `security.spec.ts:33`, `tracking.spec.ts:9,43` — `.card` becomes `[data-testid^="session-"]` (keep `hasText`). Confirm by grep after the change: `grep -rn "locator('.card'" /Users/alessandrolomonaco/dev/boxhub/e2e/tests` → empty.
 
 Behaviour contract:
-- Cards are `bh-class-card` with `testId = 'session-' + s.id`, `href = ['/athlete/class', s.id]`, `image = s.imagePath`; `listTemplates()` and `images` are **deleted**.
-- Badge and action come only from `athleteState(s)`: badge = Attended / Booked / Waitlist #n / Full (upcoming, not mine) / nothing; foot text = Finished (finished), Started HH:mm (started), "n spots left" (upcoming). Buttons keep `testId` `book-btn` (book + waitlist) and `cancel-btn` (cancel + leave).
+- Cards are `bh-class-card` with `testId = 'session-' + s.id`, `href = ['/athlete/class', s.id]`, `image = s.imagePath`, `coach = s.coachName`, `coachAvatar = s.coachAvatarPath`, `people = s.people`, `peopleCount = s.bookedCount`, `emptyText` = "No one yet — be the first" (localized) only while upcoming, `tone = 'past'` when finished; `listTemplates()` and `images` are **deleted**.
+- Badge, suffix and action come only from `athleteState(s)`: badge = ✓ Attended / Booked / Waitlist #n / Full (upcoming, not mine) / nothing; suffix = "finished" / "started" / "{n} ahead" (waitlisted: position − 1) / "{n} in line" (full, not mine: `s.waitlistCount`) / "{n} left". Buttons: Book = `bh-button variant="solid"` (`testId` `book-btn`), Join waitlist = ghost (`book-btn`), Cancel / Leave waitlist = ghost (`cancel-btn`). Spec §3.1 is binding on all of this.
 - A failed action renders `bookingReason(detail)` inside **that card's** `[error]` slot (`role="alert"`, `data-testid="book-error"`), cleared on the next action. The top-of-list error is only for a failed load.
 - The in-flight guard lives in the handler (`if (this.busy()) return;`), not only in `[disabled]`.
 - Keep: week strip inputs, `sessionWindow`/`covers` effect, `aria-live="polite"` on the list (add it — coach has it), empty state, `tonesOf`.
