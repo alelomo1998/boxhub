@@ -3000,3 +3000,57 @@ before handing back. Seven rounds. Every round found something the green suites 
 - **No shape/audit/critique:** the task deletes a screen and moves a route; it composes nothing.
 - **Gates at `f7d4454`:** Karma **999** (995 + 4 new), build zero warnings, `BenchmarkLibraryPage` refs 0,
   `coach/benchmarks`/`coach/types` links in src+e2e 0. Backend untouched (851/0/0/0 at `2b9753c`).
+
+## R6d — month/year jump on the other four calendars (2026-09-16, `a83b788`)
+- `[jump]="true"` on book, classes, schedule, announcements. Enable-only, no shape/audit/critique.
+- Measured at 360 and 1280 before/after with a throwaway Playwright spec: the label keeps font, size,
+  weight, case, colour, width and vertical centre; header and host heights unchanged. The label is now a
+  44px button (min tap) instead of a 30px span. Booking strip day labels byte-identical.
+- Jump verified on all four; on announcements the jump sheet opens from inside the class-picker sheet,
+  and a day pick or Escape closes only the inner one.
+
+## Past days on the calendars (user-ruled 2026-09-16, `e5c60a0`)
+- Book, coach classes, admin schedule: `[min]="-3650"`. Announcements stays forward-only.
+- Past day (calendar day before today): coach keeps Check-in only (no Build/Run); admin sheet drops
+  "Open in builder" and cancel; athlete Book already hid actions once started.
+- Sessions load a window around the selected day (`booking/session-window.ts`), reloading when the strip
+  leaves it. Orchestrator fixed an off-by-one: `covers` accepted the day starting at `to`, whose classes
+  were never fetched.
+- e2e: `schedule.spec.ts` `revealDay` walked back "to the earliest week" first — ten years now. It pages
+  toward the target instead. First full run 99/3 because of that (plus one dirty-stack echo).
+
+## R7 — `e2e/tests/library.spec.ts` (2026-09-17, `698c60d`)
+- Nine tests (plan scope + critique additions + Tasks 6/7/8). Re-runnable on one stack. Orchestrator
+  tightened the benchmark pick to exactly one `fromBenchmarkId` in the PUT body.
+
+## Fixes from the past-days review (user: "fix all three", 2026-09-17, `a87252a`)
+- **Live overbooking bug:** capacity counted BOOKED only, so a check-in freed the place. `BookingService`
+  and the sessions list count `BookingRepository.IN_CLASS` (BOOKED + CHECKED_IN). List `bookedCount` is
+  the row count (drop-in visitors count; a visitor row no longer hits `findById(null)`). New
+  `checkedInAthleteStillHoldsTheirPlace` — proven red without the fix.
+- Book: past day → "Finished" + "Attended" pill, no spots line; started today + checked in → "Attended";
+  a checked-in athlete never sees Book. Coach Classes: "This week" eyebrow removed. `isPastDay` once.
+- **Gates at `a87252a`:** backend **852/0/0/0**, Karma **1018**, build zero warnings, full e2e **102/102**
+  on a `down -v` stack. Visual suite NOT re-run (no gallery change this session).
+
+## Close (2026-09-17)
+- BACKLOG: M14c-b close section (audit/critique/Task 6 P3s, picker onto `/library`, duplicated label
+  maps, the M17a carry-overs). Roadmap row 11 → done.
+- **Seeding past classes on a fresh stack** (the seed has none):
+  ```sql
+  BEGIN;
+  CREATE TEMP TABLE past AS
+    SELECT gen_random_uuid() AS id, box_id, name, start_at - interval '7 days' AS start_at,
+           duration_min, capacity, coach_id, programming_status
+    FROM class_sessions
+    WHERE status = 'SCHEDULED' AND start_at >= date_trunc('day', now())
+      AND start_at < date_trunc('day', now()) + interval '7 days';
+  INSERT INTO class_sessions (id, box_id, name, start_at, duration_min, capacity, coach_id, programming_status)
+    SELECT id, box_id, name, start_at, duration_min, capacity, coach_id, programming_status FROM past;
+  INSERT INTO bookings (box_id, session_id, membership_id, status, position, booked_at, checked_in_at)
+    SELECT p.box_id, p.id, m.id, 'CHECKED_IN', 1, p.start_at - interval '1 day', p.start_at
+    FROM past p JOIN memberships m ON m.box_id = p.box_id
+    JOIN users u ON u.id = m.user_id AND u.email = 'athlete@demo.io';
+  COMMIT;
+  ```
+  Run with `docker exec -i docker-db-1 psql -U boxhub -d boxhub`.

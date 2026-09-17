@@ -995,3 +995,51 @@ Recorded at milestone close so the next reader knows these were decided, not mis
   schedule class types in the Types tab." Types left the coach dock for `/admin/types` in Task 8, so a
   coach has no Types tab to open. Rewrite when the coach shell is rebuilt (copy + i18n id change).
   (Found 2026-09-17 during the past-days change.)
+
+## M14c-b — deferred out of the library, closed 2026-09-17
+
+Recorded at milestone close so the next reader knows these were decided, not missed. The Task 7–8
+items and the chip/unit/picker entries above were filed during the milestone.
+
+- **Types page rebuild and the admin builder entry point** — **M15b**. Task 8 only MOVED Types to
+  `/admin/types`.
+- **The remaining `wodType` consumers** (`types.page`, `runner.page`, `athlete/wod.page`,
+  `class-builder.page`) — **M15b / M17b / M34**.
+- **Box-authored benchmarks** (a coach flagging their own piece) — not built; needs a column and a
+  second history key.
+- **The slot picker still builds its list client-side** (`libraryEntries`/`mergeLibrary` over
+  `wods()` + `/benchmarks`) instead of calling `GET /library`. Two paths is why a copied and a global
+  benchmark behave differently. Move it onto `/library` when the picker is next touched.
+- **Piece editor duplicates the macro/preset label maps** the Library page also owns. One map in
+  `programming/`.
+
+### Audit P3s (Library page)
+- Desktop top-nav links are 40px tall, under `--tap`.
+- Heading order skips h1 → h3 on the Library page.
+- Two `nav` landmarks both named "Coach" (dock + desktop nav).
+- The shell header reads `offsetHeight` on every scroll event (layout read per frame).
+- Week-strip day cells are 38px wide at 320px.
+
+### Critique P3s (Library page)
+- The movement facet needs recall — no list of common movements before typing.
+- The "Type at least 3 letters" hint sits alone on its line at phone width.
+- The search placeholder truncates at 330px.
+- The volt focus box lands on a filter step's heading after a pick.
+- The movement step has no direct "Show N" apply; it returns via Back only.
+- No on-page result count once filters apply.
+- The gym name in the shell header collapses to "D" at 330px.
+
+### Task 6 P3s (piece delete)
+- A 409 on delete (piece in use) names the problem but offers no next step.
+- The "<name> deleted." notice has no dismiss and survives a later search or filter.
+- Desktop delete dialog carries both an X and "Keep it", with full-width stacked buttons.
+- The tab title reads "Edit WOD · rxed" on a piece screen.
+- In Chromium, Tab from a sheet's last control reached the shell box switcher — seen on every sheet,
+  cause unverified (native `<dialog>` focus containment vs. the shell).
+
+### Found during M14c-b, not owned by it
+- **Athlete Book's pill labels are plain strings** ("Booked", "Waitlist #n", "Full · n in line") —
+  **M17a**, which rebuilds the class row. "Attended" is already `$localize`d.
+- **Past-class rows now branch on `isPastDay`** in both `athlete/book.page.ts` and
+  `coach/classes.page.ts` (user-ruled 2026-09-16) — **M17a**'s shared class row must keep that rule:
+  past day → coach keeps Check-in only, athlete sees Finished / Attended, no Book.
