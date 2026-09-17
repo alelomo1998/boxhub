@@ -5,8 +5,13 @@ import { provideRouter } from '@angular/router';
 import { ClassDetailSheet } from './class-detail.sheet';
 import type { SessionDetail } from '../booking/booking.service';
 
+// Today's date, not a fixed calendar day: these tests exercise the roster/cancel flow, not
+// past-vs-today, and a hardcoded date silently rotted into the past once the calendar caught up
+// to it (it did, on 2026-09-17) — the cancel button it clicks is gone once its session is past.
+const TODAY = new Date(); TODAY.setHours(6, 0, 0, 0);
+
 const DETAIL: SessionDetail = {
-  id: 's1', name: 'Metcon', startAt: '2026-09-07T06:00:00Z', durationMin: 45, capacity: 12,
+  id: 's1', name: 'Metcon', startAt: TODAY.toISOString(), durationMin: 45, capacity: 12,
   imagePath: null, programmingStatus: 'PUBLISHED',
   coach: { name: 'Sam Coach', avatarPath: null },
   active: [{ membershipId: 'm1', name: 'Anna', avatarPath: null, status: 'CHECKED_IN', me: false }],
@@ -124,6 +129,32 @@ describe('ClassDetailSheet', () => {
     expect(confirm).toContain('notifies 2 people');
     // Angular's ICU does not substitute the MessageFormat "#" placeholder, it prints it.
     expect(confirm).not.toContain('#');
+  });
+
+  it('shows the builder and cancel controls for a class today', () => {
+    const fixture = setup();
+    const today = new Date(); today.setHours(9, 0, 0, 0);
+    fixture.componentRef.setInput('sessionId', 's1');
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+    http.expectOne('/api/box/sessions/s1/detail').flush({ ...DETAIL, startAt: today.toISOString() });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="admin-class-detail-builder"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="admin-class-detail-cancel-open"]')).toBeTruthy();
+  });
+
+  it('hides the builder and cancel controls for a class on a past day', () => {
+    const fixture = setup();
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(9, 0, 0, 0);
+    fixture.componentRef.setInput('sessionId', 's1');
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+    http.expectOne('/api/box/sessions/s1/detail').flush({ ...DETAIL, startAt: yesterday.toISOString() });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="admin-class-detail-builder"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="admin-class-detail-cancel-open"]')).toBeNull();
   });
 
   it('renders the error state and its retry re-requests the detail', () => {

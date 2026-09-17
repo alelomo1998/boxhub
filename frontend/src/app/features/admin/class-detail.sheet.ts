@@ -90,34 +90,36 @@ type FetchState = 'loading' | 'error' | 'ready';
             }
 
             <div class="actions">
-              <bh-button variant="solid" size="lg" class="full" (click)="openBuilder()" testId="admin-class-detail-builder">
-                <span i18n="@@admin.classDetail.builder">Open in builder</span>
-              </bh-button>
-
-              @if (!confirmingCancel()) {
-                <bh-button variant="ghost-danger" size="lg" class="full" (click)="openCancelConfirm()"
-                           testId="admin-class-detail-cancel-open">
-                  <span i18n="@@admin.classDetail.cancel.open">Cancel this class</span>
+              @if (!isPast(d)) {
+                <bh-button variant="solid" size="lg" class="full" (click)="openBuilder()" testId="admin-class-detail-builder">
+                  <span i18n="@@admin.classDetail.builder">Open in builder</span>
                 </bh-button>
-              } @else {
-                <bh-alert tone="warn" data-testid="admin-class-detail-cancel-confirm">
-                  <!-- Interpolation, not the MessageFormat "#" placeholder: Angular's ICU does
-                       NOT substitute #, it renders the character. This confirm would have read
-                       "notifies # people" — on the one control that mails the whole roster. -->
-                  <span i18n="@@admin.classDetail.cancel.confirm.body">{d.active.length + d.queue.length, plural, =0 {This cancels the class. No one is booked yet, so no one is notified.} =1 {This cancels the class and notifies 1 person — booked or waitlisted.} other {This cancels the class and notifies {{ d.active.length + d.queue.length }} people — booked or waitlisted.}}</span>
-                </bh-alert>
 
-                @if (cancelError()) {
-                  <p class="err" role="alert" data-testid="admin-class-detail-cancel-error">{{ cancelError() }}</p>
+                @if (!confirmingCancel()) {
+                  <bh-button variant="ghost-danger" size="lg" class="full" (click)="openCancelConfirm()"
+                             testId="admin-class-detail-cancel-open">
+                    <span i18n="@@admin.classDetail.cancel.open">Cancel this class</span>
+                  </bh-button>
+                } @else {
+                  <bh-alert tone="warn" data-testid="admin-class-detail-cancel-confirm">
+                    <!-- Interpolation, not the MessageFormat "#" placeholder: Angular's ICU does
+                         NOT substitute #, it renders the character. This confirm would have read
+                         "notifies # people" — on the one control that mails the whole roster. -->
+                    <span i18n="@@admin.classDetail.cancel.confirm.body">{d.active.length + d.queue.length, plural, =0 {This cancels the class. No one is booked yet, so no one is notified.} =1 {This cancels the class and notifies 1 person — booked or waitlisted.} other {This cancels the class and notifies {{ d.active.length + d.queue.length }} people — booked or waitlisted.}}</span>
+                  </bh-alert>
+
+                  @if (cancelError()) {
+                    <p class="err" role="alert" data-testid="admin-class-detail-cancel-error">{{ cancelError() }}</p>
+                  }
+
+                  <bh-button variant="ghost" size="lg" class="full" (click)="keepClass()" testId="admin-class-detail-cancel-keep">
+                    <span i18n="@@admin.classDetail.cancel.keep">Keep it</span>
+                  </bh-button>
+                  <bh-button variant="danger" size="lg" class="full" [loading]="cancelling()" (click)="confirmCancel()"
+                             testId="admin-class-detail-cancel-confirm-btn">
+                    @if (!cancelling()) { <span i18n="@@admin.classDetail.cancel.confirmAction">Yes, cancel class</span> }
+                  </bh-button>
                 }
-
-                <bh-button variant="ghost" size="lg" class="full" (click)="keepClass()" testId="admin-class-detail-cancel-keep">
-                  <span i18n="@@admin.classDetail.cancel.keep">Keep it</span>
-                </bh-button>
-                <bh-button variant="danger" size="lg" class="full" [loading]="cancelling()" (click)="confirmCancel()"
-                           testId="admin-class-detail-cancel-confirm-btn">
-                  @if (!cancelling()) { <span i18n="@@admin.classDetail.cancel.confirmAction">Yes, cancel class</span> }
-                </bh-button>
               }
             </div>
           }
@@ -221,6 +223,15 @@ export class ClassDetailSheet {
 
   protected durationLabel(d: SessionDetail): string {
     return $localize`:@@admin.classDetail.meta.duration:${d.durationMin}:duration: min`;
+  }
+
+  /** A session is past when its start is on a calendar day before today (local time) — today's
+   *  classes keep every action, so this is day-level, not "already started". */
+  protected isPast(d: SessionDetail): boolean {
+    const start = new Date(d.startAt);
+    const day = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return day.getTime() < today.getTime();
   }
 
   protected openCancelConfirm(): void {

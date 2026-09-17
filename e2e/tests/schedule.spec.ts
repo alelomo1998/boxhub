@@ -100,24 +100,22 @@ async function clickIfEnabled(btn: ReturnType<Page['locator']>): Promise<boolean
  * Brings the week containing `targetIso` into view via the STRIP-LEVEL "Previous/Next week"
  * controls (never by repeated day-stepping — that is the pager this milestone replaced).
  *
- * Always retraces the SAME forward-only path a fresh page load would take, by first paging back
- * to the earliest reachable week. Weeks move by a fixed +/-7, so two visits to the same strip do
- * not compose into arbitrary offsets: a second call in the same test that tries to resume from
- * wherever the FIRST call's "Next week" presses landed can find its own target sitting in the gap
- * between two week-jump "attractors" and oscillate forever between them. Resetting first avoids
- * that entirely. Bounded to a few presses each way. Does not click the day cell itself — callers
- * decide whether to select it or just read its tone.
+ * Pages in ONE direction, fixed from where the target sits against the first visible day. A
+ * +/-7 step from any day always lands in the adjacent calendar week, so a one-way walk can neither
+ * skip the target's week nor oscillate (the old reset-to-earliest-week trick stopped working once
+ * the strip could reach the past). Bounded to a few presses. Does not click the day cell itself —
+ * callers decide whether to select it or just read its tone.
  */
 async function revealDay(page: Page, targetIso: string) {
   const cell = page.locator(`[data-testid="day-${targetIso}"]`);
   if ((await cell.count()) > 0) return cell;
 
-  const prevBtn = page.locator('button[aria-label="Previous week"]');
-  for (let i = 0; i < 4 && (await clickIfEnabled(prevBtn)); i++) { /* walk back to the earliest week */ }
-
-  const nextBtn = page.locator('button[aria-label="Next week"]');
+  // Page TOWARD the target: the strip can reach the past now, so walking back to "the earliest
+  // week" first would walk ten years back.
+  const firstIso = (await page.locator('.day').first().getAttribute('data-testid'))!.replace('day-', '');
+  const btn = page.locator(`button[aria-label="${targetIso < firstIso ? 'Previous' : 'Next'} week"]`);
   for (let i = 0; i < 4 && (await cell.count()) === 0; i++) {
-    if (!(await clickIfEnabled(nextBtn))) break;
+    if (!(await clickIfEnabled(btn))) break;
     await cell.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
   }
   return cell;

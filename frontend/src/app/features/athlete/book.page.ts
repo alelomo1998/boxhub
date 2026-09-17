@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { BookingService, SessionView } from '../booking/booking.service';
@@ -6,6 +6,7 @@ import { ButtonComponent } from '../../ui/button.component';
 import { PillComponent } from '../../ui/pill.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
+import { sessionWindow, covers, SessionWindow } from '../booking/session-window';
 
 function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
 
@@ -16,7 +17,7 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
   imports: [RouterLink, ButtonComponent, PillComponent, WeekCalendarComponent, DatePipe],
   template: `
     <section class="book">
-      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
+      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [min]="-3650" [max]="13" [tones]="tones()" />
 
       @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
 
@@ -117,6 +118,9 @@ export class BookPage implements OnInit {
   readonly busy = signal<string | null>(null);
   readonly dayOffset = signal(0);
 
+  /** The [from, to] this page last fetched — reloaded only when the selected day leaves it. */
+  private window: SessionWindow = sessionWindow(0);
+
   readonly day = computed(() => {
     const d = new Date();
     d.setDate(d.getDate() + this.dayOffset());
@@ -131,6 +135,13 @@ export class BookPage implements OnInit {
   /** Per-day availability for the strip's dots, from sessions already fetched — no extra request. */
   readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
+  constructor() {
+    effect(() => {
+      const offset = this.dayOffset();
+      if (!covers(this.window, offset)) this.load();
+    });
+  }
+
   ngOnInit() {
     this.load();
     this.booking.listTemplates().subscribe({
@@ -140,10 +151,8 @@ export class BookPage implements OnInit {
   }
 
   load() {
-    const from = new Date();
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(Date.now() + 14 * 864e5);
-    this.booking.listSessions(from.toISOString(), to.toISOString()).subscribe({
+    this.window = sessionWindow(this.dayOffset());
+    this.booking.listSessions(this.window.from.toISOString(), this.window.to.toISOString()).subscribe({
       next: s => { this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
       error: () => { this.loading.set(false); this.error.set("Couldn't load classes — try again."); },
     });

@@ -1,9 +1,10 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { BookingService, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
+import { sessionWindow, covers, SessionWindow } from '../booking/session-window';
 
 /** Coach home: one day's classes at a time (same week strip as Book); tap into check-in or the builder. */
 @Component({
@@ -20,7 +21,7 @@ import { tonesOf } from '../booking/session-tones';
         <bh-button variant="ghost" size="sm" route="/coach/announcements" testId="announce-link"><span i18n="@@coach.classes.announce">Announce</span></bh-button>
       </header>
 
-      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [max]="13" [tones]="tones()" />
+      <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [min]="-3650" [max]="13" [tones]="tones()" />
 
       @if (loading()) { <p class="stateline">Loading classes…</p> }
       @else if (error()) {
@@ -44,9 +45,13 @@ import { tonesOf } from '../booking/session-tones';
                 {{ s.programmingStatus === 'PUBLISHED' ? 'Published' : 'Draft' }}
               </span>
               <div class="acts">
-                <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'build']" testId="build-link"><span i18n="@@coach.classes.action.build">Build</span></bh-button>
+                @if (!isPast(s)) {
+                  <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'build']" testId="build-link"><span i18n="@@coach.classes.action.build">Build</span></bh-button>
+                }
                 <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'checkin']" testId="checkin-link"><span i18n="@@coach.classes.action.checkin">Check-in</span></bh-button>
-                <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'run']" testId="run-link"><span i18n="@@coach.classes.action.run">Run</span></bh-button>
+                @if (!isPast(s)) {
+                  <bh-button variant="ghost" size="sm" [route]="['/coach/classes', s.id, 'run']" testId="run-link"><span i18n="@@coach.classes.action.run">Run</span></bh-button>
+                }
               </div>
             </div>
           } @empty {
@@ -105,6 +110,9 @@ export class CoachClassesPage implements OnInit {
 
   dayOffset = signal(0);
 
+  /** The [from, to] this page last fetched — reloaded only when the selected day leaves it. */
+  private window: SessionWindow = sessionWindow(0);
+
   daySessions = computed(() => {
     const d = new Date(); d.setDate(d.getDate() + this.dayOffset());
     const key = d.toDateString();
@@ -114,16 +122,31 @@ export class CoachClassesPage implements OnInit {
   /** Per-day availability for the strip's dots, from sessions this page already fetched — no extra request. */
   readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
+  constructor() {
+    effect(() => {
+      const offset = this.dayOffset();
+      if (!covers(this.window, offset)) this.load();
+    });
+  }
+
   ngOnInit() { this.load(); }
 
   load() {
     this.loading.set(true);
     this.error.set(false);
-    const from = new Date(); from.setHours(0, 0, 0, 0);
-    const to = new Date(Date.now() + 14 * 864e5); // match the athlete Book window so the coach can reach any upcoming class
-    this.booking.listSessions(from.toISOString(), to.toISOString()).subscribe({
+    this.window = sessionWindow(this.dayOffset());
+    this.booking.listSessions(this.window.from.toISOString(), this.window.to.toISOString()).subscribe({
       next: s => { this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
       error: () => { this.loading.set(false); this.error.set(true); },
     });
+  }
+
+  /** A session is past when its start is on a calendar day before today (local time) — Today's
+   *  classes keep every action, so this is day-level, not "already started". */
+  protected isPast(s: SessionView): boolean {
+    const d = new Date(s.startAt);
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return day.getTime() < today.getTime();
   }
 }
