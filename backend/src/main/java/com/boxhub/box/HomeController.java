@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -126,7 +127,10 @@ public class HomeController {
         // disagreed with a badge about who is expiring is worse than either (M29b D-12).
         boolean expiring = planDaysLeft != null && planDaysLeft >= 0 && planDaysLeft <= EXPIRING_SOON_DAYS;
         long unread = recipients.countByMembershipIdAndReadAtIsNull(me.getId());
-        return new HomeDto(next, ann, stats, expiring, unread, hasActivePlan, attended, null);
+        // The card only shows with nothing booked — skip the habit query entirely when there's
+        // already a next booking to show.
+        Suggestion suggestion = next == null ? suggestion(me.getId()) : null;
+        return new HomeDto(next, ann, stats, expiring, unread, hasActivePlan, attended, suggestion);
     }
 
     /** Null sentBy (system/seed sends) skips the lookup entirely rather than calling findById(null). */
@@ -171,5 +175,39 @@ public class HomeController {
 
         return new NextBooking(s.getId(), s.getName(), s.getStartAt(), image, next.getStatus(),
                 next.getPosition(), participants, active.size(), s.getCapacity());
+    }
+
+    /**
+     * Habit suggestion (spec §2.5): slots with >= 2 CHECKED_IN bookings in the last 8 weeks, walked
+     * in tiers of equal count (highest first). Within a tier, each slot's earliest eligible SCHEDULED
+     * session in the next 7 days is a candidate (no non-CANCELLED booking already held, not full);
+     * the first tier with any candidate wins.
+     */
+    private Suggestion suggestion(UUID membershipId) {
+        Instant now = Instant.now();
+        List<Object[]> habits = bookings.attendedSlotCounts(membershipId, now.minus(Duration.ofDays(56)), now);
+        int i = 0;
+        while (i < habits.size()) {
+            long tier = (Long) habits.get(i)[1];
+            ClassSession best = null;
+            for (; i < habits.size() && (Long) habits.get(i)[1] == tier; i++) {
+                UUID slotId = (UUID) habits.get(i)[0];
+                for (ClassSession s : sessions.findByScheduleSlotIdAndStatusAndStartAtBetweenOrderByStartAt(
+                        slotId, "SCHEDULED", now, now.plus(Duration.ofDays(7)))) {
+                    if (!s.getStartAt().isAfter(now)) continue;
+                    if (bookings.findBySessionIdAndMembershipIdAndStatusNot(s.getId(), membershipId, "CANCELLED").isPresent()) continue;
+                    if (bookings.countBySessionIdAndStatusIn(s.getId(), BookingRepository.IN_CLASS) >= s.getCapacity()) continue;
+                    if (best == null || s.getStartAt().isBefore(best.getStartAt())) best = s;
+                    break; // sessions are ordered: the first eligible one is this slot's earliest
+                }
+            }
+            if (best != null) {
+                String image = mediaSigner.sign(slots.findById(best.getScheduleSlotId())
+                        .flatMap(sl -> types.findById(sl.getClassTypeId())).map(ClassType::getImagePath).orElse(null));
+                int booked = (int) bookings.countBySessionIdAndStatusIn(best.getId(), BookingRepository.IN_CLASS);
+                return new Suggestion(best.getId(), best.getName(), best.getStartAt(), image, booked, best.getCapacity());
+            }
+        }
+        return null;
     }
 }
