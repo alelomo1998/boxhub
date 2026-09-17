@@ -136,6 +136,35 @@ shape → build → audit (≥16/20) → fix every P0/P1 → critique (≥32/40)
 - **≥32/40, not 28.** 28 is 7/10; the bar is 8. A score measured with a P0 or P1 still open is not
   the screen's score.
 
+### Shape is RENDERED, never described (binding, user-ruled 2026-09-17, M17a)
+
+A new screen's or component's options are shown to the user as **real renders in the browser**, not
+ASCII or prose. M17a's class card went four options → three revisions → a pick, and every revision
+the user asked for came from looking at pixels ("big shadow", "too bold", "redundant badge") — none
+of it was visible in a description. The method:
+
+1. **One static HTML sketch per round** at `docs/superpowers/sketches/<milestone>-<surface>[-rN].html`.
+   Tokens copied verbatim from `_tokens.scss` into `:root`; **360px phone frames** with the real shell
+   context (header with the switcher's volt mark, week strip or equivalent, dock); **the same data in
+   every option**; each option captioned with its trade-off (height, cards per screen, risk).
+2. **Realistic content, including the ugly cases:** stand-in photos and avatars, long names, empty,
+   past/finished, no-image. Where legibility over an image matters, add a **stress case (pure white
+   upload) with contrast measured by script on the page** — a claim of "readable" is not a render.
+3. **Show it:** serve the folder (`python3 -m http.server 8765` in `docs/superpowers/sketches`), open
+   it in the user's Chrome tab, and send a full-width **Playwright PNG** (Chrome's window can't fit
+   several 360px frames). Check the render yourself before sending.
+4. **Iterate as new files**, never overwrite a rejected round — the rejected rounds are the record of
+   why the pick is what it is. A requested change that breaks the design law (e.g. volt as decoration)
+   is rendered **beside** a law-safe variant, and the user rules.
+5. **On decision:** vendor every external image into `docs/superpowers/sketches/<milestone>-assets/`,
+   save the PNGs the user judged, write `<milestone>-README.md` (round → file → render → what was
+   decided), write the decision into the spec with a pointer to the chosen file **and column**, and
+   commit. Build briefs point executors at that render as the reference to match.
+6. The design hook's findings on sketch files are suppressed per file (`hooks ignore-value <rule> "*"
+   --file <sketch>`): they are a decision record, not shipped UI.
+
+A **repeat** of an already-decided shape is still the orchestrator's call — no new sketch.
+
 **Conditional passes — when the trigger applies, not by default:**
 
 | Command | Trigger |
