@@ -22,6 +22,8 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="book">
+      <h1 class="title" i18n="@@athlete.book.title">Book</h1>
+
       <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [min]="-3650" [max]="13" [tones]="tones()" />
 
       @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
@@ -85,8 +87,8 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
             <p class="c-line" data-testid="confirm-line">{{ confirmLine() }}</p>
             <p class="c-cost">{{ confirmCost() }}</p>
             <div class="c-actions">
-              <bh-button variant="ghost" size="sm" testId="confirm-keep" (click)="keepConfirm()" i18n="@@athlete.book.confirm.keep">Keep it</bh-button>
-              <bh-button variant="danger" size="sm" testId="confirm-execute" [loading]="busy() === it.s.id" (click)="confirmCancel()">{{ confirmExecuteLabel() }}</bh-button>
+              <bh-button class="full" variant="ghost" size="sm" testId="confirm-keep" (click)="keepConfirm()" i18n="@@athlete.book.confirm.keep">Keep it</bh-button>
+              <bh-button class="full" variant="danger" size="sm" testId="confirm-execute" [loading]="busy() === it.s.id" (click)="confirmCancel()">{{ confirmExecuteLabel() }}</bh-button>
             </div>
           </div>
         }
@@ -95,6 +97,8 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
   `,
   styles: [`
     .book { max-width: 720px; margin: 0 auto; }
+    .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
+      text-transform: uppercase; margin: 0 0 var(--sp-4); }
     .stateline { color: var(--bone-dim); }
     .err { color: var(--danger); font-size: var(--fs-sm); }
 
@@ -103,7 +107,8 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
     .confirm { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
     .c-line { font-weight: 700; margin: 0; }
     .c-cost { color: var(--bone-dim); font-size: var(--fs-sm); margin: 0; }
-    .c-actions { display: flex; gap: var(--sp-3); justify-content: flex-end; }
+    .c-actions { display: flex; gap: var(--sp-3); }
+    .c-actions bh-button { flex: 1; min-width: 0; }
 
     .empty { padding: var(--sp-8) 0; }
     .e1 { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);

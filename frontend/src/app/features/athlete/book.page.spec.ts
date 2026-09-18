@@ -37,6 +37,12 @@ describe('BookPage', () => {
 
   afterEach(() => http.verify());
 
+  it('renders the screen title above the week strip', () => {
+    const fixture = setup([]);
+    const h1 = fixture.nativeElement.querySelector('h1.title');
+    expect(h1.textContent).toContain('Book');
+  });
+
   it('renders one class card per session of the selected day, image from imagePath', () => {
     const soon = new Date(Date.now() + 3600_000).toISOString();
     const fixture = setup([
