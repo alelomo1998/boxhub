@@ -126,8 +126,12 @@ Coach Classes computes its own actions inline: Check-in always; Build and Run on
 
 ## 4. Errors and copy
 
-- The booking error renders **in the foot of the card that caused it** (Book) or under the action
-  (detail), never at the list top.
+- **The booking outcome is a bottom banner (`bh-banner`), not card-inline (user-ruled 2026-09-18).**
+  This supersedes the backlog item that asked for the error in the card foot: the result of an action
+  — failure *and* confirmation — belongs in the floating bottom message, which already clears the
+  dock and dwells 7s on `danger`. Failure → `tone="danger"` with `bookingReason(detail)`; success →
+  `tone="good"` naming the class. The card itself shows no error text. A failed **load** still renders
+  its stateline in place (it is not the outcome of an action).
 - Copy for every 409: each `ENTRIES_*` and `CANCELLATIONS_*` code, `NO_ACTIVE_SUBSCRIPTION`,
   `PAST_CUTOFF`, `ALREADY_BOOKED`, `CANCELLED`, `PAST`, and a generic fallback.
 - Pill labels ("Booked", "Waitlist #n", "Full · n in line", "Attended", "Finished") are `$localize`d.

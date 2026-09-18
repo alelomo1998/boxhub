@@ -21,7 +21,7 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   await page.goto('/app/athlete/book');
   await page.locator('.cards, .empty').first().waitFor(); // sessions loaded
   // page shows today; the new weekly class may generate on a later day — page through the pager
-  const card = page.locator('.card', { hasText: className }).first();
+  const card = page.locator('[data-testid^="session-"]', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await card.isVisible().catch(() => false)); i++) {
     await nextDay(page);
     await page.waitForTimeout(100);

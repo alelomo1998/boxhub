@@ -4,6 +4,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { BookPage } from './book.page';
 import type { SessionView } from '../booking/booking.service';
+import { bookingReason } from '../booking/booking-reason';
 
 function session(id: string, startAt: string, overrides: Partial<SessionView> = {}): SessionView {
   return {
@@ -15,8 +16,8 @@ function session(id: string, startAt: string, overrides: Partial<SessionView> = 
 
 /**
  * A class is "past" when its start is on a calendar day before today (local time) — same rule as
- * CoachClassesPage's isPastDay. A past class hides the spots line and shows "Finished" instead of
- * a live footer; a CHECKED_IN athlete sees "Attended" there instead of "Booked".
+ * CoachClassesPage's isPastDay. A past class shows the "finished" suffix instead of the time-left
+ * one, and a CHECKED_IN athlete sees the "✓ Attended" badge instead of "Booked".
  */
 describe('BookPage', () => {
   let http: HttpTestingController;
@@ -30,42 +31,145 @@ describe('BookPage', () => {
     const fixture = TestBed.createComponent(BookPage);
     fixture.detectChanges();
     http.expectOne(r => r.url === '/api/box/sessions').flush(sessions);
-    http.expectOne(r => r.url === '/api/box/class-templates').flush([]);
     fixture.detectChanges();
     return fixture;
   }
 
   afterEach(() => http.verify());
 
-  it('shows Finished and Attended, no spots line and no book button for a past-day CHECKED_IN class', () => {
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(9, 0, 0, 0);
-    const fixture = setup([session('s1', yesterday.toISOString(), { myBookingStatus: 'CHECKED_IN' })]);
-    fixture.componentInstance.dayOffset.set(-1);
-    fixture.detectChanges();
+  it('renders one class card per session of the selected day, image from imagePath', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([
+      session('s1', soon, { imagePath: '/img/s1.jpg' }),
+      session('s2', new Date(Date.now() + 7200_000).toISOString()),
+    ]);
 
-    const card = fixture.nativeElement.querySelector('[data-testid="session-s1"]');
-    expect(card.querySelector('.spots')).toBeNull();
-    expect(card.querySelector('[data-testid="book-btn"]')).toBeNull();
-    expect(card.querySelector('.foot').textContent).toContain('Finished');
-    expect(card.querySelector('.foot').textContent).toContain('Attended');
+    const cards = fixture.nativeElement.querySelectorAll('bh-class-card');
+    expect(cards.length).toBe(2);
+    const img = fixture.nativeElement.querySelector('[data-testid="session-s1"] img.ph');
+    expect(img.src).toContain('/img/s1.jpg');
   });
 
-  it('shows Finished with no pill for a past-day class with no booking', () => {
+  it('upcoming with room shows Book; clicking calls booking.book and reloads', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { bookedCount: 3, capacity: 10 })]);
+
+    const btn = fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]');
+    expect(btn.textContent).toContain('Book');
+    btn.click();
+
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book')
+      .flush({ bookingId: 'b1', status: 'BOOKED', position: null });
+    http.expectOne(r => r.url === '/api/box/sessions')
+      .flush([session('s1', soon, { bookedCount: 4, capacity: 10, myBookingStatus: 'BOOKED' })]);
+    fixture.detectChanges();
+  });
+
+  it('full shows Join waitlist with book-btn', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { bookedCount: 10, capacity: 10 })]);
+
+    const btn = fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]');
+    expect(btn).not.toBeNull();
+    expect(btn.textContent).toContain('Join waitlist');
+  });
+
+  it('checked-in today (not started) shows Attended and neither book-btn nor cancel-btn', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { myBookingStatus: 'CHECKED_IN' })]);
+
+    const card = fixture.nativeElement.querySelector('[data-testid="session-s1"]');
+    expect(card.querySelector('.badge').textContent).toContain('Attended');
+    expect(card.querySelector('[data-testid="book-btn"]')).toBeNull();
+    expect(card.querySelector('[data-testid="cancel-btn"]')).toBeNull();
+  });
+
+  it('a 409 ENTRIES_PER_WEEK mounts a danger banner and no card shows error text', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([
+      session('s1', soon, { bookedCount: 3, capacity: 10 }),
+      session('s2', new Date(Date.now() + 7200_000).toISOString(), { bookedCount: 3, capacity: 10 }),
+    ]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]').click();
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book')
+      .flush({ detail: 'ENTRIES_PER_WEEK' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('bh-banner .alert.danger');
+    expect(banner.textContent).toContain(bookingReason('ENTRIES_PER_WEEK'));
+    expect(fixture.nativeElement.querySelector('[data-testid="session-s1"] [role="alert"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="session-s2"] [role="alert"]')).toBeNull();
+  });
+
+  it('a successful book mounts a good banner naming the class', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { name: 'Burn It', bookedCount: 3, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]').click();
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book')
+      .flush({ bookingId: 'b1', status: 'BOOKED', position: null });
+    http.expectOne(r => r.url === '/api/box/sessions')
+      .flush([session('s1', soon, { name: 'Burn It', bookedCount: 4, capacity: 10, myBookingStatus: 'BOOKED' })]);
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('bh-banner .alert.good');
+    expect(banner.textContent).toContain('Burn It');
+  });
+
+  it('a second outcome mounts a new banner element instance so it re-announces', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([
+      session('s1', soon, { name: 'Burn It', bookedCount: 3, capacity: 10 }),
+      session('s2', new Date(Date.now() + 7200_000).toISOString(), { name: 'Open Gym', bookedCount: 3, capacity: 10 }),
+    ]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]').click();
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book')
+      .flush({ detail: 'ENTRIES_PER_WEEK' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+    const first = fixture.nativeElement.querySelector('bh-banner .alert');
+    expect(first).not.toBeNull();
+
+    fixture.nativeElement.querySelector('[data-testid="session-s2"] [data-testid="book-btn"]').click();
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s2/book')
+      .flush({ bookingId: 'b2', status: 'BOOKED', position: null });
+    http.expectOne(r => r.url === '/api/box/sessions')
+      .flush([
+        session('s1', soon, { name: 'Burn It', bookedCount: 3, capacity: 10 }),
+        session('s2', new Date(Date.now() + 7200_000).toISOString(), { name: 'Open Gym', bookedCount: 4, capacity: 10, myBookingStatus: 'BOOKED' }),
+      ]);
+    fixture.detectChanges();
+
+    const second = fixture.nativeElement.querySelector('bh-banner .alert');
+    expect(second).not.toBeNull();
+    expect(second).not.toBe(first);
+    expect(second.textContent).toContain('Open Gym');
+  });
+
+  it('a second click while busy does not call book twice', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { bookedCount: 3, capacity: 10 })]);
+
+    const btn = fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]');
+    btn.click();
+    btn.click();
+
+    const reqs = http.match(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book');
+    expect(reqs.length).toBe(1);
+    reqs[0].flush({ bookingId: 'b1', status: 'BOOKED', position: null });
+    http.expectOne(r => r.url === '/api/box/sessions').flush([session('s1', soon, { myBookingStatus: 'BOOKED' })]);
+    fixture.detectChanges();
+  });
+
+  it('past day: Finished, no spots text, no book-btn', () => {
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(9, 0, 0, 0);
     const fixture = setup([session('s1', yesterday.toISOString())]);
     fixture.componentInstance.dayOffset.set(-1);
     fixture.detectChanges();
 
     const card = fixture.nativeElement.querySelector('[data-testid="session-s1"]');
-    expect(card.querySelector('.foot').textContent).toContain('Finished');
-    expect(card.querySelector('bh-pill')).toBeNull();
-  });
-
-  it('hides the book button for a not-yet-started class today when already CHECKED_IN', () => {
-    const soon = new Date(Date.now() + 3600_000).toISOString();
-    const fixture = setup([session('s1', soon, { myBookingStatus: 'CHECKED_IN' })]);
-
-    const card = fixture.nativeElement.querySelector('[data-testid="session-s1"]');
+    expect(card.querySelector('.suffix').textContent).toContain('finished');
     expect(card.querySelector('[data-testid="book-btn"]')).toBeNull();
     expect(card.querySelector('[data-testid="cancel-btn"]')).toBeNull();
   });

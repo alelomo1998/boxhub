@@ -6,7 +6,7 @@ test('athlete books today, logs a per-piece score, sees the leaderboard', async 
 
   // book today's WOD Class so the WOD tab has a focused class (seeder publishes today's programming)
   await page.goto('/app/athlete/book');
-  const card = page.locator('.card', { hasText: 'WOD Class' }).first();
+  const card = page.locator('[data-testid^="session-"]', { hasText: 'WOD Class' }).first();
   await expect(card).toBeVisible();
   const bookBtn = card.getByTestId('book-btn');
   if (await bookBtn.isVisible().catch(() => false)) await bookBtn.click();
@@ -40,7 +40,7 @@ test('athlete books today, logs a per-piece score, sees the leaderboard', async 
 test('athlete opens class detail and an athlete profile from the grid', async ({ page }) => {
   await login(page, 'athlete@demo.io');
   await page.goto('/app/athlete/book');
-  const card = page.locator('.card', { hasText: 'WOD Class' }).first();
+  const card = page.locator('[data-testid^="session-"]', { hasText: 'WOD Class' }).first();
   await expect(card).toBeVisible();
   await card.locator('a.body').click();
   await expect(page).toHaveURL(/\/athlete\/class\//);

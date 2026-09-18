@@ -194,7 +194,7 @@ test('a CLASS_ROSTER announcement reaches only its roster, and read counts becom
   await login(page, 'athlete@demo.io');
   await page.goto('/app/athlete/book');
   await page.locator('.cards, .empty').first().waitFor();
-  const bookCard = page.locator('.card', { hasText: className }).first();
+  const bookCard = page.locator('[data-testid^="session-"]', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await bookCard.isVisible().catch(() => false)); i++) {
     await nextDay(page);
     await page.waitForTimeout(100);
