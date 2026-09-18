@@ -162,6 +162,86 @@ describe('BookPage', () => {
     fixture.detectChanges();
   });
 
+  it('tapping cancel-btn opens the confirm sheet and does not call booking.cancel', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { name: 'Burn It', myBookingStatus: 'BOOKED', bookedCount: 4, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="cancel-btn"]').click();
+    fixture.detectChanges();
+
+    const title = fixture.nativeElement.querySelector('[data-testid="book-cancel-confirm-sheet"] .sh-title');
+    expect(title.textContent).toContain('Cancel this booking?');
+    expect(fixture.nativeElement.querySelector('[data-testid="confirm-line"]').textContent).toContain('Burn It');
+    http.expectNone(r => r.method === 'DELETE' && r.url === '/api/box/sessions/s1/booking');
+  });
+
+  it('confirming in the sheet calls booking.cancel once and mounts a danger banner', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { name: 'Burn It', myBookingStatus: 'BOOKED', bookedCount: 4, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="cancel-btn"]').click();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="confirm-execute"]').click();
+
+    http.expectOne(r => r.method === 'DELETE' && r.url === '/api/box/sessions/s1/booking').flush(null);
+    http.expectOne(r => r.url === '/api/box/sessions')
+      .flush([session('s1', soon, { name: 'Burn It', bookedCount: 3, capacity: 10 })]);
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('bh-banner .alert.danger');
+    expect(banner.textContent).toContain('Burn It');
+  });
+
+  it('a failed confirm closes the sheet (so the danger banner is not hidden behind the dialog top layer)', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { name: 'Burn It', myBookingStatus: 'BOOKED', bookedCount: 4, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="cancel-btn"]').click();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="confirm-execute"]').click();
+
+    http.expectOne(r => r.method === 'DELETE' && r.url === '/api/box/sessions/s1/booking')
+      .flush({ detail: 'PAST_CUTOFF' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+
+    const dlg = fixture.nativeElement.querySelector('[data-testid="book-cancel-confirm-sheet"] dialog');
+    expect(dlg.open).toBeFalse();
+    expect(fixture.componentInstance.confirmItem()).toBeNull();
+    const banner = fixture.nativeElement.querySelector('bh-banner .alert.danger');
+    expect(banner.textContent).toContain(bookingReason('PAST_CUTOFF'));
+  });
+
+  it('"Keep it" closes the sheet without calling booking.cancel', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { name: 'Burn It', myBookingStatus: 'BOOKED', bookedCount: 4, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="cancel-btn"]').click();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="confirm-keep"]').click();
+    fixture.detectChanges();
+
+    const dlg = fixture.nativeElement.querySelector('[data-testid="book-cancel-confirm-sheet"] dialog');
+    expect(dlg.open).toBeFalse();
+    http.expectNone(r => r.method === 'DELETE' && r.url === '/api/box/sessions/s1/booking');
+  });
+
+  it('a second click on confirm-execute while busy does not call cancel twice', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { name: 'Burn It', myBookingStatus: 'BOOKED', bookedCount: 4, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="cancel-btn"]').click();
+    fixture.detectChanges();
+    const exec = fixture.nativeElement.querySelector('[data-testid="confirm-execute"]');
+    exec.click();
+    exec.click();
+
+    const reqs = http.match(r => r.method === 'DELETE' && r.url === '/api/box/sessions/s1/booking');
+    expect(reqs.length).toBe(1);
+    reqs[0].flush(null);
+    http.expectOne(r => r.url === '/api/box/sessions').flush([session('s1', soon, { bookedCount: 3, capacity: 10 })]);
+    fixture.detectChanges();
+  });
+
   it('past day: Finished, no spots text, no book-btn', () => {
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(9, 0, 0, 0);
     const fixture = setup([session('s1', yesterday.toISOString())]);

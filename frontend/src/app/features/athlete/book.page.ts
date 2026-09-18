@@ -1,10 +1,11 @@
-import { Component, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
 import { formatDate } from '@angular/common';
 import { Observable } from 'rxjs';
 import { BookingService, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
 import { ClassCardComponent } from '../../ui/class-card.component';
 import { BannerComponent } from '../../ui/banner.component';
+import { SheetComponent } from '../../ui/sheet.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
 import { sessionWindow, covers, SessionWindow } from '../booking/session-window';
@@ -17,7 +18,7 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
 @Component({
   selector: 'bh-book',
   standalone: true,
-  imports: [ButtonComponent, ClassCardComponent, BannerComponent, WeekCalendarComponent],
+  imports: [ButtonComponent, ClassCardComponent, BannerComponent, SheetComponent, WeekCalendarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="book">
@@ -47,17 +48,16 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
               [testId]="'session-' + s.id">
               @let act = stateOf(s).action;
               <!-- Design law: the control that OPENS a destructive flow is a danger-bordered ghost
-                   (Cancel / Leave waitlist); the control that EXECUTES one would be filled danger,
-                   but there is no confirm step here so ghost-danger is the whole treatment. --good
-                   is a status colour, never an action, so Book is solid (--bone), not green. -->
+                   (Cancel / Leave waitlist); the confirm sheet's execute control is filled danger.
+                   --good is a status colour, never an action, so Book is solid (--bone), not green. -->
               @if (act === 'book') {
                 <bh-button actions variant="solid" size="sm" testId="book-btn" [disabled]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.book">Book</bh-button>
               } @else if (act === 'waitlist') {
                 <bh-button actions variant="ghost" size="sm" testId="book-btn" [disabled]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.waitlist">Join waitlist</bh-button>
               } @else if (act === 'cancel') {
-                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)" i18n="@@athlete.book.action.cancel">Cancel</bh-button>
+                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [disabled]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.cancel">Cancel</bh-button>
               } @else if (act === 'leave') {
-                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)" i18n="@@athlete.book.action.leave">Leave waitlist</bh-button>
+                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [disabled]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.leave">Leave waitlist</bh-button>
               }
             </bh-class-card>
           } @empty {
@@ -77,6 +77,20 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
       @for (b of bannerList(); track b.seq) {
         <bh-banner [tone]="b.tone" [message]="b.message" (dismissed)="banner.set(null)" />
       }
+
+      <bh-sheet [open]="confirmItem() !== null" [title]="confirmTitle()" [label]="confirmTitle()"
+                data-testid="book-cancel-confirm-sheet" (closed)="confirmItem.set(null)">
+        @if (confirmItem(); as it) {
+          <div class="confirm">
+            <p class="c-line" data-testid="confirm-line">{{ confirmLine() }}</p>
+            <p class="c-cost">{{ confirmCost() }}</p>
+            <div class="c-actions">
+              <bh-button variant="ghost" size="sm" testId="confirm-keep" (click)="keepConfirm()" i18n="@@athlete.book.confirm.keep">Keep it</bh-button>
+              <bh-button variant="danger" size="sm" testId="confirm-execute" [loading]="busy() === it.s.id" (click)="confirmCancel()">{{ confirmExecuteLabel() }}</bh-button>
+            </div>
+          </div>
+        }
+      </bh-sheet>
     </section>
   `,
   styles: [`
@@ -85,6 +99,11 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
     .err { color: var(--danger); font-size: var(--fs-sm); }
 
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+    .confirm { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
+    .c-line { font-weight: 700; margin: 0; }
+    .c-cost { color: var(--bone-dim); font-size: var(--fs-sm); margin: 0; }
+    .c-actions { display: flex; gap: var(--sp-3); justify-content: flex-end; }
 
     .empty { padding: var(--sp-8) 0; }
     .e1 { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
@@ -95,6 +114,8 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
 export class BookPage implements OnInit {
   private booking = inject(BookingService);
   private locale = inject(LOCALE_ID);
+  private el: ElementRef<HTMLElement> = inject(ElementRef);
+  private injector = inject(Injector);
 
   private readonly attendedBadge = $localize`:@@athlete.book.badge.attended:✓ Attended`;
   private readonly bookedBadge = $localize`:@@athlete.book.badge.booked:Booked`;
@@ -103,6 +124,12 @@ export class BookPage implements OnInit {
   private readonly startedSuffix = $localize`:@@athlete.book.suffix.started:started`;
   private readonly emptyTextLabel = $localize`:@@athlete.book.card.empty:No one yet — be the first`;
   private readonly loadErrorText = $localize`:@@athlete.book.loadError:Couldn't load classes — try again.`;
+  private readonly cancelConfirmTitle = $localize`:@@athlete.book.confirm.cancel.title:Cancel this booking?`;
+  private readonly leaveConfirmTitle = $localize`:@@athlete.book.confirm.leave.title:Leave the waitlist?`;
+  private readonly cancelConfirmCost = $localize`:@@athlete.book.confirm.cancel.cost:Your place is freed — someone on the waitlist may take it.`;
+  private readonly leaveConfirmCost = $localize`:@@athlete.book.confirm.leave.cost:Your position is lost.`;
+  private readonly cancelConfirmExecute = $localize`:@@athlete.book.confirm.cancel.execute:Cancel booking`;
+  private readonly leaveConfirmExecute = $localize`:@@athlete.book.confirm.leave.execute:Leave waitlist`;
 
   readonly sessions = signal<SessionView[]>([]);
   readonly error = signal('');
@@ -110,6 +137,10 @@ export class BookPage implements OnInit {
   readonly busy = signal<string | null>(null);
   readonly banner = signal<{ seq: number; tone: 'good' | 'danger'; message: string } | null>(null);
   private bannerSeq = 0;
+  /** The session + action a Cancel/Leave-waitlist tap is confirming — null means the sheet is
+   *  closed. Holding the whole item (not just an id) means the confirm copy keeps naming the
+   *  right class/time even if `load()` re-fetches sessions while the sheet is open. */
+  readonly confirmItem = signal<{ s: SessionView; act: 'cancel' | 'leave' } | null>(null);
   readonly bannerList = computed(() => {
     const b = this.banner();
     return b ? [b] : [];
@@ -194,9 +225,71 @@ export class BookPage implements OnInit {
     this.act(s, this.booking.book(s.id), () => this.outcomeMessage(s, act));
   }
 
-  protected cancel(s: SessionView) {
-    const act = this.stateOf(s).action; // 'cancel' | 'leave'
-    this.act(s, this.booking.cancel(s.id), () => this.outcomeMessage(s, act));
+  /** Cancel-btn / leave-btn tap: opens the confirm sheet, never calls the API directly. */
+  protected openCancelConfirm(s: SessionView) {
+    const act = this.stateOf(s).action as 'cancel' | 'leave';
+    this.confirmItem.set({ s, act });
+  }
+
+  protected keepConfirm() {
+    this.confirmItem.set(null);
+    // No explicit refocus: the trigger button is untouched by "Keep it", and native <dialog>
+    // close() already restores focus to it — same idiom as announcements.page's cancelConfirm().
+  }
+
+  protected confirmTitle(): string {
+    const act = this.confirmItem()?.act;
+    return act === 'leave' ? this.leaveConfirmTitle : this.cancelConfirmTitle;
+  }
+
+  protected confirmLine(): string {
+    const it = this.confirmItem();
+    if (!it) return '';
+    return $localize`:@@athlete.book.confirm.line:${it.s.name}:class: · ${formatDate(it.s.startAt, 'HH:mm', this.locale)}:time:`;
+  }
+
+  protected confirmCost(): string {
+    const act = this.confirmItem()?.act;
+    return act === 'leave' ? this.leaveConfirmCost : this.cancelConfirmCost;
+  }
+
+  protected confirmExecuteLabel(): string {
+    const act = this.confirmItem()?.act;
+    return act === 'leave' ? this.leaveConfirmExecute : this.cancelConfirmExecute;
+  }
+
+  /** The sheet's filled-danger execute control. Guarded by `act()`'s own `busy()` check (loading
+   *  drops the button out of the a11y tree via native `disabled`, so the guard can't live there
+   *  alone). Closes the sheet on BOTH success and failure: `bh-sheet` opens the native <dialog>
+   *  with showModal(), which puts it in the browser's top layer, and bh-banner is an ordinary
+   *  position:fixed element — while the sheet stayed open a failure banner painted behind the
+   *  dialog and its backdrop, so the athlete saw the cancel fail silently. */
+  protected confirmCancel() {
+    const it = this.confirmItem();
+    if (!it) return;
+    const { s, act } = it;
+    this.act(s, this.booking.cancel(s.id), () => this.outcomeMessage(s, act), {
+      tone: 'danger',
+      afterSuccess: () => { this.confirmItem.set(null); this.focusSessionCard(s.id); },
+      afterError: () => { this.confirmItem.set(null); this.focusSessionCard(s.id, { preferCancelBtn: true }); },
+    });
+  }
+
+  /** Moves focus back onto the session card (or, on an error where nothing reloaded and the
+   *  control is still there, back onto cancel-btn) once the sheet closes. A success reload swaps
+   *  cancel-btn for book-btn or removes it, so the card itself — with a tabindex fallback, same
+   *  idiom as danger.page.ts's focusField — is the only stable target there. afterNextRender, not
+   *  queueMicrotask — see danger.page.ts for why. */
+  private focusSessionCard(id: string, opts?: { preferCancelBtn?: boolean }) {
+    afterNextRender(() => {
+      const root = this.el.nativeElement;
+      const target =
+        (opts?.preferCancelBtn ? root.querySelector<HTMLElement>(`[data-testid="session-${id}"] [data-testid="cancel-btn"]`) : null)
+        ?? root.querySelector<HTMLElement>(`[data-testid="session-${id}"]`);
+      if (!target) return;
+      if (!target.matches('input, button, a[href], select, textarea')) target.setAttribute('tabindex', '-1');
+      target.focus();
+    }, { injector: this.injector });
   }
 
   private outcomeMessage(s: SessionView, act: Action): string {
@@ -214,18 +307,23 @@ export class BookPage implements OnInit {
     }
   }
 
-  private act(s: SessionView, call: Observable<unknown>, onSuccess: () => string) {
+  private act(
+    s: SessionView, call: Observable<unknown>, onSuccess: () => string,
+    opts?: { tone?: 'good' | 'danger'; afterSuccess?: () => void; afterError?: () => void },
+  ) {
     if (this.busy()) return;
     this.busy.set(s.id);
     call.subscribe({
       next: () => {
         this.busy.set(null);
         this.load();
-        this.banner.set({ seq: ++this.bannerSeq, tone: 'good', message: onSuccess() });
+        this.banner.set({ seq: ++this.bannerSeq, tone: opts?.tone ?? 'good', message: onSuccess() });
+        opts?.afterSuccess?.();
       },
       error: (e: any) => {
         this.busy.set(null);
         this.banner.set({ seq: ++this.bannerSeq, tone: 'danger', message: bookingReason(e.error?.detail) });
+        opts?.afterError?.();
       },
     });
   }

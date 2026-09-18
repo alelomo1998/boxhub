@@ -132,6 +132,15 @@ Coach Classes computes its own actions inline: Check-in always; Build and Run on
   dock and dwells 7s on `danger`. Failure → `tone="danger"` with `bookingReason(detail)`; success →
   `tone="good"` naming the class. The card itself shows no error text. A failed **load** still renders
   its stateline in place (it is not the outcome of an action).
+- **A cancellation is a red outcome, and it is confirmed first (user-ruled 2026-09-18).** Cancel and
+  Leave waitlist open a `bh-sheet` confirm ("Cancel this booking?" + what it costs); the sheet's
+  execute control is a **filled `danger`** button, matching the design law's pair — the card's
+  danger-bordered ghost OPENS the flow, the filled button EXECUTES it. The resulting banner is
+  `tone="danger"`, not `good`: losing a place is not a success. Book / Join waitlist stay
+  unconfirmed and keep the `good` banner.
+- **The dev seed ships real photos (user-ruled 2026-09-18):** `backend/src/main/resources/dev-seed/`
+  holds three class photos and four portraits; `DevDataSeeder` copies them instead of generating flat
+  colour PNGs, so photo-driven screens are judged on something like real content.
 - Copy for every 409: each `ENTRIES_*` and `CANCELLATIONS_*` code, `NO_ACTIVE_SUBSCRIPTION`,
   `PAST_CUTOFF`, `ALREADY_BOOKED`, `CANCELLED`, `PAST`, and a generic fallback.
 - Pill labels ("Booked", "Waitlist #n", "Full · n in line", "Attended", "Finished") are `$localize`d.
