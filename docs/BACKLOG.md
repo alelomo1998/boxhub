@@ -1063,3 +1063,34 @@ items and the chip/unit/picker entries above were filed during the milestone.
 - **Past-class rows now branch on `isPastDay`** in both `athlete/book.page.ts` and
   `coach/classes.page.ts` (user-ruled 2026-09-16) — **M17a**'s shared class row must keep that rule:
   past day → coach keeps Check-in only, athlete sees Finished / Attended, no Book.
+
+### Loading states — skeletons instead of a text stateline (user-raised 2026-09-18)
+- **Every rebuilt screen still loads behind a bare `<p class="stateline">Loading …</p>`.** The user
+  wants a loader / skeleton. The primitive already exists and is specified in DESIGN.md — `.bh-skel`,
+  a `--surface-2` block pulsing opacity ~1→0.55, resting at the dim value under
+  `prefers-reduced-motion` (deliberately NOT a moving-gradient shimmer, which collides with the
+  no-gradients rule). Today its only consumer is `features/dev/proof-admin-members.component.ts`,
+  so this is **adoption on real screens, not new design**.
+- Athlete Book is the first case: a skeleton of 2–3 class cards (photo block + strip) reads far
+  better than one line of text on the flaky gym wifi the product designs for. Raised as a P3 by
+  M17a's critique and deferred — it is worth doing once real pilot latency is measured, since on
+  the dev stack the stateline is never on screen long enough to judge.
+- Scope when it is picked up: a shared skeleton for the class card, then the other rebuilt screens.
+
+### e2e `runner.spec.ts` — TV never receives a RUNNING timer frame (found 2026-09-18, M17a)
+- `tests/runner.spec.ts:43` "TV shows the clock when a coach starts a timer" fails against the local
+  docker stack: the coach arms and starts an AMRAP, the TV's `tv-stream` keeps receiving frames
+  (`data-frames` climbs 2 → 3 → 4 across the 35s window, so the SSE connection and the 30s sweep are
+  both alive) but `data-timer` stays `none` the whole time. The renderer is not the problem — the
+  frames simply never carry a running timer.
+- **Confirmed pre-existing, not caused by M17a Task 10.** Verified by stashing the Task 10 diff,
+  rebuilding the frontend image at `667c224` and re-running the spec: it fails identically. The other
+  13 tests in `booking-flow` / `library` / `programming` / `runner` all pass.
+- This is very likely the same underlying defect the spec's own comment documents from 2026-08-28
+  ("a push genuinely went missing"), except the 30s guaranteed-delivery sweep is not correcting it
+  either, which the comment assumed it would. That makes it worse than the filed flake: on a real gym
+  TV the clock would never appear, not merely appear late.
+- Next step when picked up: instrument `TvStreamService`'s sweep payload to see whether the timer
+  state is absent at the source or dropped in serialisation, and check whether the session the coach
+  ran (`run-link` first card = the day's FIRST class, often already finished) is the one the paired
+  TV is showing — the spec may be starting a timer on a session the TV is not displaying.

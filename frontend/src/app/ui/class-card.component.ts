@@ -79,7 +79,7 @@ export interface CardPerson {
       <div class="strip">
         <span class="when">{{ timeRange() }}</span>
         @if (suffix()) { <span class="suffix">· {{ suffix() }}</span> }
-        <span class="acts"><ng-content select="[actions]" /></span>
+        <span class="acts" [class.block]="actionsLayout() === 'block'"><ng-content select="[actions]" /></span>
       </div>
       <ng-content select="[error]" />
     </article>
@@ -157,6 +157,11 @@ export interface CardPerson {
     .suffix { font-family: var(--font-mono); font-weight: 400; font-size: var(--fs-sm);
       color: var(--bone-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .acts { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; margin-left: auto; }
+    /* actionsLayout="block": a caller projecting several actions (coach Classes' Build/Check-in/Run)
+       needs them as a full-width row of the strip's flex-wrap, not sized to content — the wrapper it
+       projects into [actions] cannot widen .acts from outside (emulated encapsulation), so this has
+       to be an input the card itself applies. */
+    .acts.block { flex: 1 0 100%; margin-left: 0; }
   `],
 })
 export class ClassCardComponent {
@@ -177,6 +182,9 @@ export class ClassCardComponent {
    *  need per-caller interpolation this component has no business owning). Null renders nothing. */
   badgeLabel = input<string | null>(null);
   badgeTone = input<'neutral' | 'good' | 'warn'>('neutral');
+  /** 'block' makes the projected [actions] a full-width row (see the .acts.block comment below) —
+   *  default 'inline' leaves athlete Book's single content-sized action untouched. */
+  actionsLayout = input<'inline' | 'block'>('inline');
 
   /** Defensive `?? []`: a frontend deployed ahead of its backend receives rows without `people`,
    *  and a crash here blanks the whole card (seen live on a stale backend container). */

@@ -19,7 +19,7 @@ test('a library piece fills a slot and survives a reload', async ({ page }) => {
   await page.waitForURL(/\/coach\/wods$/);
 
   await page.goto('/app/coach/classes');
-  const burnRow = page.locator('.row', { hasText: 'Burn It' }).first();
+  const burnRow = page.locator('[data-testid^="class-"]', { hasText: 'Burn It' }).first();
   await expect(burnRow).toBeVisible();
   await burnRow.getByTestId('build-link').click();
   await expect(page.getByTestId('stack-form')).toBeVisible();
@@ -56,7 +56,7 @@ test('a piece written in the editor comes back attached, and publishes', async (
 
   await login(page, 'coach@demo.io');
   await page.goto('/app/coach/classes');
-  const burnRow = page.locator('.row', { hasText: 'Burn It' }).first();
+  const burnRow = page.locator('[data-testid^="class-"]', { hasText: 'Burn It' }).first();
   await expect(burnRow).toBeVisible();
   await burnRow.getByTestId('build-link').click();
   await expect(page.getByTestId('stack-form')).toBeVisible();

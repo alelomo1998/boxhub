@@ -979,7 +979,25 @@ export class GalleryNotificationBellComponent implements OnInit {
             <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.cancel2">Cancel</bh-button>
             <p error i18n="@@dev.gallery.classCard.error">Couldn't cancel — you're past the cutoff.</p>
           </bh-class-card>
+
+          <bh-class-card title="Burn It" i18n-title="@@dev.gallery.classCard.sample.blockLayout"
+            image="/gallery/class-gym.jpg" coach="Giulia" coachAvatar="/gallery/avatar-1.jpg"
+            [people]="classCardPeople" [peopleCount]="8"
+            start="2026-09-17T12:15:00" end="2026-09-17T13:00:00"
+            suffix="4 left" i18n-suffix="@@dev.gallery.classCard.suffix.left3"
+            badgeLabel="Draft" badgeTone="warn" i18n-badgeLabel="@@dev.gallery.classCard.badge.draft"
+            actionsLayout="block" [href]="['.']" testId="dev-class-card-block">
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.build">Build</bh-button>
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.checkin">Check-in</bh-button>
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.run">Run</bh-button>
+          </bh-class-card>
         </div>
+        <p class="note" i18n="@@dev.gallery.classCard.note.block">
+          actionsLayout="block" (last card above): the [actions] row becomes a full-width strip line
+          instead of sizing to content — what coach Classes uses for its three equal-thirds actions
+          (Build / Check-in / Run). Default stays "inline", so athlete Book's single action is
+          unaffected.
+        </p>
         <p class="note" i18n="@@dev.gallery.classCard.note.hover">
           No underline on the title on hover — the link's only affordance is a slight brightness
           lift on the photo, so the card stays legible over any image. Focus is the anchor's own

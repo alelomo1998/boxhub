@@ -38,7 +38,7 @@ test('admin schedules a class, athlete books it, coach checks them in from the p
   await login(page, 'coach@demo.io');
   await page.goto('/app/coach/classes');
   await page.locator('.list, .empty').first().waitFor();
-  const row = page.locator('.row', { hasText: className }).filter({ hasText: '1/1' }).first();
+  const row = page.locator('[data-testid^="class-"]', { hasText: className }).filter({ hasText: '1/1' }).first();
   for (let i = 0; i < 14 && !(await row.isVisible().catch(() => false)); i++) {
     await nextDay(page);
     await page.waitForTimeout(100);

@@ -10,7 +10,7 @@ import { CardPerson, ClassCardComponent } from './class-card.component';
     <bh-class-card [title]="title()" [image]="image()" [coach]="coach()" [coachAvatar]="coachAvatar()"
       [people]="people()" [peopleCount]="peopleCount()" [emptyText]="emptyText()"
       [start]="start()" [end]="end()" [suffix]="suffix()" [href]="href()" [tone]="tone()" [testId]="testId()"
-      [badgeLabel]="badgeLabel()" [badgeTone]="badgeTone()">
+      [badgeLabel]="badgeLabel()" [badgeTone]="badgeTone()" [actionsLayout]="actionsLayout()">
       <button actions type="button">Cancel</button>
       <p error>Something went wrong</p>
     </bh-class-card>
@@ -35,6 +35,7 @@ class Host {
   testId = signal<string | null>('demo-card');
   badgeLabel = signal<string | null>('Booked');
   badgeTone = signal<'neutral' | 'good' | 'warn'>('neutral');
+  actionsLayout = signal<'inline' | 'block'>('inline');
 }
 
 describe('ClassCardComponent', () => {
@@ -127,6 +128,15 @@ describe('ClassCardComponent', () => {
   it('projects actions and error', () => {
     expect(f.nativeElement.querySelector('[actions]')).toBeTruthy();
     expect(f.nativeElement.querySelector('[error]')).toBeTruthy();
+  });
+
+  it('puts the block class on .acts only when actionsLayout is "block", never by default', () => {
+    expect(f.nativeElement.querySelector('.acts').classList.contains('block')).toBe(false);
+
+    host.actionsLayout.set('block');
+    f.detectChanges();
+
+    expect(f.nativeElement.querySelector('.acts').classList.contains('block')).toBe(true);
   });
 
   it('renders the badge when badgeLabel is set, hidden when null, with the tone class applied', () => {

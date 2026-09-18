@@ -5,11 +5,12 @@ import { provideRouter } from '@angular/router';
 import { CoachClassesPage } from './classes.page';
 import type { SessionView } from '../booking/booking.service';
 
-function session(id: string, startAt: string): SessionView {
+function session(id: string, startAt: string, overrides: Partial<SessionView> = {}): SessionView {
   return {
     id, name: 'WOD', startAt, durationMin: 60, capacity: 10, coachId: null, coachName: null,
     status: 'ACTIVE', programmingStatus: 'PUBLISHED', bookedCount: 0, waitlistCount: 0, booked: [],
     myBookingStatus: null, myPosition: null, imagePath: null, coachAvatarPath: null, people: [],
+    ...overrides,
   };
 }
 
@@ -36,7 +37,7 @@ describe('CoachClassesPage', () => {
 
   afterEach(() => http.verify());
 
-  it('renders Build, Check-in and Run for a class today', () => {
+  it('today shows build-link, checkin-link and run-link', () => {
     const today = new Date(); today.setHours(9, 0, 0, 0);
     const fixture = setup([session('s1', today.toISOString())]);
 
@@ -46,7 +47,7 @@ describe('CoachClassesPage', () => {
     expect(row.querySelector('[data-testid="run-link"]')).toBeTruthy();
   });
 
-  it('hides Build and Run but keeps Check-in for a class on a past day', () => {
+  it('past day shows checkin-link only', () => {
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(9, 0, 0, 0);
     const fixture = setup([session('s1', yesterday.toISOString())]);
     fixture.componentInstance.dayOffset.set(-1);
@@ -56,5 +57,36 @@ describe('CoachClassesPage', () => {
     expect(row.querySelector('[data-testid="build-link"]')).toBeNull();
     expect(row.querySelector('[data-testid="run-link"]')).toBeNull();
     expect(row.querySelector('[data-testid="checkin-link"]')).toBeTruthy();
+  });
+
+  it('shows Draft vs Published badge from programmingStatus', () => {
+    const today = new Date(); today.setHours(9, 0, 0, 0);
+    const fixture = setup([
+      session('s1', today.toISOString(), { programmingStatus: 'PUBLISHED' }),
+      session('s2', today.toISOString(), { programmingStatus: 'DRAFT' }),
+    ]);
+
+    const published = fixture.nativeElement.querySelector('[data-testid="class-s1"] .badge');
+    const draft = fixture.nativeElement.querySelector('[data-testid="class-s2"] .badge');
+    expect(published.textContent.trim()).toBe('Published');
+    expect(published.classList.contains('good')).toBeTrue();
+    expect(draft.textContent.trim()).toBe('Draft');
+    expect(draft.classList.contains('good')).toBeFalse();
+    expect(draft.classList.contains('warn')).toBeTrue();
+  });
+
+  it('meta shows the waitlist part only when waitlistCount > 0', () => {
+    const today = new Date(); today.setHours(9, 0, 0, 0);
+    const fixture = setup([
+      session('s1', today.toISOString(), { bookedCount: 8, capacity: 12, waitlistCount: 0 }),
+      session('s2', today.toISOString(), { bookedCount: 8, capacity: 12, waitlistCount: 2 }),
+    ]);
+
+    const noLine = fixture.nativeElement.querySelector('[data-testid="class-s1"] .suffix');
+    const inLine = fixture.nativeElement.querySelector('[data-testid="class-s2"] .suffix');
+    expect(noLine.textContent).toContain('8/12 booked');
+    expect(noLine.textContent).not.toContain('in line');
+    expect(inLine.textContent).toContain('8/12 booked');
+    expect(inLine.textContent).toContain('2 in line');
   });
 });
