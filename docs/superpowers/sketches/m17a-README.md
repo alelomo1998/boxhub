@@ -11,5 +11,6 @@ the renders the user actually judged.
 | 3 | `m17a-class-card-a.html` | `m17a-assets/3-option-a-revised.png` | A + coach photo + first 5 athletes and a "+N" chip. **Rejected:** scrim too dark, title too bold, "Full · 3 in line" redundant. |
 | 4 | `m17a-class-card-a2.html` | `m17a-assets/4-a2-chosen.png` | **CHOSEN: A2, the "bone ring" column.** More photo, light scrim, "name · coach" and the athletes on the photo, badge says the state once. Volt ring declined (design law); **adaptive scrim declined — light scrim kept, AA risk on very bright uploads accepted by the user.** |
 | 5 | `m17a-class-card-title.html` | `m17a-assets/5-title-weight.png` | **Title: Archivo 500, title case.** Font confirmed loaded (400/500/700). |
+| 6 | `m17a-coach-classes.html` | `m17a-assets/6-coach-classes-options.png` | Coach Classes, 2026-09-18 — where the three actions (Build/Check-in/Run) go, since they total 214px on a 328px card and cannot share the strip's line. **CHOSEN: B, "second line, equal thirds"** (column 2). Rejected: A right-aligned (ragged left, lone far-right button on past days), C counts-on-photo (tightest but drops the end time), D ranked (as drawn its bone fill breaks the one-`strong`-per-screen rule in a list). |
 
 Binding text: `docs/superpowers/specs/2026-09-17-m17a-athlete-daily-design.md` §3.1.

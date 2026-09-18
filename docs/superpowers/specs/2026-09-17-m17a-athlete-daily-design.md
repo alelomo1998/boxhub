@@ -160,7 +160,28 @@ Week strip (unchanged) → a list of §3.1 cards, 12px apart. Badge + suffix + a
 
 ### 5.2 Coach Classes
 Same card, coach actions, Draft/Published badge. Keeps the Announce link and the `aria-live` list.
-*Shape: pending.*
+
+**Shape: decided 2026-09-18 — option B, "second line, equal thirds."**
+Render: `docs/superpowers/sketches/m17a-coach-classes.html`, **column 2**
+(`m17a-assets/6-coach-classes-options.png`).
+
+Why the card needed a shape round at all rather than being a straight repeat: measured on the live
+app at 360px, the card is **328px** wide and the three coach actions total **214px**
+(Build 61 · Check-in 84 · Run 53, plus two 8px gaps). Time + meta + three buttons is ~454px, so
+unlike the athlete's single action they cannot share the strip's one line.
+
+The decision: the strip keeps line 1 as `HH:mm–HH:mm · {booked}/{capacity} booked · {n} in line`
+(the waitlist clause only when `> 0`), and the three actions take a **second line as equal thirds**
+spanning the full width (~98px each; "Check-in" needs 84px, so it fits). Build and Run render only
+when `!isPastDay(startAt)`; a past day shows Check-in alone, which then spans the full width.
+Rejected: A (right-aligned, ragged left edge and a lone far-right button on past days),
+C (counts moved onto the photo to keep a one-line strip — tightest at ~226px/card but it drops the
+end time and moves data onto the image), D (Check-in ranked wider — as rendered it filled the
+button with `--bone`, and `strong` is capped at one per screen, which a list of cards violates by
+construction).
+
+Card ≈ 266px, ~2.6 per screen. Equal thirds also gives the largest tap targets of the four, which
+is the point on a screen a coach uses standing on the gym floor.
 
 ### 5.3 Class detail
 Photo hero → coach → Going / In queue grids → one full-width action (D1) with its outcome in the
