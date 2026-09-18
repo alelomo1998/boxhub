@@ -1094,3 +1094,21 @@ items and the chip/unit/picker entries above were filed during the milestone.
   state is absent at the source or dropped in serialisation, and check whether the session the coach
   ran (`run-link` first card = the day's FIRST class, often already finished) is the one the paired
   TV is showing — the spec may be starting a timer on a session the TV is not displaying.
+
+### A screen `<h1>` overflows the viewport at 200% text zoom (found 2026-09-18, M17a audit)
+- The screen-title ruling of 2026-09-18 gives every screen an `<h1>` at `--fs-hero` (40px), uppercase
+  Archivo 800. At 200% text zoom on a 360px phone that is 80px type: "CLASSES" measures **393px wide
+  and its box ends at x=409 on a 360px viewport**, so the page gains a horizontal scroll. It is a
+  single word, so it cannot wrap.
+- **App-wide, not one screen's bug.** Book escapes only because "BOOK" is four characters (~215px).
+  Every title of ~6+ characters will do this — Progress, Messages, Notifications, Announcements.
+- Not a functional loss (no control is hidden, and the title is the one thing a user already knows),
+  which is why it is filed rather than fixed inside M17a: it is a decision about the shared title
+  treatment, and fixing it per-screen would be exactly the piecemeal drift the design law exists to
+  stop. The functional half of the same defect — the coach header's Announce button being pushed
+  off-screen — WAS fixed in M17a, since Task 10 owned that header.
+- Options when picked up: allow the title to shrink at narrow widths, drop `--fs-hero` to
+  `--fs-display` below some width, or accept the scroll and record it. Whichever is chosen belongs in
+  the design law, applied once, not per screen.
+- Also still open from the same measurement: `bh-week-calendar`'s pager button overflows by ~14px at
+  200% zoom on both Book and coach Classes (its own component, unowned by M17a).

@@ -76,7 +76,11 @@ import { sessionWindow, covers, SessionWindow, isPastDay } from '../booking/sess
     .stateline.err { color: var(--danger); }
     .retry { min-height: var(--tap); padding: 0 var(--sp-4); background: transparent; color: var(--bone);
       border: 1px solid var(--hairline); border-radius: var(--edge); cursor: pointer; margin-left: var(--sp-2); }
-    .head { margin-bottom: var(--sp-4); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+    /* Wrap, for the same reason the card's strip wraps: at 200% text zoom the h1 grows to ~393px on
+       a 360px phone and, on a single line, shoved Announce to x=421 — completely off-screen and
+       unreachable (WCAG 1.4.4). Wrapping drops it onto its own line instead. */
+    .head { margin-bottom: var(--sp-4); display: flex; flex-wrap: wrap; align-items: center;
+      justify-content: space-between; gap: var(--sp-3); }
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 0; }
     .list { display: flex; flex-direction: column; gap: var(--sp-3); }
