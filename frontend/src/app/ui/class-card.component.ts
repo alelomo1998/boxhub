@@ -145,7 +145,12 @@ export interface CardPerson {
       font-variant-numeric: tabular-nums; }
     .muted { color: var(--bone-dim); font-size: var(--fs-sm); }
 
-    .strip { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px;
+    /* Wrap is load-bearing, not cosmetic: .when and .suffix are nowrap and .acts is flex-shrink:0,
+       so on a single line the action is pushed past the card's right edge and the card's
+       overflow:hidden CLIPS it. At 200% text zoom on a 360px phone that put Book/Cancel ~100px
+       outside the card — the athlete could not book at all (WCAG 1.4.4). Wrapping drops the action
+       onto its own line instead; at normal sizes everything still fits on one. */
+    .strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); min-height: 56px;
       padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); background: var(--surface); }
     .when { font-family: var(--font-mono); font-weight: 700; font-size: var(--fs-sm);
       color: var(--bone); font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -14,6 +14,11 @@ import { bookingReason } from '../booking/booking-reason';
 
 function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
 
+/** A window that covers no day at all. Assigned on a failed load instead of leaving the previous
+ *  (or default) window in place — an un-reset window is exactly what stranded the athlete for the
+ *  whole ±14-day span: `covers()` kept reporting the day as already loaded, so paging never retried. */
+const NO_WINDOW: SessionWindow = { from: new Date(0), to: new Date(0) };
+
 /** Book a class: date pager + the shared class card, one per session of the selected day. */
 @Component({
   selector: 'bh-book',
@@ -26,9 +31,13 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
 
       <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [min]="-3650" [max]="13" [tones]="tones()" />
 
-      @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
-
       @if (loading()) { <p class="stateline" i18n="@@athlete.book.loading">Loading classes…</p> }
+      @else if (error()) {
+        <div class="err-block">
+          <p class="err" role="alert" data-testid="book-error">{{ error() }}</p>
+          <bh-button variant="ghost" size="sm" testId="book-retry" (click)="load()" i18n="@@athlete.book.retry">Try again</bh-button>
+        </div>
+      }
       @else {
         <div class="cards" aria-live="polite">
           @for (s of daySessions(); track s.id) {
@@ -53,13 +62,13 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
                    (Cancel / Leave waitlist); the confirm sheet's execute control is filled danger.
                    --good is a status colour, never an action, so Book is solid (--bone), not green. -->
               @if (act === 'book') {
-                <bh-button actions variant="solid" size="sm" testId="book-btn" [disabled]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.book">Book</bh-button>
+                <bh-button actions variant="solid" size="sm" testId="book-btn" [loading]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.book">Book</bh-button>
               } @else if (act === 'waitlist') {
-                <bh-button actions variant="ghost" size="sm" testId="book-btn" [disabled]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.waitlist">Join waitlist</bh-button>
+                <bh-button actions variant="ghost" size="sm" testId="book-btn" [loading]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.waitlist">Join waitlist</bh-button>
               } @else if (act === 'cancel') {
-                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [disabled]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.cancel">Cancel</bh-button>
+                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [loading]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.cancel">Cancel</bh-button>
               } @else if (act === 'leave') {
-                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [disabled]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.leave">Leave waitlist</bh-button>
+                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [loading]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.leave">Leave waitlist</bh-button>
               }
             </bh-class-card>
           } @empty {
@@ -100,7 +109,8 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
     .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
       text-transform: uppercase; margin: 0 0 var(--sp-4); }
     .stateline { color: var(--bone-dim); }
-    .err { color: var(--danger); font-size: var(--fs-sm); }
+    .err-block { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
 
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
 
@@ -179,10 +189,14 @@ export class BookPage implements OnInit {
   ngOnInit() { this.load(); }
 
   load() {
-    this.window = sessionWindow(this.dayOffset());
-    this.booking.listSessions(this.window.from.toISOString(), this.window.to.toISOString()).subscribe({
-      next: s => { this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
-      error: () => { this.loading.set(false); this.error.set(this.loadErrorText); },
+    this.error.set('');
+    this.loading.set(true);
+    const w = sessionWindow(this.dayOffset());
+    this.booking.listSessions(w.from.toISOString(), w.to.toISOString()).subscribe({
+      next: s => { this.window = w; this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
+      // NO_WINDOW, not `w`: leaving the requested window in place made the effect below believe
+      // the ±14-day span was already loaded, so changing days never retried a failed fetch.
+      error: () => { this.window = NO_WINDOW; this.loading.set(false); this.error.set(this.loadErrorText); },
     });
   }
 

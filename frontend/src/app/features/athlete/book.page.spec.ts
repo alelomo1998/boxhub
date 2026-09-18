@@ -259,4 +259,78 @@ describe('BookPage', () => {
     expect(card.querySelector('[data-testid="book-btn"]')).toBeNull();
     expect(card.querySelector('[data-testid="cancel-btn"]')).toBeNull();
   });
+
+  it('a failed load shows the error and NOT the empty state', () => {
+    TestBed.configureTestingModule({
+      imports: [BookPage],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(BookPage);
+    fixture.detectChanges();
+    http.expectOne(r => r.url === '/api/box/sessions').flush(null, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="book-error"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.empty')).toBeNull();
+  });
+
+  it('the retry button re-issues the request and clears the error', () => {
+    TestBed.configureTestingModule({
+      imports: [BookPage],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(BookPage);
+    fixture.detectChanges();
+    http.expectOne(r => r.url === '/api/box/sessions').flush(null, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-testid="book-retry"]').click();
+    fixture.detectChanges();
+    http.expectOne(r => r.url === '/api/box/sessions').flush([]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="book-error"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.cards')).not.toBeNull();
+  });
+
+  it('a day change after a failed load refetches', () => {
+    TestBed.configureTestingModule({
+      imports: [BookPage],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(BookPage);
+    fixture.detectChanges();
+    http.expectOne(r => r.url === '/api/box/sessions').flush(null, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    // Still well inside the ±14-day window the failed request asked for — before the fix, the
+    // poisoned `this.window` reported this offset as already covered, so no refetch happened.
+    fixture.componentInstance.dayOffset.set(2);
+    fixture.detectChanges();
+
+    const req = http.expectOne(r => r.url === '/api/box/sessions');
+    expect(req.request.url).toBe('/api/box/sessions');
+    req.flush([]);
+    fixture.detectChanges();
+  });
+
+  it('a card action shows a pending state while the request is in flight', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { bookedCount: 3, capacity: 10 })]);
+
+    const btn = fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]');
+    btn.click();
+    fixture.detectChanges();
+
+    expect(btn.getAttribute('aria-busy')).toBe('true');
+
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book')
+      .flush({ bookingId: 'b1', status: 'BOOKED', position: null });
+    http.expectOne(r => r.url === '/api/box/sessions')
+      .flush([session('s1', soon, { bookedCount: 4, capacity: 10, myBookingStatus: 'BOOKED' })]);
+    fixture.detectChanges();
+  });
 });
