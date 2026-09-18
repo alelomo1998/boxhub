@@ -543,7 +543,23 @@ public class DevDataSeeder implements CommandLineRunner {
         s.setDurationMin(durationMin);
         s.setCapacity(capacity);
         s.setCoachId(coachId);
+        // Point it at a slot of the same class type, so the athlete card can resolve a photo
+        // (session -> slot -> type.imagePath). Without this the demo box's "today" classes are the
+        // only photoless ones on the screen. Guarded on the (schedule_slot_id, start_at) unique
+        // index: a collision with a generated session would abort the whole seed.
+        slotOfType(name).ifPresent(slotId -> {
+            if (!sessions.existsByScheduleSlotIdAndStartAt(slotId, startAt)) s.setScheduleSlotId(slotId);
+        });
         sessions.save(s);
+    }
+
+    /** First slot whose class type carries this name — dev seeding only. */
+    private java.util.Optional<UUID> slotOfType(String typeName) {
+        return types.findAll().stream()
+                .filter(t -> typeName.equals(t.getName())).findFirst()
+                .flatMap(t -> slots.findAll().stream()
+                        .filter(sl -> t.getId().equals(sl.getClassTypeId())).findFirst())
+                .map(ScheduleSlot::getId);
     }
 
     private UUID classType(String name) {
