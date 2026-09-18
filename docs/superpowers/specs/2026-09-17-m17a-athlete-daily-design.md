@@ -191,7 +191,36 @@ bottom banner (§4); reload after acting.
 returning to Book, and the dock's bottom gutter reclaimed for its primary action — while still
 carrying its own `<h1>`.** M17a decides the mechanism here (route `data` flag read by the shell vs.
 a per-screen input) and every later detail screen follows it; the unconverted ones are filed in
-`docs/BACKLOG.md`. *Shape: pending.*
+`docs/BACKLOG.md`.
+
+**Shape: decided 2026-09-18 over three rounds.** Renders, in order, each kept as the record:
+`m17a-class-detail.html` (four shapes) -> `m17a-class-detail-r2.html` (header/title variants + the
+first animation) -> **`m17a-class-detail-r3.html`, column 1 = the screen, column 2 = the live
+transition**.
+
+- **Round 1** picked **A, the full-bleed photo hero** (260px, edge to edge, date/time on the scrim)
+  over the enlarged card, the compact band and the dense-row roster. Rejected with four corrections:
+  the back arrow as drawn did not work, the header must stay, the box name is redundant on a detail
+  screen, and the screen was missing its title.
+- **Round 2** resolved those into **option 1: the header IS the title bar.** Back arrow replaces the
+  box switcher, the class name is the `<h1>`, and **the hero never repeats the name** — it carries
+  the photo, the badge and `Fri 18 Sep · 18:00–19:00 · 60'` only. Corrected once more: the shell's
+  **mail / notifications / avatar stay exactly where they are on every other screen**; only the
+  switcher goes.
+- **Round 3** fixed the transition and was locked. See CLAUDE.md's "THE DETAIL HEADER IS SETTLED"
+  for the binding form, which governs every non-dock screen, not just this one.
+
+**No volt anywhere on this screen** — user-confirmed 2026-09-18. The switcher's mark was the shell's
+one volt element and the back arrow replaced it, so a detail screen has none. Amends the standing
+rule rather than making an exception to it.
+
+**The open/close transition is part of the shape, not a polish item.** The tapped card's photo grows
+into the hero and collapses back to the row it opened from; the class name is one element that
+travels between the row and the header title slot. 280ms, `--ease-move`, symmetric. The two traps
+that cost a round: the source row stays `visibility: hidden` until the morph LANDS, and completion
+cannot rely on `transitionend` alone or it deadlocks under `prefers-reduced-motion`.
+
+The header's existing hide-on-scroll (below 768px) is kept deliberately — see CLAUDE.md for why.
 
 ### 5.4 Home
 Content (order decided in shape): greeting + date · plan blocker (no plan / expiring) · next class as

@@ -79,6 +79,30 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   shell, vs. a per-screen input) is decided by the first milestone that implements it — M17a, on
   class detail — and every later screen follows that one. Screens not yet converted are filed in
   `docs/BACKLOG.md`.
+- **THE DETAIL HEADER IS SETTLED (user-ruled 2026-09-18, M17a class detail, binding for EVERY
+  non-dock screen).** Decided against rendered options (`docs/superpowers/sketches/m17a-class-detail-r3.html`).
+  The header is: **back arrow · the screen's `<h1>` title · the shell's usual right-side actions
+  (mail, notifications, avatar)**. Only the **box switcher** is dropped — on a detail screen the gym
+  name is the redundant part, not the actions. The screen's body therefore must **not repeat the
+  title**; class detail's hero carries the photo, the badge and the date/time, and no name.
+  - **A detail screen has NO volt at all.** The switcher's mark was the shell's one volt element and
+    the back arrow is what replaced it. This is a deliberate amendment to "the switcher's mark is the
+    shell's one volt element, on every screen" — that rule now reads *on every screen that has a
+    switcher*. Do not re-litigate it per screen.
+  - **The header keeps its existing hide-on-scroll behaviour** (`bh-shell-header`: sticky, below
+    768px it slides away on scroll-down and returns on scroll-up past an 8px threshold, whenever
+    `scrollY` is back within the header height, and on `focusin`). Weighed and kept deliberately even
+    though the back arrow is a detail screen's only way back: it returns on any upward scroll and on
+    focus, the primary action is pinned at the bottom regardless, and pinning the header would cost
+    56px of viewport permanently on the smallest screens.
+  - **Opening a detail screen is a shared-element transition** (user-asked, ruled 2026-09-18): the
+    tapped card's photo grows into the hero and collapses back **to the row it opened from**, and the
+    class name is *one element that travels* between the row and the header title slot. 280ms on
+    `--ease-move`, symmetric both ways. Two traps, both already paid for in the sketch: the source
+    row must stay `visibility: hidden` until the morph **lands** (revealing it on a timer double-images
+    and pops), and completion must NOT depend on `transitionend` alone — under
+    `prefers-reduced-motion` the transition is removed, the event never fires, and the screen
+    deadlocks half-open. Use the event as the fast path with a duration timeout as the guarantee.
 - **`--danger` may fill a button or a chip** (never a row/card/panel) — the control that *opens* a destructive flow is a danger-bordered ghost, the control that *executes* it is filled. `--on-danger` is dark, not white (white on `--danger` fails AA).
 - **No glow, no gradients, no shadows on flat surfaces, no fake textures, no skeuomorphism.** Shadows are permitted only on things that physically float (the dock, `bh-sheet`, dialogs). The focus ring is a solid 2px outline, and **inverts to `--focus-inv` on a volt surface** — a volt ring on the volt primary button is invisible.
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.
