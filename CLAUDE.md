@@ -60,6 +60,13 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   inverts to `--focus-inv` inside the button, because `--focus` IS volt and volt on a near-white
   fill is invisible — the same trap `primary` already documents. `solid` remains correct for screens
   with several **co-equal** actions, e.g. account's section saves.
+- **EVERY SCREEN CARRIES A TITLE (user-ruled 2026-09-18, binding).** A screen opens with a visible
+  `<h1>` naming it — the same words as its dock/nav label and its `route.title` — before any
+  control, strip or list. An app screen without one reads as a fragment: the athlete lands mid-page
+  with only a date strip for context, and a screen reader's first landmark is a widget. Sheets and
+  dialogs already have their own `title`; this rule is about the page. **A screen being rebuilt adds
+  its own title; nobody converts another screen's** — same rule as the signal/Eager conversions, and
+  the untitled pre-rework screens are filed in `docs/BACKLOG.md`.
 - **`--danger` may fill a button or a chip** (never a row/card/panel) — the control that *opens* a destructive flow is a danger-bordered ghost, the control that *executes* it is filled. `--on-danger` is dark, not white (white on `--danger` fails AA).
 - **No glow, no gradients, no shadows on flat surfaces, no fake textures, no skeuomorphism.** Shadows are permitted only on things that physically float (the dock, `bh-sheet`, dialogs). The focus ring is a solid 2px outline, and **inverts to `--focus-inv` on a volt surface** — a volt ring on the volt primary button is invisible.
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.

@@ -407,6 +407,16 @@ full e2e run.
   white on volt is 1.1:1. Whoever centralises this must centralise the text colour too, or the next
   accent change silently reintroduces an unreadable button.
 
+### → whichever milestone rebuilds them: screens with no `<h1>`
+
+**Design law 2026-09-18 (user-ruled): every screen carries a visible `<h1>` naming it**, matching its
+dock/nav label and `route.title`. A screen being rebuilt adds its own; nobody converts another's.
+These ten pre-date the rule (the admin ones do name themselves, but with an `h2`, so the page has no
+level-1 heading at all):
+`account/account-index`, `admin/box-stripe`, `admin/invites`, `admin/members`, `admin/movements`,
+`admin/plans`, `admin/settings`, `admin/subscriptions`, `programming/piece-editor`, `receipt/receipt`.
+`athlete/book` and `athlete/home` are M17a's own and are fixed there.
+
 ### → M17 Athlete
 - **The class row/card is ONE shared component across athlete Book and coach Classes, with the
   ACTIONS differing by role (user-ruled 2026-09-06).** M14b gave both screens the week strip but
