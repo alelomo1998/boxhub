@@ -5,7 +5,7 @@ function session(startAt: string, bookedCount: number, capacity: number): Sessio
   return {
     id: startAt, name: 'WOD', startAt, durationMin: 60, capacity, coachId: null, coachName: null,
     status: 'ACTIVE', programmingStatus: 'PUBLISHED', bookedCount, waitlistCount: 0, booked: [],
-    myBookingStatus: null, myPosition: null, imagePath: null,
+    myBookingStatus: null, myPosition: null, imagePath: null, coachAvatarPath: null, people: [],
   };
 }
 

@@ -43,7 +43,7 @@ function sessionView(id: string, name: string, startAt: string): SessionView {
   return {
     id, name, startAt, durationMin: 60, capacity: 20, coachId: null, coachName: null,
     status: 'SCHEDULED', programmingStatus: 'DRAFT', bookedCount: 0, waitlistCount: 0, booked: [],
-    myBookingStatus: null, myPosition: null, imagePath: null,
+    myBookingStatus: null, myPosition: null, imagePath: null, coachAvatarPath: null, people: [],
   };
 }
 

@@ -61,7 +61,9 @@ public class SessionController {
     record SessionView(UUID id, String name, Instant startAt, int durationMin, int capacity, UUID coachId,
                        String coachName, String status, String programmingStatus, long bookedCount,
                        long waitlistCount, List<String> booked, String myBookingStatus, Integer myPosition,
-                       String imagePath) {}
+                       String imagePath, String coachAvatarPath, List<Person> people) {}
+
+    public record Person(String name, String avatarPath) {}
 
     @Transactional(readOnly = true) // keep session open for lazy coach/athlete User names
     @GetMapping
@@ -69,11 +71,15 @@ public class SessionController {
         Optional<Membership> caller = memberships.findByUserIdAndBoxId(TenantContext.userId(), TenantContext.requireBoxId());
         List<ClassSession> sessionList = sessions.findByStartAtBetweenOrderByStartAt(from, to);
 
-        // coach names, resolved once
+        // coach names + avatars, resolved once per coach id
         Map<UUID, String> coachNames = new HashMap<>();
+        Map<UUID, String> coachAvatars = new HashMap<>();
         for (ClassSession s : sessionList) {
             if (s.getCoachId() != null && !coachNames.containsKey(s.getCoachId())) {
                 users.findById(s.getCoachId()).ifPresent(u -> coachNames.put(s.getCoachId(), u.getName()));
+                memberships.findByUserIdAndBoxId(s.getCoachId(), TenantContext.requireBoxId())
+                        .map(Membership::getAvatarPath).map(mediaSigner::sign)
+                        .ifPresent(a -> coachAvatars.put(s.getCoachId(), a));
             }
         }
 
@@ -90,9 +96,13 @@ public class SessionController {
         for (ClassSession s : sessionList) {
             List<Booking> bookedRows = bookings.findBySessionIdAndStatusInOrderByPosition(s.getId(), BookingRepository.IN_CLASS);
             List<String> bookedNames = new ArrayList<>();
+            List<Person> people = new ArrayList<>();
             for (Booking b : bookedRows) {
                 if (b.getMembershipId() == null) continue; // a drop-in visitor: counted, not named
-                memberships.findById(b.getMembershipId()).ifPresent(m -> bookedNames.add(m.getUser().getName()));
+                memberships.findById(b.getMembershipId()).ifPresent(m -> {
+                    bookedNames.add(m.getUser().getName());
+                    if (people.size() < 5) people.add(new Person(m.getUser().getName(), mediaSigner.sign(m.getAvatarPath())));
+                });
             }
             long waitlist = bookings.countBySessionIdAndStatus(s.getId(), "WAITLIST");
             String myStatus = null; Integer myPos = null;
@@ -103,7 +113,8 @@ public class SessionController {
             out.add(new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
                     s.getCoachId(), s.getCoachId() == null ? null : coachNames.get(s.getCoachId()),
                     s.getStatus(), s.getProgrammingStatus(), bookedRows.size(), waitlist, bookedNames, myStatus, myPos,
-                    s.getScheduleSlotId() == null ? null : imageBySlot.get(s.getScheduleSlotId())));
+                    s.getScheduleSlotId() == null ? null : imageBySlot.get(s.getScheduleSlotId()),
+                    s.getCoachId() == null ? null : coachAvatars.get(s.getCoachId()), people));
         }
         return out;
     }
@@ -142,7 +153,8 @@ public class SessionController {
         }
 
         return new SessionView(s.getId(), s.getName(), s.getStartAt(), s.getDurationMin(), s.getCapacity(),
-                s.getCoachId(), coachName, s.getStatus(), s.getProgrammingStatus(), booked, waitlist, List.of(), null, null, null);
+                s.getCoachId(), coachName, s.getStatus(), s.getProgrammingStatus(), booked, waitlist, List.of(), null, null, null,
+                null, List.of());
     }
 
     /**
