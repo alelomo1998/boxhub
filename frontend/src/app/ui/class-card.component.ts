@@ -173,7 +173,9 @@ export class ClassCardComponent {
   badgeLabel = input<string | null>(null);
   badgeTone = input<'neutral' | 'good' | 'warn'>('neutral');
 
-  protected readonly shownPeople = computed(() => this.people().slice(0, 5));
+  /** Defensive `?? []`: a frontend deployed ahead of its backend receives rows without `people`,
+   *  and a crash here blanks the whole card (seen live on a stale backend container). */
+  protected readonly shownPeople = computed(() => (this.people() ?? []).slice(0, 5));
   /** peopleCount minus what's actually rendered (never more than 5) — see the component spec:
    *  a `people` array longer than 5 must not make the chip undercount the athletes it hid. */
   protected readonly extraCount = computed(() => Math.max(0, this.peopleCount() - this.shownPeople().length));
