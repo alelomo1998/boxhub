@@ -407,6 +407,16 @@ full e2e run.
   white on volt is 1.1:1. Whoever centralises this must centralise the text colour too, or the next
   accent change silently reintroduces an unreadable button.
 
+### → whichever milestone rebuilds them: detail screens still showing the dock
+
+**Design law 2026-09-18 (user-ruled): a screen that is not a dock tab hides the dock and carries a
+back arrow** to the tab it was opened from. M17a implements the mechanism on `athlete/class/:id`;
+every later screen follows that implementation. Still to convert once their milestone touches them:
+`athlete/board/:itemId` (M17b), `athlete/profile/:membershipId` (M17c), `athlete/notifications` and
+`athlete/notifications/settings`, the messaging thread views, and the coach/admin equivalents
+(`coach/classes/:id/*` runner, check-in and builder screens already fill the viewport — confirm each
+against the rule when its milestone lands).
+
 ### → whichever milestone rebuilds them: screens with no `<h1>`
 
 **Design law 2026-09-18 (user-ruled): every screen carries a visible `<h1>` naming it**, matching its

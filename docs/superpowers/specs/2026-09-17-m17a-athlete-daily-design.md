@@ -163,8 +163,14 @@ Same card, coach actions, Draft/Published badge. Keeps the Announce link and the
 *Shape: pending.*
 
 ### 5.3 Class detail
-Photo hero → coach → Going / In queue grids → one full-width `strong` action (D1) with inline error;
-reload after acting. Error state keeps the way back to Book. *Shape: pending.*
+Photo hero → coach → Going / In queue grids → one full-width action (D1) with its outcome in the
+bottom banner (§4); reload after acting.
+
+**It is the first DETAIL screen (law of 2026-09-18): no dock, a back arrow in the shell header
+returning to Book, and the dock's bottom gutter reclaimed for its primary action — while still
+carrying its own `<h1>`.** M17a decides the mechanism here (route `data` flag read by the shell vs.
+a per-screen input) and every later detail screen follows it; the unconverted ones are filed in
+`docs/BACKLOG.md`. *Shape: pending.*
 
 ### 5.4 Home
 Content (order decided in shape): greeting + date · plan blocker (no plan / expiring) · next class as
