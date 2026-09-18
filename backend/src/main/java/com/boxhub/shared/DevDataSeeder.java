@@ -221,29 +221,61 @@ public class DevDataSeeder implements CommandLineRunner {
         userRepo.save(su);
     }
 
-    /** Generated placeholder images so photo-driven screens render on a fresh box. */
+    /** Real dev-seed photos (see writeJpg) so photo-driven screens render on a fresh box;
+     *  generated placeholder PNGs are the fallback if a bundled photo is missing. */
     private void seedImages(Box box, UUID... userIds) {
         TenantContext.runAsBox(box.getId(), () -> {
+            java.util.Map<String, String> classPhotoByName = java.util.Map.of(
+                    "WOD Class", "class-wod",
+                    "Burn It", "class-burn",
+                    "Weekend Team WOD", "class-team");
+            String[] classPhotos = { "class-wod", "class-burn", "class-team" };
             java.util.Map<String, java.awt.Color> classColors = java.util.Map.of(
                     "WOD Class", new java.awt.Color(0x8a2f1a),
                     "Burn It", new java.awt.Color(0x1a5a52),
                     "Weekend Team WOD", new java.awt.Color(0x3a2f6b));
+            int classIdx = 0;
             for (ClassType t : types.findAll()) {
                 if (t.getImagePath() != null) continue;
-                java.awt.Color c = classColors.getOrDefault(t.getName(), new java.awt.Color(0x444444));
-                String path = writePng(box.getId(), 640, 360, c, "cl-" + t.getId());
+                String photo = classPhotoByName.get(t.getName());
+                if (photo == null) photo = classPhotos[classIdx++ % classPhotos.length];
+                String path = writeJpg(box.getId(), photo, "cl-" + t.getId());
+                if (path == null) {
+                    java.awt.Color c = classColors.getOrDefault(t.getName(), new java.awt.Color(0x444444));
+                    path = writePng(box.getId(), 640, 360, c, "cl-" + t.getId());
+                }
                 if (path != null) { t.setImagePath(path); types.save(t); }
             }
+            String[] avatarPhotos = { "avatar-1", "avatar-2", "avatar-3", "avatar-4" };
             java.awt.Color[] avatarColors = { new java.awt.Color(0xB0562F), new java.awt.Color(0x2F6BB0),
                     new java.awt.Color(0x5A8A3C), new java.awt.Color(0x8A3C7A) };
             int idx = 0;
             for (UUID uid : userIds) {
                 var m = memberships.findByUserIdAndBoxId(uid, box.getId()).orElse(null);
                 if (m == null || m.getAvatarPath() != null) continue;
-                String path = writePng(box.getId(), 200, 200, avatarColors[idx++ % avatarColors.length], "av-" + uid);
+                int i = idx++;
+                String path = writeJpg(box.getId(), avatarPhotos[i % avatarPhotos.length], "av-" + uid);
+                if (path == null) {
+                    path = writePng(box.getId(), 200, 200, avatarColors[i % avatarColors.length], "av-" + uid);
+                }
                 if (path != null) { m.setAvatarPath(path); memberships.save(m); }
             }
         });
+    }
+
+    /** Copies a bundled dev-seed photo (classpath dev-seed/{resource}.jpg) into the media dir;
+     *  returns null (never throws) if the resource is missing so callers fall back to writePng. */
+    private String writeJpg(UUID boxId, String resource, String name) {
+        try (var in = getClass().getResourceAsStream("/dev-seed/" + resource + ".jpg")) {
+            if (in == null) return null;
+            java.nio.file.Path dir = java.nio.file.Path.of(mediaDir).resolve(boxId.toString());
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path file = dir.resolve(name + ".jpg");
+            java.nio.file.Files.copy(in, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return "/media/" + boxId + "/" + name + ".jpg";
+        } catch (Exception e) {
+            return null; // dev seeding only — never fail startup over a placeholder image
+        }
     }
 
     private String writePng(UUID boxId, int w, int h, java.awt.Color color, String name) {
