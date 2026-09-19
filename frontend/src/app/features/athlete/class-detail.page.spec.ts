@@ -4,7 +4,8 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { provideRouter, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { ClassDetailPage } from './class-detail.page';
 import { ShellChromeService } from '../../core/shell-chrome.service';
-import type { SessionDetail, GridEntry } from '../booking/booking.service';
+import { BookStore } from '../booking/book.store';
+import type { SessionDetail, GridEntry, SessionView } from '../booking/booking.service';
 import { bookingReason } from '../booking/booking-reason';
 
 function entry(membershipId: string, name: string, overrides: Partial<GridEntry> = {}): GridEntry {
@@ -18,10 +19,25 @@ function detail(startAt: string, overrides: Partial<SessionDetail> = {}): Sessio
   };
 }
 
+/** A Book-cache row shaped enough to seed the hero — see class-detail.page.ts's HeroSeed comment
+ *  for why this is a SessionView, not a SessionDetail. */
+function bookRow(id: string, startAt: string, overrides: Partial<SessionView> = {}): SessionView {
+  return {
+    id, name: 'Burn It', startAt, durationMin: 60, capacity: 10, coachId: null, coachName: null,
+    status: 'ACTIVE', programmingStatus: 'PUBLISHED', bookedCount: 3, waitlistCount: 0, booked: [],
+    myBookingStatus: null, myPosition: null, imagePath: '/img/burn-it.jpg', coachAvatarPath: null,
+    people: [], ...overrides,
+  };
+}
+
 describe('ClassDetailPage', () => {
   let http: HttpTestingController;
 
-  function setup(id = 's1') {
+  // resetTestingModule: BookStore is root-provided, so without a reset each test would inherit
+  // whatever the PREVIOUS test's BookStore was left holding — including a session literally
+  // called 's1' (this file's fixture id), which would spuriously seed a hero nobody asked for.
+  function setup(id = 's1', bookRows: SessionView[] = []) {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [ClassDetailPage],
       providers: [
@@ -30,6 +46,7 @@ describe('ClassDetailPage', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    if (bookRows.length) TestBed.inject(BookStore).sessions.set(bookRows);
     const fixture = TestBed.createComponent(ClassDetailPage);
     fixture.detectChanges();
     return fixture;
@@ -165,5 +182,57 @@ describe('ClassDetailPage', () => {
     http.expectOne(r => r.method === 'DELETE' && r.url === '/api/box/sessions/s1/booking').flush(null);
     http.expectOne(r => r.url === '/api/box/sessions/s1/detail').flush(detail(soon));
     fixture.detectChanges();
+  });
+
+  describe('hero seed (M17a Task 12b)', () => {
+    it('paints the hero from a BookStore cache hit before the fetch resolves, no loading text', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup('s1', [bookRow('s1', soon, { name: 'Burn It', imagePath: '/img/burn-it.jpg' })]);
+
+      // Before any flush: the hero is already there, driven by the seed.
+      expect(fixture.nativeElement.querySelector('.hero img.ph').src).toContain('/img/burn-it.jpg');
+      expect(fixture.nativeElement.querySelector('.stateline')).toBeTruthy(); // below-hero area still loading
+      expect(fixture.nativeElement.querySelector('.badge')).toBeNull(); // no athleteState yet — no guess
+      // The action bar's height is reserved but empty — no guessed action from the seed.
+      expect(fixture.nativeElement.querySelector('.actionbar')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="detail-action"]')).toBeNull();
+      const chrome = TestBed.inject(ShellChromeService);
+      expect(chrome.detailTitle()).toBe('Burn It');
+
+      // active: one entry, so the "below-hero" area resolves to the grid, not the OTHER (empty
+      // active) stateline — keeps this assertion about the LOADING text specifically.
+      flush(fixture, detail(soon, { name: 'Burn It', imagePath: '/img/burn-it.jpg', active: [entry('m1', 'Sam')] }));
+
+      // Once the real fetch lands, the below-hero content and the action bar fill in — same hero.
+      expect(fixture.nativeElement.querySelector('.stateline')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.hero img.ph').src).toContain('/img/burn-it.jpg');
+    });
+
+    it('applies the view-transition-name to the seeded hero, same as the real one', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup('s1', [bookRow('s1', soon)]);
+
+      const shot = fixture.nativeElement.querySelector('.hero .shot');
+      expect(shot.style.viewTransitionName).toBe('card-photo-s1');
+      http.expectOne(r => r.url === '/api/box/sessions/s1/detail'); // the fetch still fires; unasserted here
+    });
+
+    it('a cold load / deep link with nothing cached falls back to exactly today\'s behaviour', () => {
+      const fixture = setup('s1', []); // no BookStore rows — the ordinary case for every existing test
+
+      expect(fixture.nativeElement.querySelector('.hero')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.stateline').textContent).toContain('Loading class');
+      expect(fixture.nativeElement.querySelector('.actionbar')).toBeNull();
+      http.expectOne(r => r.url === '/api/box/sessions/s1/detail');
+    });
+
+    it('ignores a BookStore row for a DIFFERENT session id', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup('s1', [bookRow('other-session', soon)]);
+
+      expect(fixture.nativeElement.querySelector('.hero')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.stateline').textContent).toContain('Loading class');
+      http.expectOne(r => r.url === '/api/box/sessions/s1/detail');
+    });
   });
 });

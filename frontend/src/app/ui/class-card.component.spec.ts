@@ -1,7 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { CardPerson, ClassCardComponent } from './class-card.component';
+import { CardPerson, classPhotoVtName, classTitleVtName, ClassCardComponent } from './class-card.component';
+
+describe('classPhotoVtName / classTitleVtName', () => {
+  it('derive the SAME suffix from a key, null key renders no name', () => {
+    expect(classPhotoVtName('42')).toBe('card-photo-42');
+    expect(classTitleVtName('42')).toBe('card-title-42');
+    expect(classPhotoVtName(null)).toBeNull();
+    expect(classTitleVtName(null)).toBeNull();
+  });
+});
 
 @Component({
   standalone: true,
@@ -10,7 +19,7 @@ import { CardPerson, ClassCardComponent } from './class-card.component';
     <bh-class-card [title]="title()" [image]="image()" [coach]="coach()" [coachAvatar]="coachAvatar()"
       [people]="people()" [peopleCount]="peopleCount()" [emptyText]="emptyText()"
       [start]="start()" [end]="end()" [suffix]="suffix()" [href]="href()" [tone]="tone()" [testId]="testId()"
-      [badgeLabel]="badgeLabel()" [badgeTone]="badgeTone()" [actionsLayout]="actionsLayout()">
+      [badgeLabel]="badgeLabel()" [badgeTone]="badgeTone()" [actionsLayout]="actionsLayout()" [morphKey]="morphKey()">
       <button actions type="button">Cancel</button>
       <p error>Something went wrong</p>
     </bh-class-card>
@@ -36,6 +45,7 @@ class Host {
   badgeLabel = signal<string | null>('Booked');
   badgeTone = signal<'neutral' | 'good' | 'warn'>('neutral');
   actionsLayout = signal<'inline' | 'block'>('inline');
+  morphKey = signal<string | null>(null);
 }
 
 describe('ClassCardComponent', () => {
@@ -177,6 +187,19 @@ describe('ClassCardComponent', () => {
     expect(label).toContain('12:15–13:00');
     expect(label).toContain('2');
     expect(label.toLowerCase()).toContain('going');
+  });
+
+  it('names the shared-element morph pair from morphKey, null renders no name', () => {
+    const shot = () => f.nativeElement.querySelector('.shot');
+    const nm = () => f.nativeElement.querySelector('.nm');
+    expect(shot().style.viewTransitionName).toBe('');
+    expect(nm().style.viewTransitionName).toBe('');
+
+    host.morphKey.set('42');
+    f.detectChanges();
+
+    expect(shot().style.viewTransitionName).toBe('card-photo-42');
+    expect(nm().style.viewTransitionName).toBe('card-title-42');
   });
 
   it('includes the coach in the aria-label when coach is set, and omits it when not', () => {

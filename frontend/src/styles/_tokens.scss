@@ -124,4 +124,9 @@
   /* reordering: a row trading places travels further than a hover tint fades.
      340ms (this round's prior value) was still called too quick — now 500ms. */
   --dur-move: 500ms;
+  /* The detail-screen shared-element morph (M17a §5.3), locked at 280ms. Between the other two
+     on purpose: longer than --dur (200ms), which reads as a snap on a full-screen photo
+     travelling into a hero, and shorter than --dur-move (500ms), which paces a reorder rather
+     than a one-shot open/close the athlete is waiting on. */
+  --dur-morph: 280ms;
 }

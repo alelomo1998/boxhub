@@ -12,8 +12,19 @@ import { SheetComponent } from '../../ui/sheet.component';
 import { ShellChromeService } from '../../core/shell-chrome.service';
 import { athleteState, AthleteState, Action } from '../booking/class-state';
 import { bookingReason } from '../booking/booking-reason';
+import { classPhotoVtName } from '../../ui/class-card.component';
+import { BookStore } from '../booking/book.store';
 
 type ConfirmAct = 'cancel' | 'leave';
+
+/**
+ * Just enough to paint the hero before `sessionDetail()` resolves (M17a Task 12b) — deliberately
+ * NOT a partial SessionDetail: the two types carry different data (SessionDetail has coach/active/
+ * queue/capacity; this has none of it), and faking one from the other would rot the moment either
+ * shape changes. Structurally a subset of both SessionView (the Book list row) and SessionDetail,
+ * so `heroSource` can read either without knowing which one it has.
+ */
+interface HeroSeed { name: string; imagePath: string | null; startAt: string; durationMin: number; }
 
 /**
  * Class detail — the first DETAIL screen (CLAUDE.md "A SCREEN THAT IS NOT A DOCK TAB..."): no
@@ -33,6 +44,32 @@ type ConfirmAct = 'cancel' | 'leave';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="detail">
+      <!-- Independent of state()/detail(): a seeded hero (from BookStore, set in ngOnInit) paints
+           BEFORE the fetch resolves, so the open-direction shared-element morph has a hero to grow
+           into instead of a blank "Loading class…" screen — the invariant the transition needs is
+           that both sides are painted before the router takes its snapshot (M17a Task 12b). No seed
+           (a cold load / deep link, no source card to morph from) falls back to exactly the
+           original behaviour: nothing here until state() leaves 'loading'. -->
+      @if (heroSource(); as hs) {
+        <div class="hero">
+          <span class="shot" [style.view-transition-name]="photoVtName()">
+            @if (hs.imagePath) {
+              <img class="ph" [src]="hs.imagePath" alt="" />
+            } @else {
+              <span class="initials" aria-hidden="true">{{ initials() }}</span>
+            }
+          </span>
+          @if (badgeLabel(); as bl) {
+            <!-- Deliberately a local copy of bh-class-card's badge chip (~10 lines): bh-pill's
+                 translucent fills are unreadable over a photo, and the chip is not yet its own
+                 component — the third caller (this one) extracts it. Null (never rendered) while
+                 only the seed is in: the badge needs athleteState(), which needs the real fetch. -->
+            <span class="badge" [class.good]="badgeTone() === 'good'" [class.warn]="badgeTone() === 'warn'">{{ bl }}</span>
+          }
+          <span class="eyebrow">{{ eyebrow() }}</span>
+        </div>
+      }
+
       @switch (state()) {
         @case ('loading') { <p class="stateline" i18n="@@athlete.classDetail.loading">Loading class…</p> }
         @case ('error') {
@@ -46,21 +83,6 @@ type ConfirmAct = 'cancel' | 'leave';
         }
         @default {
           @if (detail(); as d) {
-            <div class="hero">
-              @if (d.imagePath) {
-                <img class="ph" [src]="d.imagePath" alt="" />
-              } @else {
-                <span class="initials" aria-hidden="true">{{ initials() }}</span>
-              }
-              @if (badgeLabel(); as bl) {
-                <!-- Deliberately a local copy of bh-class-card's badge chip (~10 lines): bh-pill's
-                     translucent fills are unreadable over a photo, and the chip is not yet its own
-                     component — the third caller (this one) extracts it. -->
-                <span class="badge" [class.good]="badgeTone() === 'good'" [class.warn]="badgeTone() === 'warn'">{{ bl }}</span>
-              }
-              <span class="eyebrow">{{ eyebrow() }}</span>
-            </div>
-
             @if (d.coach; as c) {
               <div class="coach">
                 <bh-avatar [path]="c.avatarPath" [name]="c.name" size="lg" />
@@ -95,23 +117,32 @@ type ConfirmAct = 'cancel' | 'leave';
                 }
               </div>
             }
-
-            <div class="barspace" aria-hidden="true"></div>
           }
         }
       }
+
+      <!-- Reserved together with the action bar below, as soon as the hero paints (seed or real)
+           — not gated on detail() — so the fixed bar filling in with its real content never shifts
+           the document (the space was already there). -->
+      @if (heroSource()) { <div class="barspace" aria-hidden="true"></div> }
     </section>
 
-    @if (detail(); as d) {
+    @if (heroSource()) {
       <div class="actionbar">
-        @let st = athleteState();
-        @if (st?.action; as act) {
-          <bh-button size="lg" class="full" testId="detail-action" [variant]="actionVariant(act)"
-                     [loading]="busy()" (click)="onAction(act)">{{ actionLabel(act) }}</bh-button>
+        @if (detail(); as d) {
+          @let st = athleteState();
+          @if (st?.action; as act) {
+            <bh-button size="lg" class="full" testId="detail-action" [variant]="actionVariant(act)"
+                       [loading]="busy()" (click)="onAction(act)">{{ actionLabel(act) }}</bh-button>
+          } @else {
+            <p class="statetext" tabindex="-1">{{ stateText() }}</p>
+          }
+          @if (errorMsg(); as em) { <p class="inlineerr" role="alert" data-testid="detail-error">{{ em }}</p> }
         } @else {
-          <p class="statetext" tabindex="-1">{{ stateText() }}</p>
+          <!-- Seed-only: the bar's height is reserved but nothing renders in it yet — a guessed
+               action would be wrong more often than it's right, so this waits for the real fetch. -->
+          <p class="statetext" aria-hidden="true"></p>
         }
-        @if (errorMsg(); as em) { <p class="inlineerr" role="alert" data-testid="detail-error">{{ em }}</p> }
       </div>
     }
 
@@ -142,8 +173,12 @@ type ConfirmAct = 'cancel' | 'leave';
     .backlink { color: var(--bone); text-decoration: underline; }
 
     .hero { position: relative; height: 260px; background: var(--surface-2); overflow: hidden; }
+    /* The "photo surface" — image + scrim, named for the shared-element morph (M17a Task 12b), the
+       same pairing as bh-class-card's .shot: it carries the hero's own rect (a wrapper, not a
+       restyle), and deliberately excludes the badge/eyebrow so only the photo scales under it. */
+    .hero .shot { position: absolute; inset: 0; display: block; }
     .hero .ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-    .hero::after { content: ''; position: absolute; inset: 0;
+    .hero .shot::after { content: ''; position: absolute; inset: 0;
       background: linear-gradient(180deg, transparent 30%, var(--scrim-card) 60%, var(--scrim-card) 100%); }
     /* Centred, not top-right like bh-class-card's: the badge also sits top-right and at this
        hero's 40px type the two overlap. A 260px hero has the room the 170px card does not. */
@@ -212,6 +247,7 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   private el: ElementRef<HTMLElement> = inject(ElementRef);
   private injector = inject(Injector);
   protected chrome = inject(ShellChromeService);
+  private store = inject(BookStore);
 
   private readonly attendedBadge = $localize`:@@athlete.classDetail.badge.attended:✓ Attended`;
   private readonly bookedBadge = $localize`:@@athlete.classDetail.badge.booked:Booked`;
@@ -235,6 +271,12 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   private id!: string;
 
   readonly detail = signal<SessionDetail | null>(null);
+  /** Set synchronously in ngOnInit from a BookStore peek, before the fetch — see HeroSeed's
+   *  comment. Never authoritative: `heroSource` prefers `detail()` the moment it arrives. */
+  readonly seed = signal<HeroSeed | null>(null);
+  /** What the hero renders from: the real fetch once it lands, the seed until then, null when
+   *  there is neither (a cold load / deep link with nothing to paint early). */
+  protected readonly heroSource = computed<HeroSeed | SessionDetail | null>(() => this.detail() ?? this.seed());
   readonly state = signal<'loading' | 'error' | 'ready'>('loading');
   readonly busy = signal(false);
   readonly errorMsg = signal<string | null>(null);
@@ -254,12 +296,16 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   });
 
   protected readonly initials = computed(() => {
-    const d = this.detail();
+    const d = this.heroSource();
     return d ? d.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() : '';
   });
 
+  /** The route id, known synchronously from ngOnInit — unlike detailTitle this does not wait on
+   *  the fetch, so the hero's half of the shared-element pair is named as early as possible. */
+  protected readonly photoVtName = computed(() => classPhotoVtName(this.id ?? null));
+
   protected readonly eyebrow = computed(() => {
-    const d = this.detail();
+    const d = this.heroSource();
     if (!d) return '';
     const end = new Date(new Date(d.startAt).getTime() + d.durationMin * 60000).toISOString();
     const date = formatDate(d.startAt, 'EEE d MMM', this.locale);
@@ -298,13 +344,27 @@ export class ClassDetailPage implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.id = this.route.snapshot.paramMap.get('id')!;
+    // Set before the fetch, not inside load()'s callback like detailTitle: the morph key needs no
+    // server data (it IS the route id), and the shared-element pair only has a chance to form if
+    // the name is on the DOM by the time the view transition's new-state snapshot is taken.
+    this.chrome.detailMorphKey.set(this.id);
+    // Peek Book's cache for the session being opened (M17a Task 12b) — synchronous, no request:
+    // the open-direction morph needs the hero painted before the fetch resolves, same invariant as
+    // the close direction needed Book's cards already painted. No entry (cold load / deep link) is
+    // simply no seed; the screen then falls back to exactly today's behaviour.
+    const peek = this.store.sessions().find(s => s.id === this.id);
+    if (peek) {
+      this.seed.set({ name: peek.name, imagePath: peek.imagePath, startAt: peek.startAt, durationMin: peek.durationMin });
+      this.chrome.detailTitle.set(peek.name); // overwritten with the authoritative name in load()
+    }
     this.load();
   }
 
   ngOnDestroy() {
-    // Belt and braces: ShellChromeService also clears this on the next NavigationEnd that leaves
+    // Belt and braces: ShellChromeService also clears these on the next NavigationEnd that leaves
     // a detail route, but a screen owning its own title should not depend solely on that.
     this.chrome.detailTitle.set(null);
+    this.chrome.detailMorphKey.set(null);
   }
 
   load() {

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
@@ -11,6 +11,7 @@ import { BoxSwitcherComponent } from '../gyms/box-switcher.component';
 import { MessagesEnvelopeComponent } from '../messaging/messages-envelope.component';
 import { NotificationBellComponent } from '../notifications/notification-bell.component';
 import { ShellChromeService } from '../../core/shell-chrome.service';
+import { classTitleVtName } from '../../ui/class-card.component';
 
 /** Athlete shell: header nav on desktop, floating pill dock on mobile. */
 @Component({
@@ -30,7 +31,7 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
           @if (chrome.detail()) {
             <button type="button" class="back" (click)="goBack()"
                     aria-label="Back" i18n-aria-label="@@shell.detail.back">←</button>
-            <h1 class="dtitle">{{ chrome.detailTitle() }}</h1>
+            <h1 class="dtitle" [style.view-transition-name]="titleVtName()">{{ chrome.detailTitle() }}</h1>
           } @else {
             <bh-box-switcher />
           }
@@ -100,6 +101,11 @@ export class AthleteShellPage implements OnInit {
   profileOpen = signal(false);
   avatarPath = signal<string | null>(null);
   userName = '';
+
+  /** The shared-element morph's title half (M17a Task 12b) — same naming convention bh-class-card
+   *  derives its own half from, keyed off ShellChromeService.detailMorphKey so this shell never
+   *  needs to know a session id itself. */
+  protected readonly titleVtName = computed(() => classTitleVtName(this.chrome.detailMorphKey()));
 
   tabs: DockTab[] = [
     { link: 'home', label: 'Home', icon: 'house' },

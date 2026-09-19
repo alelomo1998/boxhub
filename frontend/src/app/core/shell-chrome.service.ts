@@ -2,6 +2,15 @@ import { Injectable, inject, signal } from '@angular/core';
 import { ActivatedRouteSnapshot, NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 
+/** Walks a router state's root snapshot to the deepest activated child — the route whose own
+ *  `data` actually applies (`data.detail`, `data.backTo`, ...). Exported so `app.config.ts`'s
+ *  view-transition skip predicate (M17a Task 12b) reads the same route this service reads, rather
+ *  than re-walking `firstChild` a second time. */
+export function deepestRoute(snap: ActivatedRouteSnapshot): ActivatedRouteSnapshot {
+  while (snap.firstChild) snap = snap.firstChild;
+  return snap;
+}
+
 /** Root-provided so a screen (the conversation composer) and the three shells share one flag
  *  without a parent/child input chain. */
 @Injectable({ providedIn: 'root' })
@@ -19,6 +28,14 @@ export class ShellChromeService {
    *  navigation. Cleared automatically on every navigation that leaves a detail route, so a stale
    *  name can never leak onto the next screen even if a screen forgets to reset it on destroy. */
   readonly detailTitle = signal<string | null>(null);
+
+  /** The travelling title's `view-transition-name` suffix (M17a Task 12b) — the session id the
+   *  detail screen is showing. Set by the screen alongside `detailTitle`, for the same reason
+   *  (not known until the fetch resolves) and cleared the same two ways (route-driven here, and
+   *  the screen's own ngOnDestroy as belt and braces). The shell header's `.dtitle` binds this so
+   *  it carries the SAME name as the card's `.nm` it grew from — bh-class-card derives its own
+   *  half of the pair straight from the session id, no service involved on that side. */
+  readonly detailMorphKey = signal<string | null>(null);
 
   private readonly _detail = signal(false);
   private readonly _backTo = signal<string | null>(null);
@@ -40,13 +57,12 @@ export class ShellChromeService {
   }
 
   private readRoute() {
-    let snap: ActivatedRouteSnapshot = this.router.routerState.root.snapshot;
-    while (snap.firstChild) snap = snap.firstChild;
+    const snap = deepestRoute(this.router.routerState.root.snapshot);
     const isDetail = !!snap.data['detail'];
     this._detail.set(isDetail);
     this._backTo.set(isDetail ? (snap.data['backTo'] ?? null) : null);
-    // Belt and braces: a class name from one detail screen must never survive into the next
-    // screen, detail or not — the screen itself also clears this on ngOnDestroy.
-    if (!isDetail) this.detailTitle.set(null);
+    // Belt and braces: a class name (or its morph key) from one detail screen must never survive
+    // into the next screen, detail or not — the screen itself also clears both on ngOnDestroy.
+    if (!isDetail) { this.detailTitle.set(null); this.detailMorphKey.set(null); }
   }
 }

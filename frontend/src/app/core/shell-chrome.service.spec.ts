@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
-import { ShellChromeService } from './shell-chrome.service';
+import { ActivatedRouteSnapshot, Router, provideRouter } from '@angular/router';
+import { deepestRoute, ShellChromeService } from './shell-chrome.service';
 
 describe('ShellChromeService', () => {
   function setup() {
@@ -59,5 +59,29 @@ describe('ShellChromeService', () => {
     await router.navigateByUrl('/nested/child');
     expect(service.detail()).toBe(true);
     expect(service.detailTitle()).toBe('Burn It');
+  });
+
+  it('clears detailMorphKey on leaving a detail route, same as detailTitle', async () => {
+    const { service, router } = setup();
+    await router.navigateByUrl('/x');
+    service.detailMorphKey.set('session-1');
+    expect(service.detailMorphKey()).toBe('session-1');
+
+    await router.navigateByUrl('/plain');
+    expect(service.detailMorphKey()).toBeNull();
+  });
+});
+
+describe('deepestRoute', () => {
+  it('walks to the leaf snapshot', () => {
+    const leaf = { firstChild: null, data: { x: 1 } } as unknown as ActivatedRouteSnapshot;
+    const mid = { firstChild: leaf, data: {} } as unknown as ActivatedRouteSnapshot;
+    const root = { firstChild: mid, data: {} } as unknown as ActivatedRouteSnapshot;
+    expect(deepestRoute(root)).toBe(leaf);
+  });
+
+  it('returns the snapshot itself when it has no children', () => {
+    const only = { firstChild: null, data: {} } as unknown as ActivatedRouteSnapshot;
+    expect(deepestRoute(only)).toBe(only);
   });
 });

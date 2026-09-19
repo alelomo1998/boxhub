@@ -57,3 +57,27 @@ nav a { text-decoration: none; }
 .bh-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
+
+/* Class detail's open/close shared-element morph (M17a Task 12b, spec §5.3): `::view-transition-*`
+   pseudo-elements live on the document root, outside the regular DOM tree, so no component's
+   encapsulated styles can reach them — this is the only place they can be styled. bh-class-card and
+   class-detail.page.ts/athlete-shell.page.ts pair up a `view-transition-name` on the photo surface
+   and the title; this rule is what makes BOTH pairs travel at the locked 280ms/--ease-move instead
+   of the browser's default (a plain 250ms cross-fade). app.config.ts's onViewTransitionCreated
+   keeps this scoped to detail navigations only — everywhere else the router skips the transition
+   entirely, so this rule never fires on an ordinary route change. */
+::view-transition-group(*) {
+  animation-duration: var(--dur-morph);
+  animation-timing-function: var(--ease-move);
+}
+
+/* The universal reduced-motion rule above (`*, *::before, *::after`) does not reach these — they
+   sit outside the tree that selector walks. Disabling the animation here, rather than skipping the
+   transition upstream, can no longer deadlock the screen the way the hand-rolled prototype's
+   `transitionend` wait could: the router's navigation resolves regardless of whether anything
+   animates, so a reduced-motion visitor just sees the two screens swap instantly. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

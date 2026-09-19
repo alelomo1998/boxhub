@@ -8,16 +8,12 @@ import { BannerComponent } from '../../ui/banner.component';
 import { SheetComponent } from '../../ui/sheet.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
-import { sessionWindow, covers, SessionWindow } from '../booking/session-window';
+import { sessionWindow } from '../booking/session-window';
 import { athleteState, AthleteState, Action } from '../booking/class-state';
 import { bookingReason } from '../booking/booking-reason';
+import { BookStore } from '../booking/book.store';
 
 function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
-
-/** A window that covers no day at all. Assigned on a failed load instead of leaving the previous
- *  (or default) window in place — an un-reset window is exactly what stranded the athlete for the
- *  whole ±14-day span: `covers()` kept reporting the day as already loaded, so paging never retried. */
-const NO_WINDOW: SessionWindow = { from: new Date(0), to: new Date(0) };
 
 /** Book a class: date pager + the shared class card, one per session of the selected day. */
 @Component({
@@ -56,7 +52,9 @@ const NO_WINDOW: SessionWindow = { from: new Date(0), to: new Date(0) };
               [badgeTone]="badgeToneFor(s)"
               [href]="['/athlete/class', s.id]"
               [tone]="toneOf(s)"
-              [testId]="'session-' + s.id">
+              [testId]="'session-' + s.id"
+              [morphKey]="s.id"
+              (click)="recordScrollBeforeOpen()">
               @let act = stateOf(s).action;
               <!-- Design law: the control that OPENS a destructive flow is a danger-bordered ghost
                    (Cancel / Leave waitlist); the confirm sheet's execute control is filled danger.
@@ -131,6 +129,7 @@ export class BookPage implements OnInit {
   private locale = inject(LOCALE_ID);
   private el: ElementRef<HTMLElement> = inject(ElementRef);
   private injector = inject(Injector);
+  private store = inject(BookStore);
 
   private readonly attendedBadge = $localize`:@@athlete.book.badge.attended:✓ Attended`;
   private readonly bookedBadge = $localize`:@@athlete.book.badge.booked:Booked`;
@@ -146,7 +145,10 @@ export class BookPage implements OnInit {
   private readonly cancelConfirmExecute = $localize`:@@athlete.book.confirm.cancel.execute:Cancel booking`;
   private readonly leaveConfirmExecute = $localize`:@@athlete.book.confirm.leave.execute:Leave waitlist`;
 
-  readonly sessions = signal<SessionView[]>([]);
+  /** Held by BookStore, not this page (M17a Task 12b) — a return trip from class detail must find
+   *  the departure day's cards already painted for the shared-element collapse to have anything to
+   *  pair with; see BookStore's own doc comment. */
+  readonly sessions = this.store.sessions;
   readonly error = signal('');
   readonly loading = signal(true);
   readonly busy = signal<string | null>(null);
@@ -160,10 +162,9 @@ export class BookPage implements OnInit {
     const b = this.banner();
     return b ? [b] : [];
   });
-  readonly dayOffset = signal(0);
-
-  /** The [from, to] this page last fetched — reloaded only when the selected day leaves it. */
-  private window: SessionWindow = sessionWindow(0);
+  /** Held by BookStore too, same reason as `sessions`: which day was selected must survive the
+   *  round trip through class detail. */
+  readonly dayOffset = this.store.dayOffset;
 
   readonly day = computed(() => {
     const d = new Date();
@@ -179,24 +180,87 @@ export class BookPage implements OnInit {
   /** Per-day availability for the strip's dots, from sessions already fetched — no extra request. */
   readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
+  /** The offset `handleOffset` last decided a fetch for. Serves two purposes: (1) dedupe — the
+   *  constructor's `effect()` ALWAYS fires once immediately in addition to reacting to later
+   *  `dayOffset` changes, and Angular does not guarantee that first run lands before or after
+   *  ngOnInit, so both call the same guarded method instead of each deciding independently, which
+   *  was firing the initial request twice (measured: `http.expectOne` failing with "found 2
+   *  requests"); (2) marks whether a decision has been made yet at all, so the cache-render +
+   *  silent-revalidate special case below applies at MOUNT only, never to an ordinary day-to-day
+   *  page within an already-loaded window (that already worked with a plain covers() check before
+   *  this store existed, and silently revalidating on every page would be wasted traffic). */
+  private lastHandledOffset: number | null = null;
+
   constructor() {
-    effect(() => {
-      const offset = this.dayOffset();
-      if (!covers(this.window, offset)) this.load();
-    });
+    effect(() => this.handleOffset(this.dayOffset()));
   }
 
-  ngOnInit() { this.load(); }
+  ngOnInit() {
+    this.handleOffset(this.dayOffset());
+  }
 
-  load() {
-    this.error.set('');
-    this.loading.set(true);
+  private handleOffset(offset: number) {
+    if (this.lastHandledOffset === offset) return; // the redundant duplicate mandatory first run
+    const isMount = this.lastHandledOffset === null;
+    this.lastHandledOffset = offset;
+    if (isMount && this.store.covers(offset)) {
+      // A return trip from class detail (or any remount with this day already cached): render
+      // what's there immediately, no loading flash — required for the shared-element collapse to
+      // have a card to land on — then revalidate in the background so a booking made on the
+      // detail screen is reflected in this card's badge/action.
+      this.loading.set(false);
+      this.load(true);
+      this.restoreScroll();
+      return;
+    }
+    if (!this.store.covers(offset)) this.load();
+  }
+
+  /** Bound to (click) on every card (M17a Task 12b) — cheap and harmless to also fire on a
+   *  Book/Cancel button tap (same current scroll position either way); scoped to the ONE trip
+   *  that follows by BookStore.takeScroll()'s read-and-clear. */
+  protected recordScrollBeforeOpen() {
+    this.store.saveScroll(window.scrollY);
+  }
+
+  /** The collapse animates to the departure card's real rect, so a return trip that resets to the
+   *  top lands the morph on empty space or a different card. afterNextRender, not a synchronous
+   *  window.scrollTo(): the cached list is available synchronously (it is already in the store)
+   *  but not yet PAINTED at this point in handleOffset, so scrolling now would clamp against the
+   *  pre-list document height. Ordering VERIFIED, not assumed (Playwright, 393px, a card scrolled
+   *  to y=695): the close-direction sample at the transition's FIRST frame already reads the
+   *  post-restore rect (393x260 at y=61, the hero's own box — nothing to do with scroll), and the
+   *  collapse lands on the scrolled card's real position (x17,y311) both before opening and after
+   *  returning, not the unscrolled y=282 a lost restore would have produced. So this DOES land
+   *  before the router's own view-transition snapshot — this component's ngOnInit runs as part of
+   *  activating the route, before the router's createRenderPromise() schedules ITS afterNextRender
+   *  that unblocks the snapshot, and afterNextRender callbacks run in registration order. */
+  private restoreScroll() {
+    const y = this.store.takeScroll();
+    if (y === null) return;
+    afterNextRender(() => window.scrollTo(0, y), { injector: this.injector });
+  }
+
+  load(silent = false) {
+    if (!silent) { this.error.set(''); this.loading.set(true); }
     const w = sessionWindow(this.dayOffset());
     this.booking.listSessions(w.from.toISOString(), w.to.toISOString()).subscribe({
-      next: s => { this.window = w; this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
-      // NO_WINDOW, not `w`: leaving the requested window in place made the effect below believe
-      // the ±14-day span was already loaded, so changing days never retried a failed fetch.
-      error: () => { this.window = NO_WINDOW; this.loading.set(false); this.error.set(this.loadErrorText); },
+      next: s => {
+        this.store.setWindow(w);
+        this.store.sessions.set(s.filter(x => x.status !== 'CANCELLED'));
+        if (!silent) this.loading.set(false);
+      },
+      error: () => {
+        // A silent revalidate failure keeps showing the cached list untouched — the cache is still
+        // believed good, and a foreground retry stays available (Try again, or the next day change).
+        if (silent) return;
+        // resetWindow(), not leaving `w` in place: an un-reset window is exactly what stranded the
+        // athlete for the whole ±14-day span — covers() kept reporting the day as already loaded,
+        // so paging never retried.
+        this.store.resetWindow();
+        this.loading.set(false);
+        this.error.set(this.loadErrorText);
+      },
     });
   }
 
@@ -335,7 +399,15 @@ export class BookPage implements OnInit {
     call.subscribe({
       next: () => {
         this.busy.set(null);
-        this.load();
+        // load(true) — SILENT — not load(): the athlete acted on ONE card, so flipping `loading`
+        // here blanked the whole list behind a "Loading classes…" stateline and remounted it a
+        // beat later, which read as the page refreshing (user-reported). The card that changed
+        // still updates once the revalidate resolves (store.sessions() drives the template), and
+        // if this background refetch itself fails, load(true) already leaves the cached list on
+        // screen rather than dropping into the error block — the banner below is the athlete's
+        // confirmation that the action worked, and staying silent on a failed REVALIDATE (as
+        // opposed to the action itself, which already succeeded) must not contradict it.
+        this.load(true);
         this.banner.set({ seq: ++this.bannerSeq, tone: opts?.tone ?? 'good', message: onSuccess() });
         opts?.afterSuccess?.();
       },

@@ -3,6 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { BookPage } from './book.page';
+import { BookStore } from '../booking/book.store';
 import type { SessionView } from '../booking/booking.service';
 import { bookingReason } from '../booking/booking-reason';
 
@@ -23,6 +24,7 @@ describe('BookPage', () => {
   let http: HttpTestingController;
 
   function setup(sessions: SessionView[]) {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [BookPage],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
@@ -69,6 +71,54 @@ describe('BookPage', () => {
     http.expectOne(r => r.url === '/api/box/sessions')
       .flush([session('s1', soon, { bookedCount: 4, capacity: 10, myBookingStatus: 'BOOKED' })]);
     fixture.detectChanges();
+  });
+
+  it('booking does not blank the list behind a loading state, and the card updates once the silent revalidate resolves', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { bookedCount: 3, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="book-btn"]').click();
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book')
+      .flush({ bookingId: 'b1', status: 'BOOKED', position: null });
+    fixture.detectChanges();
+
+    // The revalidate GET is already in flight, but the list must stay mounted throughout — this
+    // is the regression: `load()` (non-silent) used to flip `loading`, unmounting every card
+    // behind "Loading classes…" for the round trip, which read as the whole page refreshing.
+    expect(fixture.nativeElement.querySelector('.stateline')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="session-s1"]')).not.toBeNull();
+
+    http.expectOne(r => r.url === '/api/box/sessions')
+      .flush([session('s1', soon, { bookedCount: 4, capacity: 10, myBookingStatus: 'BOOKED' })]);
+    fixture.detectChanges();
+
+    // The card's own state (badge/action) still updates once the silent revalidate resolves.
+    const card = fixture.nativeElement.querySelector('[data-testid="session-s1"]');
+    expect(card.querySelector('.badge').textContent).toContain('Booked');
+    expect(card.querySelector('[data-testid="cancel-btn"]')).not.toBeNull();
+    expect(card.querySelector('[data-testid="book-btn"]')).toBeNull();
+  });
+
+  it('a revalidate that fails after a successful cancel keeps the cached list, not the error block', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon, { name: 'Burn It', myBookingStatus: 'BOOKED', bookedCount: 4, capacity: 10 })]);
+
+    fixture.nativeElement.querySelector('[data-testid="session-s1"] [data-testid="cancel-btn"]').click();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="confirm-execute"]').click();
+
+    http.expectOne(r => r.method === 'DELETE' && r.url === '/api/box/sessions/s1/booking').flush(null);
+    fixture.detectChanges();
+    http.expectOne(r => r.url === '/api/box/sessions').flush(null, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    // The cancel itself succeeded (a danger outcome banner, per §4 — losing a place is not a
+    // "good" outcome) and stays the source of truth; the failed background revalidate must not
+    // drop the athlete into the load-error block or clear the (now slightly stale) list.
+    const banner = fixture.nativeElement.querySelector('bh-banner .alert.danger');
+    expect(banner.textContent).toContain('Burn It');
+    expect(fixture.nativeElement.querySelector('[data-testid="book-error"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="session-s1"]')).not.toBeNull();
   });
 
   it('full shows Join waitlist with book-btn', () => {
@@ -261,6 +311,7 @@ describe('BookPage', () => {
   });
 
   it('a failed load shows the error and NOT the empty state', () => {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [BookPage],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
@@ -276,6 +327,7 @@ describe('BookPage', () => {
   });
 
   it('the retry button re-issues the request and clears the error', () => {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [BookPage],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
@@ -296,6 +348,7 @@ describe('BookPage', () => {
   });
 
   it('a day change after a failed load refetches', () => {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [BookPage],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
@@ -315,6 +368,100 @@ describe('BookPage', () => {
     expect(req.request.url).toBe('/api/box/sessions');
     req.flush([]);
     fixture.detectChanges();
+  });
+
+  it('a remount with the day already cached renders immediately (no loading state) and revalidates silently', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    setup([session('s1', soon, { bookedCount: 3, capacity: 10 })]);
+    // A second BookPage instance sharing the same root-provided BookStore — the way the router
+    // creates a fresh component each time Book is (re)navigated to, e.g. returning from class
+    // detail. This is the case the shared-element collapse needs: the card must already be in the
+    // DOM, not behind a loading state, when the browser takes its new-state view-transition snapshot.
+    const fixtureB = TestBed.createComponent(BookPage);
+    fixtureB.detectChanges();
+
+    expect(fixtureB.nativeElement.querySelector('.stateline')).toBeNull();
+    expect(fixtureB.nativeElement.querySelector('[data-testid="session-s1"]')).not.toBeNull();
+
+    // Still revalidates in the background, so a booking made elsewhere shows up here.
+    http.expectOne(r => r.url === '/api/box/sessions')
+      .flush([session('s1', soon, { bookedCount: 4, capacity: 10 })]);
+    fixtureB.detectChanges();
+    expect(fixtureB.nativeElement.querySelector('[data-testid="session-s1"] .suffix').textContent).toContain('6');
+  });
+
+  it('a silent revalidate failure keeps the cached list instead of clearing it or showing an error', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    setup([session('s1', soon, { bookedCount: 3, capacity: 10 })]);
+    const fixtureB = TestBed.createComponent(BookPage);
+    fixtureB.detectChanges();
+
+    http.expectOne(r => r.url === '/api/box/sessions').flush(null, { status: 500, statusText: 'Server Error' });
+    fixtureB.detectChanges();
+
+    expect(fixtureB.nativeElement.querySelector('[data-testid="session-s1"]')).not.toBeNull();
+    expect(fixtureB.nativeElement.querySelector('[data-testid="book-error"]')).toBeNull();
+  });
+
+  it('records window.scrollY when a card is opened, for BookStore to restore on return', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup([session('s1', soon)]);
+    // Object.defineProperty, not spyOnProperty(window, 'scrollY', 'get'): shell-header.component
+    // .spec.ts redefines window.scrollY as a plain value property (not restored to an accessor
+    // afterward), and Karma runs every spec file in one page load — spyOnProperty then flakily
+    // throws "does not have access type get" depending on file execution order. This pattern is
+    // the one shell-header's own spec already uses, and works regardless of the property's
+    // current descriptor.
+    Object.defineProperty(window, 'scrollY', { value: 400, configurable: true });
+
+    // The click on the card host, not the router navigation itself — same handler either way.
+    fixture.nativeElement.querySelector('bh-class-card').click();
+
+    expect(TestBed.inject(BookStore).takeScroll()).toBe(400);
+  });
+
+  it('restores the saved scroll position on a cache-hit remount, then consumes it (one-shot)', async () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    setup([session('s1', soon)]);
+    TestBed.inject(BookStore).saveScroll(400);
+    const scrollTo = spyOn(window, 'scrollTo');
+
+    const fixtureB = TestBed.createComponent(BookPage);
+    fixtureB.detectChanges();
+    // afterNextRender fires after a render tick — whenStable() waits for exactly that without
+    // pinning to a fixed setTimeout, so this isn't racing the same timing the real app relies on.
+    await fixtureB.whenStable();
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 400);
+    // Revalidate GET still in flight from the cache-hit mount — flush it so afterEach's verify() passes.
+    http.expectOne(r => r.url === '/api/box/sessions').flush([session('s1', soon)]);
+
+    // One-shot: a saved value is never reapplied to a LATER mount that didn't just come from detail.
+    scrollTo.calls.reset();
+    const fixtureC = TestBed.createComponent(BookPage);
+    fixtureC.detectChanges();
+    await fixtureC.whenStable();
+    expect(scrollTo).not.toHaveBeenCalled();
+    http.expectOne(r => r.url === '/api/box/sessions').flush([session('s1', soon)]);
+  });
+
+  it('does not restore scroll on a fresh (uncached) mount', async () => {
+    TestBed.resetTestingModule(); // a genuinely fresh BookStore — window uncovered, unlike the
+                                   // previous test's, which would otherwise make this a cache hit.
+    TestBed.configureTestingModule({
+      imports: [BookPage],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+    TestBed.inject(BookStore).saveScroll(400); // stale/unrelated — no card was ever opened this trip
+    const scrollTo = spyOn(window, 'scrollTo');
+
+    const fixture = TestBed.createComponent(BookPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(scrollTo).not.toHaveBeenCalled();
+    http.expectOne(r => r.url === '/api/box/sessions').flush([]);
   });
 
   it('a card action shows a pending state while the request is in flight', () => {

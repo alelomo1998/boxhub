@@ -14,6 +14,20 @@ export interface CardPerson {
 }
 
 /**
+ * The shared-element morph's naming convention (M17a Task 12b, spec §5.3) — exported so class
+ * detail's hero (`class-detail.page.ts`) and the shell header's title (`athlete-shell.page.ts`)
+ * derive the SAME name from the same session id instead of hand-matching a string literal in three
+ * files. A `view-transition-name` must be unique among rendered elements and identical on both
+ * sides of a navigation for the browser to pair old and new as one morph.
+ */
+export function classPhotoVtName(key: string | null): string | null {
+  return key ? `card-photo-${key}` : null;
+}
+export function classTitleVtName(key: string | null): string | null {
+  return key ? `card-title-${key}` : null;
+}
+
+/**
  * The shared class card (spec §3.1, "A2 · bone ring"): full-bleed photo, title + coach on a light
  * scrim, who's-going avatar stack, a badge on the photo and a strip below it with the time range
  * and a projected action. One component behind athlete Book and coach Classes.
@@ -32,17 +46,19 @@ export interface CardPerson {
   template: `
     <ng-template #photoBody>
       <div class="photo">
-        @if (image()) {
-          <img class="ph" [class.past]="tone() === 'past'" [src]="image()!" alt="" loading="lazy" />
-        } @else {
-          <span class="initials" aria-hidden="true">{{ initials() }}</span>
-        }
+        <span class="shot" [style.view-transition-name]="photoVtName()">
+          @if (image()) {
+            <img class="ph" [class.past]="tone() === 'past'" [src]="image()!" alt="" loading="lazy" />
+          } @else {
+            <span class="initials" aria-hidden="true">{{ initials() }}</span>
+          }
+        </span>
         @if (badgeLabel()) {
           <span class="badge" [class.good]="badgeTone() === 'good'" [class.warn]="badgeTone() === 'warn'">{{ badgeLabel() }}</span>
         }
         <div class="txt">
           <div class="line">
-            <span class="nm">{{ title() }}</span>
+            <span class="nm" [style.view-transition-name]="titleVtName()">{{ title() }}</span>
             @if (coach()) {
               <span class="sep" aria-hidden="true">·</span>
               <span class="coach">
@@ -96,12 +112,17 @@ export interface CardPerson {
     a.body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
     .photo { position: relative; height: 170px; background: var(--surface-2); overflow: hidden; }
+    /* The "photo surface" (M17a Task 12b): image + scrim, named for the open/close shared-element
+       morph — deliberately NOT the badge or the title text, which would distort under a scale.
+       .shot fills .photo exactly, so it carries the SAME rect the greyscale/scrim always had;
+       this is a wrapper, not a restyle. */
+    .shot { position: absolute; inset: 0; display: block; }
     .ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
     /* Greyscale lands on the img element only — never the badge or text sitting above it. */
     .ph.past { filter: grayscale(.85) brightness(.75); }
     /* Light scrim, not adaptive (user-ruled 2026-09-17, spec §3.1): known cost on a very bright
        photo, accepted rather than reopened. */
-    .photo::after { content: ''; position: absolute; inset: 0;
+    .shot::after { content: ''; position: absolute; inset: 0;
       background: linear-gradient(180deg, transparent 28%, var(--scrim-card) 55%, var(--scrim-card) 100%); }
     .initials { position: absolute; top: var(--sp-2); right: var(--sp-3); z-index: 1;
       font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
@@ -178,6 +199,11 @@ export class ClassCardComponent {
   href = input<string | readonly unknown[] | null>(null);
   tone = input<'default' | 'past'>('default');
   testId = input<string | null>(null);
+  /** Drives the shared-element `view-transition-name` pair with class detail (M17a Task 12b, spec
+   *  §5.3) — null (the default) renders no name, so every OTHER card stays out of the transition.
+   *  The card stays presentational: it takes a string, not a route or session id concept, and
+   *  never imports the router itself for this. */
+  morphKey = input<string | null>(null);
   /** Already-localized by the caller — pages own the copy ("Booked", "Full", "Waitlist #2" all
    *  need per-caller interpolation this component has no business owning). Null renders nothing. */
   badgeLabel = input<string | null>(null);
@@ -195,6 +221,9 @@ export class ClassCardComponent {
 
   protected readonly initials = computed(() =>
     this.title().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase());
+
+  protected readonly photoVtName = computed(() => classPhotoVtName(this.morphKey()));
+  protected readonly titleVtName = computed(() => classTitleVtName(this.morphKey()));
 
   private locale = inject(LOCALE_ID);
 
