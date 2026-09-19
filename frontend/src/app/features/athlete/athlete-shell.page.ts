@@ -1,5 +1,5 @@
 import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SheetComponent } from '../../ui/sheet.component';
 import { AvatarComponent } from '../../ui/avatar.component';
@@ -24,7 +24,17 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
   template: `
     <div class="app" [class.locked]="chrome.viewportLocked()">
       <bh-shell-header [customBrand]="true">
-        <bh-box-switcher brand />
+        <!-- One wrapper element carries [brand] so the projection slot stays structurally stable;
+             the @if/@else lives INSIDE it (CLAUDE.md: never two separately-brand-tagged elements). -->
+        <div brand class="brandslot" [class.detail]="chrome.detail()">
+          @if (chrome.detail()) {
+            <button type="button" class="back" (click)="goBack()"
+                    aria-label="Back" i18n-aria-label="@@shell.detail.back">←</button>
+            <h1 class="dtitle">{{ chrome.detailTitle() }}</h1>
+          } @else {
+            <bh-box-switcher />
+          }
+        </div>
         <nav nav class="hnav" aria-label="Athlete">
           @for (t of tabs; track t.link) {
             <a class="hitem" [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page">{{ t.label }}</a>
@@ -37,9 +47,9 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
         </button>
       </bh-shell-header>
 
-      <main class="content" [class.no-dock]="chrome.dockHidden()"><router-outlet /></main>
+      <main class="content" [class.no-dock]="chrome.dockHidden() || chrome.detail()" [class.detail]="chrome.detail()"><router-outlet /></main>
 
-      @if (!chrome.dockHidden()) { <bh-dock [tabs]="tabs" label="Athlete" /> }
+      @if (!chrome.dockHidden() && !chrome.detail()) { <bh-dock [tabs]="tabs" label="Athlete" /> }
     </div>
 
     <bh-sheet [open]="profileOpen()" title="Profile" label="Your profile" (closed)="profileOpen.set(false)">
@@ -53,6 +63,14 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
     .app { display: flex; flex-direction: column; min-height: 100dvh; }
     .app.locked { height: 100dvh; overflow: hidden; }
     .app.locked .content { min-height: 0; overflow: hidden; }
+    .brandslot { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+    .brandslot.detail { flex: 1; }
+    .back { min-width: var(--tap); min-height: var(--tap); display: grid; place-items: center;
+      background: transparent; color: var(--bone); border: 1px solid var(--hairline);
+      border-radius: var(--r-ctl); cursor: pointer; flex-shrink: 0; }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .dtitle { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; margin: 0; }
     .hnav { display: flex; gap: var(--sp-1); flex: 1; justify-content: center; }
     .hitem { display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--sp-4);
       border-radius: var(--r-full); color: var(--bone-dim); font-weight: 600; font-size: 14px;
@@ -64,16 +82,19 @@ import { ShellChromeService } from '../../core/shell-chrome.service';
       background: transparent; border: none; border-radius: var(--r-full); cursor: pointer; }
     .me:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .content { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
+    .content.detail { padding-left: 0; padding-right: 0; padding-top: 0; }
     @media (max-width: 719px) {
       .hnav { display: none; }
       .content { padding: var(--sp-4) var(--sp-4) calc(112px + env(safe-area-inset-bottom)); }
       .content.no-dock { padding-bottom: var(--sp-4); }
+      .content.detail { padding-left: 0; padding-right: 0; padding-top: 0; }
     }
   `],
 })
 export class AthleteShellPage implements OnInit {
   private auth = inject(AuthService);
   private homeSvc = inject(HomeService);
+  private router = inject(Router);
   protected chrome = inject(ShellChromeService);
 
   profileOpen = signal(false);
@@ -93,5 +114,11 @@ export class AthleteShellPage implements OnInit {
       next: p => { this.avatarPath.set(p.avatarPath); this.userName = p.name; },
       error: () => {},
     });
+  }
+
+  /** Explicit backTo, never history.back() — history.back() can leave the app entirely if the
+   *  detail screen was a deep link. */
+  protected goBack() {
+    this.router.navigateByUrl(this.chrome.backTo() ?? '/athlete/home');
   }
 }
