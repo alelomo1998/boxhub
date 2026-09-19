@@ -703,6 +703,59 @@ it('past day: no action button, reads Finished');
 it('409 renders bookingReason copy under the button');
 ```
 
+### Task 12c: Class workout screen + the entry row on class detail
+
+**Added 2026-09-19, user-requested mid-milestone. Spec §5.5 is binding and the shape is LOCKED
+(`docs/superpowers/sketches/m17a-class-workout-r2.html`: option **B2** for sub-blocks, **N2** for a
+block's note). Do not re-open it.** No backend change, no new endpoint.
+
+**Files:** `frontend/src/app/features/athlete/class-workout.page.ts` + `.spec.ts` (create),
+`frontend/src/app/features/programming/prescription.ts` (+ `.spec.ts`),
+`frontend/src/app/app.routes.ts`, `frontend/src/app/core/shell-chrome.service.ts`,
+`frontend/src/app/features/athlete/class-detail.page.ts` (+ `.spec.ts`).
+
+- [ ] **`expandedRows()` gains a `scales` passthrough.** It currently maps `reps/text/load/unit`
+      and drops `line.scales`, so every `↳` scaled line would vanish. Add `scales?: WodScale[]` to
+      the `line` variant and pass `l.scales` through at BOTH levels. `prescriptionLines` only reads
+      reps/text/load and must be unaffected — assert that in `prescription.spec.ts`. **Do NOT move
+      the `note` push** (N2 keeps the current after-the-lines order; that is the whole point of the
+      choice).
+- [ ] **`backTo` accepts a parent-relative target.** Today it is a static string in route `data`;
+      this screen must return to `/athlete/class/:id`. Extend the mechanism **once**, in
+      `ShellChromeService`, so every later nested detail screen inherits it — do not special-case
+      this screen. Grep `backTo` for every reader first.
+- [ ] **Route** `class/:id/workout` with `data: { detail: true, backTo: <parent-relative> }` and
+      `title` "Workout".
+- [ ] **The screen**, matching r2: `libMeta(w)` eyebrow · `w.title` uppercase at `--fs-display` ·
+      chip `blabel` for a block label (B2: **no indent**, lines stay full width) · lines as
+      **reps+unit in one mono column** (`8 cal Row` — the unit is on the LINE, never in the load
+      column) · load column only for a real load · `↳` scaled lines · `note` UNDER its lines (N2) ·
+      `scalingNotes` last · `bodyText` as preformatted mono when a piece has no blocks.
+      **Renderer is `expandedRows` + `libMeta`. Do NOT copy `wod.page.ts`'s hand-rolled recursion.**
+- [ ] **No volt anywhere** (detail screen). No `--volt`, no `variant="primary"`.
+- [ ] States: loading · load error with a way back · **empty but published** ("Nothing posted yet /
+      Your coach hasn't written this class up.").
+- [ ] **The entry row on class detail**: full-width row under the coach row, `--tap` min, chevron,
+      routing to the workout screen. **Rendered only when `detail.programmingStatus === 'PUBLISHED'`**
+      — absent otherwise, no disabled state. It uses the `programmingStatus` already on the existing
+      fetch; **no second request**. NOT a second control in the action bar.
+- [ ] Every string `$localize`d with an explicit `@@id`; `OnPush`; tokens only.
+
+Tests:
+
+```ts
+it('renders a piece from expandedRows with the unit in the reps column');
+it('renders a sub-block label as a chip and does not indent its lines');   // B2
+it('renders a block note after its lines');                                 // N2
+it('keeps scaled lines through expandedRows');
+it('falls back to bodyText when a piece has no blocks');
+it('shows the empty state when the class is published with no items');
+it('back returns to /athlete/class/:id, not to Book');
+it('class detail shows the workout row only when programmingStatus is PUBLISHED');
+```
+
+### Task 12d: Class workout gate (orchestrator) — as Task 9; click path Book → card → detail → workout → back.
+
 ### Task 13: Class detail gate (orchestrator) — as Task 9; click path Book → card → detail.
 
 ### Task 14: Shape + build — Home

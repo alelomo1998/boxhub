@@ -230,6 +230,77 @@ when it is today — its WOD pieces and, once ended with an unlogged scoreable p
 the Book prompt · announcement card + sheet (unchanged behaviour) · mini week strip of attended days
 with "N weeks running" · last PR and plan days. *Shape: pending.*
 
+### 5.5 Class workout (added 2026-09-19, user-requested mid-milestone)
+
+An athlete could not see the programming of **any** class other than today's: `MyClassController`
+is hardcoded to today and to one session (the athlete's booked class, or the only class of the
+day). So an athlete who books tomorrow's 18:00, or is choosing between two classes today, has no
+way to read the workout. This screen closes that.
+
+**It is a read-only visual of the class — never a log board.** No score logging, no leaderboard
+links, no "Log your score". Those belong to M17b's WOD board, which is a hero screen with a
+different job; this one answers "what is this class" for someone deciding or preparing.
+
+**Route:** `/athlete/class/:id/workout`. It is a **detail screen** under the law of 2026-09-18 —
+no dock, back arrow, bottom gutter reclaimed, its own `<h1>` — and the back arrow returns to **the
+class** (`/athlete/class/:id`), not to Book. **Therefore it carries no volt at all**, same
+amendment as class detail: the back arrow replaced the switcher's mark. Identity here comes from
+the mono prescription voice and the type scale, never from colour.
+
+This is the **second consumer of the detail mechanism** and the one that extends it: `backTo` is a
+static string in route `data` today, and here it must resolve the parent's `:id`. `backTo` grows
+to accept a parent-relative target; every later nested detail screen inherits that.
+
+**Header title is "Workout"**, with the class named in a mono line directly below. Not the class
+name — that would make this header identical to class detail's, and the athlete could not tell
+they had moved.
+
+**No backend change.** `GET /api/box/sessions/{id}/items` already exists, is already reachable by
+an athlete, and already enforces the privacy rule: `if (!isStaff() && !"PUBLISHED".equals(...))
+return List.of()`. The full `Wod` (blocks, bodyText, scalingNotes) rides inside each `ItemDto`, so
+the screen is **one request**. `ProgrammingService.sessionItems()` already exists on the frontend.
+
+**Entry point:** a full-width row on class detail, under the coach row — **not** a second control
+in the action bar, which holds that screen's one primary action. The row is **absent entirely**
+when the class is not `PUBLISHED`: no disabled state, no teaser. Class detail already receives
+`programmingStatus` in its existing fetch, so the gate costs no extra request.
+
+**Shape: decided 2026-09-19 over two rounds.** `m17a-class-workout.html` (three treatments) ->
+**`m17a-class-workout-r2.html` = the locked form**. Renders kept in `m17a-assets/`.
+
+- **Round 1 chose B, the board sheet**: pieces flat on `--ground`, separated by hairline rules,
+  the prescription set large in mono. It reads like the gym whiteboard and earns its identity
+  through type, which is the only budget a volt-less screen has. Rejected: A (piece cards, reads
+  as plumbing) and C (run-of-class rail, implies a timeline the data has no durations for).
+  Measured, not estimated: four pieces run **C 621px < A 740px < B 834px** in a 702px viewport.
+  B is the tallest and shows 3 of 4 pieces — accepted knowingly for the legibility.
+- **Round 2 corrected B against the model and locked two sub-decisions**, both user-ruled
+  **against** the recommendation, and both leaving shared code untouched:
+  - **B2 — a sub-block's label is a chip and its lines stay full width, no indent.** The model is
+    exactly two levels (`WodBlock.blocks`) and a coach can author a buy-in/work/cash-out chipper
+    today. B1 (indent behind a hairline) was recommended for unambiguous nesting; B2 keeps the
+    full movement column and the flat board feel. Known cost, accepted: several sub-blocks in a
+    row lean toward reading as separate pieces — mitigated by the chip being far smaller than the
+    `--fs-display` piece title.
+  - **N2 — a block's `note` renders UNDER its lines.** The two existing renderers disagreed
+    (`expandedRows` emits the note after the lines, `wod.page.ts` draws it before, beside the
+    label). N2 matches `expandedRows`'s current order, so **nothing shared changes** and the class
+    builder and WOD library keep their behaviour.
+
+**Two corrections applied before the user saw round 2, both found by checking the model rather
+than by looking:**
+1. **The unit lives on the LINE, not in the load column.** `{text:"Row", reps:"8", unit:"CAL"}`
+   prints `8 cal Row` — `prescriptionLines()` already does this. Round 1 drew "cal" on the right
+   where a load belongs.
+2. **`expandedRows()` silently drops `line.scales`.** It maps `reps/text/load/unit` and never
+   carries the scaled variants, so reusing the shared flattener as-is would delete every `↳`
+   line. It gains a `scales` passthrough; `prescriptionLines` is unaffected because it only reads
+   reps/text/load. The renderer is otherwise `expandedRows` + `libMeta`, both already shared —
+   `wod.page.ts`'s ~50 lines of hand-rolled recursion are NOT copied into a second screen.
+
+**Empty but published** reads "Nothing posted yet / Your coach hasn't written this class up." A
+piece with only `bodyText` renders it as preformatted mono.
+
 ## 6. Testing and gates
 
 - Backend: §2's tests; full suite green.
