@@ -123,11 +123,11 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
             @if (d.active.length) {
               <div class="grid" data-testid="class-grid">
                 @for (a of d.active; track a.membershipId) {
-                  <a class="cell" [routerLink]="['/athlete/profile', a.membershipId]" [attr.aria-label]="cellAriaLabel(a)">
+                  <button type="button" class="cell" (click)="openPhoto(a)" [attr.aria-label]="cellAriaLabel(a)">
                     <bh-avatar [path]="a.avatarPath" [name]="a.name" size="lg" />
                     <span class="nm" aria-hidden="true">{{ a.name }}</span>
                     @if (a.status === 'CHECKED_IN') { <span class="in" aria-hidden="true">{{ checkedInMarker }}</span> }
-                  </a>
+                  </button>
                 }
               </div>
             } @else { <p class="stateline" i18n="@@athlete.classDetail.emptyActive">No one booked yet — be first.</p> }
@@ -136,10 +136,10 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
               <h2 class="sh" i18n="@@athlete.classDetail.queue">In queue</h2>
               <div class="grid dim">
                 @for (a of d.queue; track a.membershipId) {
-                  <a class="cell" [routerLink]="['/athlete/profile', a.membershipId]">
+                  <button type="button" class="cell" (click)="openPhoto(a)" [attr.aria-label]="cellAriaLabel(a)">
                     <bh-avatar [path]="a.avatarPath" [name]="a.name" size="lg" />
                     <span class="nm" aria-hidden="true">{{ a.name }}</span>
-                  </a>
+                  </button>
                 }
               </div>
             }
@@ -185,6 +185,18 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
             <bh-button class="full" variant="ghost" size="sm" testId="confirm-keep" (click)="keepConfirm()" i18n="@@athlete.book.confirm.keep">Keep it</bh-button>
             <bh-button class="full" variant="danger" size="sm" testId="confirm-execute" [loading]="busy()" (click)="confirmCancel()">{{ confirmExecuteLabel() }}</bh-button>
           </div>
+        </div>
+      }
+    </bh-sheet>
+
+    <bh-sheet [open]="photoOf() !== null" [title]="photoOf()?.name ?? ''" [label]="photoOf()?.name ?? ''"
+              data-testid="roster-photo-sheet" (closed)="photoOf.set(null)">
+      @if (photoOf(); as p) {
+        <div class="photo-body">
+          <div class="photo-frame">
+            <bh-avatar [path]="p.avatarPath" [name]="p.name" size="xl" />
+          </div>
+          @if (p.status === 'CHECKED_IN') { <span class="in" aria-hidden="true">{{ checkedInMarker }}</span> }
         </div>
       }
     </bh-sheet>
@@ -255,7 +267,7 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3) var(--sp-2); padding: 0 var(--sp-4); }
     .grid.dim { opacity: 0.6; }
     .cell { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); min-width: 0;
-      text-decoration: none; color: inherit; }
+      background: transparent; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
     .cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-ctl); }
     .nm { font-size: var(--fs-meta); color: var(--bone-dim); white-space: nowrap; overflow: hidden;
       text-overflow: ellipsis; max-width: 100%; text-align: center; }
@@ -276,6 +288,15 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
     .c-cost { color: var(--bone-dim); font-size: var(--fs-sm); margin: 0; }
     .c-actions { display: flex; gap: var(--sp-3); }
     .c-actions bh-button { flex: 1; min-width: 0; }
+
+    /* No name caption under the photo: the sheet's own title already carries it, and repeating it
+       is the same redundancy the class card's badge rounds were sent back for. */
+    .photo-body { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
+    .photo-frame { width: 100%; max-width: 240px; aspect-ratio: 1; }
+    /* bh-avatar's "xl" size is a fixed 96px box (see avatar.component.ts) -- ::ng-deep, the same
+       pattern data-table.component.ts and dock.component.ts already use to reach a child
+       component's internal DOM, scales it to fill this frame instead of a new avatar size. */
+    .photo-frame ::ng-deep .av.xl { width: 100%; height: 100%; }
   `],
 })
 export class ClassDetailPage implements OnInit, OnDestroy {
@@ -293,6 +314,7 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   private readonly fullBadge = $localize`:@@athlete.classDetail.badge.full:Full`;
   protected readonly checkedInMarker = $localize`:@@athlete.classDetail.checkedIn:✓ in`;
   private readonly checkedInAriaSuffix = $localize`:@@athlete.classDetail.checkedInAria:, checked in`;
+  private readonly showPhotoAriaSuffix = $localize`:@@athlete.classDetail.showPhotoAria:, show photo`;
   private readonly finishedText = $localize`:@@athlete.classDetail.state.finished:Finished`;
   private readonly attendedText = $localize`:@@athlete.classDetail.state.attended:You're in`;
   private readonly bookLabel = $localize`:@@athlete.classDetail.action.book:Book`;
@@ -327,6 +349,9 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   private bannerSeq = 0;
   readonly bannerList = computed(() => { const b = this.banner(); return b ? [b] : []; });
   readonly confirmItem = signal<{ act: ConfirmAct } | null>(null);
+  /** Roster cell tap target (spec §5.3 amendment, user-ruled 2026-09-20): opens an enlarged photo
+   *  instead of routing into the pre-rework athlete-profile screen (M17c rebuilds that door). */
+  readonly photoOf = signal<GridEntry | null>(null);
 
   protected readonly athleteState = computed<AthleteState | null>(() => {
     const d = this.detail();
@@ -465,8 +490,11 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   }
 
   protected cellAriaLabel(a: GridEntry): string {
-    return a.status === 'CHECKED_IN' ? a.name + this.checkedInAriaSuffix : a.name;
+    const checked = a.status === 'CHECKED_IN' ? this.checkedInAriaSuffix : '';
+    return a.name + checked + this.showPhotoAriaSuffix;
   }
+
+  protected openPhoto(a: GridEntry) { this.photoOf.set(a); }
 
   protected actionVariant(act: Exclude<Action, null>): 'strong' | 'ghost' | 'ghost-danger' {
     if (act === 'book') return 'strong';

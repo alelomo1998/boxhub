@@ -287,6 +287,60 @@ describe('ClassDetailPage', () => {
     fixture.detectChanges();
   });
 
+  describe('roster cell opens a photo sheet instead of routing to the athlete profile (user-ruled 2026-09-20)', () => {
+    it('a roster cell is a button, not a link to the athlete profile', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      flush(fixture, detail(soon, { active: [entry('m1', 'Sam')] }));
+
+      const cell = fixture.nativeElement.querySelector('[data-testid="class-grid"] .cell');
+      expect(cell.tagName).toBe('BUTTON');
+      expect(cell.hasAttribute('href')).toBe(false);
+    });
+
+    it("tapping a roster cell opens the photo sheet with that person's name", () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      flush(fixture, detail(soon, { active: [entry('m1', 'Sam')] }));
+
+      fixture.nativeElement.querySelector('[data-testid="class-grid"] .cell').click();
+      fixture.detectChanges();
+
+      const sheet = fixture.nativeElement.querySelector('[data-testid="roster-photo-sheet"]');
+      expect(sheet).not.toBeNull();
+      expect(sheet.textContent).toContain('Sam');
+    });
+
+    it("the queue grid's cells carry the same accessible name treatment as the going grid", () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      flush(fixture, detail(soon, {
+        capacity: 1,
+        active: [entry('m1', 'Sam', { status: 'CHECKED_IN' })],
+        queue: [entry('q1', 'Other')],
+      }));
+
+      const activeLabel = fixture.nativeElement.querySelector('[data-testid="class-grid"] .cell').getAttribute('aria-label');
+      const queueLabel = fixture.nativeElement.querySelector('.grid.dim .cell').getAttribute('aria-label');
+      expect(activeLabel).toContain('Sam');
+      expect(activeLabel).toContain('checked in');
+      expect(activeLabel).toContain('show photo');
+      expect(queueLabel).toContain('Other');
+      expect(queueLabel).toContain('show photo');
+    });
+
+    it('no cell anywhere on the screen routes to /athlete/profile', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      flush(fixture, detail(soon, {
+        active: [entry('m1', 'Sam')],
+        queue: [entry('q1', 'Other')],
+      }));
+
+      expect(fixture.nativeElement.querySelectorAll('a[href*="/athlete/profile"]').length).toBe(0);
+    });
+  });
+
   describe('hero seed (M17a Task 12b)', () => {
     it('paints the hero from a BookStore cache hit before the fetch resolves, no loading text', () => {
       const soon = new Date(Date.now() + 3600_000).toISOString();
