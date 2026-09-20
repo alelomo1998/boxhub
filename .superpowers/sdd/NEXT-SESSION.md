@@ -7,7 +7,7 @@
 | Plan | `docs/superpowers/plans/2026-09-17-m17a-athlete-daily.md` (**1–12c done**; **12d, 13–17 open**) |
 | Ledger | `.superpowers/sdd/2026-09-17-m17a-athlete-daily/progress.md` |
 | Sketches | `docs/superpowers/sketches/m17a-README.md` — rounds 1–12, each with its render and what was decided |
-| Backend | **869 / 0 / 0 / 0** — surefire aggregate at `117dbc8`, the last commit touching `backend/`; no backend source has changed since. A full re-run was in flight when this was written, so **re-run it rather than trusting this line**. |
+| Backend | **869 / 0 / 0 / 0** — full suite, orchestrator-run to completion at `9e68bc0` (exit 0). |
 | Karma | **1137 SUCCESS** |
 | Build | **0 warnings** |
 | e2e | `runner.spec.ts:43` still fails — proven pre-existing, filed. Full suite NOT run on a `down -v` stack; still owed (Task 16). |
