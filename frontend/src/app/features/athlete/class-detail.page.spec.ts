@@ -129,7 +129,11 @@ describe('ClassDetailPage', () => {
     expect(fixture.nativeElement.querySelector('.statetext').textContent).toContain('Finished');
   });
 
-  it('a failed action renders bookingReason copy (banner + detail-error)', () => {
+  // Rule 4 of this milestone: booking outcomes live in the bottom banner and NOWHERE else -- only
+  // a failed LOAD keeps its own stateline. This screen used to render the same message a second
+  // time under the action button, which was both a rule violation and, with bh-alert already
+  // deriving role="alert" for a danger tone, a double screen-reader announcement.
+  it('a failed action reports the reason in the banner ONLY, never under the button', () => {
     const soon = new Date(Date.now() + 3600_000).toISOString();
     const fixture = setup();
     flush(fixture, detail(soon));
@@ -142,8 +146,8 @@ describe('ClassDetailPage', () => {
     const reason = bookingReason('ENTRIES_PER_WEEK');
     const banner = fixture.nativeElement.querySelector('bh-banner .alert.danger');
     expect(banner.textContent).toContain(reason);
-    const inline = fixture.nativeElement.querySelector('[data-testid="detail-error"]');
-    expect(inline.textContent).toContain(reason);
+    expect(fixture.nativeElement.querySelector('[data-testid="detail-error"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.inlineerr')).toBeNull();
   });
 
   it("sets ShellChromeService.detailTitle to the class name once loaded, and clears it on destroy", () => {

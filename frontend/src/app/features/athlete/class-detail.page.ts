@@ -163,7 +163,6 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
           } @else {
             <p class="statetext" tabindex="-1">{{ stateText() }}</p>
           }
-          @if (errorMsg(); as em) { <p class="inlineerr" role="alert" data-testid="detail-error">{{ em }}</p> }
         } @else {
           <!-- Seed-only: the bar's height is reserved but nothing renders in it yet — a guessed
                action would be wrong more often than it's right, so this waits for the real fetch. -->
@@ -271,7 +270,6 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
     .statetext { margin: 0; min-height: var(--tap-lg); display: flex; align-items: center;
       justify-content: center; font-family: var(--font-display); font-weight: 700;
       font-size: var(--fs-body); color: var(--bone-dim); }
-    .inlineerr { color: var(--danger); font-size: var(--fs-sm); margin: var(--sp-2) 0 0; text-align: center; }
 
     .confirm { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
     .c-line { font-weight: 700; margin: 0; }
@@ -325,7 +323,6 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   protected readonly heroSource = computed<HeroSeed | SessionDetail | null>(() => this.detail() ?? this.seed());
   readonly state = signal<'loading' | 'error' | 'ready'>('loading');
   readonly busy = signal(false);
-  readonly errorMsg = signal<string | null>(null);
   readonly banner = signal<{ seq: number; tone: 'good' | 'danger'; message: string } | null>(null);
   private bannerSeq = 0;
   readonly bannerList = computed(() => { const b = this.banner(); return b ? [b] : []; });
@@ -446,7 +443,7 @@ export class ClassDetailPage implements OnInit, OnDestroy {
 
   /** The workout peek card's data (spec §5.5) -- fired from load() only, never reload(): a booking
    *  action does not change the programming, so a post-action refresh has no reason to re-request
-   *  it. A failed request leaves the card simply absent, without touching state()/errorMsg() --
+   *  it. A failed request leaves the card simply absent, without touching state() or the banner --
    *  this screen's job is the booking action, and a missing peek is not worth an error block. */
   private loadItems() {
     this.programming.sessionItems(this.id).subscribe({
@@ -507,15 +504,12 @@ export class ClassDetailPage implements OnInit, OnDestroy {
     this.booking.book(this.id).subscribe({
       next: () => {
         this.busy.set(false);
-        this.errorMsg.set(null);
         this.banner.set({ seq: ++this.bannerSeq, tone: 'good', message: this.outcomeMessage(act) });
         this.reload(() => this.focusAction());
       },
       error: (e: any) => {
         this.busy.set(false);
-        const msg = bookingReason(e.error?.detail);
-        this.errorMsg.set(msg);
-        this.banner.set({ seq: ++this.bannerSeq, tone: 'danger', message: msg });
+        this.banner.set({ seq: ++this.bannerSeq, tone: 'danger', message: bookingReason(e.error?.detail) });
         this.focusAction();
       },
     });
@@ -552,16 +546,13 @@ export class ClassDetailPage implements OnInit, OnDestroy {
       next: () => {
         this.busy.set(false);
         this.confirmItem.set(null);
-        this.errorMsg.set(null);
         this.banner.set({ seq: ++this.bannerSeq, tone: 'danger', message: this.outcomeMessage(it.act) });
         this.reload(() => this.focusAction());
       },
       error: (e: any) => {
         this.busy.set(false);
         this.confirmItem.set(null);
-        const msg = bookingReason(e.error?.detail);
-        this.errorMsg.set(msg);
-        this.banner.set({ seq: ++this.bannerSeq, tone: 'danger', message: msg });
+        this.banner.set({ seq: ++this.bannerSeq, tone: 'danger', message: bookingReason(e.error?.detail) });
         this.focusAction();
       },
     });
