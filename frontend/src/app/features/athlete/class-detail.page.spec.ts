@@ -137,6 +137,24 @@ describe('ClassDetailPage', () => {
     expect(chrome.detailTitle()).toBeNull();
   });
 
+  it('shows the workout entry row when programmingStatus is PUBLISHED', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup();
+    flush(fixture, detail(soon, { programmingStatus: 'PUBLISHED' }));
+
+    const row = fixture.nativeElement.querySelector('[data-testid="detail-workout-row"]');
+    expect(row).not.toBeNull();
+    expect(row.getAttribute('href')).toBe('/athlete/class/s1/workout');
+  });
+
+  it('hides the workout entry row when programmingStatus is DRAFT', () => {
+    const soon = new Date(Date.now() + 3600_000).toISOString();
+    const fixture = setup();
+    flush(fixture, detail(soon, { programmingStatus: 'DRAFT' }));
+
+    expect(fixture.nativeElement.querySelector('[data-testid="detail-workout-row"]')).toBeNull();
+  });
+
   it('a load error keeps a way back to Book and a retry', () => {
     const fixture = setup();
     http.expectOne(r => r.url === '/api/box/sessions/s1/detail')

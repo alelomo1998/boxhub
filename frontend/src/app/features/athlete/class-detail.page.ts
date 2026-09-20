@@ -93,6 +93,18 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
               </div>
             }
 
+            <!-- The entry row into the workout screen (M17a Task 12c). Reuses programmingStatus
+                 already on this fetch -- no second request. Absent (not disabled, no teaser) for a
+                 DRAFT class: there is nothing for an athlete to read yet. NOT a second control in
+                 the action bar -- that bar is reserved for the booking action alone. No volt: this
+                 is still a detail screen. -->
+            @if (d.programmingStatus === 'PUBLISHED') {
+              <a class="wrow" [routerLink]="['/athlete/class', d.id, 'workout']" data-testid="detail-workout-row">
+                <span i18n="@@athlete.classDetail.workoutRow">Workout</span>
+                <span class="chev" aria-hidden="true">&rsaquo;</span>
+              </a>
+            }
+
             <h2 class="sh"><span i18n="@@athlete.classDetail.going">Going</span> <span class="cnt">{{ d.active.length }}/{{ d.capacity }}</span></h2>
             @if (d.active.length) {
               <div class="grid" data-testid="class-grid">
@@ -207,6 +219,13 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
     .c-k { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.12em;
       text-transform: uppercase; color: var(--faint); }
     .c-v { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-body); }
+
+    .wrow { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+      min-height: var(--tap); padding: 0 var(--sp-4); border-bottom: 1px solid var(--hairline);
+      color: var(--bone); text-decoration: none; font-family: var(--font-display); font-weight: 700;
+      font-size: var(--fs-body); }
+    .wrow .chev { color: var(--bone-dim); font-size: var(--fs-h2); line-height: 1; }
+    .wrow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
     .sh { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm);
       text-transform: uppercase; letter-spacing: 0.08em; color: var(--bone-dim);

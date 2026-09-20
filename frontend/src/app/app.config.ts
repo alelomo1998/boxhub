@@ -23,9 +23,20 @@ export const appConfig: ApplicationConfig = {
     // way ShellChromeService already does, rather than re-implementing that walk here.
     provideRouter(routes, withViewTransitions({
       onViewTransitionCreated: ({ transition, from, to }) => {
-        const entering = !!deepestRoute(to).data['detail'];
-        const leaving = !!deepestRoute(from).data['detail'];
-        if (!entering && !leaving) transition.skipTransition();
+        const toR = deepestRoute(to), fromR = deepestRoute(from);
+        const entering = !!toR.data['detail'];
+        const leaving = !!fromR.data['detail'];
+        if (!entering && !leaving) { transition.skipTransition(); return; }
+        // A NESTED detail screen (class detail -> its workout) pushes in from the right and pops
+        // back out to it, instead of cross-fading: which side of the navigation carries `slide` IS
+        // the direction. styles.scss reads this attribute; it is removed whether the transition
+        // finishes or is skipped, so a stale tag can never colour the next navigation.
+        const dir = toR.data['slide'] ? 'fwd' : fromR.data['slide'] ? 'back' : null;
+        if (!dir) return;
+        const root = document.documentElement;
+        root.dataset['vt'] = dir;
+        const clear = () => { delete root.dataset['vt']; };
+        transition.finished.then(clear, clear);
       },
     })),
     { provide: TitleStrategy, useClass: PageTitleStrategy },

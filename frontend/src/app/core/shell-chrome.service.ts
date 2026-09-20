@@ -60,7 +60,12 @@ export class ShellChromeService {
     const snap = deepestRoute(this.router.routerState.root.snapshot);
     const isDetail = !!snap.data['detail'];
     this._detail.set(isDetail);
-    this._backTo.set(isDetail ? (snap.data['backTo'] ?? null) : null);
+    // A `backTo` written as a route path (`/athlete/class/:id`) resolves against the route's OWN
+    // params, so a nested detail screen (class detail's workout, M17a Task 12c) returns to its
+    // parent rather than to the top of the flow; a param-less `backTo` (`/athlete/book`) is
+    // unchanged since the regex simply finds nothing to replace.
+    const raw = snap.data['backTo'] as string | undefined;
+    this._backTo.set(isDetail && raw ? raw.replace(/:(\w+)/g, (_, p: string) => snap.params[p] ?? '') : null);
     // Belt and braces: a class name (or its morph key) from one detail screen must never survive
     // into the next screen, detail or not — the screen itself also clears both on ngOnDestroy.
     if (!isDetail) { this.detailTitle.set(null); this.detailMorphKey.set(null); }

@@ -81,3 +81,36 @@ nav a { text-decoration: none; }
     animation: none !important;
   }
 }
+
+/* A NESTED detail screen (class detail -> its workout, M17a Task 12c) opens as a horizontal push
+   and closes as its exact reverse. app.config.ts tags <html data-vt="fwd|back"> for the duration
+   of exactly those navigations, so nothing else in the app sees these rules -- class detail's own
+   open/close morph above is untouched.
+
+   `*` sweeps EVERY captured group, not just root, and that is the point: the screen being LEFT
+   still carries the photo and title `view-transition-name`s of its own morph pair, which the
+   screen being entered does not. Left to the UA's per-group default those two would sit still and
+   fade while the rest of the page slid out from under them. One transform on every group makes the
+   whole screen travel as one sheet.
+
+   `isolation: auto` + `mix-blend-mode: normal` undo the UA's cross-fade setup: `plus-lighter` is
+   right for two images fading through each other and wrong for two opaque screens overlapping. */
+:root[data-vt]::view-transition-image-pair(*) { isolation: auto; }
+:root[data-vt]::view-transition-old(*),
+:root[data-vt]::view-transition-new(*) {
+  animation-duration: var(--dur-morph);
+  animation-timing-function: var(--ease-move);
+  animation-fill-mode: both;
+  mix-blend-mode: normal;
+}
+:root[data-vt='fwd']::view-transition-old(*)  { animation-name: bh-push-out; }
+:root[data-vt='fwd']::view-transition-new(*)  { animation-name: bh-push-in; }
+:root[data-vt='back']::view-transition-old(*) { animation-name: bh-pop-out; }
+:root[data-vt='back']::view-transition-new(*) { animation-name: bh-pop-in; }
+
+/* The screen being left travels a third of the width, not the full width: the parallax is what
+   reads as one screen sliding UNDER the other rather than two screens sliding past each other. */
+@keyframes bh-push-out { to   { transform: translateX(-30%); opacity: 0; } }
+@keyframes bh-push-in  { from { transform: translateX(100%); } }
+@keyframes bh-pop-out  { to   { transform: translateX(100%); } }
+@keyframes bh-pop-in   { from { transform: translateX(-30%); opacity: 0; } }

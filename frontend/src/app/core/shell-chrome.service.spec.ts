@@ -10,6 +10,7 @@ describe('ShellChromeService', () => {
           { path: 'plain', data: {}, children: [] },
           { path: 'x', data: { detail: true, backTo: '/back' }, children: [] },
           { path: 'nested', children: [{ path: 'child', data: { detail: true, backTo: '/nested-back' }, children: [] }] },
+          { path: 'class/:id/workout', data: { detail: true, backTo: '/athlete/class/:id' }, children: [] },
         ]),
       ],
     });
@@ -59,6 +60,18 @@ describe('ShellChromeService', () => {
     await router.navigateByUrl('/nested/child');
     expect(service.detail()).toBe(true);
     expect(service.detailTitle()).toBe('Burn It');
+  });
+
+  it('resolves a parent-relative backTo against the route\'s own params', async () => {
+    const { service, router } = setup();
+    await router.navigateByUrl('/class/abc/workout');
+    expect(service.backTo()).toBe('/athlete/class/abc');
+  });
+
+  it('a param-less backTo is returned verbatim', async () => {
+    const { service, router } = setup();
+    await router.navigateByUrl('/x');
+    expect(service.backTo()).toBe('/back');
   });
 
   it('clears detailMorphKey on leaving a detail route, same as detailTitle', async () => {
