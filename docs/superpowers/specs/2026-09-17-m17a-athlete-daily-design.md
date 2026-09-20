@@ -222,6 +222,29 @@ cannot rely on `transitionend` alone or it deadlocks under `prefers-reduced-moti
 
 The header's existing hide-on-scroll (below 768px) is kept deliberately — see CLAUDE.md for why.
 
+
+**The roster tap opens a PHOTO SHEET, not a profile screen (user-ruled 2026-09-20).** Both grids'
+cells are buttons, not links. `athlete/profile/:membershipId` is pre-rework — no i18n marks, pinned
+to Eager change detection, an in-body `<h1>` and its own back button instead of the header settled
+in §5.3 — and M17c owns its rebuild. A finished screen does not ship a door into a room scheduled
+for demolition.
+
+**The sheet is the athlete PEEK surface and it grows there, not into a screen** (user-ruled
+2026-09-20, after seeing it): anything a roster tap should reveal — streak, PRs, checked-in state —
+belongs in this sheet. M17c must therefore answer *what a whole profile screen does that the sheet
+cannot* before it shapes one, and must NOT re-point the roster at it.
+
+The sheet carries no name caption: its own `title` already names the person, and repeating it is
+the redundancy the class-card rounds were sent back for twice. Both cells' accessible names end in
+a localized ", show photo" so the tap announces what it does — the queue grid previously carried no
+`aria-label` at all.
+
+**The coach row stays non-interactive** until M26 builds the coach profile (it owns the
+athlete-facing view of a box's coaches, the strong/weak points and price, and the request →
+coach-accepts flow; messaging a coach is M29a's). No placeholder was built: the v1.0 doctrine is
+*built but idle, never absent*, and a stub a pilot gym owner can reach is absent pretending to be
+present.
+
 ### 5.4 Home
 Content (order decided in shape): greeting + date · plan blocker (no plan / expiring) · next class as
 the shared card linking to **`/athlete/class/:id`** (fixes the filed defect) with who's going, and —

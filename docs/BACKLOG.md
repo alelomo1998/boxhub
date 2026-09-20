@@ -1148,10 +1148,16 @@ pre-rework (no i18n marks at all, `ChangeDetectionStrategy.Eager`, an in-body `<
 `‹ Back` button instead of the settled detail header) and its rebuild is already M17c's. Shipping a
 door into a room scheduled for demolition is the thing that was wrong, not the screen itself.
 
-**→ M17c, when it rebuilds `athlete/profile/:membershipId`:** re-wire class detail's two roster
-grids to it, and delete the photo sheet M17a put there in its place. **The athlete profile needs a
-brainstorm before it is built** (user-ruled 2026-09-20: *"right now the page is terrible"*) — it has
-never been shaped, only inherited from M5.
+**→ M17c, when it rebuilds `athlete/profile/:membershipId`: the photo sheet STAYS and GROWS —
+do not delete it and do not re-point the roster at the profile screen** (user-ruled 2026-09-20,
+after seeing it: *"i like the sheet with the pfp, so if we need something else to visualize of the
+athlete we can use this page"*). The sheet is now the athlete **peek** surface: anything a roster
+tap should reveal — streak, PRs, whether they are checked in — belongs in it, not behind a
+navigation. This narrows what the full profile screen has to be, and M17c should settle that split
+before shaping it: **what does a whole screen do that the sheet cannot?**
+
+**The athlete profile still needs a brainstorm before it is built** (user-ruled 2026-09-20: *"right
+now the page is terrible"*) — it has never been shaped, only inherited from M5.
 
 **→ M26, when it builds the coach profile:** class detail's **coach row** is one of its entry
 points, and is deliberately non-interactive until then. M26 already owns the athlete-facing view of
