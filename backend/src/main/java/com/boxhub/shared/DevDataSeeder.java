@@ -23,6 +23,8 @@ import com.boxhub.performance.LiftEntryRepository;
 import com.boxhub.performance.WodScore;
 import com.boxhub.performance.WodScoreRepository;
 import com.boxhub.programming.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -60,6 +62,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private final PlanRepository plans;
     private final SubscriptionRepository subscriptions;
     private final SubscriptionService subscriptionService;
+    private final ObjectMapper objectMapper;
 
     public DevDataSeeder(BoxRepository boxes, MembershipRepository memberships, AuthService authService,
                          ClassTypeRepository types, ScheduleSlotRepository slots, ClassSessionRepository sessions,
@@ -68,7 +71,8 @@ public class DevDataSeeder implements CommandLineRunner {
                          BenchmarkTemplateRepository benchmarks, MovementRepository movements,
                          WodScoreRepository wodScores, LiftEntryRepository liftEntries,
                          AnnouncementService announcements, BookingRepository bookings, UserRepository userRepo,
-                         PlanRepository plans, SubscriptionRepository subscriptions, SubscriptionService subscriptionService) {
+                         PlanRepository plans, SubscriptionRepository subscriptions, SubscriptionService subscriptionService,
+                         ObjectMapper objectMapper) {
         this.boxes = boxes;
         this.memberships = memberships;
         this.authService = authService;
@@ -90,12 +94,21 @@ public class DevDataSeeder implements CommandLineRunner {
         this.plans = plans;
         this.subscriptions = subscriptions;
         this.subscriptionService = subscriptionService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public void run(String... args) {
         seedSuperadmin();
-        if (boxes.findAll().stream().anyMatch(b -> "demo".equals(b.getSlug()))) return;
+        // "the demo box exists" is not the same fact as "today's classes carry programming" --
+        // SessionGenerator mints fresh ClassSession rows every day the app boots on an existing
+        // volume, and those start DRAFT with zero items. Conflating the two left every stack older
+        // than a day athlete-workout-blank (Defect 1). topUpProgramming() is idempotent and runs on
+        // EVERY boot, fresh box or not.
+        if (boxes.findAll().stream().anyMatch(b -> "demo".equals(b.getSlug()))) {
+            topUpProgramming();
+            return;
+        }
         Box demo = new Box();
         demo.setName("Demo Box");
         demo.setSlug("demo");
@@ -211,6 +224,8 @@ public class DevDataSeeder implements CommandLineRunner {
         photoUserIds.add(coach2.getId());
         for (User a : athletes) photoUserIds.add(a.getId());
         seedImages(demo, photoUserIds.toArray(UUID[]::new));
+
+        topUpProgramming();
     }
 
     /** Superadmin has no box membership — matches boxhub.superadmin-emails in docker-compose.yml. */
@@ -348,40 +363,63 @@ public class DevDataSeeder implements CommandLineRunner {
             todaySession("WOD Class", Instant.now().minus(java.time.Duration.ofMinutes(20)), 60, 14, coachId);
             todaySession("Burn It", Instant.now().plus(java.time.Duration.ofMinutes(40)), 60, 12, coach2Id);
         });
+    }
 
-        // publish modular programming on today's instances. Each is a LIBRARY row; items attach
-        // through wodService.copyForSession so a session owns its own copy (library = false) —
-        // the same copy-on-attach model a real coach's pick goes through (R2: the seeder no longer
-        // shares library rows with classes).
-        TenantContext.runAsBox(box.getId(), () -> {
-            String warmupBlocks = "{\"blocks\":[{\"lines\":["
-                    + "{\"text\":\"easy row\",\"reps\":\"5 min\"},"
-                    + "{\"text\":\"hip openers\"},"
-                    + "{\"text\":\"empty-bar work\"}"
-                    + "]}]}";
-            String strengthBlocks = "{\"blocks\":[{\"note\":\"@ 80% — log your top set\",\"lines\":["
-                    + "{\"text\":\"Back Squat\",\"movementId\":\"" + movementId(box, "Back Squat") + "\",\"reps\":\"5x5\",\"unit\":\"REPS\"}"
-                    + "]}]}";
-            String burnerBlocks = "{\"blocks\":[{\"label\":\"AMRAP 10\",\"lines\":["
-                    + "{\"text\":\"Row\",\"movementId\":\"" + movementId(box, "Row") + "\",\"reps\":\"8\",\"unit\":\"CAL\"},"
-                    + "{\"text\":\"Burpee\",\"movementId\":\"" + movementId(box, "Burpee") + "\",\"reps\":\"8\",\"unit\":\"REPS\"},"
-                    + "{\"text\":\"Wall Ball\",\"movementId\":\"" + movementId(box, "Wall Ball") + "\",\"reps\":\"8\",\"unit\":\"REPS\"}"
-                    + "]}]}";
+    /**
+     * Publishes modular programming on TODAY's class instances, every boot -- not only when the demo
+     * box is freshly created (Defect 1). "The demo box exists" and "today's classes carry
+     * programming" are different facts: SessionGenerator mints a fresh ClassSession row every day the
+     * app boots on an existing volume, and that row starts DRAFT with zero items regardless of how
+     * old the box is.
+     * <p>
+     * Idempotent both ways: library pieces are found by exact title before being created (never a
+     * duplicate row per boot -- see libraryWod), and a session that already owns items is left
+     * completely untouched, because wiping and re-adding would orphan any wod_score row still
+     * pointing at its current item copies.
+     * <p>
+     * Every line naming a real movement binds to that movement's id (movementId(box, name)) and every
+     * blocks document is built as WodJson records and pushed through the same
+     * WodJsonValidator.validateBlocks + ObjectMapper serialisation a real POST /api/box/wods goes
+     * through -- so every seeded piece is one the real editor could have produced (D14 user rule:
+     * "recreable with the real flow").
+     */
+    private void topUpProgramming() {
+        Box demo = boxes.findAll().stream().filter(b -> "demo".equals(b.getSlug())).findFirst().orElse(null);
+        if (demo == null) return; // dev seeding only -- no demo box yet, nothing to top up
+        UUID coachId = userRepo.findByEmail("coach@demo.io").map(User::getId).orElse(null);
 
-            UUID warmupLib = wod("Row + mobility", "WARMUP", "NONE", warmupBlocks);
-            UUID strengthLib = wod("Back Squat 5x5", "STRENGTH", "LOAD", strengthBlocks);
+        TenantContext.runAsBox(demo.getId(), () -> {
+            // Items attach through wodService.copyForSession so a session owns its own copy
+            // (library = false) -- the same copy-on-attach model a real coach's pick goes through
+            // (R2: the seeder never shares library rows with classes).
+            UUID warmupLib = wod("Row + mobility", "WARMUP", "NONE", warmupBlocks());
+            UUID strengthLib = wod("Back Squat 5x5", "STRENGTH", "LOAD",
+                    strengthBlocks(movementId(demo, "Back Squat")));
             UUID franLib = wods.findByTitleContainingIgnoreCaseOrderByUpdatedAtDesc("Fran").stream().findFirst()
                     .map(Wod::getId).orElseGet(() -> {
                         Wod fran = wodService.benchmarkWod(franTemplateId(), true);
                         fran.setCreatedBy(coachId); // not TenantContext.userId(): see seedAnnouncement
                         return wods.save(fran).getId();
                     });
-            UUID burnerLib = wod("10' burner", "AMRAP", "ROUNDS_REPS", burnerBlocks);
+            UUID burnerLib = wod("10' burner", "AMRAP", "ROUNDS_REPS", burnerBlocks(
+                    movementId(demo, "Row"), movementId(demo, "Burpee"), movementId(demo, "Wall Ball")));
+            UUID chipperLib = libraryWod("Chipper", "FOR_TIME", "TIME", chipperBlocks(
+                    movementId(demo, "Double-Under"), movementId(demo, "Deadlift"),
+                    movementId(demo, "Box Jump"), movementId(demo, "Step-Up")),
+                    null, "20 min cap.");
+            // Deliberately the PRE-M14a shape: blocks EMPTY, content lives only in bodyText. Today's
+            // class builder can no longer author a row like this -- it is seeded because real boxes
+            // still hold rows like it, and the athlete workout screen must render them (spec §5.5:
+            // "A piece with only bodyText renders it as preformatted mono"). This is the one fixture
+            // here that is NOT recreatable through the current builder.
+            UUID partnerLib = libraryWod("Partner WOD", "CUSTOM", "NONE", WodJson.Blocks.empty(),
+                    "Partner up.\nOne works, one rests.\nScore is the slower partner's time.", null);
 
-            var zone = java.time.ZoneId.of(box.getTimezone());
+            var zone = java.time.ZoneId.of(demo.getTimezone());
             var from = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant();
             var to = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant();
             for (ClassSession s : sessions.findByStartAtBetweenOrderByStartAt(from, to)) {
+                if (!items.findBySessionIdOrderBySortOrderAsc(s.getId()).isEmpty()) continue; // already programmed
                 if ("Burn It".equals(s.getName())) {
                     item(s.getId(), 0, copyId(warmupLib), false, null);
                     item(s.getId(), 1, copyId(burnerLib), true, null);
@@ -389,11 +427,59 @@ public class DevDataSeeder implements CommandLineRunner {
                     item(s.getId(), 0, copyId(warmupLib), false, null);
                     item(s.getId(), 1, copyId(strengthLib), true, null);
                     item(s.getId(), 2, copyId(franLib), true, null);
+                    item(s.getId(), 3, copyId(chipperLib), true, null);
+                    item(s.getId(), 4, copyId(partnerLib), false, null);
                 }
                 s.setProgrammingStatus("PUBLISHED");
                 sessions.save(s);
             }
         });
+    }
+
+    // --- blocks_json builders --------------------------------------------------------------
+    // Typed WodJson records, not hand-built strings -- pushed through the same
+    // WodJsonValidator.validateBlocks + ObjectMapper a real write goes through (see wod()/libraryWod()).
+    // Public static and parameterised on movement ids so SeededProgrammingIsRecreatableTest can
+    // exercise them with arbitrary UUIDs -- no Spring context, no database.
+
+    public static WodJson.Blocks warmupBlocks() {
+        return new WodJson.Blocks(List.of(new WodJson.Block(null, null, List.of(
+                new WodJson.Line("easy row", null, "5 min", null, null, null, null),
+                new WodJson.Line("hip openers", null, null, null, null, null, null),
+                new WodJson.Line("empty-bar work", null, null, null, null, null, null)
+        ), null)));
+    }
+
+    public static WodJson.Blocks strengthBlocks(UUID backSquatId) {
+        return new WodJson.Blocks(List.of(new WodJson.Block(null, "@ 80% — log your top set", List.of(
+                new WodJson.Line("Back Squat", backSquatId, "5x5", null, null, null, "REPS")
+        ), null)));
+    }
+
+    public static WodJson.Blocks burnerBlocks(UUID rowId, UUID burpeeId, UUID wallBallId) {
+        return new WodJson.Blocks(List.of(new WodJson.Block("AMRAP 10", null, List.of(
+                new WodJson.Line("Row", rowId, "8", null, null, null, "CAL"),
+                new WodJson.Line("Burpee", burpeeId, "8", null, null, null, "REPS"),
+                new WodJson.Line("Wall Ball", wallBallId, "8", null, null,
+                        List.of(new WodJson.Scale("Wall Ball", null, null, "6/4", null)), "REPS")
+        ), null)));
+    }
+
+    /** The two-level nesting case (B2 on the athlete workout screen): one outer block with no lines
+     *  of its own, holding three sub-blocks, none of which nest further. */
+    public static WodJson.Blocks chipperBlocks(UUID doubleUnderId, UUID deadliftId, UUID boxJumpId, UUID stepUpId) {
+        WodJson.Block buyIn = new WodJson.Block("Buy-in", null, List.of(
+                new WodJson.Line("Double-Under", doubleUnderId, "50", null, null, null, null)
+        ), null);
+        WodJson.Block threeRounds = new WodJson.Block("3 rounds", "keep the bar moving", List.of(
+                new WodJson.Line("Deadlift", deadliftId, "15", "100/70", null, null, null),
+                new WodJson.Line("Box Jump", boxJumpId, "12", "60/50", null,
+                        List.of(new WodJson.Scale("Step-Up", stepUpId, null, null, null)), null)
+        ), null);
+        WodJson.Block cashOut = new WodJson.Block("Cash-out", null, List.of(
+                new WodJson.Line("Double-Under", doubleUnderId, "50", null, null, null, null)
+        ), null);
+        return new WodJson.Blocks(List.of(new WodJson.Block(null, null, null, List.of(buyIn, threeRounds, cashOut))));
     }
 
     private void seedScoresAndLifts(Box box, UUID athlete, UUID athlete2, UUID athlete3) {
@@ -589,16 +675,43 @@ public class DevDataSeeder implements CommandLineRunner {
         skeletons.save(p);
     }
 
-    /** blocksJson is a full {"blocks":[...]} JSON string, structured like a coach-written piece
-     *  (R2/D20) rather than the legacy plain-text body. */
-    private UUID wod(String title, String type, String scoreType, String blocksJson) {
-        Wod w = new Wod();
-        w.setTitle(title);
-        w.setMacro(WodTypeWire.toMacro(type));
-        w.setTimingPreset(WodTypeWire.toTimingPreset(type));
-        w.setScoreType(scoreType);
-        w.setBlocksJson(blocksJson);
-        return wods.save(w).getId();
+    private UUID wod(String title, String type, String scoreType, WodJson.Blocks blocks) {
+        return libraryWod(title, type, scoreType, blocks, null, null);
+    }
+
+    /**
+     * Finds this box's library copy of a piece by exact title, or creates it -- so topUpProgramming
+     * running on every boot never accumulates a duplicate row (that would just be a differently-shaped
+     * version of the unbounded-growth bug R2 already closed). Wod is @TenantId, so this derived-query
+     * read is already scoped to the running box by Hibernate's tenant filter.
+     * <p>
+     * blocks is pushed through WodJsonValidator.validateBlocks and then Jackson -- the same two steps
+     * WodService.serialize applies to a real write -- so the stored blocks_json is byte-for-byte what
+     * POST /api/box/wods would have stored for the same content.
+     */
+    private UUID libraryWod(String title, String type, String scoreType, WodJson.Blocks blocks,
+                            String bodyText, String scalingNotes) {
+        return wods.findByLibraryTrueAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(title).stream()
+                .filter(w -> title.equals(w.getTitle()))
+                .findFirst()
+                .map(Wod::getId)
+                .orElseGet(() -> {
+                    WodJson.Blocks b = blocks == null ? WodJson.Blocks.empty() : blocks;
+                    WodJsonValidator.validateBlocks(b);
+                    Wod w = new Wod();
+                    w.setTitle(title);
+                    w.setMacro(WodTypeWire.toMacro(type));
+                    w.setTimingPreset(WodTypeWire.toTimingPreset(type));
+                    w.setScoreType(scoreType);
+                    if (bodyText != null) w.setBodyText(bodyText);
+                    if (scalingNotes != null) w.setScalingNotes(scalingNotes);
+                    try {
+                        w.setBlocksJson(objectMapper.writeValueAsString(b));
+                    } catch (JsonProcessingException e) {
+                        throw new IllegalStateException("dev seed: invalid blocks for '" + title + "'", e);
+                    }
+                    return wods.save(w).getId();
+                });
     }
 
     /** A library wod's movement-picker id, by exact name, visible to the box (global or its own). */
