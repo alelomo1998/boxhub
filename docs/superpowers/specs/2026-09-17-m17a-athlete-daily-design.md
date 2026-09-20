@@ -260,10 +260,32 @@ an athlete, and already enforces the privacy rule: `if (!isStaff() && !"PUBLISHE
 return List.of()`. The full `Wod` (blocks, bodyText, scalingNotes) rides inside each `ItemDto`, so
 the screen is **one request**. `ProgrammingService.sessionItems()` already exists on the frontend.
 
-**Entry point:** a full-width row on class detail, under the coach row — **not** a second control
-in the action bar, which holds that screen's one primary action. The row is **absent entirely**
-when the class is not `PUBLISHED`: no disabled state, no teaser. Class detail already receives
-`programmingStatus` in its existing fetch, so the gate costs no extra request.
+**Entry point: the peek card** (re-shaped 2026-09-20, user-chosen — reference render
+`docs/superpowers/sketches/m17a-workout-entry.html`, **column C**). It sits on class detail under
+the coach row and is **not** a second control in the action bar, which holds that screen's one
+primary action. It is **absent entirely** when the class is not `PUBLISHED`: no disabled state,
+no teaser.
+
+A bordered `--surface` card, `--r-card`, holding a mono `WORKOUT` eyebrow with the piece count and
+a chevron on the right, and under it **the piece titles run together as one sentence** separated by
+`·`. Naming the pieces is the point: the athlete must be able to tell it is Fran before spending
+the tap.
+
+**This replaces a bare label-and-chevron row that shipped first and was rejected on sight.** The
+row form is a settings-drawer idiom, and sitting between the coach and the roster — two blocks that
+are *about the class* — it made the one control leading to the actual workout read as the least
+interesting thing on the screen. Round 10 had in fact already drawn the piece names into that row;
+this spec recorded only the prose half of that decision ("a full-width row under the coach row,
+`--tap` min, chevron"), and the build faithfully implemented the prose. That is the failure mode
+the *shape is RENDERED, never described* rule exists to prevent, and it happened inside the
+milestone that made the rule binding.
+
+**It costs one extra request, and that is a deliberate reversal.** An earlier draft of this section
+claimed the gate was free because `programmingStatus` already rides on class detail's fetch. That
+is true of the *gate* and false of the *content*: `SessionDetail` carries no piece titles. Class
+detail therefore calls the existing `GET /api/box/sessions/{id}/items` **only when the class is
+PUBLISHED**, so a draft class still costs nothing. No backend change; the endpoint, its privacy
+gate and `ProgrammingService.sessionItems()` all already exist.
 
 **Shape: decided 2026-09-19 over two rounds.** `m17a-class-workout.html` (three treatments) ->
 **`m17a-class-workout-r2.html` = the locked form**. Renders kept in `m17a-assets/`.
