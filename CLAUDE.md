@@ -1,5 +1,11 @@
 # BoxHub — project instructions
 
+> **RETIRED 2026-09-20. Do not resume work on this repo.** The project was stopped at milestone 12
+> of 39 after no differentiator survived a competitor check and the one reachable box turned out to
+> be a non-buyer already on App Palestre. **Read `POSTMORTEM.md` first** — everything below is the
+> historical operating manual, kept for reference, and `docs/POSITIONING.md` §2/§4/§8/§9 are
+> falsified. Nothing here is a live instruction.
+
 CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Java 21 + Postgres 16. Multi-tenant.
 
 ## Authoritative docs (read before working)
