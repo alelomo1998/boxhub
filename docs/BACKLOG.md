@@ -1112,3 +1112,25 @@ items and the chip/unit/picker entries above were filed during the milestone.
   the design law, applied once, not per screen.
 - Also still open from the same measurement: `bh-week-calendar`'s pager button overflows by ~14px at
   200% zoom on both Book and coach Classes (its own component, unowned by M17a).
+
+## A legacy `bodyText` piece has no way back into the coach flow (raised 2026-09-20, M17a)
+
+`wod.body_text` is the pre-M14a free-text prescription. It is **read in five places** (TV,
+class-builder preview x2, athlete WOD page, and now the athlete class-workout screen) and
+**written in none** — `piece-editor.page.ts` authors `blocks` only. A coach who opens a piece that
+predates M14a therefore sees an editor that cannot show, edit or clear the very thing the athlete
+is reading.
+
+- **It belongs on the PIECE editor, not the class editor.** `body_text` is a column on `wod`; the
+  class stack arranges pieces, it does not author their content.
+- **Not as a co-equal authoring choice.** M14a deliberately moved free text -> structured blocks,
+  and blocks are what feed the TV, the timer segments, movement linking and the leaderboard. A
+  fresh "or just type it" box invites coaches to bypass all of it, and the loss is one-way: blocks
+  render as text, text does not recover into blocks. Surface it only when a piece already HAS
+  `bodyText` and no blocks — visible, editable, clearable — so the legacy shape drains over time.
+- **Cheap when picked up:** the API already accepts `bodyText` on `POST` and `PATCH`
+  (`WodController.create`/`patch`), so it is UI-only. No backend, no migration.
+- **Separate, genuinely different need, do not conflate:** an instruction about the class as a
+  whole ("Partner up. One works, one rests.") is not a piece. That would be a NEW class-level field
+  on the class editor. The M17a dev-seed fixture "Coach's notes" is shaped like this one but stored
+  as a `bodyText` piece, which is exactly the ambiguity to resolve before building either.
