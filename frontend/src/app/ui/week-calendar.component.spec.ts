@@ -357,8 +357,13 @@ describe('WeekCalendarComponent', () => {
 
   // M14c-b F5: Library History wants "pieces ran" / "nothing ran" instead of the class-availability
   // wording -- toneWords overrides per tone, and a tone with no override keeps the default word.
+  // `make(13, -30)`, not `make()`: the assertions below need a SECOND day in the visible week
+  // carrying the default tone, and the tone word is deliberately omitted on an unselectable day.
+  // With min 0 that holds every weekday except Sunday, when today is the week's last day and every
+  // sibling is in the past -- the suite then failed one day in seven. Opening the past makes the
+  // siblings selectable whatever today is; nothing else about the assertions changes.
   it('overrides a tone word when toneWords supplies one for that tone', () => {
-    const fixture = make();
+    const fixture = make(13, -30);
     const cmp = fixture.componentInstance;
     const todayIso = cmp.week().find(d => d.offset === 0)!.iso;
     fixture.componentRef.setInput('tones', { [todayIso]: 'open' });
@@ -371,8 +376,13 @@ describe('WeekCalendarComponent', () => {
     expect(labels.some((l: string) => l?.includes('classes'))).toBeFalse();
   });
 
+  // `make(13, -30)`, not `make()`: the assertions below need a SECOND day in the visible week
+  // carrying the default tone, and the tone word is deliberately omitted on an unselectable day.
+  // With min 0 that holds every weekday except Sunday, when today is the week's last day and every
+  // sibling is in the past -- the suite then failed one day in seven. Opening the past makes the
+  // siblings selectable whatever today is; nothing else about the assertions changes.
   it('gives every day an accessible name that states availability in words', () => {
-    const fixture = make();
+    const fixture = make(13, -30);
     const cmp = fixture.componentInstance;
     const todayIso = cmp.week().find(d => d.offset === 0)!.iso;
     fixture.componentRef.setInput('tones', { [todayIso]: 'full' });
