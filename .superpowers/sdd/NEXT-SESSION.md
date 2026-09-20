@@ -1,139 +1,132 @@
-# Next session — **M17a, mid-milestone: class detail is BUILT and its transition works; the class workout screen is shaped and unbuilt**
+# Next session — **M17a, mid-milestone: the class workout screen is BUILT and unscored; class detail took four user-ruled corrections**
 
 | | |
 |---|---|
-| Branch | **`m17a-athlete-daily`** — 27 commits ahead of `main`, tree clean, NOT merged |
-| Spec | `docs/superpowers/specs/2026-09-17-m17a-athlete-daily-design.md` (**living** — §5.1, §5.2, §5.3 and now **§5.5** carry their shape decisions) |
-| Plan | `docs/superpowers/plans/2026-09-17-m17a-athlete-daily.md` (**1–12b done**; **12c, 12d are new**, then 13–17) |
+| Branch | **`m17a-athlete-daily`** — 38+ commits ahead of `main`, NOT merged |
+| Spec | `docs/superpowers/specs/2026-09-17-m17a-athlete-daily-design.md` (**living** — §5.1, §5.2, §5.3 and §5.5 carry their shape decisions; §5.3 and §5.5 were both amended 2026-09-20) |
+| Plan | `docs/superpowers/plans/2026-09-17-m17a-athlete-daily.md` (**1–12c done**; **12d, 13–17 open**) |
 | Ledger | `.superpowers/sdd/2026-09-17-m17a-athlete-daily/progress.md` |
-| Backend | **864 / 0 / 0 / 0** (orchestrator-run at `e549cca`; untouched since — no backend change in 12a/12b) |
-| Karma | **1113 SUCCESS** (orchestrator-run at `5bc7795`) |
+| Sketches | `docs/superpowers/sketches/m17a-README.md` — rounds 1–12, each with its render and what was decided |
+| Backend | **869 / 0 / 0 / 0** — surefire aggregate at `117dbc8`, the last commit touching `backend/`; no backend source has changed since. A full re-run was in flight when this was written, so **re-run it rather than trusting this line**. |
+| Karma | **1137 SUCCESS** |
 | Build | **0 warnings** |
-| e2e | `booking-flow`, `library`, `programming` **pass**. `runner.spec.ts:43` **fails — proven pre-existing**, filed in `docs/BACKLOG.md`. Full suite not run on a `down -v` stack; still owed. |
-| Visual | `class-card` still has NO baselines — `e2e/visual.sh` owed. The card gained a `.shot` wrapper and a `morphKey` input in 12b, so baselines must be written AFTER that. |
+| e2e | `runner.spec.ts:43` still fails — proven pre-existing, filed. Full suite NOT run on a `down -v` stack; still owed (Task 16). |
+| Visual | `class-card` STILL has no baselines — `e2e/visual.sh` owed. |
 
-**Never quote these numbers — re-run them first.**
+**Never quote these numbers — re-run them first.** The last handoff said Karma was 1113; it was
+1111, and the two failures were real (see below).
+
+---
 
 ## Done this session
 
-- **Task 12a — class detail BUILT**, matching `m17a-class-detail-r3.html` column 1, and with it
-  **the detail-screen mechanism every later non-dock screen inherits**: route `data: { detail,
-  backTo }` read from the **deepest** activated route on each `NavigationEnd`, plus
-  `ShellChromeService.detailTitle`. Route-owned, not screen-set, so a screen that forgets to reset
-  on destroy cannot leak into the next one.
-- **Task 12b — the open/close shared-element morph WORKS, both directions, measured.**
-- **A user-reported Book defect fixed** (below).
-- **The class workout screen shaped over two rounds and LOCKED** (spec §5.5). **NOT BUILT.**
+**Task 12c — the class workout screen is built** (`/athlete/class/:id/workout`), matching the locked
+`m17a-class-workout-r2.html`: B2 sub-block chips with no indent, N2 notes under their lines, `↳`
+scaled lines indented under the movement column, `8 cal` in the reps column, the box's weight unit
+in the load column, `bodyText` as preformatted mono, and no volt. `expandedRows()` gained its
+`scales` passthrough at both levels; its `note` push did not move. `backTo` now resolves `:params`,
+so a nested detail screen returns to its parent — extended once in `ShellChromeService`, and every
+later nested detail screen inherits it.
 
-### The transition was built on native View Transitions, not the sketch's overlay morph (user-ruled)
+### Five user rulings, all already applied
 
-`withViewTransitions()` in `provideRouter`, with `onViewTransitionCreated` calling
-`skipTransition()` unless the navigation enters or leaves a detail route — that skip is the only
-thing keeping a **global** router option scoped to one screen. The locked shape is unchanged;
-the mechanism makes both of the prototype's traps structurally impossible (no source row to hide,
-no `transitionend` to wait on, and the router resolves whether or not anything animates, so
-`prefers-reduced-motion` cannot deadlock it). Back-navigation needed **no second code path** — the
-browser pairs snapshots by `view-transition-name`, so the collapse is the same pair reversed.
+1. **A nested detail screen slides.** Opening the workout pushes in from the right, closing pops
+   back out. Built on the View Transitions 12b installed: the route carries `slide`,
+   `app.config.ts` tags `<html data-vt="fwd|back">` for exactly those navigations, `styles.scss`
+   drives keyframes off that. The rule sweeps `*` — every captured group, not just root — because
+   the screen being LEFT still carries class detail's photo/title `view-transition-name`s while the
+   one being entered does not; left to the UA's default those two sit still and fade while the page
+   slides out from under them.
+2. **The shell header does NOT travel.** The mail/bell/avatar are the same controls on both screens,
+   so sliding them made the chrome read as part of the page. The header is named and opted into a
+   `bh-pinned` view-transition-class that the slide rules exclude; it holds position and cross-fades.
+   **The detail title needed opting in separately** — its per-session name lifts it OUT of the
+   header's snapshot, so it would otherwise be the one piece of chrome still flying off.
+3. **The workout entry point is the PEEK CARD, not a chevron row.** The first build shipped a bare
+   "Workout ›" and it was rejected on sight: a settings-drawer idiom that told the athlete nothing.
+   Round 10 had *already drawn* the row naming its pieces; §5.5 recorded only the prose half and the
+   build implemented the prose. Re-shaped as round 12, four options rendered and measured, **C
+   chosen**. It costs one `sessionItems` request, fired only when the class is PUBLISHED.
+4. **Booking outcomes live in the banner and NOWHERE else.** A failed action printed the reason
+   under the button as well. Deleted — markup, CSS, the `errorMsg` signal and all four assignments.
+   It was also an a11y defect: `bh-alert` already derives `role="alert"` from a danger tone, so the
+   screen had TWO `role="alert"` elements announcing the same failure.
+5. **The roster opens a PHOTO SHEET, not the athlete profile** — and **the sheet is where athlete
+   detail grows**, not a screen (see "What M17c inherits").
 
-**The real work was the precondition, on BOTH sides: a morph can only pair elements that are
-PAINTED when the router snapshots.** This is the thing to remember for every later detail screen.
+### The dev seeder now provides real-flow programming, every boot
 
-- Leaving: Book refetched on init, so it was empty for a tick and the hero faded instead of
-  collapsing. Book's `sessions`/`dayOffset`/window moved into a root-provided **`BookStore`**; a
-  cache hit renders immediately, then revalidates **silently**. The store also remembers `scrollY`,
-  or the collapse lands on empty space.
-- Entering: class detail painted "Loading class…" and only built the hero after the fetch. It now
-  **seeds the hero synchronously from `BookStore`** (a `HeroSeed`, deliberately not a partial
-  `SessionDetail`) and names it from the route id. The action bar's height is reserved but its
-  contents wait for the real fetch — a guessed action is worse than a late one. Cold load / deep
-  link has no seed and no source card, so it falls back and simply does not animate.
+Two defects, both fixed. It fired **once ever** — the whole seeder sat behind "the demo box already
+exists", which is not the same fact as "today's classes carry programming", so any stack older than
+a day had none and the workout screen was unreachable. And its blocks were **hand-concatenated JSON
+strings** written straight to `setBlocksJson`, bypassing `WodJsonValidator`. They are now typed
+`WodJson` records pushed through the same validate + serialise a real `POST /api/box/wods` uses,
+every movement line binds to a real `movementId`, and `SeededProgrammingIsRecreatableTest` asserts
+the conversion is **byte-identical** to the strings it replaced. New fixtures cover what nothing
+seeded before: a Chipper with two-level sub-blocks, a block note and a bound scale; a scale on the
+burner. **Idempotence was verified on the running stack, not claimed** — second boot, counts
+unchanged, one row per library piece.
 
-Measured with Playwright at 393px, scrolled (scrollY 695, card index 3): open interpolates
-`359x170@(17,311)` → 366 → 376 → 388 → `393x260@(0,61)`; close returns to `359x170@(17,311)`;
-scrollY 695 before and after.
-
-### The Book "page refresh" defect (user-reported, fixed)
-
-Tapping Book or Cancel appeared to refresh the page. Not a navigation — `bh-button` defaults to
-`type="button"` and Book has no `<form>`. `act()`'s success handler called `load()` on the
-**non-silent** path, flipping `loading`, and the template's first branch replaces the whole card
-list with a "Loading classes…" stateline — so all cards unmounted and remounted. Now `load(true)`.
-A revalidate that fails after a successful action keeps the cached list rather than dropping into
-the error block; the banner is the athlete's confirmation.
-
-Verified on the running stack, not only in Karma: 49 samples across each action, card count never
-dropped (9/9 book, 3/3 cancel), "Loading classes…" never rendered, card still flipped Book↔Cancel.
-
-**Sibling callers checked** (root cause, not the reported symptom): coach Classes has no
-post-action reload, class detail's `reload()` was already silent. **Home only loads on init today,
-but Task 14 adds one-tap Book from the suggestion card — build that silent from the start or this
-defect comes straight back.**
+---
 
 ## Owed before the milestone closes — start here
 
-**Task 12c — build the class workout screen + the entry row on class detail.** Spec §5.5 is
-binding; the shape is LOCKED at `docs/superpowers/sketches/m17a-class-workout-r2.html`
-(**B2** sub-blocks, **N2** note placement). Read the plan's Task 12c for the full contract. The
-short version:
+**Task 12d — the class workout gate. NOTHING HAS BEEN SCORED YET.** User visual sign-off is done
+(they approved the screen and the sheet); `audit` (≥16/20) has NOT run, no P0/P1 pass has run, and
+`critique` (≥32/40) has NOT run. Both need Claude in Chrome connected — if the browser is
+unavailable, **stop and ask, do not score anyway**.
 
-- **No backend change.** `GET /api/box/sessions/{id}/items` already exists, is already athlete-
-  reachable, and already enforces privacy (`!isStaff() && !PUBLISHED -> List.of()`). The full `Wod`
-  rides inside each `ItemDto`, so the screen is **one request**.
-- **Two model facts that will bite if missed:** the unit is stored on the LINE
-  (`{reps:"8", unit:"CAL"}` prints `8 cal Row`, never a load-column value), and **`expandedRows()`
-  silently drops `line.scales`** — reuse it as-is and every `↳` scaled line disappears. It needs a
-  `scales` passthrough. **Do not move its `note` push** — N2 deliberately keeps the current
-  after-the-lines order so the class builder and WOD library are untouched.
-- **`backTo` must grow to accept a parent-relative target** (this screen returns to
-  `/athlete/class/:id`). Extend the mechanism ONCE in `ShellChromeService`; every later nested
-  detail screen inherits it. This is the second consumer of 12a's mechanism and the one that
-  stretches it.
-- Renderer is **`expandedRows` + `libMeta`** — do NOT copy `wod.page.ts`'s ~50 lines of hand-rolled
-  recursion into a second screen.
+Then **Task 13** (class detail gate — it changed a lot today, so score what is there now, not what
+was there yesterday), **14–15** (Home shape + build + gate), **16** (e2e wiring), **17** (close-out).
 
-**Task 12d** — its gate. Then **13** (class detail gate), **14–15** (Home shape + build + gate),
-**16** (e2e wiring spec), **17** (close-out).
+**Task 14 carries a trap already paid for once:** Home's one-tap Book must call its reload
+**silently** from the start. The same defect on Book — `act()` calling a non-silent `load()`, which
+flipped `loading` and unmounted every card — read to the user as "the page refreshes".
 
-## Rules the user ruled DURING this milestone (all binding, all in CLAUDE.md)
+---
 
-1. **Shape is RENDERED, never described** — HTML sketches served locally, opened in the user's own
-   Chrome tab, plus a Playwright PNG. Iterated as new files.
-2. **Every screen carries a visible `<h1>`.**
-3. **A screen that is not a dock tab is a detail screen:** no dock, back arrow, bottom gutter
-   reclaimed, `<h1>` still present.
-4. **Booking outcomes are a bottom `bh-banner`**; a failed *load* keeps its own stateline.
-5. **Cancelling is confirmed in a `bh-sheet`** (danger ghost opens, filled danger executes).
-6. **Card actions:** Book `solid`, Join waitlist `ghost`, Cancel/Leave `ghost-danger`.
-7. **The class card's scrim is light and NOT adaptive** — a recorded decision, never an open P1.
-8. **Coach Classes' three actions are a full-width second line, equal thirds.**
-9. **THE DETAIL HEADER IS SETTLED** — back arrow · the screen's `<h1>` · the shell's usual
-   right-side actions. Only the box switcher goes. Governs EVERY non-dock screen.
-10. **A detail screen has NO volt at all.**
-11. **Opening a detail screen is a shared-element transition** — now native View Transitions.
-12. **NEW 2026-09-19 — the class workout screen is a read-only VISUAL of the class, never a log
-    board.** No scoring, no leaderboard links; those are M17b's WOD board, a different screen with
-    a different job. It lives in class detail's flow and the back arrow returns to the class.
+## What M17c inherits (filed in `docs/BACKLOG.md`)
+
+- **`athlete/profile/:membershipId` is unfit and M17c rebuilds it**: no i18n marks at all,
+  `ChangeDetectionStrategy.Eager`, an in-body `<h1>` and its own `‹ Back` button instead of the
+  settled detail header. **It needs a brainstorm before it is built** — it has never been shaped,
+  only inherited from M5.
+- **Do NOT delete M17a's photo sheet and do NOT re-point the roster at the profile screen**
+  (user-ruled after seeing it). The sheet is the athlete **peek** surface and anything a roster tap
+  should reveal grows there. M17c must first answer: *what does a whole screen do that the sheet
+  cannot?*
+- **The coach row stays non-interactive until M26**, which owns the athlete-facing coach view, the
+  profile with strong/weak points and price, and the request → coach-accepts flow; messaging a coach
+  is M29a's. **No mock was built on purpose**: the v1.0 doctrine is *built but idle, never absent*,
+  and a stub a pilot gym owner can reach is absent pretending to be present. Both milestones land
+  before the pilot — this was checked against the roadmap, not assumed.
+- **`wod.body_text` is to be RETIRED, not integrated** (user-ruled). Read in five places, written in
+  none. Migrate the existing rows FIRST and keep the five readers until that is done, or an athlete
+  loses the ability to read a class written before M14a.
+
+---
 
 ## Traps hit this session (beyond the standing list)
 
-- **A shared-element morph can only pair elements that are PAINTED when the router snapshots.**
-  Both sides needed a fix; neither was obvious until measured. The executor first reported the open
-  direction as *frozen* — reporting the failure honestly is what surfaced it.
-- **Measure motion with Playwright, never Claude-in-Chrome** — Chrome throttles background tabs.
-- **Verify layout claims with measured geometry.** In the round-1 sketch I wrote two captions from
-  eyeballing and both were wrong: A was not "2.5 pieces", and C was the most COMPACT option, not
-  the most expensive. Measuring changed which trade-off each option actually had.
-- **Check a shape against the data model before showing it.** Round 1 of the workout sketch drew
-  the unit in the load column and assumed the shared flattener carried scaled lines. Neither was
-  true; both were found by reading `prescription.ts`, not by looking at pixels.
-- **A `spyOnProperty(window, 'scrollY', 'get')` flakes ~50%** — `shell-header.component.spec.ts`
-  redefines `scrollY` as a value property and never restores the accessor, and Karma runs every
-  spec file in one page. Use `Object.defineProperty`, which works whatever the current descriptor.
-- **A root service that injects `Router` and subscribes in its constructor** (ShellChromeService now
-  does) needs a router in every TestBed that touches it.
-- Still true: the stack serves **built images**; `down -v` wipes the hand-seeded past classes;
-  Claude-in-Chrome cannot type a password and will not go below ~500px, so sign-in and ≤393px
-  passes go through Playwright from `e2e/`.
+- **A backtick inside a `styles:` or `template:` comment closes the template literal**, and the
+  compiler error points somewhere else entirely ("Failed to resolve styles at position 1 to a
+  string"). Hit while writing a comment containing a CSS property name in backticks. There is a
+  memory about this and it still caught me — never write a token name in backticks inside those
+  comments.
+- **The handoff's own numbers were wrong.** Karma was 1111/2 FAILED, not 1113. Both failures were
+  in `week-calendar.component.spec.ts` and **date-dependent**: the strip renders Monday-first around
+  today, so when today is Sunday every sibling day is in the past and unselectable, and an
+  unselectable day deliberately announces no tone word. It failed one day in seven. Fixed to open
+  the past instead of depending on the weekday.
+- **Measure a view transition with an in-page rAF sampler, not `page.evaluate` round-trips** —
+  a 280ms animation is gone before twelve round-trips finish. `document.getAnimations()` reaches
+  pseudo-element animations, which is the only way to observe `::view-transition-*` at all.
+- **Let a transition settle before screenshotting**, or the shot double-images two screens.
+- **A sketch can be RIGHT and still lose**: round 10 drew the entry row correctly and the build
+  still shipped the wrong thing, because the spec captured the prose and not the render. When a
+  shape is decided, the spec must point at the file **and the column**.
+
+---
 
 ## Paste this into the new session
 
@@ -141,44 +134,45 @@ short version:
 Read .superpowers/sdd/NEXT-SESSION.md and continue M17a.
 
 cd ~/dev/boxhub && git checkout m17a-athlete-daily && git status
-# expect a CLEAN tree at the docs commit (27 commits ahead of main, NOT merged).
+# expect a CLEAN tree, 38+ commits ahead of main, NOT merged.
 
-FIRST, confirm the baselines yourself — never quote them from the handoff:
-  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test          # expect 864/0/0/0
-  cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless   # expect 1113 SUCCESS
-  cd frontend && env -u NODE_OPTIONS npm run build                        # expect zero warnings
+FIRST, confirm the baselines yourself — the last handoff's Karma number was WRONG and the two
+failures it hid were real:
+  cd backend  && JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn test
+  cd frontend && env -u NODE_OPTIONS npm run test -- --watch=false --browsers=ChromeHeadless
+  cd frontend && env -u NODE_OPTIONS npm run build
+
+The dev stack serves BUILT images — rebuild the frontend (and the backend when the wire changed)
+before looking at anything. The seeder now tops up today's programming on every boot, so "Burn It"
+and "WOD Class" are PUBLISHED with real pieces; `down -v` still wipes hand-seeded past classes.
 
 THEN, in this order:
-1. Task 12c — build the class workout screen and its entry row on class detail. The shape is
-   LOCKED; do not re-open it. Spec §5.5 is binding and the reference render is
-   docs/superpowers/sketches/m17a-class-workout-r2.html — option B2 for sub-blocks (chip label,
-   NO indent) and N2 for a block's note (UNDER its lines). No backend change: the endpoint,
-   the privacy gate and ProgrammingService.sessionItems() all already exist.
-   Three things that will bite if missed, all in the plan's Task 12c:
-     - the unit is stored on the LINE ({reps:"8", unit:"CAL"} prints "8 cal Row"), never a load;
-     - expandedRows() silently DROPS line.scales — it needs a passthrough or every scaled line
-       disappears — and its `note` push must NOT move, because N2 is what keeps the class builder
-       and WOD library untouched;
-     - `backTo` must grow to accept a parent-relative target, extended ONCE in ShellChromeService
-       so every later nested detail screen inherits it.
-   The renderer is expandedRows + libMeta. Do NOT copy wod.page.ts's hand-rolled recursion.
-2. Task 12d — its gate: user visual sign-off, then audit (≥16/20), fix every P0/P1, then critique
-   (≥32/40) with the browser connected.
-3. Task 13 — the class detail gate, same shape, click path Book → card → detail.
-4. Tasks 14–17: Home shape + build, Home gate, e2e wiring spec, close-out.
+1. Task 12d — the class workout gate. The screen is BUILT and the user has signed off on how it
+   looks, but NOTHING has been scored. Run `audit` (≥16/20), fix every P0/P1, THEN `critique`
+   (≥32/40) — audit first, fix between, one scoring pass. Both need Claude in Chrome connected; if
+   the browser is unavailable, STOP AND ASK rather than scoring a source-only pass.
+   Click path: Book → WOD Class (today 18:00) → the Workout peek card → back.
+2. Task 13 — the class detail gate. It changed FOUR times today (peek card, banner-only errors,
+   roster photo sheet, pinned header) — score what is on the screen now.
+3. Tasks 14–15 — Home shape (RENDER the options, never describe them) + build + gate. Home's
+   one-tap Book must reload SILENTLY from the start, or the "page refreshes" defect the user
+   reported on Book comes straight back on a different screen.
+4. Tasks 16–17 — e2e wiring on a `down -v` stack, `e2e/visual.sh` for the still-missing class-card
+   baselines, then close-out.
 
 Process, unchanged: ALWAYS a Sonnet subagent per plan task with a short brief pointing at the plan;
 executors never commit; the orchestrator reviews every diff and runs every gate itself. Brief every
-executor to delete its throwaway specs BY EXACT PATH, never a glob — one wiped four unrelated files.
+executor to delete its throwaway specs BY EXACT PATH, never a glob.
 
-VERIFY LAYOUT CLAIMS WITH MEASURED GEOMETRY, not a screenshot glance, and CHECK A SHAPE AGAINST THE
-DATA MODEL before showing it — the workout sketch's first round drew the unit in the wrong column
-and assumed the shared flattener carried scaled lines. Measure motion with Playwright, never
-Claude-in-Chrome; Chrome throttles background tabs and reports a working animation as frozen.
+A new screen's shape is RENDERED as options in the browser, never described — serve the sketch,
+open it in the user's own Chrome tab, send the Playwright PNG, and when a shape is chosen write the
+decision into the spec pointing at the FILE AND THE COLUMN. A spec that records only the prose is
+how the workout entry row shipped wrong this session even though round 10 had drawn it correctly.
 
-A new screen's shape is RENDERED as options in the browser, never described — serve the sketch AND
-open it in the user's own Chrome tab, then send the Playwright PNG. Verify navigation by clicking.
+VERIFY LAYOUT AND MOTION CLAIMS WITH MEASURED GEOMETRY. Measure motion with Playwright, never
+Claude-in-Chrome (it throttles background tabs), using an in-page requestAnimationFrame sampler —
+page.evaluate round-trips are too slow to catch a 280ms animation — and let a transition settle
+before screenshotting or the shot double-images.
 
-The dev stack serves BUILT images — rebuild the frontend (and the backend when the wire changed)
-before looking at anything, and note that `down -v` wipes the hand-seeded past classes.
+Do NOT re-open anything in §5.3 or §5.5 marked user-ruled, and do not delete the roster photo sheet.
 ```
