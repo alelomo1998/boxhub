@@ -70,7 +70,11 @@ import { classTitleVtName } from '../../ui/class-card.component';
       background: transparent; color: var(--bone); border: 1px solid var(--hairline);
       border-radius: var(--r-ctl); cursor: pointer; flex-shrink: 0; }
     .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    /* Pinned with the bar it sits in during a nested push/pop: its per-session
+       view-transition-name lifts it OUT of the header's own snapshot, so without this it would be
+       the one piece of chrome still flying off while everything around it held still. */
     .dtitle { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2);
+      view-transition-class: bh-pinned;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; margin: 0; }
     .hnav { display: flex; gap: var(--sp-1); flex: 1; justify-content: center; }
     .hitem { display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--sp-4);

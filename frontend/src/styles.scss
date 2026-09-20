@@ -114,3 +114,18 @@ nav a { text-decoration: none; }
 @keyframes bh-push-in  { from { transform: translateX(100%); } }
 @keyframes bh-pop-out  { to   { transform: translateX(100%); } }
 @keyframes bh-pop-in   { from { transform: translateX(-30%); opacity: 0; } }
+
+/* THE SHELL HEADER DOES NOT TRAVEL (user-ruled 2026-09-20). It is chrome, and its mail / bell /
+   avatar are the SAME controls on both screens -- sliding them reads as though the bar belonged to
+   the page rather than to the app. It stays pinned and cross-fades, so only its title visibly
+   changes. `.bh-pinned` is a view-transition-class rather than a list of names because the detail
+   title carries a per-session `view-transition-name` that no stylesheet can spell; without the
+   title opted in too it would be the one piece of chrome still flying off, since its own name
+   lifts it OUT of the header's snapshot. These rules sit after the `*` block deliberately -- they
+   are the exception that overrides it. */
+:root[data-vt]::view-transition-group(.bh-pinned) { animation: none; }
+:root[data-vt]::view-transition-old(.bh-pinned) { animation-name: bh-vt-fade-out; }
+:root[data-vt]::view-transition-new(.bh-pinned) { animation-name: bh-vt-fade-in; }
+
+@keyframes bh-vt-fade-out { to   { opacity: 0; } }
+@keyframes bh-vt-fade-in  { from { opacity: 0; } }
