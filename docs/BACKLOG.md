@@ -1139,3 +1139,26 @@ about the class as a whole ("Partner up. One works, one rests.") is not a piece.
 it is a NEW class-level field on the class editor, with its own name. The dev-seed "Partner WOD"
 fixture is shaped like this but stored as a `bodyText` piece, which is exactly the conflation to
 avoid when either of these is picked up.
+
+## Class detail's people → their profiles (raised 2026-09-20, M17a)
+
+Class detail's roster used to link each person to `athlete/profile/:membershipId`. **The link was
+removed in M17a** and the tap now opens that person's photo enlarged, because the destination is
+pre-rework (no i18n marks at all, `ChangeDetectionStrategy.Eager`, an in-body `<h1>` and its own
+`‹ Back` button instead of the settled detail header) and its rebuild is already M17c's. Shipping a
+door into a room scheduled for demolition is the thing that was wrong, not the screen itself.
+
+**→ M17c, when it rebuilds `athlete/profile/:membershipId`:** re-wire class detail's two roster
+grids to it, and delete the photo sheet M17a put there in its place. **The athlete profile needs a
+brainstorm before it is built** (user-ruled 2026-09-20: *"right now the page is terrible"*) — it has
+never been shaped, only inherited from M5.
+
+**→ M26, when it builds the coach profile:** class detail's **coach row** is one of its entry
+points, and is deliberately non-interactive until then. M26 already owns the athlete-facing view of
+a box's coaches, the strong/weak points and price, and the request → coach-accepts flow; messaging a
+coach is M29a's (staff ↔ member threads, coaches included). **No mock coach page was built on
+purpose** — the v1.0 doctrine is *built but idle, never absent*, and a placeholder a pilot gym owner
+can reach is absent pretending to be present. A non-interactive coach name is the honest state.
+
+**These are two different screens and must not be merged:** an athlete's public profile is a peer
+you look up; a coach's profile is a staff member you book and message.
