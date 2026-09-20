@@ -5,6 +5,7 @@ import {
 import { formatDate } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BookingService, GridEntry, SessionDetail } from '../booking/booking.service';
+import { ProgrammingService, SessionItem } from '../programming/programming.service';
 import { AvatarComponent } from '../../ui/avatar.component';
 import { ButtonComponent } from '../../ui/button.component';
 import { BannerComponent } from '../../ui/banner.component';
@@ -93,16 +94,29 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
               </div>
             }
 
-            <!-- The entry row into the workout screen (M17a Task 12c). Reuses programmingStatus
-                 already on this fetch -- no second request. Absent (not disabled, no teaser) for a
-                 DRAFT class: there is nothing for an athlete to read yet. NOT a second control in
-                 the action bar -- that bar is reserved for the booking action alone. No volt: this
-                 is still a detail screen. -->
-            @if (d.programmingStatus === 'PUBLISHED') {
-              <a class="wrow" [routerLink]="['/athlete/class', d.id, 'workout']" data-testid="detail-workout-row">
-                <span i18n="@@athlete.classDetail.workoutRow">Workout</span>
-                <span class="chev" aria-hidden="true">&rsaquo;</span>
-              </a>
+            <!-- The peek card entry point into the workout screen (spec §5.5, re-shaped 2026-09-20 --
+                 column C of docs/superpowers/sketches/m17a-workout-entry.html -- replacing the
+                 rejected label+chevron row). Renders only once items() has resolved to a non-empty
+                 array (see loadItems()) so no empty card flashes while the request is in flight; a
+                 DRAFT class never fires that request at all. NOT a second control in the action bar
+                 -- that bar is reserved for the booking action alone. No live/now accent here either
+                 -- still a detail screen.
+                 One link, one accessible name: aria-label carries eyebrow+count+titles, so the
+                 visible titles are aria-hidden to avoid a double announcement. -->
+            @if (items(); as it) {
+              @if (it.length) {
+                <a class="wcard" [routerLink]="['/athlete/class', d.id, 'workout']" data-testid="detail-workout-row" [attr.aria-label]="workoutAriaLabel()">
+                  <span class="top">
+                    <span class="kk">{{ workoutEyebrowText }}</span>
+                    <span class="cnt2">{{ workoutCountLabel() }} <span class="chev" aria-hidden="true">&rsaquo;</span></span>
+                  </span>
+                  <span class="names" aria-hidden="true">
+                    @for (i of it; track i.id; let last = $last) {
+                      {{ i.wod.title }}@if (!last) {<span class="sep"> &middot; </span>}
+                    }
+                  </span>
+                </a>
+              }
             }
 
             <h2 class="sh"><span i18n="@@athlete.classDetail.going">Going</span> <span class="cnt">{{ d.active.length }}/{{ d.capacity }}</span></h2>
@@ -220,12 +234,19 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
       text-transform: uppercase; color: var(--faint); }
     .c-v { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-body); }
 
-    .wrow { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
-      min-height: var(--tap); padding: 0 var(--sp-4); border-bottom: 1px solid var(--hairline);
-      color: var(--bone); text-decoration: none; font-family: var(--font-display); font-weight: 700;
-      font-size: var(--fs-body); }
-    .wrow .chev { color: var(--bone-dim); font-size: var(--fs-h2); line-height: 1; }
-    .wrow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .wcard { display: block; margin: var(--sp-4) var(--sp-4) 0; padding: var(--sp-3) var(--sp-4);
+      background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-card);
+      text-decoration: none; }
+    .wcard:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .wcard .top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+      margin-bottom: var(--sp-2); }
+    .wcard .kk { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--faint); }
+    .wcard .cnt2 { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--bone-dim); }
+    .wcard .chev { font-size: var(--fs-body); line-height: 1; }
+    .wcard .names { display: block; font-family: var(--font-display); font-weight: 700;
+      font-size: var(--fs-body); line-height: 1.35; color: var(--bone); }
+    .wcard .names .sep { color: var(--faint); font-weight: 400; }
 
     .sh { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm);
       text-transform: uppercase; letter-spacing: 0.08em; color: var(--bone-dim);
@@ -261,6 +282,7 @@ interface HeroSeed { name: string; imagePath: string | null; startAt: string; du
 })
 export class ClassDetailPage implements OnInit, OnDestroy {
   private booking = inject(BookingService);
+  private programming = inject(ProgrammingService);
   private route = inject(ActivatedRoute);
   private locale = inject(LOCALE_ID);
   private el: ElementRef<HTMLElement> = inject(ElementRef);
@@ -286,10 +308,15 @@ export class ClassDetailPage implements OnInit, OnDestroy {
   private readonly leaveConfirmCost = $localize`:@@athlete.book.confirm.leave.cost:Your position is lost.`;
   private readonly cancelConfirmExecute = $localize`:@@athlete.book.confirm.cancel.execute:Cancel booking`;
   private readonly leaveConfirmExecute = $localize`:@@athlete.book.confirm.leave.execute:Leave waitlist`;
+  protected readonly workoutEyebrowText = $localize`:@@athlete.classDetail.workout.eyebrow:Workout`;
 
   private id!: string;
 
   readonly detail = signal<SessionDetail | null>(null);
+  /** The workout peek card's data (spec §5.5) -- populated only for a PUBLISHED class, only from
+   *  load() (see loadItems()). null while unresolved/unfetched; [] would also hide the card, but
+   *  in practice a PUBLISHED class always has items. */
+  readonly items = signal<SessionItem[] | null>(null);
   /** Set synchronously in ngOnInit from a BookStore peek, before the fetch — see HeroSeed's
    *  comment. Never authoritative: `heroSource` prefers `detail()` the moment it arrives. */
   readonly seed = signal<HeroSeed | null>(null);
@@ -331,6 +358,23 @@ export class ClassDetailPage implements OnInit, OnDestroy {
     const start = formatDate(d.startAt, 'HH:mm', this.locale);
     const endS = formatDate(end, 'HH:mm', this.locale);
     return $localize`:@@athlete.classDetail.eyebrow:${date}:date: · ${start}:start:–${endS}:end: · ${d.durationMin}:duration:′`;
+  });
+
+  protected readonly workoutCountLabel = computed(() => {
+    const n = this.items()?.length ?? 0;
+    return n === 1
+      ? $localize`:@@athlete.classDetail.workout.count.one:1 piece`
+      : $localize`:@@athlete.classDetail.workout.count.other:${n}:count: pieces`;
+  });
+
+  /** The peek card's single accessible name -- a sighted user gets eyebrow/count visually and the
+   *  titles as a sentence; a screen-reader user gets the same three things here, since the titles
+   *  themselves are aria-hidden in the template to avoid a double announcement. */
+  protected readonly workoutAriaLabel = computed(() => {
+    const items = this.items();
+    if (!items || !items.length) return '';
+    const titles = items.map(i => i.wod.title).join(', ');
+    return $localize`:@@athlete.classDetail.workout.aria:${this.workoutEyebrowText}:eyebrow:, ${this.workoutCountLabel()}:count:: ${titles}:titles:`;
   });
 
   protected readonly badgeLabel = computed<string | null>(() => {
@@ -388,9 +432,26 @@ export class ClassDetailPage implements OnInit, OnDestroy {
 
   load() {
     this.state.set('loading');
+    this.items.set(null);
     this.booking.sessionDetail(this.id).subscribe({
-      next: d => { this.detail.set(d); this.chrome.detailTitle.set(d.name); this.state.set('ready'); },
+      next: d => {
+        this.detail.set(d);
+        this.chrome.detailTitle.set(d.name);
+        this.state.set('ready');
+        if (d.programmingStatus === 'PUBLISHED') this.loadItems();
+      },
       error: () => this.state.set('error'),
+    });
+  }
+
+  /** The workout peek card's data (spec §5.5) -- fired from load() only, never reload(): a booking
+   *  action does not change the programming, so a post-action refresh has no reason to re-request
+   *  it. A failed request leaves the card simply absent, without touching state()/errorMsg() --
+   *  this screen's job is the booking action, and a missing peek is not worth an error block. */
+  private loadItems() {
+    this.programming.sessionItems(this.id).subscribe({
+      next: items => this.items.set(items),
+      error: () => {},
     });
   }
 

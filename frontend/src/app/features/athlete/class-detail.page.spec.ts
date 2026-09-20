@@ -6,10 +6,24 @@ import { ClassDetailPage } from './class-detail.page';
 import { ShellChromeService } from '../../core/shell-chrome.service';
 import { BookStore } from '../booking/book.store';
 import type { SessionDetail, GridEntry, SessionView } from '../booking/booking.service';
+import type { SessionItem, Wod } from '../programming/programming.service';
 import { bookingReason } from '../booking/booking-reason';
 
 function entry(membershipId: string, name: string, overrides: Partial<GridEntry> = {}): GridEntry {
   return { membershipId, name, avatarPath: null, status: 'BOOKED', me: false, ...overrides };
+}
+
+function wod(title: string, overrides: Partial<Wod> = {}): Wod {
+  return {
+    id: title, title, wodType: 'CUSTOM', macro: 'WORKOUT', timingPreset: null,
+    timing: { rounds: 1, segments: [] }, library: false, teamSize: 1, teamShare: null,
+    scoreType: 'TIME', timeCapSeconds: null, bodyText: '', blocks: { blocks: [] },
+    scalingNotes: null, benchmarkTemplateId: null, ...overrides,
+  };
+}
+
+function item(id: string, title: string, overrides: Partial<SessionItem> = {}): SessionItem {
+  return { id, wodId: title, wod: wod(title), sortOrder: 0, scoreable: true, scoreType: 'TIME', myScoreLogged: false, ...overrides };
 }
 
 function detail(startAt: string, overrides: Partial<SessionDetail> = {}): SessionDetail {
@@ -52,8 +66,14 @@ describe('ClassDetailPage', () => {
     return fixture;
   }
 
-  function flush(fixture: any, d: SessionDetail) {
+  // A PUBLISHED detail now fires a second request (the workout peek card's items, spec §5.5) --
+  // `items` defaults to [] so every pre-existing caller that doesn't care about the peek card
+  // still only has to flush this one helper, and gets an absent card (empty array) for free.
+  function flush(fixture: any, d: SessionDetail, items: SessionItem[] = []) {
     http.expectOne(r => r.url === '/api/box/sessions/s1/detail').flush(d);
+    if (d.programmingStatus === 'PUBLISHED') {
+      http.expectOne(r => r.url === '/api/box/sessions/s1/items').flush(items);
+    }
     fixture.detectChanges();
   }
 
@@ -137,22 +157,84 @@ describe('ClassDetailPage', () => {
     expect(chrome.detailTitle()).toBeNull();
   });
 
-  it('shows the workout entry row when programmingStatus is PUBLISHED', () => {
-    const soon = new Date(Date.now() + 3600_000).toISOString();
-    const fixture = setup();
-    flush(fixture, detail(soon, { programmingStatus: 'PUBLISHED' }));
+  describe('workout peek card (spec §5.5, m17a-workout-entry.html column C)', () => {
+    it('shows the peek card when programmingStatus is PUBLISHED and items resolve', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      flush(fixture, detail(soon, { programmingStatus: 'PUBLISHED' }), [item('i1', 'Fran')]);
 
-    const row = fixture.nativeElement.querySelector('[data-testid="detail-workout-row"]');
-    expect(row).not.toBeNull();
-    expect(row.getAttribute('href')).toBe('/athlete/class/s1/workout');
-  });
+      const row = fixture.nativeElement.querySelector('[data-testid="detail-workout-row"]');
+      expect(row).not.toBeNull();
+      expect(row.getAttribute('href')).toBe('/athlete/class/s1/workout');
+    });
 
-  it('hides the workout entry row when programmingStatus is DRAFT', () => {
-    const soon = new Date(Date.now() + 3600_000).toISOString();
-    const fixture = setup();
-    flush(fixture, detail(soon, { programmingStatus: 'DRAFT' }));
+    it('hides the peek card when programmingStatus is DRAFT', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      http.expectOne(r => r.url === '/api/box/sessions/s1/detail').flush(detail(soon, { programmingStatus: 'DRAFT' }));
+      fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="detail-workout-row"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="detail-workout-row"]')).toBeNull();
+    });
+
+    it('does not request items when programmingStatus is DRAFT', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      http.expectOne(r => r.url === '/api/box/sessions/s1/detail').flush(detail(soon, { programmingStatus: 'DRAFT' }));
+      fixture.detectChanges();
+
+      http.expectNone(r => r.url === '/api/box/sessions/s1/items');
+    });
+
+    it('renders the piece titles joined by a separator', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      flush(fixture, detail(soon), [item('i1', 'Fran'), item('i2', 'Chipper'), item('i3', 'Partner WOD')]);
+
+      const names = fixture.nativeElement.querySelector('[data-testid="detail-workout-row"] .names');
+      expect(names.textContent).toContain('Fran');
+      expect(names.textContent).toContain('Chipper');
+      expect(names.textContent).toContain('Partner WOD');
+      expect(names.querySelectorAll('.sep').length).toBe(2);
+    });
+
+    it('shows "1 piece" for a single item and "N pieces" otherwise', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const one = setup();
+      flush(one, detail(soon), [item('i1', 'Fran')]);
+      expect(one.nativeElement.querySelector('[data-testid="detail-workout-row"] .cnt2').textContent).toContain('1 piece');
+
+      const many = setup();
+      flush(many, detail(soon), [item('i1', 'Fran'), item('i2', 'Chipper')]);
+      expect(many.nativeElement.querySelector('[data-testid="detail-workout-row"] .cnt2').textContent).toContain('2 pieces');
+    });
+
+    it('stays absent when the items request fails, without putting the screen in its error state', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      http.expectOne(r => r.url === '/api/box/sessions/s1/detail').flush(detail(soon));
+      http.expectOne(r => r.url === '/api/box/sessions/s1/items')
+        .flush(null, { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="detail-workout-row"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.stateline.err')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="detail-action"]')).not.toBeNull();
+    });
+
+    it('does not re-request items after a booking action', () => {
+      const soon = new Date(Date.now() + 3600_000).toISOString();
+      const fixture = setup();
+      flush(fixture, detail(soon), [item('i1', 'Fran')]);
+
+      fixture.nativeElement.querySelector('[data-testid="detail-action"]').click();
+      http.expectOne(r => r.method === 'POST' && r.url === '/api/box/sessions/s1/book')
+        .flush({ bookingId: 'b1', status: 'BOOKED', position: null });
+      http.expectOne(r => r.url === '/api/box/sessions/s1/detail').flush(detail(soon));
+      fixture.detectChanges();
+
+      http.expectNone(r => r.url === '/api/box/sessions/s1/items');
+    });
   });
 
   it('a load error keeps a way back to Book and a retry', () => {
@@ -167,8 +249,7 @@ describe('ClassDetailPage', () => {
     const retry = fixture.nativeElement.querySelector('[data-testid="detail-retry"]');
     expect(retry).not.toBeNull();
     retry.click();
-    http.expectOne(r => r.url === '/api/box/sessions/s1/detail').flush(detail(new Date().toISOString()));
-    fixture.detectChanges();
+    flush(fixture, detail(new Date().toISOString()));
   });
 
   it('a second click while busy does not call book twice', () => {
