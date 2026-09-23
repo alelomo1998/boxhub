@@ -2,11 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+/** One athlete on a session's card: the first five IN_CLASS bookings, in booking order (M17a). */
+export interface Person { name: string; avatarPath: string | null; }
 export interface SessionView {
   id: string; name: string; startAt: string; durationMin: number;
   capacity: number; coachId: string | null; coachName: string | null; status: string; programmingStatus: string;
   bookedCount: number; waitlistCount: number; booked: string[];
-  myBookingStatus: string | null; myPosition: number | null;
+  myBookingStatus: string | null; myPosition: number | null; imagePath: string | null;
+  coachAvatarPath: string | null; people: Person[];
 }
 export interface BookingResult { bookingId: string; status: string; position: number | null; }
 export interface MyBooking { sessionId: string; sessionName: string; startAt: string; status: string; position: number | null; }

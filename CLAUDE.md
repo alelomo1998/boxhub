@@ -66,6 +66,49 @@ CrossFit box platform, **rxed** (`rxed.app`). Angular 22 + Spring Boot 3.5 / Jav
   inverts to `--focus-inv` inside the button, because `--focus` IS volt and volt on a near-white
   fill is invisible — the same trap `primary` already documents. `solid` remains correct for screens
   with several **co-equal** actions, e.g. account's section saves.
+- **EVERY SCREEN CARRIES A TITLE (user-ruled 2026-09-18, binding).** A screen opens with a visible
+  `<h1>` naming it — the same words as its dock/nav label and its `route.title` — before any
+  control, strip or list. An app screen without one reads as a fragment: the athlete lands mid-page
+  with only a date strip for context, and a screen reader's first landmark is a widget. Sheets and
+  dialogs already have their own `title`; this rule is about the page. **A screen being rebuilt adds
+  its own title; nobody converts another screen's** — same rule as the signal/Eager conversions, and
+  the untitled pre-rework screens are filed in `docs/BACKLOG.md`.
+- **A SCREEN THAT IS NOT A DOCK TAB IS A DETAIL SCREEN: NO DOCK, A BACK ARROW (user-ruled
+  2026-09-18, binding).** The dock is for the five (or fewer) top-level destinations. Anything
+  reached *from* one of them — class detail, a leaderboard, another athlete's profile, notification
+  settings — hides the dock and puts a back control at the top left of the shell header, returning
+  to the screen it was opened from (its parent tab, not `history.back()` when that would leave the
+  app). It reclaims the dock's bottom gutter for its own primary action. **The screen still carries
+  its `<h1>`** — back arrow and title are not alternatives. Athlete detail screens today:
+  `class/:id`, `board/:itemId`, `profile/:membershipId`, `notifications`,
+  `notifications/settings`, `messages/*` thread views. The mechanism (route `data` flag read by the
+  shell, vs. a per-screen input) is decided by the first milestone that implements it — M17a, on
+  class detail — and every later screen follows that one. Screens not yet converted are filed in
+  `docs/BACKLOG.md`.
+- **THE DETAIL HEADER IS SETTLED (user-ruled 2026-09-18, M17a class detail, binding for EVERY
+  non-dock screen).** Decided against rendered options (`docs/superpowers/sketches/m17a-class-detail-r3.html`).
+  The header is: **back arrow · the screen's `<h1>` title · the shell's usual right-side actions
+  (mail, notifications, avatar)**. Only the **box switcher** is dropped — on a detail screen the gym
+  name is the redundant part, not the actions. The screen's body therefore must **not repeat the
+  title**; class detail's hero carries the photo, the badge and the date/time, and no name.
+  - **A detail screen has NO volt at all.** The switcher's mark was the shell's one volt element and
+    the back arrow is what replaced it. This is a deliberate amendment to "the switcher's mark is the
+    shell's one volt element, on every screen" — that rule now reads *on every screen that has a
+    switcher*. Do not re-litigate it per screen.
+  - **The header keeps its existing hide-on-scroll behaviour** (`bh-shell-header`: sticky, below
+    768px it slides away on scroll-down and returns on scroll-up past an 8px threshold, whenever
+    `scrollY` is back within the header height, and on `focusin`). Weighed and kept deliberately even
+    though the back arrow is a detail screen's only way back: it returns on any upward scroll and on
+    focus, the primary action is pinned at the bottom regardless, and pinning the header would cost
+    56px of viewport permanently on the smallest screens.
+  - **Opening a detail screen is a shared-element transition** (user-asked, ruled 2026-09-18): the
+    tapped card's photo grows into the hero and collapses back **to the row it opened from**, and the
+    class name is *one element that travels* between the row and the header title slot. 280ms on
+    `--ease-move`, symmetric both ways. Two traps, both already paid for in the sketch: the source
+    row must stay `visibility: hidden` until the morph **lands** (revealing it on a timer double-images
+    and pops), and completion must NOT depend on `transitionend` alone — under
+    `prefers-reduced-motion` the transition is removed, the event never fires, and the screen
+    deadlocks half-open. Use the event as the fast path with a duration timeout as the guarantee.
 - **`--danger` may fill a button or a chip** (never a row/card/panel) — the control that *opens* a destructive flow is a danger-bordered ghost, the control that *executes* it is filled. `--on-danger` is dark, not white (white on `--danger` fails AA).
 - **No glow, no gradients, no shadows on flat surfaces, no fake textures, no skeuomorphism.** Shadows are permitted only on things that physically float (the dock, `bh-sheet`, dialogs). The focus ring is a solid 2px outline, and **inverts to `--focus-inv` on a volt surface** — a volt ring on the volt primary button is invisible.
 - **Identity lives in hero screens** (WOD board, leaderboard, PR page, live class runner, TV) — plumbing (buttons, tables, forms) stays conventional-and-excellent.
@@ -141,6 +184,35 @@ shape → build → audit (≥16/20) → fix every P0/P1 → critique (≥32/40)
   **If the browser is unavailable, stop and ask — do not score anyway.**
 - **≥32/40, not 28.** 28 is 7/10; the bar is 8. A score measured with a P0 or P1 still open is not
   the screen's score.
+
+### Shape is RENDERED, never described (binding, user-ruled 2026-09-17, M17a)
+
+A new screen's or component's options are shown to the user as **real renders in the browser**, not
+ASCII or prose. M17a's class card went four options → three revisions → a pick, and every revision
+the user asked for came from looking at pixels ("big shadow", "too bold", "redundant badge") — none
+of it was visible in a description. The method:
+
+1. **One static HTML sketch per round** at `docs/superpowers/sketches/<milestone>-<surface>[-rN].html`.
+   Tokens copied verbatim from `_tokens.scss` into `:root`; **360px phone frames** with the real shell
+   context (header with the switcher's volt mark, week strip or equivalent, dock); **the same data in
+   every option**; each option captioned with its trade-off (height, cards per screen, risk).
+2. **Realistic content, including the ugly cases:** stand-in photos and avatars, long names, empty,
+   past/finished, no-image. Where legibility over an image matters, add a **stress case (pure white
+   upload) with contrast measured by script on the page** — a claim of "readable" is not a render.
+3. **Show it:** serve the folder (`python3 -m http.server 8765` in `docs/superpowers/sketches`), open
+   it in the user's Chrome tab, and send a full-width **Playwright PNG** (Chrome's window can't fit
+   several 360px frames). Check the render yourself before sending.
+4. **Iterate as new files**, never overwrite a rejected round — the rejected rounds are the record of
+   why the pick is what it is. A requested change that breaks the design law (e.g. volt as decoration)
+   is rendered **beside** a law-safe variant, and the user rules.
+5. **On decision:** vendor every external image into `docs/superpowers/sketches/<milestone>-assets/`,
+   save the PNGs the user judged, write `<milestone>-README.md` (round → file → render → what was
+   decided), write the decision into the spec with a pointer to the chosen file **and column**, and
+   commit. Build briefs point executors at that render as the reference to match.
+6. The design hook's findings on sketch files are suppressed per file (`hooks ignore-value <rule> "*"
+   --file <sketch>`): they are a decision record, not shipped UI.
+
+A **repeat** of an already-decided shape is still the orchestrator's call — no new sketch.
 
 **Conditional passes — when the trigger applies, not by default:**
 

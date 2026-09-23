@@ -100,7 +100,7 @@ test('admin publishes a priced plan, records a discounted cash subscription, ath
   // the athlete now has an active subscription — entitlement gate passes and the booking succeeds
   await joinPage.goto('/app/athlete/book');
   await joinPage.locator('.cards, .empty').first().waitFor();
-  const card = joinPage.locator('.card', { hasText: className }).first();
+  const card = joinPage.locator('[data-testid^="session-"]', { hasText: className }).first();
   for (let i = 0; i < 14 && !(await card.isVisible().catch(() => false)); i++) {
     await nextDay(joinPage);
     await joinPage.waitForTimeout(100);

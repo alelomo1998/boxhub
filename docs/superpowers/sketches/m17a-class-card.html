@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>M17a Class Card</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  /* Tokens copied verbatim from frontend/src/styles/_tokens.scss. Photos are Unsplash stand-ins for a
+     box's own uploads; one is deliberately bright (the scrim's worst case). */
+  :root {
+    color-scheme: dark;
+    --ground: #0d110e; --surface: #151a16; --surface-2: #1d231e; --hairline: #2a322c;
+    --bone: #f2f4ef; --on-bone: #0d110e; --bone-dim: #a7b0a6; --faint: #7c8779;
+    --volt: #dfff4e; --on-volt: #0d110e; --good: #3fcf8e; --warn: #f0883e; --danger: #e5484d;
+    --scrim: rgba(6, 9, 7, 0.62); --scrim-text: rgba(6, 9, 7, 0.82);
+    --font-display: "Archivo", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --r-ctl: 8px; --r-card: 12px; --r-full: 999px;
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+    --fs-hero: 40px; --fs-display: 28px; --fs-h2: 20px; --fs-body: 15px; --fs-sm: 13px; --fs-meta: 11px;
+    --tap: 44px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #070907; color: var(--bone); font-family: var(--font-display); padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lede { color: var(--bone-dim); margin: 0 0 24px; max-width: 900px; font-size: 14px; }
+  .frames { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .opt { width: 360px; }
+  .opt h2 { font-size: 18px; margin: 0 0 4px; }
+  .opt p.why { color: var(--bone-dim); font-size: 13px; margin: 0 0 10px; min-height: 72px; }
+  .phone { width: 360px; height: 780px; overflow: hidden; background: var(--ground); border: 1px solid var(--hairline);
+    border-radius: 28px; position: relative; display: flex; flex-direction: column; }
+
+  /* shell context: header with the switcher's volt mark (the screen's volt is already spent), strip, dock */
+  .hdr { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--hairline); flex-shrink: 0; }
+  .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--volt); color: var(--on-volt); font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+  .gym { font-weight: 700; font-size: 15px; }
+  .bell { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--hairline); }
+  .strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 12px 16px 8px; flex-shrink: 0; }
+  .d { text-align: center; padding: 6px 0; border-radius: var(--r-ctl); font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+  .d b { display: block; font-size: 16px; color: var(--bone-dim); font-family: var(--font-display); }
+  .d.on { background: var(--bone); color: var(--on-bone); } .d.on b { color: var(--on-bone); }
+  .daylabel { padding: 4px 16px 10px; font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); flex-shrink: 0; }
+  .list { flex: 1; overflow: hidden; padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+  .dock { height: 64px; flex-shrink: 0; border-top: 1px solid var(--hairline); background: var(--surface); display: flex; justify-content: space-around; align-items: center; }
+  .dock i { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--faint); display: block; }
+  .dock i.on { border-color: var(--volt); }
+
+  /* shared bits */
+  .ph { background-size: cover; background-position: center; }
+  .noimg { background: var(--surface-2); display: grid; place-items: center; font-weight: 800; font-size: 44px; color: var(--hairline); text-transform: uppercase; letter-spacing: .02em; }
+  .nm { font-weight: 800; text-transform: uppercase; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .sub { color: var(--bone-dim); font-size: var(--fs-sm); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: var(--r-full);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    background: rgba(13,17,14,.78); border: 1px solid var(--hairline); color: var(--bone); white-space: nowrap; }
+  .pill.good { color: var(--good); border-color: var(--good); }
+  .pill.warn { color: var(--warn); border-color: var(--warn); }
+  .btn { height: 40px; padding: 0 16px; border-radius: var(--r-ctl); font: 700 14px var(--font-display); display: inline-flex; align-items: center; border: 1px solid var(--hairline); color: var(--bone); background: transparent; white-space: nowrap; }
+  .btn.solid { background: var(--bone); color: var(--on-bone); border-color: var(--bone); }
+  .btn.glass { background: rgba(13,17,14,.72); border-color: rgba(242,244,239,.35); }
+  .muted { color: var(--faint); font-size: var(--fs-sm); }
+  .past { filter: grayscale(.85) brightness(.75); }
+  .noimg .in { font-size: var(--fs-body); text-transform: none; color: var(--bone); letter-spacing: 0; }
+  .btn { text-transform: none; letter-spacing: 0; }
+
+  /* A — reference card + foot strip */
+  .a { border-radius: var(--r-card); overflow: hidden; border: 1px solid var(--hairline); background: var(--surface); flex-shrink: 0; }
+  .a .img { height: 132px; position: relative; }
+  .a .img::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,9,7,0) 20%, var(--scrim-text) 100%); }
+  .a .txt { position: absolute; left: 14px; right: 14px; bottom: 10px; z-index: 1; }
+  .a .nm { font-size: 22px; }
+  .a .badge { position: absolute; top: 10px; right: 10px; z-index: 1; }
+  .a .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 14px; min-height: 56px; }
+  .a .when { font-size: 15px; font-weight: 700; }
+
+  /* B — everything on the photo */
+  .b { border-radius: var(--r-card); overflow: hidden; position: relative; height: 150px; flex-shrink: 0; border: 1px solid var(--hairline); }
+  .b::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,9,7,.15) 0%, var(--scrim-text) 78%); }
+  .b .in { position: absolute; inset: 0; z-index: 1; padding: 12px 12px 12px 14px; display: flex; flex-direction: column; }
+  .b .top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .b .nm { font-size: 24px; margin-top: auto; }
+  .b .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+  .b .t { font-size: 14px; color: var(--bone); }
+
+  /* C — time rail + photo */
+  .c { display: grid; grid-template-columns: 62px 1fr; gap: 10px; flex-shrink: 0; }
+  .c .rail { padding-top: 6px; }
+  .c .rail .s { font-size: 20px; font-weight: 700; display: block; }
+  .c .rail .e { font-size: 12px; color: var(--faint); }
+  .c .card { border-radius: var(--r-card); overflow: hidden; position: relative; height: 128px; border: 1px solid var(--hairline); }
+  .c .card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--scrim-text) 0%, rgba(6,9,7,.35) 100%); }
+  .c .in { position: absolute; inset: 0; z-index: 1; padding: 12px; display: flex; flex-direction: column; }
+  .c .nm { font-size: 19px; }
+  .c .bot { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 6px; }
+
+  /* D — photo band + ruled row */
+  .dd { border-radius: var(--r-card); overflow: hidden; border: 1px solid var(--hairline); background: var(--surface); flex-shrink: 0; }
+  .dd .band { height: 76px; position: relative; }
+  .dd .band::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--scrim-text) 0%, rgba(6,9,7,.2) 100%); }
+  .dd .band .in { position: absolute; inset: 0; z-index: 1; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .dd .nm { font-size: 20px; }
+  .dd .rule { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 8px 8px 8px 14px; min-height: 56px; }
+  .dd .t { font-size: 18px; font-weight: 700; line-height: 1; } .dd .t small { display: block; font-size: 11px; color: var(--faint); font-weight: 400; margin-top: 3px; }
+
+  .pastnote { margin-top: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--faint); letter-spacing: .1em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<h1>M17a · shared class card — four shapes at 360px</h1>
+<p class="lede">Same data in every frame: today, four classes — 06:00 started (you checked in), 12:15 you're booked, 18:00 full, 19:30 open with no photo. Under each phone: the same card on a past day (Finished · Attended). Volt appears only in the shell (switcher mark, dock tab) — none of these cards spends it. Coach Classes uses the same card with Check-in / Build / Run in the action slot.</p>
+
+<div class="frames">
+
+<!-- ================= A ================= -->
+<div class="opt">
+  <h2>A · Reference card + action strip</h2>
+  <p class="why">Closest to the reference: photo on top with name/coach on the scrim, badge top-right. A solid strip underneath carries time, state and the button — the button never sits on a photo, so contrast never depends on the image. Tallest (~190px): ~3 cards per screen.</p>
+  <div class="phone">
+    <div class="hdr"><span class="mark">CF</span><span class="gym">CrossFit Demo</span><span class="bell"></span></div>
+    <div class="strip"><span class="d">MON<b>15</b></span><span class="d">TUE<b>16</b></span><span class="d on">WED<b>17</b></span><span class="d">THU<b>18</b></span><span class="d">FRI<b>19</b></span><span class="d">SAT<b>20</b></span><span class="d">SUN<b>21</b></span></div>
+    <div class="daylabel">Wednesday 17 September</div>
+    <div class="list">
+      <div class="a"><div class="img ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"><span class="badge pill good">✓ Attended</span><div class="txt"><div class="nm">WOD Class</div><div class="sub">Coach Marco</div></div></div>
+        <div class="foot"><span><span class="when mono">06:00–07:00</span><br><span class="muted">Started 06:00</span></span></div></div>
+      <div class="a"><div class="img ph" style="background-image:url(m17a-assets/1571019613454-1cb2f99b2d8b.jpg)"><span class="badge pill">Booked</span><div class="txt"><div class="nm">Burn It</div><div class="sub">Coach Giulia</div></div></div>
+        <div class="foot"><span><span class="when mono">12:15–13:00</span><br><span class="muted mono">8/12 going</span></span><span class="btn">Cancel</span></div></div>
+      <div class="a"><div class="img ph" style="background-image:url(m17a-assets/1526506118085-60ce8714f8c5.jpg)"><span class="badge pill warn">Full · 3 in line</span><div class="txt"><div class="nm">Weekend Team WOD</div><div class="sub">Coach Marco</div></div></div>
+        <div class="foot"><span><span class="when mono">18:00–19:00</span><br><span class="muted">No spots left</span></span><span class="btn">Join waitlist</span></div></div>
+    </div>
+    <div class="dock"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="pastnote">past day ↓</div>
+  <div class="a" style="margin-top:6px"><div class="img"><div class="ph past" style="position:absolute;inset:0;background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div><span class="badge pill good">✓ Attended</span><div class="txt"><div class="nm">WOD Class</div><div class="sub">Coach Marco</div></div></div>
+    <div class="foot"><span><span class="when mono">06:00–07:00</span><br><span class="muted">Finished</span></span></div></div>
+</div>
+
+<!-- ================= B ================= -->
+<div class="opt">
+  <h2>B · All on the photo</h2>
+  <p class="why">One image-card per class, everything on the scrim: badge top-left, time top-right, name large at the bottom with the action beside the coach line (where the reference puts its level chip). Most "app", most photographic. The button sits on a photo, so it needs a dark glass fill. ~150px: ~4 per screen.</p>
+  <div class="phone">
+    <div class="hdr"><span class="mark">CF</span><span class="gym">CrossFit Demo</span><span class="bell"></span></div>
+    <div class="strip"><span class="d">MON<b>15</b></span><span class="d">TUE<b>16</b></span><span class="d on">WED<b>17</b></span><span class="d">THU<b>18</b></span><span class="d">FRI<b>19</b></span><span class="d">SAT<b>20</b></span><span class="d">SUN<b>21</b></span></div>
+    <div class="daylabel">Wednesday 17 September</div>
+    <div class="list">
+      <div class="b ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"><div class="in"><div class="top"><span class="pill good">✓ Attended</span><span class="t mono">06:00–07:00</span></div><div class="nm">WOD Class</div><div class="row"><span class="sub">Coach Marco · started</span></div></div></div>
+      <div class="b ph" style="background-image:url(m17a-assets/1571019613454-1cb2f99b2d8b.jpg)"><div class="in"><div class="top"><span class="pill">Booked</span><span class="t mono">12:15–13:00</span></div><div class="nm">Burn It</div><div class="row"><span class="sub">Coach Giulia · <span class="mono">8/12</span></span><span class="btn glass">Cancel</span></div></div></div>
+      <div class="b ph" style="background-image:url(m17a-assets/1526506118085-60ce8714f8c5.jpg)"><div class="in"><div class="top"><span class="pill warn">Full · 3 in line</span><span class="t mono">18:00–19:00</span></div><div class="nm">Weekend Team WOD</div><div class="row"><span class="sub">Coach Marco</span><span class="btn glass">Join waitlist</span></div></div></div>
+      <div class="b noimg" style="display:block"><div class="in" style="background:none"><div class="top"><span></span><span class="t mono">19:30–20:30</span></div><div class="nm">Open Gym</div><div class="row"><span class="sub">No coach · <span class="mono">4 spots left</span></span><span class="btn solid">Book</span></div></div></div>
+    </div>
+    <div class="dock"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="pastnote">past day ↓</div>
+  <div class="b ph" style="margin-top:6px"><div class="ph past" style="position:absolute;inset:0;background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div><div class="in"><div class="top"><span class="pill good">✓ Attended</span><span class="t mono">06:00–07:00</span></div><div class="nm">WOD Class</div><div class="row"><span class="sub">Coach Marco · finished</span></div></div></div>
+</div>
+
+<!-- ================= C ================= -->
+<div class="opt">
+  <h2>C · Time rail</h2>
+  <p class="why">The day read like a whiteboard schedule: a mono time column on the ground, the photo card beside it. Athletes choose by time first, so time leads the scan. Card is narrower (~270px) — long names truncate sooner. Action inside the card, bottom-right.</p>
+  <div class="phone">
+    <div class="hdr"><span class="mark">CF</span><span class="gym">CrossFit Demo</span><span class="bell"></span></div>
+    <div class="strip"><span class="d">MON<b>15</b></span><span class="d">TUE<b>16</b></span><span class="d on">WED<b>17</b></span><span class="d">THU<b>18</b></span><span class="d">FRI<b>19</b></span><span class="d">SAT<b>20</b></span><span class="d">SUN<b>21</b></span></div>
+    <div class="daylabel">Wednesday 17 September</div>
+    <div class="list">
+      <div class="c"><div class="rail mono"><span class="s">06:00</span><span class="e">07:00</span></div><div class="card ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"><div class="in"><div class="nm">WOD Class</div><div class="sub">Coach Marco</div><div class="bot"><span class="pill good">✓ Attended</span><span class="muted">Started</span></div></div></div></div>
+      <div class="c"><div class="rail mono"><span class="s">12:15</span><span class="e">13:00</span></div><div class="card ph" style="background-image:url(m17a-assets/1571019613454-1cb2f99b2d8b.jpg)"><div class="in"><div class="nm">Burn It</div><div class="sub">Coach Giulia · <span class="mono">8/12</span></div><div class="bot"><span class="pill">Booked</span><span class="btn glass">Cancel</span></div></div></div></div>
+      <div class="c"><div class="rail mono"><span class="s">18:00</span><span class="e">19:00</span></div><div class="card ph" style="background-image:url(m17a-assets/1526506118085-60ce8714f8c5.jpg)"><div class="in"><div class="nm">Weekend Team WOD</div><div class="sub">Coach Marco</div><div class="bot"><span class="pill warn">Full · 3</span><span class="btn glass">Waitlist</span></div></div></div></div>
+      <div class="c"><div class="rail mono"><span class="s">19:30</span><span class="e">20:30</span></div><div class="card noimg" style="display:block"><div class="in"><div class="nm" style="color:var(--bone)">Open Gym</div><div class="sub mono">4 spots left</div><div class="bot"><span></span><span class="btn solid">Book</span></div></div></div></div>
+    </div>
+    <div class="dock"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="pastnote">past day ↓</div>
+  <div class="c" style="margin-top:6px"><div class="rail mono"><span class="s">06:00</span><span class="e">07:00</span></div><div class="card"><div class="ph past" style="position:absolute;inset:0;background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div><div class="in"><div class="nm">WOD Class</div><div class="sub">Coach Marco</div><div class="bot"><span class="pill good">✓ Attended</span><span class="muted">Finished</span></div></div></div></div>
+</div>
+
+<!-- ================= D ================= -->
+<div class="opt">
+  <h2>D · Photo band + ruled row</h2>
+  <p class="why">A short photo band carries identity (name + badge on the scrim); a ruled row below reads like the board: big mono time, spots/state, action. Densest (~135px) and the most "board", least like the reference's tall photo.</p>
+  <div class="phone">
+    <div class="hdr"><span class="mark">CF</span><span class="gym">CrossFit Demo</span><span class="bell"></span></div>
+    <div class="strip"><span class="d">MON<b>15</b></span><span class="d">TUE<b>16</b></span><span class="d on">WED<b>17</b></span><span class="d">THU<b>18</b></span><span class="d">FRI<b>19</b></span><span class="d">SAT<b>20</b></span><span class="d">SUN<b>21</b></span></div>
+    <div class="daylabel">Wednesday 17 September</div>
+    <div class="list">
+      <div class="dd"><div class="band ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"><div class="in"><span><span class="nm" style="display:block">WOD Class</span><span class="sub">Coach Marco</span></span><span class="pill good">✓ Attended</span></div></div>
+        <div class="rule"><span class="t mono">06:00<small>07:00</small></span><span class="muted">Started</span><span></span></div></div>
+      <div class="dd"><div class="band ph" style="background-image:url(m17a-assets/1571019613454-1cb2f99b2d8b.jpg)"><div class="in"><span><span class="nm" style="display:block">Burn It</span><span class="sub">Coach Giulia</span></span><span class="pill">Booked</span></div></div>
+        <div class="rule"><span class="t mono">12:15<small>13:00</small></span><span class="muted mono">8/12 going</span><span class="btn">Cancel</span></div></div>
+      <div class="dd"><div class="band ph" style="background-image:url(m17a-assets/1526506118085-60ce8714f8c5.jpg)"><div class="in"><span><span class="nm" style="display:block">Weekend Team WOD</span><span class="sub">Coach Marco</span></span><span class="pill warn">Full</span></div></div>
+        <div class="rule"><span class="t mono">18:00<small>19:00</small></span><span class="muted">3 in line</span><span class="btn">Join waitlist</span></div></div>
+      <div class="dd"><div class="band noimg" style="font-size:30px"><div class="in"><span><span class="nm" style="display:block;color:var(--bone)">Open Gym</span></span><span></span></div></div>
+        <div class="rule"><span class="t mono">19:30<small>20:30</small></span><span class="muted mono">4 spots left</span><span class="btn solid">Book</span></div></div>
+    </div>
+    <div class="dock"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="pastnote">past day ↓</div>
+  <div class="dd" style="margin-top:6px"><div class="band"><div class="ph past" style="position:absolute;inset:0;background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div><div class="in"><span><span class="nm" style="display:block">WOD Class</span><span class="sub">Coach Marco</span></span><span class="pill good">✓ Attended</span></div></div>
+    <div class="rule"><span class="t mono">06:00<small>07:00</small></span><span class="muted">Finished</span><span></span></div></div>
+</div>
+
+</div>
+</body>
+</html>

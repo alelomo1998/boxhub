@@ -70,7 +70,10 @@ export const routes: Routes = [
       { path: 'notifications/settings', title: $localize`:@@route.notifications.settings:Notification settings`,
         loadComponent: () => import('./features/notifications/notification-prefs.page').then(m => m.NotificationPrefsPage) },
       { path: 'board/:itemId', title: $localize`:@@route.athlete.board:Leaderboard`, loadComponent: () => import('./features/performance/leaderboard.page').then(m => m.LeaderboardPage) },
-      { path: 'class/:id', title: $localize`:@@route.athlete.class:Class`, loadComponent: () => import('./features/athlete/class-detail.page').then(m => m.ClassDetailPage) },
+      { path: 'class/:id', title: $localize`:@@route.athlete.class:Class`, data: { detail: true, backTo: '/athlete/book' }, loadComponent: () => import('./features/athlete/class-detail.page').then(m => m.ClassDetailPage) },
+      { path: 'class/:id/workout', title: $localize`:@@route.athlete.classWorkout:Workout`,
+        data: { detail: true, slide: true, backTo: '/athlete/class/:id' },
+        loadComponent: () => import('./features/athlete/class-workout.page').then(m => m.ClassWorkoutPage) },
       { path: 'profile/:membershipId', title: $localize`:@@route.athlete.profile:Profile`, loadComponent: () => import('./features/athlete/athlete-profile.page').then(m => m.AthleteProfilePage) },
       // legacy paths
       { path: 'today', redirectTo: 'home' },

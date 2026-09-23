@@ -6,6 +6,7 @@ import { AvatarComponent } from '../../ui/avatar.component';
 import { BannerComponent } from '../../ui/banner.component';
 import { BenchmarkBoardComponent } from '../../ui/benchmark-board.component';
 import { ButtonComponent } from '../../ui/button.component';
+import { CardPerson, ClassCardComponent } from '../../ui/class-card.component';
 import { DataTableComponent } from '../../ui/data-table.component';
 import { DockComponent, DockTab } from '../../ui/dock.component';
 import { EmptyComponent } from '../../ui/empty.component';
@@ -98,6 +99,7 @@ export class GalleryNotificationBellComponent implements OnInit {
     ShellHeaderComponent, DockComponent, SegmentedComponent, SwitchComponent, SearchBarComponent, SortableListComponent,
     AvatarComponent, PillComponent, WeekCalendarComponent, SheetComponent, AuthLayoutComponent,
     BenchmarkBoardComponent, GalleryNotificationBellComponent, FilterSheetComponent, FilterStepDirective,
+    ClassCardComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -906,6 +908,104 @@ export class GalleryNotificationBellComponent implements OnInit {
         <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'pill' }" />
       </section>
 
+      <section class="gsec" id="class-card" data-gallery="class-card">
+        <h2 class="t-h2" i18n="@@dev.gallery.classCard.heading">Class card</h2>
+        <p class="note" i18n="@@dev.gallery.classCard.note">
+          Shared presentational card behind athlete Book and coach Classes — the badge is owned by
+          the card itself (bh-pill's translucent fills are unreadable over a photo); actions and an
+          inline error stay projected by the caller. Shape decided 2026-09-17 ("A2 · bone ring"): the
+          scrim is deliberately light and not adaptive, a known-and-accepted cost on a very bright
+          upload, not an open defect.
+        </p>
+        <div class="classcardwrap">
+          <bh-class-card title="Burn It" i18n-title="@@dev.gallery.classCard.sample.burnIt"
+            image="/gallery/class-gym.jpg" coach="Giulia" coachAvatar="/gallery/avatar-1.jpg"
+            [people]="classCardPeople" [peopleCount]="8"
+            start="2026-09-17T12:15:00" end="2026-09-17T13:00:00"
+            suffix="4 left" i18n-suffix="@@dev.gallery.classCard.suffix.left"
+            badgeLabel="Booked" i18n-badgeLabel="@@dev.gallery.classCard.badge.booked"
+            [href]="['.']" testId="dev-class-card-booked">
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.cancel">Cancel</bh-button>
+          </bh-class-card>
+
+          <bh-class-card title="Open Gym" i18n-title="@@dev.gallery.classCard.sample.openGym"
+            [image]="null" coach="Luca" [coachAvatar]="null"
+            [people]="[]" [peopleCount]="0"
+            emptyText="No one yet — be the first" i18n-emptyText="@@dev.gallery.classCard.empty"
+            start="2026-09-17T19:30:00" end="2026-09-17T20:30:00"
+            suffix="12 left" i18n-suffix="@@dev.gallery.classCard.suffix.left"
+            [href]="['.']" testId="dev-class-card-book">
+            <bh-button actions variant="solid" size="sm" i18n="@@dev.gallery.classCard.action.book">Book</bh-button>
+          </bh-class-card>
+
+          <bh-class-card title="Weekend Team WOD" i18n-title="@@dev.gallery.classCard.sample.weekendWod"
+            image="/gallery/class-bright.jpg" coach="Marco" coachAvatar="/gallery/avatar-2.jpg"
+            [people]="classCardPeople" [peopleCount]="10"
+            start="2026-09-17T18:00:00" end="2026-09-17T19:00:00"
+            suffix="3 in line" i18n-suffix="@@dev.gallery.classCard.suffix.inLine"
+            badgeLabel="Full" badgeTone="warn" i18n-badgeLabel="@@dev.gallery.classCard.badge.full"
+            [href]="['.']" testId="dev-class-card-full">
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.waitlist">Join waitlist</bh-button>
+          </bh-class-card>
+
+          <bh-class-card title="Olympic Weightlifting Fundamentals"
+            i18n-title="@@dev.gallery.classCard.sample.oly" image="/gallery/class-gym.jpg"
+            coach="Maximilian Oberhausen" [coachAvatar]="null"
+            [people]="classCardPeopleFew" [peopleCount]="3"
+            start="2026-09-17T06:00:00" end="2026-09-17T07:00:00"
+            suffix="finished" i18n-suffix="@@dev.gallery.classCard.suffix.finished"
+            badgeLabel="✓ Attended" badgeTone="good" i18n-badgeLabel="@@dev.gallery.classCard.badge.attended"
+            tone="past" [href]="['.']" testId="dev-class-card-attended">
+          </bh-class-card>
+
+          <bh-class-card title="Weekend Team WOD — Open Box Community Session"
+            i18n-title="@@dev.gallery.classCard.sample.longTitle"
+            image="/gallery/class-bright.jpg" coach="Massimiliano Oberhauser-Bianchi"
+            [coachAvatar]="null" [people]="classCardPeopleFew" [peopleCount]="6"
+            start="2026-09-17T18:00:00" end="2026-09-17T19:00:00"
+            suffix="1 ahead" i18n-suffix="@@dev.gallery.classCard.suffix.ahead"
+            badgeLabel="Waitlist #2" i18n-badgeLabel="@@dev.gallery.classCard.badge.waitlist2"
+            [href]="['.']" testId="dev-class-card-longnames">
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.leave">Leave waitlist</bh-button>
+          </bh-class-card>
+
+          <bh-class-card title="Burn It" i18n-title="@@dev.gallery.classCard.sample.burnIt2"
+            image="/gallery/class-gym.jpg" coach="Giulia" [coachAvatar]="null"
+            [people]="classCardPeople" [peopleCount]="4"
+            start="2026-09-17T12:15:00" end="2026-09-17T13:00:00"
+            suffix="4 left" i18n-suffix="@@dev.gallery.classCard.suffix.left2"
+            badgeLabel="Booked" i18n-badgeLabel="@@dev.gallery.classCard.badge.booked2"
+            [href]="['.']" testId="dev-class-card-error">
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.cancel2">Cancel</bh-button>
+            <p error i18n="@@dev.gallery.classCard.error">Couldn't cancel — you're past the cutoff.</p>
+          </bh-class-card>
+
+          <bh-class-card title="Burn It" i18n-title="@@dev.gallery.classCard.sample.blockLayout"
+            image="/gallery/class-gym.jpg" coach="Giulia" coachAvatar="/gallery/avatar-1.jpg"
+            [people]="classCardPeople" [peopleCount]="8"
+            start="2026-09-17T12:15:00" end="2026-09-17T13:00:00"
+            suffix="4 left" i18n-suffix="@@dev.gallery.classCard.suffix.left3"
+            badgeLabel="Draft" badgeTone="warn" i18n-badgeLabel="@@dev.gallery.classCard.badge.draft"
+            actionsLayout="block" [href]="['.']" testId="dev-class-card-block">
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.build">Build</bh-button>
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.checkin">Check-in</bh-button>
+            <bh-button actions variant="ghost" size="sm" i18n="@@dev.gallery.classCard.action.run">Run</bh-button>
+          </bh-class-card>
+        </div>
+        <p class="note" i18n="@@dev.gallery.classCard.note.block">
+          actionsLayout="block" (last card above): the [actions] row becomes a full-width strip line
+          instead of sizing to content — what coach Classes uses for its three equal-thirds actions
+          (Build / Check-in / Run). Default stays "inline", so athlete Book's single action is
+          unaffected.
+        </p>
+        <p class="note" i18n="@@dev.gallery.classCard.note.hover">
+          No underline on the title on hover — the link's only affordance is a slight brightness
+          lift on the photo, so the card stays legible over any image. Focus is the anchor's own
+          solid 2px ring, inset so it never escapes the card's rounded corners.
+        </p>
+        <ng-container [ngTemplateOutlet]="ledger" [ngTemplateOutletContext]="{ $implicit: 'class-card' }" />
+      </section>
+
       <section class="gsec" id="week-calendar" data-gallery="week-calendar">
         <h2 class="t-h2" i18n="@@dev.gallery.weekCalendar.heading">Week calendar</h2>
         <bh-week-calendar [tones]="galleryTones()" />
@@ -1217,6 +1317,11 @@ export class GalleryNotificationBellComponent implements OnInit {
     .demo-brandmark { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--volt);
       color: var(--on-volt); display: grid; place-items: center; font-family: var(--font-display);
       font-weight: 800; font-size: var(--fs-body); }
+
+    /* Frames the card list at the width it actually ships at (MOBILE FIRST, binding) — a card
+       stretched across this page's 1100px gallery column would never show the ellipsis/wrap
+       behaviour a 360px phone screen forces. */
+    .classcardwrap { max-width: 360px; display: flex; flex-direction: column; gap: var(--sp-3); }
   `],
 })
 export class DevGalleryPage {
@@ -1428,6 +1533,15 @@ export class DevGalleryPage {
       { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.loading:renders synchronously from the tone and label it is given` },
       { state: 'error', how: 'na', why: $localize`:@@dev.gallery.ledger.pill.error:tone is a status label, not an interaction error — danger marks a cancelled membership, not a failed action` },
     ],
+    'class-card': [
+      { state: 'default', how: 'rendered' },
+      { state: 'hover', how: 'hand', why: $localize`:@@dev.gallery.ledger.classCard.hover:no underline on the title — the link's only affordance is a slight brightness lift on the photo, checked by hand` },
+      { state: 'focus', how: 'hand', why: $localize`:@@dev.gallery.ledger.classCard.focus:the anchor's own solid 2px ring, inset so it never escapes the card's rounded corners` },
+      { state: 'active', how: 'na', why: $localize`:@@dev.gallery.ledger.classCard.active:no active-press styling of its own; the link's default browser feedback is the only affordance` },
+      { state: 'disabled', how: 'na', why: $localize`:@@dev.gallery.ledger.classCard.disabled:a link card has no disabled state; its actions carry their own` },
+      { state: 'loading', how: 'na', why: $localize`:@@dev.gallery.ledger.classCard.loading:the page renders a stateline; the card has no skeleton` },
+      { state: 'error', how: 'rendered' },
+    ],
     wordmark: [
       { state: 'default', how: 'rendered' },
       { state: 'hover', how: 'na', why: $localize`:@@dev.gallery.ledger.wordmark.hover:static type — nothing in it responds to a pointer` },
@@ -1445,6 +1559,22 @@ export class DevGalleryPage {
   protected readonly sortableSample = ['Warm-up', 'Strength: back squat', 'Metcon: Fran', 'Cool-down'];
   /** Names each drag handle after the piece it moves, so the four are told apart by ear. */
   protected readonly sortableLabel = (piece: string) => piece;
+  /** Fabricated, per this page's "no API call" rule. Six so the +N chip has something to count —
+   *  the real backend caps `people` at 5 (spec §2 item 1b), but the component itself must not
+   *  assume that, so this deliberately exceeds it (class-card.component.spec.ts asserts the same). */
+  protected readonly classCardPeople: readonly CardPerson[] = [
+    { name: 'Sara Rossi', avatarPath: '/gallery/avatar-1.jpg' },
+    { name: 'Ana Maria', avatarPath: null },
+    { name: 'Luca Ferrari', avatarPath: '/gallery/avatar-2.jpg' },
+    { name: 'Davide Villa', avatarPath: null },
+    { name: 'Elena Bruno', avatarPath: null },
+    { name: 'Marco Conti', avatarPath: null },
+  ];
+  protected readonly classCardPeopleFew: readonly CardPerson[] = [
+    { name: 'Sara Rossi', avatarPath: '/gallery/avatar-1.jpg' },
+    { name: 'Ana Maria', avatarPath: null },
+    { name: 'Luca Ferrari', avatarPath: '/gallery/avatar-2.jpg' },
+  ];
   protected readonly segOptions: SegOption[] = [{ value: 'rx', label: 'RX' }, { value: 'sc', label: 'Scaled' }];
   protected readonly scoreOptions: SegOption[] = [
     { value: 'rx', label: 'RX' }, { value: 'rx+', label: 'RX+' }, { value: 'sc', label: 'Scaled' },

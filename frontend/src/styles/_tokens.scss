@@ -71,6 +71,8 @@
      measures 2.57:1 and fails AA. At 0.82 the same worst case is 5.59:1. Measured, not guessed —
      dev-seeded images are dark enough to hide this, which is exactly why it needs a token. */
   --scrim-text: rgba(6, 9, 7, 0.82);
+  /* Light scrim for class-card photos, user-ruled 2026-09-17, spec §3.1. */
+  --scrim-card: rgba(6, 9, 7, 0.5);
   --focus: var(--volt);       /* focus ring on any non-volt surface */
   --focus-inv: var(--ground); /* focus ring ON a volt surface — see spec §11.2 */
 
@@ -122,4 +124,9 @@
   /* reordering: a row trading places travels further than a hover tint fades.
      340ms (this round's prior value) was still called too quick — now 500ms. */
   --dur-move: 500ms;
+  /* The detail-screen shared-element morph (M17a §5.3), locked at 280ms. Between the other two
+     on purpose: longer than --dur (200ms), which reads as a snap on a full-screen photo
+     travelling into a hero, and shorter than --dur-move (500ms), which paces a reorder rather
+     than a one-shot open/close the athlete is waiting on. */
+  --dur-morph: 280ms;
 }

@@ -3054,3 +3054,12 @@ before handing back. Seven rounds. Every round found something the green suites 
   COMMIT;
   ```
   Run with `docker exec -i docker-db-1 psql -U boxhub -d boxhub`.
+
+## M17a — athlete home, book, class detail, shared class card (branch `m17a-athlete-daily`)
+
+- 2026-09-17 baselines re-measured: backend 852/0/0/0 · Karma 1018 SUCCESS · build 0 warnings.
+- Brainstorm done; spec `docs/superpowers/specs/2026-09-17-m17a-athlete-daily-design.md` (living —
+  shape decisions written back per screen). Next: user reviews spec → writing-plans.
+- Note for browser passes: the M14c-b past-class SQL above does NOT copy `schedule_slot_id`, so those
+  sessions have no image and never feed the habit suggestion. Add `schedule_slot_id` to both SELECTs
+  when seeding past classes for M17a.

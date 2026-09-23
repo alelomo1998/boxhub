@@ -65,4 +65,26 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
             """, nativeQuery = true)
     long countInWeek(@Param("mid") UUID membershipId,
                      @Param("weekStart") Instant weekStart, @Param("weekEnd") Instant weekEnd);
+
+    // Start times of the athlete's CHECKED_IN classes in a window — Home's "days attended" strip.
+    // JPQL on purpose: both entities are @TenantId, so this stays inside the caller's box.
+    @Query("""
+            select s.startAt from Booking b, ClassSession s
+            where s.id = b.sessionId and b.membershipId = :mid and b.status = 'CHECKED_IN'
+              and s.startAt >= :from and s.startAt < :to
+            """)
+    List<Instant> attendedStartsBetween(@Param("mid") UUID membershipId,
+                                        @Param("from") Instant from, @Param("to") Instant to);
+
+    // Home's habit suggestion: how often the athlete actually attended each schedule slot.
+    @Query("""
+            select s.scheduleSlotId, count(b) from Booking b, ClassSession s
+            where s.id = b.sessionId and b.membershipId = :mid and b.status = 'CHECKED_IN'
+              and s.scheduleSlotId is not null and s.startAt >= :from and s.startAt < :to
+            group by s.scheduleSlotId
+            having count(b) >= 2
+            order by count(b) desc
+            """)
+    List<Object[]> attendedSlotCounts(@Param("mid") UUID membershipId,
+                                      @Param("from") Instant from, @Param("to") Instant to);
 }

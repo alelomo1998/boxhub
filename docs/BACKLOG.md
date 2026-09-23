@@ -407,6 +407,26 @@ full e2e run.
   white on volt is 1.1:1. Whoever centralises this must centralise the text colour too, or the next
   accent change silently reintroduces an unreadable button.
 
+### → whichever milestone rebuilds them: detail screens still showing the dock
+
+**Design law 2026-09-18 (user-ruled): a screen that is not a dock tab hides the dock and carries a
+back arrow** to the tab it was opened from. M17a implements the mechanism on `athlete/class/:id`;
+every later screen follows that implementation. Still to convert once their milestone touches them:
+`athlete/board/:itemId` (M17b), `athlete/profile/:membershipId` (M17c), `athlete/notifications` and
+`athlete/notifications/settings`, the messaging thread views, and the coach/admin equivalents
+(`coach/classes/:id/*` runner, check-in and builder screens already fill the viewport — confirm each
+against the rule when its milestone lands).
+
+### → whichever milestone rebuilds them: screens with no `<h1>`
+
+**Design law 2026-09-18 (user-ruled): every screen carries a visible `<h1>` naming it**, matching its
+dock/nav label and `route.title`. A screen being rebuilt adds its own; nobody converts another's.
+These ten pre-date the rule (the admin ones do name themselves, but with an `h2`, so the page has no
+level-1 heading at all):
+`account/account-index`, `admin/box-stripe`, `admin/invites`, `admin/members`, `admin/movements`,
+`admin/plans`, `admin/settings`, `admin/subscriptions`, `programming/piece-editor`, `receipt/receipt`.
+`athlete/book` and `athlete/home` are M17a's own and are fixed there.
+
 ### → M17 Athlete
 - **The class row/card is ONE shared component across athlete Book and coach Classes, with the
   ACTIONS differing by role (user-ruled 2026-09-06).** M14b gave both screens the week strip but
@@ -1043,3 +1063,108 @@ items and the chip/unit/picker entries above were filed during the milestone.
 - **Past-class rows now branch on `isPastDay`** in both `athlete/book.page.ts` and
   `coach/classes.page.ts` (user-ruled 2026-09-16) — **M17a**'s shared class row must keep that rule:
   past day → coach keeps Check-in only, athlete sees Finished / Attended, no Book.
+
+### Loading states — skeletons instead of a text stateline (user-raised 2026-09-18)
+- **Every rebuilt screen still loads behind a bare `<p class="stateline">Loading …</p>`.** The user
+  wants a loader / skeleton. The primitive already exists and is specified in DESIGN.md — `.bh-skel`,
+  a `--surface-2` block pulsing opacity ~1→0.55, resting at the dim value under
+  `prefers-reduced-motion` (deliberately NOT a moving-gradient shimmer, which collides with the
+  no-gradients rule). Today its only consumer is `features/dev/proof-admin-members.component.ts`,
+  so this is **adoption on real screens, not new design**.
+- Athlete Book is the first case: a skeleton of 2–3 class cards (photo block + strip) reads far
+  better than one line of text on the flaky gym wifi the product designs for. Raised as a P3 by
+  M17a's critique and deferred — it is worth doing once real pilot latency is measured, since on
+  the dev stack the stateline is never on screen long enough to judge.
+- Scope when it is picked up: a shared skeleton for the class card, then the other rebuilt screens.
+
+### e2e `runner.spec.ts` — TV never receives a RUNNING timer frame (found 2026-09-18, M17a)
+- `tests/runner.spec.ts:43` "TV shows the clock when a coach starts a timer" fails against the local
+  docker stack: the coach arms and starts an AMRAP, the TV's `tv-stream` keeps receiving frames
+  (`data-frames` climbs 2 → 3 → 4 across the 35s window, so the SSE connection and the 30s sweep are
+  both alive) but `data-timer` stays `none` the whole time. The renderer is not the problem — the
+  frames simply never carry a running timer.
+- **Confirmed pre-existing, not caused by M17a Task 10.** Verified by stashing the Task 10 diff,
+  rebuilding the frontend image at `667c224` and re-running the spec: it fails identically. The other
+  13 tests in `booking-flow` / `library` / `programming` / `runner` all pass.
+- This is very likely the same underlying defect the spec's own comment documents from 2026-08-28
+  ("a push genuinely went missing"), except the 30s guaranteed-delivery sweep is not correcting it
+  either, which the comment assumed it would. That makes it worse than the filed flake: on a real gym
+  TV the clock would never appear, not merely appear late.
+- Next step when picked up: instrument `TvStreamService`'s sweep payload to see whether the timer
+  state is absent at the source or dropped in serialisation, and check whether the session the coach
+  ran (`run-link` first card = the day's FIRST class, often already finished) is the one the paired
+  TV is showing — the spec may be starting a timer on a session the TV is not displaying.
+
+### A screen `<h1>` overflows the viewport at 200% text zoom (found 2026-09-18, M17a audit)
+- The screen-title ruling of 2026-09-18 gives every screen an `<h1>` at `--fs-hero` (40px), uppercase
+  Archivo 800. At 200% text zoom on a 360px phone that is 80px type: "CLASSES" measures **393px wide
+  and its box ends at x=409 on a 360px viewport**, so the page gains a horizontal scroll. It is a
+  single word, so it cannot wrap.
+- **App-wide, not one screen's bug.** Book escapes only because "BOOK" is four characters (~215px).
+  Every title of ~6+ characters will do this — Progress, Messages, Notifications, Announcements.
+- Not a functional loss (no control is hidden, and the title is the one thing a user already knows),
+  which is why it is filed rather than fixed inside M17a: it is a decision about the shared title
+  treatment, and fixing it per-screen would be exactly the piecemeal drift the design law exists to
+  stop. The functional half of the same defect — the coach header's Announce button being pushed
+  off-screen — WAS fixed in M17a, since Task 10 owned that header.
+- Options when picked up: allow the title to shrink at narrow widths, drop `--fs-hero` to
+  `--fs-display` below some width, or accept the scroll and record it. Whichever is chosen belongs in
+  the design law, applied once, not per screen.
+- Also still open from the same measurement: `bh-week-calendar`'s pager button overflows by ~14px at
+  200% zoom on both Book and coach Classes (its own component, unowned by M17a).
+
+## Retire `wod.body_text` entirely (user-ruled 2026-09-20, M17a)
+
+**The ruling is REMOVE, not integrate.** `body_text` is the pre-M14a free-text prescription and is
+a remnant of the old flow; it does not get a home in the coach UI. An earlier version of this entry
+proposed surfacing it in the piece editor as an escape hatch — that was overruled the same day.
+
+Where it stands today: **read in five places** (TV, class-builder preview x2, athlete WOD page,
+athlete class-workout screen), **written in none** — `piece-editor.page.ts` authors `blocks` only.
+The API still accepts it on `POST`/`PATCH` (`WodController.create`/`patch`).
+
+Retiring it needs three things, in order, and the first is the only hard one:
+
+1. **Migrate the existing rows.** Every `wod` with non-empty `body_text` and empty `blocks_json`
+   has to become blocks, or be accepted as lost. Free text does not parse back into structured
+   lines reliably, so this is a decision about data, not a script: convert what parses, and put the
+   rest in front of the box that owns it. **Until this is done the five readers must stay** — the
+   athlete has to be able to read a class a coach wrote in 2025.
+2. **Stop accepting it on the wire** — drop `bodyText` from `CreateWodRequest`/`PatchWodRequest`.
+3. **Drop the column** (Flyway), then delete the five readers, including the `bodyText` fallback on
+   the athlete class-workout screen and the dev-seed "Partner WOD" fixture.
+
+**A separate, genuinely different need — do not let it resurrect `body_text`:** an instruction
+about the class as a whole ("Partner up. One works, one rests.") is not a piece. If that is wanted
+it is a NEW class-level field on the class editor, with its own name. The dev-seed "Partner WOD"
+fixture is shaped like this but stored as a `bodyText` piece, which is exactly the conflation to
+avoid when either of these is picked up.
+
+## Class detail's people → their profiles (raised 2026-09-20, M17a)
+
+Class detail's roster used to link each person to `athlete/profile/:membershipId`. **The link was
+removed in M17a** and the tap now opens that person's photo enlarged, because the destination is
+pre-rework (no i18n marks at all, `ChangeDetectionStrategy.Eager`, an in-body `<h1>` and its own
+`‹ Back` button instead of the settled detail header) and its rebuild is already M17c's. Shipping a
+door into a room scheduled for demolition is the thing that was wrong, not the screen itself.
+
+**→ M17c, when it rebuilds `athlete/profile/:membershipId`: the photo sheet STAYS and GROWS —
+do not delete it and do not re-point the roster at the profile screen** (user-ruled 2026-09-20,
+after seeing it: *"i like the sheet with the pfp, so if we need something else to visualize of the
+athlete we can use this page"*). The sheet is now the athlete **peek** surface: anything a roster
+tap should reveal — streak, PRs, whether they are checked in — belongs in it, not behind a
+navigation. This narrows what the full profile screen has to be, and M17c should settle that split
+before shaping it: **what does a whole screen do that the sheet cannot?**
+
+**The athlete profile still needs a brainstorm before it is built** (user-ruled 2026-09-20: *"right
+now the page is terrible"*) — it has never been shaped, only inherited from M5.
+
+**→ M26, when it builds the coach profile:** class detail's **coach row** is one of its entry
+points, and is deliberately non-interactive until then. M26 already owns the athlete-facing view of
+a box's coaches, the strong/weak points and price, and the request → coach-accepts flow; messaging a
+coach is M29a's (staff ↔ member threads, coaches included). **No mock coach page was built on
+purpose** — the v1.0 doctrine is *built but idle, never absent*, and a placeholder a pilot gym owner
+can reach is absent pretending to be present. A non-interactive coach name is the honest state.
+
+**These are two different screens and must not be merged:** an athlete's public profile is a peer
+you look up; a coach's profile is a staff member you book and message.

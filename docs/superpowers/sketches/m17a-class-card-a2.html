@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>M17a Card A2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  /* Tokens copied verbatim from frontend/src/styles/_tokens.scss. Photos are Unsplash stand-ins. */
+  :root {
+    color-scheme: dark;
+    --ground: #0d110e; --surface: #151a16; --surface-2: #1d231e; --hairline: #2a322c;
+    --bone: #f2f4ef; --on-bone: #0d110e; --bone-dim: #a7b0a6; --faint: #7c8779;
+    --volt: #dfff4e; --on-volt: #0d110e; --good: #3fcf8e; --warn: #f0883e;
+    --font-display: "Archivo", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --r-ctl: 8px; --r-card: 12px; --r-full: 999px; --fs-sm: 13px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #070907; color: var(--bone); font-family: var(--font-display); padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lede { color: var(--bone-dim); margin: 0 0 24px; max-width: 1150px; font-size: 14px; }
+  .frames { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .opt { width: 360px; }
+  .opt h2 { font-size: 18px; margin: 0 0 4px; }
+  .opt p.why { color: var(--bone-dim); font-size: 13px; margin: 0 0 10px; min-height: 36px; }
+  .phone { width: 360px; height: 780px; overflow: hidden; background: var(--ground); border: 1px solid var(--hairline); border-radius: 28px; display: flex; flex-direction: column; }
+  .hdr { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--hairline); flex-shrink: 0; }
+  .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--volt); color: var(--on-volt); font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+  .gym { font-weight: 700; font-size: 15px; }
+  .strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 12px 16px 8px; flex-shrink: 0; }
+  .d { text-align: center; padding: 6px 0; border-radius: var(--r-ctl); font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+  .d b { display: block; font-size: 16px; color: var(--bone-dim); font-family: var(--font-display); }
+  .d.on { background: var(--bone); color: var(--on-bone); } .d.on b { color: var(--on-bone); }
+  .list { flex: 1; overflow: hidden; padding: 8px 16px 0; display: flex; flex-direction: column; gap: 12px; }
+  .dock { height: 64px; flex-shrink: 0; border-top: 1px solid var(--hairline); background: var(--surface); display: flex; justify-content: space-around; align-items: center; }
+  .dock i { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--faint); display: block; }
+  .dock i.on { border-color: var(--volt); }
+  .lbl { font-family: var(--font-mono); font-size: 11px; color: var(--faint); letter-spacing: .1em; text-transform: uppercase; margin: 10px 0 4px; }
+
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .pill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: var(--r-full);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    background: rgba(13,17,14,.86); border: 1px solid var(--hairline); color: var(--bone); white-space: nowrap; }
+  .pill.good { color: var(--good); border-color: var(--good); }
+  .pill.warn { color: var(--warn); border-color: var(--warn); }
+  .btn { height: 40px; padding: 0 16px; border-radius: var(--r-ctl); font: 700 14px var(--font-display); display: inline-flex; align-items: center; white-space: nowrap; flex-shrink: 0;
+    background: transparent; border: 1px solid var(--hairline); color: var(--bone); }
+  .btn.solid { background: var(--bone); color: var(--on-bone); border-color: var(--bone); }
+
+  /* A2 — taller photo, light scrim (adaptive: --scrim-a darkens only for bright photos) */
+  .a { border-radius: var(--r-card); overflow: hidden; border: 1px solid var(--hairline); background: var(--surface); flex-shrink: 0; }
+  .a .img { --scrim-a: .5; height: 170px; position: relative; background-color: var(--surface-2); }
+  .a .img.bright { --scrim-a: .8; }
+  .a .ph { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  .a .ph.past { filter: grayscale(.85) brightness(.75); }
+  .a .img::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(6,9,7,0) 28%, rgba(6,9,7,var(--scrim-a)) 55%, rgba(6,9,7,var(--scrim-a)) 100%); }
+  .a .txt { position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 1; display: flex; flex-direction: column; gap: 8px; }
+  .a .line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .a .nm { font-weight: 700; font-size: 18px; letter-spacing: .01em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+  .a .sep { color: var(--bone-dim); flex-shrink: 0; }
+  .a .coach { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--bone); flex-shrink: 0; max-width: 45%; }
+  .a .coach span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .a .badge { position: absolute; top: 10px; right: 10px; z-index: 1; }
+  .a .initials { position: absolute; right: 14px; top: 8px; font-weight: 800; font-size: 48px; color: var(--hairline); text-transform: uppercase; }
+  .a .foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 12px; min-height: 56px; }
+  .a .when { font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .a .when em { font-style: normal; font-weight: 400; color: var(--bone-dim); }
+  .muted { color: var(--bone-dim); font-size: var(--fs-sm); }
+
+  .av { font-style: normal; width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; background-size: cover; background-position: center; display: inline-grid; place-items: center; font-size: 9px; font-weight: 700; color: var(--bone); background-color: var(--surface-2); border: 1px solid rgba(242,244,239,.5); }
+  .stack { display: flex; align-items: center; }
+  .stack .av { width: 28px; height: 28px; margin-left: -9px; border: 2px solid var(--volt); font-size: 10px; }
+  .stack.bone .av { border-color: var(--bone); }
+  .stack .av:first-child { margin-left: 0; }
+  .more { margin-left: 6px; height: 24px; min-width: 32px; padding: 0 8px; border-radius: var(--r-full); background: rgba(13,17,14,.86); border: 1px solid var(--hairline);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--bone); display: inline-flex; align-items: center; justify-content: center; }
+
+  table.m { border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; margin-top: 12px; width: 360px; }
+  table.m td, table.m th { border-bottom: 1px solid var(--hairline); padding: 4px 6px; text-align: left; }
+  table.m th { color: var(--faint); font-weight: 400; }
+</style>
+</head>
+<body>
+<h1>M17a · card A2 — more photo, light scrim, who's going on the image</h1>
+<p class="lede">Photo 170px, the top 28% untouched and a light scrim (50%) under the text. Title 18px/700, then "· coach". The athletes going sit on the photo, overlapped, with a ring. The badge says the state once ("Full"); the strip says the count ("3 in line"). <b>Adaptive scrim:</b> the card measures its photo when it loads and darkens the scrim to 80% only when the lower half is bright — the right column shows why that is needed.</p>
+
+<div class="frames">
+<div class="opt">
+  <h2>A2 · volt ring (as asked)</h2>
+  <p class="why">Design-law conflict: volt = live/now/primary; the shell's switcher already spends this screen's one volt.</p>
+  <div class="phone">
+    <div class="hdr"><span class="mark">CF</span><span class="gym">CrossFit Demo</span></div>
+    <div class="strip"><span class="d">MON<b>15</b></span><span class="d">TUE<b>16</b></span><span class="d on">WED<b>17</b></span><span class="d">THU<b>18</b></span><span class="d">FRI<b>19</b></span><span class="d">SAT<b>20</b></span><span class="d">SUN<b>21</b></span></div>
+    <div class="list">
+      <div class="a"><div class="img"><div class="ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div><span class="badge pill">Booked</span>
+        <div class="txt"><div class="line"><span class="nm">Burn It</span><span class="sep">·</span><span class="coach"><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><span>Giulia</span></span></div>
+          <span class="stack"><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><i class="av">SR</i><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><i class="av">AM</i><i class="av">LP</i><span class="more">+3</span></span></div></div>
+        <div class="foot"><span class="when mono">12:15–13:00 <em>· 4 left</em></span><span class="btn">Cancel</span></div></div>
+      <div class="a"><div class="img"><div class="ph" style="background-image:url(m17a-assets/1526506118085-60ce8714f8c5.jpg)"></div><span class="badge pill warn">Full</span>
+        <div class="txt"><div class="line"><span class="nm">Weekend Team WOD</span><span class="sep">·</span><span class="coach"><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><span>Marco</span></span></div>
+          <span class="stack"><i class="av">DV</i><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><i class="av">KT</i><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><i class="av">EB</i><span class="more">+7</span></span></div></div>
+        <div class="foot"><span class="when mono">18:00–19:00 <em>· 3 in line</em></span><span class="btn">Join waitlist</span></div></div>
+      <div class="a"><div class="img"><span class="initials">OG</span>
+        <div class="txt"><div class="line"><span class="nm">Open Gym</span><span class="sep">·</span><span class="coach"><i class="av">LR</i><span>Luca</span></span></div>
+          <span class="muted">No one yet — be the first</span></div></div>
+        <div class="foot"><span class="when mono">19:30–20:30 <em>· 12 left</em></span><span class="btn solid">Book</span></div></div>
+    </div>
+    <div class="dock"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
+</div>
+
+<div class="opt">
+  <h2>A2 · bone ring (law-safe)</h2>
+  <p class="why">Same card, ring in --bone: reads as "people", keeps volt meaning live/now.</p>
+  <div class="phone">
+    <div class="hdr"><span class="mark">CF</span><span class="gym">CrossFit Demo</span></div>
+    <div class="strip"><span class="d">MON<b>15</b></span><span class="d">TUE<b>16</b></span><span class="d on">WED<b>17</b></span><span class="d">THU<b>18</b></span><span class="d">FRI<b>19</b></span><span class="d">SAT<b>20</b></span><span class="d">SUN<b>21</b></span></div>
+    <div class="list">
+      <div class="a"><div class="img"><div class="ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div><span class="badge pill">Booked</span>
+        <div class="txt"><div class="line"><span class="nm">Burn It</span><span class="sep">·</span><span class="coach"><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><span>Giulia</span></span></div>
+          <span class="stack bone"><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><i class="av">SR</i><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><i class="av">AM</i><i class="av">LP</i><span class="more">+3</span></span></div></div>
+        <div class="foot"><span class="when mono">12:15–13:00 <em>· 4 left</em></span><span class="btn">Cancel</span></div></div>
+      <div class="a"><div class="img"><div class="ph" style="background-image:url(m17a-assets/1526506118085-60ce8714f8c5.jpg)"></div><span class="badge pill warn">Full</span>
+        <div class="txt"><div class="line"><span class="nm">Weekend Team WOD</span><span class="sep">·</span><span class="coach"><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><span>Marco</span></span></div>
+          <span class="stack bone"><i class="av">DV</i><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><i class="av">KT</i><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><i class="av">EB</i><span class="more">+7</span></span></div></div>
+        <div class="foot"><span class="when mono">18:00–19:00 <em>· 3 in line</em></span><span class="btn">Join waitlist</span></div></div>
+      <div class="a"><div class="img"><div class="ph past" style="background-image:url(m17a-assets/1599058917212-d750089bc07e.jpg)"></div><span class="badge pill good">✓ Attended</span>
+        <div class="txt"><div class="line"><span class="nm">Olympic Weightlifting Fundamentals</span><span class="sep">·</span><span class="coach"><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><span>Maximilian Oberhausen</span></span></div>
+          <span class="stack bone"><i class="av">SR</i><i class="av">AM</i><i class="av">LP</i></span></div></div>
+        <div class="foot"><span class="when mono">06:00–07:00 <em>· finished</em></span></div></div>
+    </div>
+    <div class="dock"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
+</div>
+
+<div class="opt">
+  <h2>Why the scrim must adapt</h2>
+  <p class="why">Pure white upload: the light scrim (top) fails; the same card when the photo is detected as bright (bottom) passes.</p>
+  <div class="lbl">light scrim · white photo</div>
+  <div class="a" data-probe="light"><div class="img"><div class="ph" style="background:#fff"></div><span class="badge pill">Booked</span>
+    <div class="txt"><div class="line"><span class="nm">Burn It</span><span class="sep">·</span><span class="coach"><i class="av">GB</i><span>Giulia</span></span></div>
+      <span class="stack bone"><i class="av">SR</i><i class="av">AM</i><span class="more">+1</span></span></div></div>
+    <div class="foot"><span class="when mono">12:15–13:00 <em>· 4 left</em></span><span class="btn">Cancel</span></div></div>
+  <div class="lbl">adaptive (bright detected) · white photo</div>
+  <div class="a" data-probe="dark"><div class="img bright"><div class="ph" style="background:#fff"></div><span class="badge pill">Booked</span>
+    <div class="txt"><div class="line"><span class="nm">Burn It</span><span class="sep">·</span><span class="coach"><i class="av">GB</i><span>Giulia</span></span></div>
+      <span class="stack bone"><i class="av">SR</i><i class="av">AM</i><span class="more">+1</span></span></div></div>
+    <div class="foot"><span class="when mono">12:15–13:00 <em>· 4 left</em></span><span class="btn">Cancel</span></div></div>
+  <div class="lbl">adaptive (bright detected) · bright photo</div>
+  <div class="a"><div class="img bright"><div class="ph" style="background-image:url(m17a-assets/1571019613454-1cb2f99b2d8b.jpg)"></div><span class="badge pill">Waitlist #2</span>
+    <div class="txt"><div class="line"><span class="nm">Mobility</span><span class="sep">·</span><span class="coach"><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><span>Giulia</span></span></div>
+      <span class="stack bone"><i class="av">SR</i><i class="av">AM</i><i class="av">LP</i><i class="av">DV</i><i class="av">KT</i><span class="more">+7</span></span></div></div>
+    <div class="foot"><span class="when mono">18:00–19:00 <em>· 1 ahead</em></span><span class="btn">Leave waitlist</span></div></div>
+  <table class="m" id="m"><tr><th>name line on pure white</th><th>contrast</th><th>AA</th></tr></table>
+</div>
+</div>
+
+<script>
+  const lum = ([r, g, b]) => [r, g, b].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+    .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const rgb = s => s.match(/[\d.]+/g).slice(0, 3).map(Number);
+  const alphaAt = (f, max) => f <= 0.28 ? 0 : f <= 0.55 ? max * ((f - 0.28) / 0.27) : max;
+  const table = document.getElementById('m');
+  document.fonts.ready.then(() => {
+    for (const [probe, max] of [['light', 0.5], ['dark', 0.8]]) {
+      const img = document.querySelector(`[data-probe="${probe}"] .img`);
+      const box = img.getBoundingClientRect();
+      for (const [label, sel] of [['title', '.nm'], ['coach', '.coach span']]) {
+        const el = img.querySelector(sel);
+        const r = el.getBoundingClientRect();
+        const f = (r.top - box.top) / box.height;
+        const a = alphaAt(f, max);
+        const bg = [6, 9, 7].map(c => c * a + 255 * (1 - a));
+        const L1 = lum(rgb(getComputedStyle(el).color)), L2 = lum(bg);
+        const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+        table.insertAdjacentHTML('beforeend', `<tr><td>${probe} scrim · ${label}</td><td>${ratio.toFixed(1)}:1</td><td>${ratio >= 4.5 ? 'pass' : 'FAIL'}</td></tr>`);
+      }
+    }
+  });
+</script>
+</body>
+</html>

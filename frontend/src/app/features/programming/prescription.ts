@@ -1,4 +1,4 @@
-import { Wod } from './programming.service';
+import { Wod, WodScale } from './programming.service';
 
 export const MACRO_LABELS: Record<string, string> = {
   WARMUP: $localize`:@@class.macro.warmup:Warmup`,
@@ -20,7 +20,7 @@ export const PRESET_LABELS: Record<string, string> = {
  *  flat @for instead of nested loops. */
 export type ExpandedRow =
   | { kind: 'label'; text: string; sub: boolean }
-  | { kind: 'line'; reps?: string; text: string; load?: string; unit?: string; sub: boolean }
+  | { kind: 'line'; reps?: string; text: string; load?: string; unit?: string; scales?: WodScale[]; sub: boolean }
   | { kind: 'note'; text: string; sub: boolean };
 
 /** Walk one level of nesting -- blocks are exactly two levels deep (server rejects a third). */
@@ -47,13 +47,13 @@ export function expandedRows(w: Wod | null): ExpandedRow[] {
   for (const b of blocks) {
     if (b.label) rows.push({ kind: 'label', text: b.label, sub: false });
     for (const l of b.lines ?? []) {
-      rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, sub: false });
+      rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, scales: l.scales, sub: false });
     }
     if (b.note) rows.push({ kind: 'note', text: b.note, sub: false });
     for (const sb of b.blocks ?? []) {
       if (sb.label) rows.push({ kind: 'label', text: sb.label, sub: true });
       for (const l of sb.lines ?? []) {
-        rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, sub: true });
+        rows.push({ kind: 'line', reps: l.reps, text: l.text, load: l.load, unit: l.unit, scales: l.scales, sub: true });
       }
       if (sb.note) rows.push({ kind: 'note', text: sb.note, sub: true });
     }

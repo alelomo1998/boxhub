@@ -57,3 +57,75 @@ nav a { text-decoration: none; }
 .bh-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
+
+/* Class detail's open/close shared-element morph (M17a Task 12b, spec §5.3): `::view-transition-*`
+   pseudo-elements live on the document root, outside the regular DOM tree, so no component's
+   encapsulated styles can reach them — this is the only place they can be styled. bh-class-card and
+   class-detail.page.ts/athlete-shell.page.ts pair up a `view-transition-name` on the photo surface
+   and the title; this rule is what makes BOTH pairs travel at the locked 280ms/--ease-move instead
+   of the browser's default (a plain 250ms cross-fade). app.config.ts's onViewTransitionCreated
+   keeps this scoped to detail navigations only — everywhere else the router skips the transition
+   entirely, so this rule never fires on an ordinary route change. */
+::view-transition-group(*) {
+  animation-duration: var(--dur-morph);
+  animation-timing-function: var(--ease-move);
+}
+
+/* The universal reduced-motion rule above (`*, *::before, *::after`) does not reach these — they
+   sit outside the tree that selector walks. Disabling the animation here, rather than skipping the
+   transition upstream, can no longer deadlock the screen the way the hand-rolled prototype's
+   `transitionend` wait could: the router's navigation resolves regardless of whether anything
+   animates, so a reduced-motion visitor just sees the two screens swap instantly. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* A NESTED detail screen (class detail -> its workout, M17a Task 12c) opens as a horizontal push
+   and closes as its exact reverse. app.config.ts tags <html data-vt="fwd|back"> for the duration
+   of exactly those navigations, so nothing else in the app sees these rules -- class detail's own
+   open/close morph above is untouched.
+
+   `*` sweeps EVERY captured group, not just root, and that is the point: the screen being LEFT
+   still carries the photo and title `view-transition-name`s of its own morph pair, which the
+   screen being entered does not. Left to the UA's per-group default those two would sit still and
+   fade while the rest of the page slid out from under them. One transform on every group makes the
+   whole screen travel as one sheet.
+
+   `isolation: auto` + `mix-blend-mode: normal` undo the UA's cross-fade setup: `plus-lighter` is
+   right for two images fading through each other and wrong for two opaque screens overlapping. */
+:root[data-vt]::view-transition-image-pair(*) { isolation: auto; }
+:root[data-vt]::view-transition-old(*),
+:root[data-vt]::view-transition-new(*) {
+  animation-duration: var(--dur-morph);
+  animation-timing-function: var(--ease-move);
+  animation-fill-mode: both;
+  mix-blend-mode: normal;
+}
+:root[data-vt='fwd']::view-transition-old(*)  { animation-name: bh-push-out; }
+:root[data-vt='fwd']::view-transition-new(*)  { animation-name: bh-push-in; }
+:root[data-vt='back']::view-transition-old(*) { animation-name: bh-pop-out; }
+:root[data-vt='back']::view-transition-new(*) { animation-name: bh-pop-in; }
+
+/* The screen being left travels a third of the width, not the full width: the parallax is what
+   reads as one screen sliding UNDER the other rather than two screens sliding past each other. */
+@keyframes bh-push-out { to   { transform: translateX(-30%); opacity: 0; } }
+@keyframes bh-push-in  { from { transform: translateX(100%); } }
+@keyframes bh-pop-out  { to   { transform: translateX(100%); } }
+@keyframes bh-pop-in   { from { transform: translateX(-30%); opacity: 0; } }
+
+/* THE SHELL HEADER DOES NOT TRAVEL (user-ruled 2026-09-20). It is chrome, and its mail / bell /
+   avatar are the SAME controls on both screens -- sliding them reads as though the bar belonged to
+   the page rather than to the app. It stays pinned and cross-fades, so only its title visibly
+   changes. `.bh-pinned` is a view-transition-class rather than a list of names because the detail
+   title carries a per-session `view-transition-name` that no stylesheet can spell; without the
+   title opted in too it would be the one piece of chrome still flying off, since its own name
+   lifts it OUT of the header's snapshot. These rules sit after the `*` block deliberately -- they
+   are the exception that overrides it. */
+:root[data-vt]::view-transition-group(.bh-pinned) { animation: none; }
+:root[data-vt]::view-transition-old(.bh-pinned) { animation-name: bh-vt-fade-out; }
+:root[data-vt]::view-transition-new(.bh-pinned) { animation-name: bh-vt-fade-in; }
+
+@keyframes bh-vt-fade-out { to   { opacity: 0; } }
+@keyframes bh-vt-fade-in  { from { opacity: 0; } }

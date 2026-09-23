@@ -243,7 +243,7 @@ test('the dots tell the truth: open, full and none render as words in the aria-l
   await page.goto('/app/athlete/book');
   const fullDayCell = await revealDay(page, fullIso);
   await fullDayCell.click();
-  const fullCard = page.locator('.card', { hasText: fullName });
+  const fullCard = page.locator('[data-testid^="session-"]', { hasText: fullName });
   await expect(fullCard).toBeVisible();
   await fullCard.getByTestId('book-btn').dispatchEvent('click');
   await expect(fullCard.getByText('Booked')).toBeVisible({ timeout: 10000 });
@@ -311,7 +311,7 @@ test('editing a slot with a live booking is refused, and the retry applies from 
   await page.goto('/app/athlete/book');
   const dayCell = await revealDay(page, iso);
   await dayCell.click();
-  const card = page.locator('.card', { hasText: className });
+  const card = page.locator('[data-testid^="session-"]', { hasText: className });
   await expect(card).toBeVisible();
   await card.getByTestId('book-btn').dispatchEvent('click');
   await expect(card.getByText('Booked')).toBeVisible({ timeout: 10000 });

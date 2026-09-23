@@ -1,75 +1,74 @@
-import { Component, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Component, ElementRef, Injector, afterNextRender, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
+import { formatDate } from '@angular/common';
+import { Observable } from 'rxjs';
 import { BookingService, SessionView } from '../booking/booking.service';
 import { ButtonComponent } from '../../ui/button.component';
-import { PillComponent } from '../../ui/pill.component';
+import { ClassCardComponent } from '../../ui/class-card.component';
+import { BannerComponent } from '../../ui/banner.component';
+import { SheetComponent } from '../../ui/sheet.component';
 import { WeekCalendarComponent, DayTone } from '../../ui/week-calendar.component';
 import { tonesOf } from '../booking/session-tones';
-import { sessionWindow, covers, SessionWindow, isPastDay } from '../booking/session-window';
+import { sessionWindow } from '../booking/session-window';
+import { athleteState, AthleteState, Action } from '../booking/class-state';
+import { bookingReason } from '../booking/booking-reason';
+import { BookStore } from '../booking/book.store';
 
 function dayKey(d: Date): string { return d.toDateString(); } // local day, matches the coach view
 
-/** Book a class: date pager + photo class cards (reference-app concept, our style). */
+/** Book a class: date pager + the shared class card, one per session of the selected day. */
 @Component({
   selector: 'bh-book',
   standalone: true,
-  imports: [RouterLink, ButtonComponent, PillComponent, WeekCalendarComponent, DatePipe],
+  imports: [ButtonComponent, ClassCardComponent, BannerComponent, SheetComponent, WeekCalendarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="book">
+      <h1 class="title" i18n="@@athlete.book.title">Book</h1>
+
       <bh-week-calendar [jump]="true" [(offset)]="dayOffset" [min]="-3650" [max]="13" [tones]="tones()" />
 
-      @if (error()) { <p class="err" role="alert" data-testid="book-error">{{ error() }}</p> }
-
-      @if (loading()) { <p class="stateline">Loading classes…</p> }
+      @if (loading()) { <p class="stateline" i18n="@@athlete.book.loading">Loading classes…</p> }
+      @else if (error()) {
+        <div class="err-block">
+          <p class="err" role="alert" data-testid="book-error">{{ error() }}</p>
+          <bh-button variant="ghost" size="sm" testId="book-retry" (click)="load()" i18n="@@athlete.book.retry">Try again</bh-button>
+        </div>
+      }
       @else {
-        <div class="cards">
+        <div class="cards" aria-live="polite">
           @for (s of daySessions(); track s.id) {
-            <div class="card" [attr.data-testid]="'session-' + s.id">
-              <a class="body sess" [routerLink]="['/athlete/class', s.id]">
-                @if (imageOf(s)) { <img class="img" [src]="imageOf(s)" alt="" /> }
-                @else { <div class="img ph" aria-hidden="true">{{ s.name.slice(0, 2) }}</div> }
-                <div class="info">
-                  <span class="nm">{{ s.name }}</span>
-                  @if (s.coachName) { <span class="coach">Coach {{ s.coachName }}</span> }
-                  @if (!isPastDay(s.startAt)) {
-                    <span class="spots num">
-                      @if (s.bookedCount >= s.capacity) { Full · {{ s.waitlistCount }} in line }
-                      @else { {{ s.capacity - s.bookedCount }} spots left }
-                    </span>
-                  }
-                </div>
-                <div class="time">
-                  <span class="t-start num">{{ s.startAt | date:'HH:mm' }}</span>
-                  <span class="t-end num">{{ endOf(s) | date:'HH:mm' }}</span>
-                </div>
-              </a>
-              <div class="foot">
-                @if (isPastDay(s.startAt)) {
-                  <span class="mut" i18n="@@athlete.book.finished">Finished</span>
-                  @if (s.myBookingStatus === 'CHECKED_IN') { <bh-pill tone="active" [label]="attendedLabel" /> }
-                  @else if (s.myBookingStatus === 'BOOKED') { <bh-pill tone="active" label="Booked" /> }
-                } @else if (started(s)) {
-                  <span class="mut">Started {{ s.startAt | date:'HH:mm' }}</span>
-                  @if (s.myBookingStatus === 'CHECKED_IN') { <bh-pill tone="active" [label]="attendedLabel" /> }
-                  @else if (s.myBookingStatus === 'BOOKED') { <bh-pill tone="active" label="Booked" /> }
-                } @else if (s.myBookingStatus === 'BOOKED' || s.myBookingStatus === 'CHECKED_IN') {
-                  <bh-pill tone="active" label="Booked" />
-                  @if (s.myBookingStatus === 'BOOKED') {
-                    <bh-button variant="ghost" size="sm" data-testid="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)">Cancel</bh-button>
-                  }
-                } @else if (s.myBookingStatus === 'WAITLIST') {
-                  <bh-pill tone="warn" [label]="'Waitlist #' + s.myPosition" />
-                  <bh-button variant="ghost" size="sm" data-testid="cancel-btn" [disabled]="busy() === s.id" (click)="cancel(s)">Leave</bh-button>
-                } @else if (s.bookedCount >= s.capacity) {
-                  <span class="mut">Join the line</span>
-                  <bh-button size="sm" data-testid="book-btn" [disabled]="busy() === s.id" (click)="book(s)">Join waitlist</bh-button>
-                } @else {
-                  <span class="mut num">{{ s.bookedCount }}/{{ s.capacity }} going</span>
-                  <bh-button size="sm" data-testid="book-btn" [disabled]="busy() === s.id" (click)="book(s)">Book</bh-button>
-                }
-              </div>
-            </div>
+            <bh-class-card
+              [title]="s.name"
+              [image]="s.imagePath"
+              [coach]="s.coachName"
+              [coachAvatar]="s.coachAvatarPath"
+              [people]="s.people"
+              [peopleCount]="s.bookedCount"
+              [emptyText]="emptyTextFor(s)"
+              [start]="s.startAt"
+              [end]="endOf(s)"
+              [suffix]="suffixFor(s)"
+              [badgeLabel]="badgeLabelFor(s)"
+              [badgeTone]="badgeToneFor(s)"
+              [href]="['/athlete/class', s.id]"
+              [tone]="toneOf(s)"
+              [testId]="'session-' + s.id"
+              [morphKey]="s.id"
+              (click)="recordScrollBeforeOpen()">
+              @let act = stateOf(s).action;
+              <!-- Design law: the control that OPENS a destructive flow is a danger-bordered ghost
+                   (Cancel / Leave waitlist); the confirm sheet's execute control is filled danger.
+                   --good is a status colour, never an action, so Book is solid (--bone), not green. -->
+              @if (act === 'book') {
+                <bh-button actions variant="solid" size="sm" testId="book-btn" [loading]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.book">Book</bh-button>
+              } @else if (act === 'waitlist') {
+                <bh-button actions variant="ghost" size="sm" testId="book-btn" [loading]="busy() === s.id" (click)="book(s)" i18n="@@athlete.book.action.waitlist">Join waitlist</bh-button>
+              } @else if (act === 'cancel') {
+                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [loading]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.cancel">Cancel</bh-button>
+              } @else if (act === 'leave') {
+                <bh-button actions variant="ghost-danger" size="sm" testId="cancel-btn" [loading]="busy() === s.id" (click)="openCancelConfirm(s)" i18n="@@athlete.book.action.leave">Leave waitlist</bh-button>
+              }
+            </bh-class-card>
           } @empty {
             <div class="empty">
               <p class="e1" i18n="@@athlete.book.empty.title">No classes this day.</p>
@@ -78,38 +77,46 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
           }
         </div>
       }
+
+      <!-- A keyed loop, not @if on the signal directly: bh-alert's role="alert"/"status" only
+           announces on FRESH insertion, so a second outcome overwriting the same signal value in
+           place (as @if would do, since the expression never actually renders falsy in between —
+           both set(null) and set({...}) run before Angular's next render) would silently not
+           re-announce. Each outcome gets its own seq, so a new outcome is a genuinely new node. -->
+      @for (b of bannerList(); track b.seq) {
+        <bh-banner [tone]="b.tone" [message]="b.message" (dismissed)="banner.set(null)" />
+      }
+
+      <bh-sheet [open]="confirmItem() !== null" [title]="confirmTitle()" [label]="confirmTitle()"
+                data-testid="book-cancel-confirm-sheet" (closed)="confirmItem.set(null)">
+        @if (confirmItem(); as it) {
+          <div class="confirm">
+            <p class="c-line" data-testid="confirm-line">{{ confirmLine() }}</p>
+            <p class="c-cost">{{ confirmCost() }}</p>
+            <div class="c-actions">
+              <bh-button class="full" variant="ghost" size="sm" testId="confirm-keep" (click)="keepConfirm()" i18n="@@athlete.book.confirm.keep">Keep it</bh-button>
+              <bh-button class="full" variant="danger" size="sm" testId="confirm-execute" [loading]="busy() === it.s.id" (click)="confirmCancel()">{{ confirmExecuteLabel() }}</bh-button>
+            </div>
+          </div>
+        }
+      </bh-sheet>
     </section>
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .book { max-width: 720px; margin: 0 auto; }
+    .title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-hero);
+      text-transform: uppercase; margin: 0 0 var(--sp-4); }
     .stateline { color: var(--bone-dim); }
-    .err { color: var(--danger); font-size: var(--fs-sm); }
+    .err-block { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); }
+    .err { color: var(--danger); font-size: var(--fs-sm); margin: 0; }
 
     .cards { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .card { border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface);
-      overflow: hidden; }
-    .body { display: flex; align-items: stretch; gap: var(--sp-3); text-decoration: none; color: var(--bone); }
-    .body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-    .img { width: 96px; min-height: 84px; object-fit: cover; flex-shrink: 0;
-      border-radius: var(--r-card) 0 0 var(--r-card); }
-    .img.ph { display: grid; place-items: center; background: var(--surface-2);
-      font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--faint);
-      text-transform: uppercase; }
-    .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3) 0; }
-    .nm { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2);
-      text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .coach { font-size: var(--fs-sm); color: var(--bone-dim); }
-    .spots { font-size: var(--fs-sm); color: var(--faint); }
-    .time { display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
-      padding: var(--sp-3) var(--sp-4); }
-    .t-start { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); line-height: 1; }
-    .t-end { font-size: var(--fs-sm); color: var(--faint); }
-    .num { font-variant-numeric: tabular-nums; }
 
-    .foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
-      border-top: 1px solid var(--hairline); padding: var(--sp-2) var(--sp-4); }
-    .mut { font-size: var(--fs-sm); color: var(--faint); }
+    .confirm { display: flex; flex-direction: column; gap: var(--sp-4); align-items: stretch; }
+    .c-line { font-weight: 700; margin: 0; }
+    .c-cost { color: var(--bone-dim); font-size: var(--fs-sm); margin: 0; }
+    .c-actions { display: flex; gap: var(--sp-3); }
+    .c-actions bh-button { flex: 1; min-width: 0; }
 
     .empty { padding: var(--sp-8) 0; }
     .e1 { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display);
@@ -119,19 +126,45 @@ function dayKey(d: Date): string { return d.toDateString(); } // local day, matc
 })
 export class BookPage implements OnInit {
   private booking = inject(BookingService);
+  private locale = inject(LOCALE_ID);
+  private el: ElementRef<HTMLElement> = inject(ElementRef);
+  private injector = inject(Injector);
+  private store = inject(BookStore);
 
-  protected readonly isPastDay = isPastDay;
-  protected readonly attendedLabel = $localize`:@@athlete.book.attended:Attended`;
+  private readonly attendedBadge = $localize`:@@athlete.book.badge.attended:✓ Attended`;
+  private readonly bookedBadge = $localize`:@@athlete.book.badge.booked:Booked`;
+  private readonly fullBadge = $localize`:@@athlete.book.badge.full:Full`;
+  private readonly finishedSuffix = $localize`:@@athlete.book.suffix.finished:finished`;
+  private readonly startedSuffix = $localize`:@@athlete.book.suffix.started:started`;
+  private readonly emptyTextLabel = $localize`:@@athlete.book.card.empty:No one yet — be the first`;
+  private readonly loadErrorText = $localize`:@@athlete.book.loadError:Couldn't load classes — try again.`;
+  private readonly cancelConfirmTitle = $localize`:@@athlete.book.confirm.cancel.title:Cancel this booking?`;
+  private readonly leaveConfirmTitle = $localize`:@@athlete.book.confirm.leave.title:Leave the waitlist?`;
+  private readonly cancelConfirmCost = $localize`:@@athlete.book.confirm.cancel.cost:Your place is freed — someone on the waitlist may take it.`;
+  private readonly leaveConfirmCost = $localize`:@@athlete.book.confirm.leave.cost:Your position is lost.`;
+  private readonly cancelConfirmExecute = $localize`:@@athlete.book.confirm.cancel.execute:Cancel booking`;
+  private readonly leaveConfirmExecute = $localize`:@@athlete.book.confirm.leave.execute:Leave waitlist`;
 
-  readonly sessions = signal<SessionView[]>([]);
-  readonly images = signal<Map<string, string>>(new Map());
+  /** Held by BookStore, not this page (M17a Task 12b) — a return trip from class detail must find
+   *  the departure day's cards already painted for the shared-element collapse to have anything to
+   *  pair with; see BookStore's own doc comment. */
+  readonly sessions = this.store.sessions;
   readonly error = signal('');
   readonly loading = signal(true);
   readonly busy = signal<string | null>(null);
-  readonly dayOffset = signal(0);
-
-  /** The [from, to] this page last fetched — reloaded only when the selected day leaves it. */
-  private window: SessionWindow = sessionWindow(0);
+  readonly banner = signal<{ seq: number; tone: 'good' | 'danger'; message: string } | null>(null);
+  private bannerSeq = 0;
+  /** The session + action a Cancel/Leave-waitlist tap is confirming — null means the sheet is
+   *  closed. Holding the whole item (not just an id) means the confirm copy keeps naming the
+   *  right class/time even if `load()` re-fetches sessions while the sheet is open. */
+  readonly confirmItem = signal<{ s: SessionView; act: 'cancel' | 'leave' } | null>(null);
+  readonly bannerList = computed(() => {
+    const b = this.banner();
+    return b ? [b] : [];
+  });
+  /** Held by BookStore too, same reason as `sessions`: which day was selected must survive the
+   *  round trip through class detail. */
+  readonly dayOffset = this.store.dayOffset;
 
   readonly day = computed(() => {
     const d = new Date();
@@ -147,54 +180,242 @@ export class BookPage implements OnInit {
   /** Per-day availability for the strip's dots, from sessions already fetched — no extra request. */
   readonly tones = computed<Record<string, DayTone>>(() => tonesOf(this.sessions()));
 
+  /** The offset `handleOffset` last decided a fetch for. Serves two purposes: (1) dedupe — the
+   *  constructor's `effect()` ALWAYS fires once immediately in addition to reacting to later
+   *  `dayOffset` changes, and Angular does not guarantee that first run lands before or after
+   *  ngOnInit, so both call the same guarded method instead of each deciding independently, which
+   *  was firing the initial request twice (measured: `http.expectOne` failing with "found 2
+   *  requests"); (2) marks whether a decision has been made yet at all, so the cache-render +
+   *  silent-revalidate special case below applies at MOUNT only, never to an ordinary day-to-day
+   *  page within an already-loaded window (that already worked with a plain covers() check before
+   *  this store existed, and silently revalidating on every page would be wasted traffic). */
+  private lastHandledOffset: number | null = null;
+
   constructor() {
-    effect(() => {
-      const offset = this.dayOffset();
-      if (!covers(this.window, offset)) this.load();
-    });
+    effect(() => this.handleOffset(this.dayOffset()));
   }
 
   ngOnInit() {
-    this.load();
-    this.booking.listTemplates().subscribe({
-      next: ts => this.images.set(new Map(ts.filter(t => t.imagePath).map(t => [t.name, t.imagePath!]))),
-      error: () => {},
+    this.handleOffset(this.dayOffset());
+  }
+
+  private handleOffset(offset: number) {
+    if (this.lastHandledOffset === offset) return; // the redundant duplicate mandatory first run
+    const isMount = this.lastHandledOffset === null;
+    this.lastHandledOffset = offset;
+    if (isMount && this.store.covers(offset)) {
+      // A return trip from class detail (or any remount with this day already cached): render
+      // what's there immediately, no loading flash — required for the shared-element collapse to
+      // have a card to land on — then revalidate in the background so a booking made on the
+      // detail screen is reflected in this card's badge/action.
+      this.loading.set(false);
+      this.load(true);
+      this.restoreScroll();
+      return;
+    }
+    if (!this.store.covers(offset)) this.load();
+  }
+
+  /** Bound to (click) on every card (M17a Task 12b) — cheap and harmless to also fire on a
+   *  Book/Cancel button tap (same current scroll position either way); scoped to the ONE trip
+   *  that follows by BookStore.takeScroll()'s read-and-clear. */
+  protected recordScrollBeforeOpen() {
+    this.store.saveScroll(window.scrollY);
+  }
+
+  /** The collapse animates to the departure card's real rect, so a return trip that resets to the
+   *  top lands the morph on empty space or a different card. afterNextRender, not a synchronous
+   *  window.scrollTo(): the cached list is available synchronously (it is already in the store)
+   *  but not yet PAINTED at this point in handleOffset, so scrolling now would clamp against the
+   *  pre-list document height. Ordering VERIFIED, not assumed (Playwright, 393px, a card scrolled
+   *  to y=695): the close-direction sample at the transition's FIRST frame already reads the
+   *  post-restore rect (393x260 at y=61, the hero's own box — nothing to do with scroll), and the
+   *  collapse lands on the scrolled card's real position (x17,y311) both before opening and after
+   *  returning, not the unscrolled y=282 a lost restore would have produced. So this DOES land
+   *  before the router's own view-transition snapshot — this component's ngOnInit runs as part of
+   *  activating the route, before the router's createRenderPromise() schedules ITS afterNextRender
+   *  that unblocks the snapshot, and afterNextRender callbacks run in registration order. */
+  private restoreScroll() {
+    const y = this.store.takeScroll();
+    if (y === null) return;
+    afterNextRender(() => window.scrollTo(0, y), { injector: this.injector });
+  }
+
+  load(silent = false) {
+    if (!silent) { this.error.set(''); this.loading.set(true); }
+    const w = sessionWindow(this.dayOffset());
+    this.booking.listSessions(w.from.toISOString(), w.to.toISOString()).subscribe({
+      next: s => {
+        this.store.setWindow(w);
+        this.store.sessions.set(s.filter(x => x.status !== 'CANCELLED'));
+        if (!silent) this.loading.set(false);
+      },
+      error: () => {
+        // A silent revalidate failure keeps showing the cached list untouched — the cache is still
+        // believed good, and a foreground retry stays available (Try again, or the next day change).
+        if (silent) return;
+        // resetWindow(), not leaving `w` in place: an un-reset window is exactly what stranded the
+        // athlete for the whole ±14-day span — covers() kept reporting the day as already loaded,
+        // so paging never retried.
+        this.store.resetWindow();
+        this.loading.set(false);
+        this.error.set(this.loadErrorText);
+      },
     });
   }
 
-  load() {
-    this.window = sessionWindow(this.dayOffset());
-    this.booking.listSessions(this.window.from.toISOString(), this.window.to.toISOString()).subscribe({
-      next: s => { this.sessions.set(s.filter(x => x.status !== 'CANCELLED')); this.loading.set(false); },
-      error: () => { this.loading.set(false); this.error.set("Couldn't load classes — try again."); },
+  protected stateOf(s: SessionView): AthleteState { return athleteState(s); }
+
+  protected endOf(s: SessionView): string {
+    return new Date(new Date(s.startAt).getTime() + s.durationMin * 60000).toISOString();
+  }
+
+  protected toneOf(s: SessionView): 'default' | 'past' {
+    return this.stateOf(s).phase === 'finished' ? 'past' : 'default';
+  }
+
+  protected emptyTextFor(s: SessionView): string | null {
+    return this.stateOf(s).phase === 'upcoming' ? this.emptyTextLabel : null;
+  }
+
+  protected badgeLabelFor(s: SessionView): string | null {
+    const st = this.stateOf(s);
+    if (st.mine === 'attended') return this.attendedBadge;
+    if (st.mine === 'booked') return this.bookedBadge;
+    if (st.mine === 'waitlist') return $localize`:@@athlete.book.badge.waitlist:Waitlist #${st.position}:position:`;
+    if (st.action === 'waitlist') return this.fullBadge;
+    return null;
+  }
+
+  protected badgeToneFor(s: SessionView): 'neutral' | 'good' | 'warn' {
+    const st = this.stateOf(s);
+    if (st.mine === 'attended') return 'good';
+    if (st.action === 'waitlist') return 'warn';
+    return 'neutral';
+  }
+
+  protected suffixFor(s: SessionView): string | null {
+    const st = this.stateOf(s);
+    if (st.phase === 'finished') return this.finishedSuffix;
+    if (st.phase === 'started') return this.startedSuffix;
+    if (st.mine === 'waitlist') return $localize`:@@athlete.book.suffix.ahead:${st.position! - 1}:count: ahead`;
+    if (st.action === 'waitlist') return $localize`:@@athlete.book.suffix.inLine:${s.waitlistCount}:count: in line`;
+    return $localize`:@@athlete.book.suffix.left:${st.spotsLeft}:count: left`;
+  }
+
+  protected book(s: SessionView) {
+    const act = this.stateOf(s).action; // 'book' | 'waitlist' — captured before the reload changes it
+    this.act(s, this.booking.book(s.id), () => this.outcomeMessage(s, act));
+  }
+
+  /** Cancel-btn / leave-btn tap: opens the confirm sheet, never calls the API directly. */
+  protected openCancelConfirm(s: SessionView) {
+    const act = this.stateOf(s).action as 'cancel' | 'leave';
+    this.confirmItem.set({ s, act });
+  }
+
+  protected keepConfirm() {
+    this.confirmItem.set(null);
+    // No explicit refocus: the trigger button is untouched by "Keep it", and native <dialog>
+    // close() already restores focus to it — same idiom as announcements.page's cancelConfirm().
+  }
+
+  protected confirmTitle(): string {
+    const act = this.confirmItem()?.act;
+    return act === 'leave' ? this.leaveConfirmTitle : this.cancelConfirmTitle;
+  }
+
+  protected confirmLine(): string {
+    const it = this.confirmItem();
+    if (!it) return '';
+    return $localize`:@@athlete.book.confirm.line:${it.s.name}:class: · ${formatDate(it.s.startAt, 'HH:mm', this.locale)}:time:`;
+  }
+
+  protected confirmCost(): string {
+    const act = this.confirmItem()?.act;
+    return act === 'leave' ? this.leaveConfirmCost : this.cancelConfirmCost;
+  }
+
+  protected confirmExecuteLabel(): string {
+    const act = this.confirmItem()?.act;
+    return act === 'leave' ? this.leaveConfirmExecute : this.cancelConfirmExecute;
+  }
+
+  /** The sheet's filled-danger execute control. Guarded by `act()`'s own `busy()` check (loading
+   *  drops the button out of the a11y tree via native `disabled`, so the guard can't live there
+   *  alone). Closes the sheet on BOTH success and failure: `bh-sheet` opens the native <dialog>
+   *  with showModal(), which puts it in the browser's top layer, and bh-banner is an ordinary
+   *  position:fixed element — while the sheet stayed open a failure banner painted behind the
+   *  dialog and its backdrop, so the athlete saw the cancel fail silently. */
+  protected confirmCancel() {
+    const it = this.confirmItem();
+    if (!it) return;
+    const { s, act } = it;
+    this.act(s, this.booking.cancel(s.id), () => this.outcomeMessage(s, act), {
+      tone: 'danger',
+      afterSuccess: () => { this.confirmItem.set(null); this.focusSessionCard(s.id); },
+      afterError: () => { this.confirmItem.set(null); this.focusSessionCard(s.id, { preferCancelBtn: true }); },
     });
   }
 
-  imageOf(s: SessionView): string | null { return this.images().get(s.name) ?? null; }
-  endOf(s: SessionView): Date { return new Date(new Date(s.startAt).getTime() + s.durationMin * 60000); }
-  started(s: SessionView): boolean { return new Date(s.startAt).getTime() <= Date.now(); }
+  /** Moves focus back onto the session card (or, on an error where nothing reloaded and the
+   *  control is still there, back onto cancel-btn) once the sheet closes. A success reload swaps
+   *  cancel-btn for book-btn or removes it, so the card itself — with a tabindex fallback, same
+   *  idiom as danger.page.ts's focusField — is the only stable target there. afterNextRender, not
+   *  queueMicrotask — see danger.page.ts for why. */
+  private focusSessionCard(id: string, opts?: { preferCancelBtn?: boolean }) {
+    afterNextRender(() => {
+      const root = this.el.nativeElement;
+      const target =
+        (opts?.preferCancelBtn ? root.querySelector<HTMLElement>(`[data-testid="session-${id}"] [data-testid="cancel-btn"]`) : null)
+        ?? root.querySelector<HTMLElement>(`[data-testid="session-${id}"]`);
+      if (!target) return;
+      if (!target.matches('input, button, a[href], select, textarea')) target.setAttribute('tabindex', '-1');
+      target.focus();
+    }, { injector: this.injector });
+  }
 
-  book(s: SessionView) { this.act(s, this.booking.book(s.id)); }
-  cancel(s: SessionView) { this.act(s, this.booking.cancel(s.id)); }
+  private outcomeMessage(s: SessionView, act: Action): string {
+    switch (act) {
+      case 'book':
+        return $localize`:@@athlete.book.outcome.booked:Booked · ${s.name}:class: ${formatDate(s.startAt, 'HH:mm', this.locale)}:time:`;
+      case 'waitlist':
+        return $localize`:@@athlete.book.outcome.waitlisted:On the waitlist · ${s.name}:class:`;
+      case 'cancel':
+        return $localize`:@@athlete.book.outcome.cancelled:Cancelled · ${s.name}:class:`;
+      case 'leave':
+        return $localize`:@@athlete.book.outcome.left:Left the waitlist · ${s.name}:class:`;
+      default:
+        return '';
+    }
+  }
 
-  private act(s: SessionView, call: { subscribe: Function }) {
-    this.error.set('');
+  private act(
+    s: SessionView, call: Observable<unknown>, onSuccess: () => string,
+    opts?: { tone?: 'good' | 'danger'; afterSuccess?: () => void; afterError?: () => void },
+  ) {
+    if (this.busy()) return;
     this.busy.set(s.id);
     call.subscribe({
-      next: () => { this.busy.set(null); this.load(); },
-      error: (e: any) => { this.busy.set(null); this.error.set(this.reason(e.error?.detail)); },
+      next: () => {
+        this.busy.set(null);
+        // load(true) — SILENT — not load(): the athlete acted on ONE card, so flipping `loading`
+        // here blanked the whole list behind a "Loading classes…" stateline and remounted it a
+        // beat later, which read as the page refreshing (user-reported). The card that changed
+        // still updates once the revalidate resolves (store.sessions() drives the template), and
+        // if this background refetch itself fails, load(true) already leaves the cached list on
+        // screen rather than dropping into the error block — the banner below is the athlete's
+        // confirmation that the action worked, and staying silent on a failed REVALIDATE (as
+        // opposed to the action itself, which already succeeded) must not contradict it.
+        this.load(true);
+        this.banner.set({ seq: ++this.bannerSeq, tone: opts?.tone ?? 'good', message: onSuccess() });
+        opts?.afterSuccess?.();
+      },
+      error: (e: any) => {
+        this.busy.set(null);
+        this.banner.set({ seq: ++this.bannerSeq, tone: 'danger', message: bookingReason(e.error?.detail) });
+        opts?.afterError?.();
+      },
     });
-  }
-
-  private reason(code: string | undefined): string {
-    switch (code) {
-      case 'LIMIT_REACHED': return "You have reached your plan's weekly class limit.";
-      case 'NO_ACTIVE_SUBSCRIPTION': return 'You need an active plan to book classes.';
-      case 'PAST_CUTOFF': return 'Too late to cancel this class — contact your coach.';
-      case 'ALREADY_BOOKED': return 'You are already booked for this class.';
-      case 'CANCELLED': return 'This class has been cancelled.';
-      case 'PAST': return 'This class has already started.';
-      default: return 'Something went wrong — try again.';
-    }
   }
 }

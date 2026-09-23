@@ -1,9 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { AthleteShellPage } from './athlete-shell.page';
 import { MessagingService } from '../messaging/messaging.service';
+import { ShellChromeService } from '../../core/shell-chrome.service';
 
 describe('AthleteShellPage', () => {
   function setup() {
@@ -86,5 +87,48 @@ describe('AthleteShellPage', () => {
     link.click();
     fixture.detectChanges();
     expect(fixture.componentInstance.profileOpen()).toBe(false);
+  });
+
+  it('on a normal route renders the box switcher and the dock', () => {
+    const { fixture } = setup();
+    expect(fixture.nativeElement.querySelector('bh-box-switcher')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.back')).toBeNull();
+    expect(fixture.nativeElement.querySelector('bh-dock')).not.toBeNull();
+  });
+
+  it('on a detail route renders the back control and the title, and hides the dock', async () => {
+    TestBed.configureTestingModule({
+      imports: [AthleteShellPage],
+      providers: [
+        provideHttpClient(withXhr()), provideHttpClientTesting(),
+        provideRouter([{ path: 'class/x', data: { detail: true, backTo: '/athlete/book' }, children: [] }]),
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(AthleteShellPage);
+    fixture.detectChanges();
+    http.expectOne('/api/box/me/profile').flush({
+      membershipId: 'm1', name: 'Ada', avatarPath: null, isPrivate: false, me: true,
+      benchmarks: null, liftPrs: null, streakWeeks: null,
+    });
+    http.expectOne('/api/box/conversations').flush([]);
+
+    const router = TestBed.inject(Router);
+    const chrome = TestBed.inject(ShellChromeService);
+    await router.navigateByUrl('/class/x');
+    chrome.detailTitle.set('Burn It');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('bh-box-switcher')).toBeNull();
+    expect(fixture.nativeElement.querySelector('bh-dock')).toBeNull();
+    const back = fixture.nativeElement.querySelector('.back');
+    expect(back).not.toBeNull();
+    expect(back.getAttribute('aria-label')).toBe('Back');
+    const title = fixture.nativeElement.querySelector('.dtitle');
+    expect(title.textContent).toContain('Burn It');
+
+    const navSpy = spyOn(router, 'navigateByUrl').and.callThrough();
+    back.click();
+    expect(navSpy).toHaveBeenCalledWith('/athlete/book');
   });
 });

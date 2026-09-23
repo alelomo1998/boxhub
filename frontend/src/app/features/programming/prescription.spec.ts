@@ -1,4 +1,4 @@
-import { expandedRows, prescriptionLines, wodMatchesText, libMeta, eyebrowFor } from './prescription';
+import { expandedRows, prescriptionLines, wodMatchesText, libMeta, eyebrowFor, ExpandedRow } from './prescription';
 import { Wod } from './programming.service';
 
 const base: Wod = {
@@ -42,10 +42,10 @@ describe('expandedRows', () => {
     ] } };
     expect(expandedRows(w)).toEqual([
       { kind: 'label', text: '5 rounds', sub: false },
-      { kind: 'line', reps: '20', text: 'Pull-Up', load: undefined, unit: undefined, sub: false },
+      { kind: 'line', reps: '20', text: 'Pull-Up', load: undefined, unit: undefined, scales: undefined, sub: false },
       { kind: 'note', text: 'Rest 3 min between rounds', sub: false },
       { kind: 'label', text: 'Cash-out', sub: true },
-      { kind: 'line', reps: '250', text: 'Row', load: undefined, unit: 'M', sub: true },
+      { kind: 'line', reps: '250', text: 'Row', load: undefined, unit: 'M', scales: undefined, sub: true },
       { kind: 'note', text: 'Easy pace', sub: true },
     ]);
   });
@@ -53,6 +53,26 @@ describe('expandedRows', () => {
   it('omits a note row when the block has none', () => {
     const w = { ...base, blocks: { blocks: [{ label: 'A', lines: [{ text: 'Thrusters', reps: '21' }] }] } };
     expect(expandedRows(w).some(r => r.kind === 'note')).toBeFalse();
+  });
+
+  it('passes line.scales through at both block levels (M17a Task 12c)', () => {
+    const scales = [{ text: 'Ring row' }];
+    const w = { ...base, blocks: { blocks: [
+      {
+        label: 'A', lines: [{ text: 'Pull-Up', reps: '21', scales }],
+        blocks: [{ label: 'B', lines: [{ text: 'Row', reps: '250', unit: 'M', scales }] }],
+      },
+    ] } };
+    const rows = expandedRows(w).filter((r): r is Extract<ExpandedRow, { kind: 'line' }> => r.kind === 'line');
+    expect(rows[0].scales).toBe(scales);
+    expect(rows[1].scales).toBe(scales);
+  });
+
+  it('prescriptionLines is unaffected by the presence of scales', () => {
+    const w = { ...base, blocks: { blocks: [
+      { lines: [{ text: 'Thruster', reps: '21', load: '43', scales: [{ text: 'Box step-up' }] }] },
+    ] } };
+    expect(prescriptionLines(w)).toEqual(['21 Thruster (43)']);
   });
 });
 

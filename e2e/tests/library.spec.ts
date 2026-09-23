@@ -243,7 +243,7 @@ test('class stack slot picker: a benchmark row carries the chip and fills with f
   await login(page, 'coach@demo.io');
   await resetFranToGlobal(page);
   await page.goto('/app/coach/classes');
-  const burnRow = page.locator('.row', { hasText: 'Burn It' }).first();
+  const burnRow = page.locator('[data-testid^="class-"]', { hasText: 'Burn It' }).first();
   await expect(burnRow).toBeVisible();
   await burnRow.getByTestId('build-link').click();
   await expect(page.getByTestId('stack-form')).toBeVisible();

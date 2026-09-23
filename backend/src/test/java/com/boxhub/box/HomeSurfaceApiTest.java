@@ -12,7 +12,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -36,6 +40,8 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
 
     String admin, coach, athlete, otherAthlete;
     UUID sessionId;
+    Box boxA;
+    UUID athleteMembershipId;
 
     @AfterEach
     void clear() { SecurityContextHolder.clearContext(); }
@@ -44,11 +50,13 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
     void setup() {
         long n = System.nanoTime();
         Box a = newBox("Hm A " + n, "hm-a-" + n);
+        boxA = a;
         Box b = newBox("Hm B " + n, "hm-b-" + n);
         admin = member("hma-" + n + "@t.io", a, "BOX_ADMIN").token();
         coach = member("hmc-" + n + "@t.io", a, "COACH").token();
         TokMem athleteTm = member("hmx-" + n + "@t.io", a, "ATHLETE");
         athlete = athleteTm.token();
+        athleteMembershipId = athleteTm.membershipId();
         otherAthlete = member("hmo-" + n + "@t.io", b, "ATHLETE").token();
 
         actAsBox(a.getId());
@@ -114,6 +122,64 @@ class HomeSurfaceApiTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athlete))
                 .andExpect(jsonPath("$.nextBooking.className").value("WOD Class"))
                 .andExpect(jsonPath("$.nextBooking.bookedCount").value(1));
+    }
+
+    @Test
+    void homeSaysWhetherThereIsAnActivePlan() throws Exception {
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athlete))
+                .andExpect(jsonPath("$.hasActivePlan").value(true));
+
+        long n = System.nanoTime();
+        String planless = member("hmpl-" + n + "@t.io", boxA, "ATHLETE").token();
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + planless))
+                .andExpect(jsonPath("$.hasActivePlan").value(false));
+    }
+
+    @Test
+    void attendedThisWeekListsCheckedInDaysOnly() throws Exception {
+        ZoneId rome = ZoneId.of("Europe/Rome");
+        LocalDate monday = LocalDate.now(rome).with(DayOfWeek.MONDAY);
+        ZonedDateTime morning = monday.atTime(7, 0).atZone(rome);
+        if (morning.isAfter(ZonedDateTime.now(rome))) {
+            // "now" is Monday before 07:00 Rome time — 07:00 would be in the future; 00:30 keeps
+            // this test deterministic regardless of when it runs.
+            morning = monday.atTime(0, 30).atZone(rome);
+        }
+        Instant checkedInStart = morning.toInstant();
+        Instant bookedOnlyStart = monday.atTime(18, 0).atZone(rome).toInstant();
+
+        actAsBox(boxA.getId());
+        ClassSession checkedInSession = new ClassSession();
+        checkedInSession.setName("Monday AM");
+        checkedInSession.setStartAt(checkedInStart);
+        checkedInSession.setDurationMin(60);
+        checkedInSession.setCapacity(12);
+        sessions.save(checkedInSession);
+
+        ClassSession bookedOnlySession = new ClassSession();
+        bookedOnlySession.setName("Monday PM");
+        bookedOnlySession.setStartAt(bookedOnlyStart);
+        bookedOnlySession.setDurationMin(60);
+        bookedOnlySession.setCapacity(12);
+        sessions.save(bookedOnlySession);
+
+        Booking checkedIn = new Booking();
+        checkedIn.setSessionId(checkedInSession.getId());
+        checkedIn.setMembershipId(athleteMembershipId);
+        checkedIn.setStatus("CHECKED_IN");
+        bookings.save(checkedIn);
+
+        Booking bookedOnly = new Booking();
+        bookedOnly.setSessionId(bookedOnlySession.getId());
+        bookedOnly.setMembershipId(athleteMembershipId);
+        bookedOnly.setStatus("BOOKED");
+        bookings.save(bookedOnly);
+        SecurityContextHolder.clearContext();
+
+        mvc.perform(get("/api/box/home").header("Authorization", "Bearer " + athlete))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attendedThisWeek.length()").value(1))
+                .andExpect(jsonPath("$.attendedThisWeek[0]").value(monday.toString()));
     }
 
     @Test

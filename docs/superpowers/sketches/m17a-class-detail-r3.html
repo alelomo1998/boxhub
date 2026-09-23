@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>M17a class detail r3 — full shell header, and the collapse fixed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #0d110e; --surface: #151a16; --surface-2: #1d231e; --hairline: #2a322c;
+    --bone: #f2f4ef; --on-bone: #0d110e; --bone-dim: #a7b0a6; --faint: #7c8779;
+    --volt: #dfff4e; --on-volt: #0d110e; --good: #3fcf8e; --warn: #f0883e; --danger: #e5484d;
+    --scrim-card: rgba(6,9,7,.5); --scrim-text: rgba(6,9,7,.82);
+    --font-display: "Archivo", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --r-ctl: 8px; --r-card: 12px; --r-full: 999px;
+    --fs-hero: 40px; --fs-display: 28px; --fs-h2: 20px; --fs-body: 15px; --fs-sm: 13px; --fs-meta: 11px;
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+    --shadow-float: 0 8px 28px rgba(3,5,4,.55);
+    --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --dur: 280ms;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #070907; color: var(--bone); font-family: var(--font-display); padding: 24px; }
+  h1.pg { font-size: 22px; margin: 0 0 4px; }
+  .lede { color: var(--bone-dim); margin: 0 0 20px; max-width: 1400px; font-size: 14px; line-height: 1.5; }
+  .lede b { color: var(--bone); }
+  .frames { display: flex; gap: 28px; align-items: flex-start; }
+  .opt { width: 360px; flex-shrink: 0; }
+  .opt h2 { font-size: 17px; margin: 0 0 4px; }
+  .opt p.why { color: var(--bone-dim); font-size: 12.5px; margin: 0 0 10px; line-height: 1.45; }
+  .opt p.why b { color: var(--bone); }
+
+  .phone { width: 360px; height: 720px; overflow: hidden; background: var(--ground);
+    border: 1px solid var(--hairline); border-radius: 28px; display: flex; flex-direction: column;
+    position: relative; }
+
+  /* ---- the real shell header: switcher | mail | bell | avatar ---- */
+  .hdr { height: 56px; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-3);
+    border-bottom: 1px solid var(--hairline); flex-shrink: 0; background: var(--ground); z-index: 6;
+    position: relative; }
+  .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--volt); color: var(--on-volt);
+    font-weight: 800; font-size: 12px; display: grid; place-items: center; flex-shrink: 0; }
+  .gym { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chev { color: var(--bone-dim); font-size: 11px; flex-shrink: 0; }
+  .spacer { margin-left: auto; }
+  .ico { width: 32px; height: 32px; display: grid; place-items: center; color: var(--bone-dim);
+    font-size: 15px; flex-shrink: 0; position: relative; }
+  .ico .dot { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px;
+    border-radius: var(--r-full); background: var(--bone); color: var(--on-bone);
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700; display: grid; place-items: center; }
+  .me { width: 28px; height: 28px; border-radius: 50%; background-size: cover; background-position: center;
+    flex-shrink: 0; border: 1px solid rgba(242,244,239,.35); }
+  .back { width: 32px; height: 32px; border-radius: var(--r-ctl); border: 1px solid var(--hairline);
+    display: grid; place-items: center; color: var(--bone); font-size: 16px; flex-shrink: 0;
+    background: transparent; cursor: pointer; padding: 0; }
+  .htitle { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2); margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+
+  .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
+  .scroll::-webkit-scrollbar { width: 0; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: .14em;
+    text-transform: uppercase; color: var(--faint); }
+  .pill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: var(--r-full);
+    font-family: var(--font-mono); font-size: var(--fs-meta); font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; background: var(--scrim-text); border: 1px solid var(--hairline); color: var(--bone); }
+  .btn { height: 44px; padding: 0 var(--sp-4); border-radius: var(--r-ctl); font: 700 14px var(--font-display);
+    display: inline-flex; align-items: center; justify-content: center; background: transparent;
+    border: 1px solid var(--hairline); color: var(--bone); }
+  .btn.dgr { border-color: var(--danger); color: var(--danger); }
+  .btn.full { width: 100%; }
+  .av { font-style: normal; width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    background-size: cover; background-position: center; display: inline-grid; place-items: center;
+    font-size: 13px; font-weight: 700; color: var(--bone); background-color: var(--surface-2);
+    border: 1px solid rgba(242,244,239,.35); }
+  .coachrow { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--hairline); }
+  .coachrow .k { font-family: var(--font-mono); font-size: var(--fs-meta); letter-spacing: .12em;
+    text-transform: uppercase; color: var(--faint); display: block; }
+  .coachrow .v { font-weight: 700; font-size: var(--fs-body); }
+  .sh { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm); text-transform: uppercase;
+    letter-spacing: .08em; color: var(--bone-dim); margin: var(--sp-5) var(--sp-4) var(--sp-2);
+    display: flex; align-items: baseline; gap: var(--sp-2); }
+  .sh .cnt { font-family: var(--font-mono); color: var(--bone); letter-spacing: 0; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3) var(--sp-2); padding: 0 var(--sp-4); }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); min-width: 0; }
+  .cell .nm { font-size: var(--fs-meta); color: var(--bone-dim); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 100%; }
+  .cell .in { font-family: var(--font-mono); font-size: 9px; color: var(--good); }
+  .lbl { font-family: var(--font-mono); font-size: 10.5px; color: var(--faint); letter-spacing: .08em;
+    text-transform: uppercase; margin: 14px 0 6px; }
+  .hint { font-family: var(--font-mono); font-size: 11px; color: var(--volt); letter-spacing: .06em;
+    text-transform: uppercase; margin: 10px 0 0; }
+
+  /* hero (no title — it lives in the header, option 1) */
+  .heroA { position: relative; height: 260px; background: var(--surface-2); }
+  .heroA .ph { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  .heroA::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 30%, var(--scrim-card) 60%, var(--scrim-card) 100%); }
+  .heroA .cap { position: absolute; left: var(--sp-4); right: var(--sp-4); bottom: var(--sp-4); z-index: 1; }
+  .heroA .badge { position: absolute; top: var(--sp-3); right: var(--sp-3); z-index: 1; }
+
+  /* ---- list + morph ---- */
+  .dlist { padding: var(--sp-3) var(--sp-4) 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+  .dcard { border-radius: var(--r-card); overflow: hidden; border: 1px solid var(--hairline);
+    background: var(--surface); cursor: pointer; }
+  .dcard.hidden { visibility: hidden; }
+  .dcard .img { position: relative; height: 150px; background: var(--surface-2); }
+  .dcard .ph { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  .dcard .img::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 30%, var(--scrim-card) 60%, var(--scrim-card) 100%); }
+  .dcard .txt { position: absolute; left: var(--sp-3); right: var(--sp-3); bottom: var(--sp-3); z-index: 1; }
+  .dcard .nm { font-weight: 700; font-size: var(--fs-h2); }
+  .dcard .strip { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3); min-height: 52px; }
+  .dcard .badge { position: absolute; top: var(--sp-2); right: var(--sp-2); z-index: 1; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* the morphing photo surface */
+  .morph { position: absolute; z-index: 7; overflow: hidden; background: var(--surface-2);
+    pointer-events: none; will-change: top, left, width, height;
+    transition: top var(--dur) var(--ease-move), left var(--dur) var(--ease-move),
+                width var(--dur) var(--ease-move), height var(--dur) var(--ease-move),
+                border-radius var(--dur) var(--ease-move); }
+  .morph .ph { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  .morph::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 30%, var(--scrim-card) 60%, var(--scrim-card) 100%); }
+  /* the title that travels between the row and the header */
+  .flytitle { position: absolute; z-index: 8; font-family: var(--font-display); color: var(--bone);
+    white-space: nowrap; pointer-events: none; margin: 0; will-change: top, left, font-size;
+    transition: top var(--dur) var(--ease-move), left var(--dur) var(--ease-move),
+                font-size var(--dur) var(--ease-move), font-weight var(--dur) var(--ease-move); }
+  /* the row's meta line, which crossfades with the hero's eyebrow */
+  .flymeta { position: absolute; z-index: 8; pointer-events: none;
+    transition: opacity calc(var(--dur) * .5) var(--ease-out); }
+
+  .dpane { position: absolute; inset: 56px 0 0; background: var(--ground); z-index: 5;
+    display: none; flex-direction: column; }
+  .dpane.on { display: flex; }
+  .dpane .body { opacity: 0; transition: opacity .2s var(--ease-out) .1s; flex: 1; overflow: hidden; }
+  .dpane.shown .body { opacity: 1; }
+  .dbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-4);
+    background: var(--surface); border-top: 1px solid var(--hairline); box-shadow: var(--shadow-float);
+    opacity: 0; transform: translateY(10px);
+    transition: opacity .2s var(--ease-out) .1s, transform .2s var(--ease-out) .1s; }
+  .dpane.shown .dbar { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .morph, .flytitle, .flymeta, .dpane .body, .dbar { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<h1 class="pg">M17a · class detail, round 3 — the real shell header, and the collapse fixed</h1>
+<p class="lede">
+  Round 2 picked <b>option 1</b> (header is the title bar, the hero does not repeat the name), with two
+  corrections: <b>the main header keeps messages / notifications / avatar</b> — only the box switcher
+  goes, since the gym name is the redundant part — and <b>the closing animation did not transform
+  back</b>. You were right about why: the title never morphed (28px uppercase in the hero vs 20px in
+  the row) and the real card was revealed while the morph was still shrinking, which is the pop you
+  saw. Column 1 is the static screen; <b>column 2 is live — click a card, then the back arrow.</b>
+  <br><br>
+  What changed in the motion: the class name is now <b>one element that travels</b> between the row
+  and the header slot, interpolating position and size in both directions; the source card is held
+  <code>visibility: hidden</code> until the morph <i>lands</i> (transitionend, not a timer), so there
+  is no double image and no pop; the row's <code>18:00–19:00 · 9/12 going</code> crossfades with the
+  hero's date eyebrow; and open and close are exactly symmetric at 280ms on <code>--ease-move</code>.
+</p>
+
+<div class="frames">
+
+<!-- ============ static ============ -->
+<div class="opt">
+  <h2>1 · the screen, with the full header</h2>
+  <p class="why">Back arrow replaces the switcher; <b>mail, notifications and avatar stay exactly where
+    they are on every other screen</b>. The class name is the title. The hero carries the photo, the
+    badge and the date/time, and never repeats the name. <b>No volt on this screen</b> — the switcher's
+    mark was the shell's one volt element and it is what the back arrow replaced. Truncation case
+    below.</p>
+  <div class="phone">
+    <div class="hdr">
+      <button class="back">←</button>
+      <h1 class="htitle">Burn It</h1>
+      <span class="ico">✉</span>
+      <span class="ico">🔔<span class="dot">1</span></span>
+      <span class="me" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></span>
+    </div>
+    <div class="scroll">
+      <div class="heroA">
+        <div class="ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div>
+        <span class="badge pill">Booked</span>
+        <div class="cap"><span class="eyebrow">Fri 18 Sep · 18:00–19:00 · 60′</span></div>
+      </div>
+      <div class="coachrow"><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i>
+        <span><span class="k">Coach</span><span class="v">Giulia Bianchi</span></span></div>
+      <div class="sh">Going <span class="cnt">9/12</span></div>
+      <div class="grid">
+        <span class="cell"><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><span class="nm">Sam R.</span><span class="in">✓ in</span></span>
+        <span class="cell"><i class="av">AM</i><span class="nm">Alex M.</span><span class="in">✓ in</span></span>
+        <span class="cell"><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><span class="nm">Lena P.</span></span>
+        <span class="cell"><i class="av">DV</i><span class="nm">Dana V.</span></span>
+      </div>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:0;padding:var(--sp-3) var(--sp-4) var(--sp-4);background:var(--surface);border-top:1px solid var(--hairline);box-shadow:var(--shadow-float)">
+      <span class="btn dgr full">Cancel booking</span></div>
+  </div>
+  <p class="lbl">long class name — where it truncates</p>
+  <div class="phone" style="height:120px">
+    <div class="hdr">
+      <button class="back">←</button>
+      <h1 class="htitle">Olympic Weightlifting Fundamentals</h1>
+      <span class="ico">✉</span><span class="ico">🔔<span class="dot">1</span></span>
+      <span class="me" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ live ============ -->
+<div class="opt">
+  <h2>2 · open and close — click a card</h2>
+  <p class="why"><b>Live.</b> Watch the name: it lifts out of the row and lands in the header slot,
+    then travels back down into the row on close, the same element the whole way. The card underneath
+    does not reappear until the photo has finished shrinking onto it.</p>
+  <div class="phone" id="demoPhone">
+    <div class="hdr" id="demoHdr">
+      <span class="mark">CF</span><span class="gym">CrossFit Demo</span><span class="chev">▾</span>
+      <span class="spacer"></span>
+      <span class="ico">✉</span><span class="ico">🔔<span class="dot">1</span></span>
+      <span class="me" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></span>
+    </div>
+    <div class="scroll" id="demoList">
+      <div class="dlist">
+        <div class="dcard" data-img="m17a-assets/1534438327276-14e5300c3a48.jpg" data-name="Burn It"
+             data-meta="18:00–19:00 · 9/12 going" data-eyebrow="Fri 18 Sep · 18:00–19:00 · 60′">
+          <div class="img"><div class="ph" style="background-image:url(m17a-assets/1534438327276-14e5300c3a48.jpg)"></div>
+            <span class="badge pill">Booked</span>
+            <div class="txt"><span class="nm">Burn It</span></div></div>
+          <div class="strip"><span class="mono" style="font-weight:700;font-size:var(--fs-sm)">18:00–19:00</span>
+            <span class="mono" style="font-size:var(--fs-sm);color:var(--bone-dim)">· 9/12 going</span></div>
+        </div>
+        <div class="dcard" data-img="m17a-assets/1526506118085-60ce8714f8c5.jpg" data-name="Weekend Team WOD"
+             data-meta="19:00–20:00 · 4 left" data-eyebrow="Fri 18 Sep · 19:00–20:00 · 60′">
+          <div class="img"><div class="ph" style="background-image:url(m17a-assets/1526506118085-60ce8714f8c5.jpg)"></div>
+            <div class="txt"><span class="nm">Weekend Team WOD</span></div></div>
+          <div class="strip"><span class="mono" style="font-weight:700;font-size:var(--fs-sm)">19:00–20:00</span>
+            <span class="mono" style="font-size:var(--fs-sm);color:var(--bone-dim)">· 4 left</span></div>
+        </div>
+        <div class="dcard" data-img="m17a-assets/1571019613454-1cb2f99b2d8b.jpg" data-name="Mobility"
+             data-meta="20:00–20:45 · 12 left" data-eyebrow="Fri 18 Sep · 20:00–20:45 · 45′">
+          <div class="img"><div class="ph" style="background-image:url(m17a-assets/1571019613454-1cb2f99b2d8b.jpg)"></div>
+            <div class="txt"><span class="nm">Mobility</span></div></div>
+          <div class="strip"><span class="mono" style="font-weight:700;font-size:var(--fs-sm)">20:00–20:45</span>
+            <span class="mono" style="font-size:var(--fs-sm);color:var(--bone-dim)">· 12 left</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dpane" id="dpane">
+      <div class="body" id="dbody">
+        <div style="height:260px"></div>
+        <div class="coachrow"><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i>
+          <span><span class="k">Coach</span><span class="v">Giulia Bianchi</span></span></div>
+        <div class="sh">Going <span class="cnt">9/12</span></div>
+        <div class="grid">
+          <span class="cell"><i class="av" style="background-image:url(m17a-assets/1507003211169-0a1dd7228f2d-av.jpg)"></i><span class="nm">Sam R.</span><span class="in">✓ in</span></span>
+          <span class="cell"><i class="av">AM</i><span class="nm">Alex M.</span><span class="in">✓ in</span></span>
+          <span class="cell"><i class="av" style="background-image:url(m17a-assets/1494790108377-be9c29b29330-av.jpg)"></i><span class="nm">Lena P.</span></span>
+          <span class="cell"><i class="av">DV</i><span class="nm">Dana V.</span></span>
+        </div>
+      </div>
+      <div class="dbar"><span class="btn dgr full">Cancel booking</span></div>
+    </div>
+  </div>
+  <p class="hint">↑ click a card, then the back arrow</p>
+</div>
+
+</div>
+
+<script>
+const phone = document.getElementById('demoPhone');
+const hdr   = document.getElementById('demoHdr');
+const pane  = document.getElementById('dpane');
+const HERO_H = 260, HDR_H = 56, DUR = 280;
+const AVATAR = 'm17a-assets/1507003211169-0a1dd7228f2d-av.jpg';
+let state = null, busy = false;
+
+const rectIn = el => {
+  const p = phone.getBoundingClientRect(), r = el.getBoundingClientRect();
+  return { top: r.top - p.top, left: r.left - p.left, width: r.width, height: r.height };
+};
+
+/* Wait for the morph to land. transitionend alone is NOT enough: under prefers-reduced-motion the
+   transition is removed, so the event never fires and the screen would deadlock half-open. The
+   timeout is the guarantee, the event is the fast path. */
+function whenLanded(el, fn) {
+  let done = false;
+  const finish = () => { if (done) return; done = true; el.removeEventListener('transitionend', onEnd); fn(); };
+  const onEnd = e => { if (e.propertyName === 'height') finish(); };
+  el.addEventListener('transitionend', onEnd);
+  setTimeout(finish, DUR + 60);
+}
+
+const listHeaderHTML =
+  '<span class="mark">CF</span><span class="gym">CrossFit Demo</span><span class="chev">&#9662;</span>' +
+  '<span class="spacer"></span><span class="ico">&#9993;</span><span class="ico">&#128276;<span class="dot">1</span></span>' +
+  '<span class="me" style="background-image:url(' + AVATAR + ')"></span>';
+const detailHeaderHTML =
+  '<button class="back" id="demoBack">&#8592;</button>' +
+  '<h1 class="htitle" id="slot" style="visibility:hidden">&#183;</h1>' +
+  '<span class="ico">&#9993;</span><span class="ico">&#128276;<span class="dot">1</span></span>' +
+  '<span class="me" style="background-image:url(' + AVATAR + ')"></span>';
+
+function open(card) {
+  if (busy || state) return; busy = true;
+  const imgEl = card.querySelector('.img');
+  const nameEl = card.querySelector('.nm');
+  const stripEl = card.querySelector('.strip');
+  const from = rectIn(imgEl), nameFrom = rectIn(nameEl), stripFrom = rectIn(stripEl);
+
+  const morph = document.createElement('div');
+  morph.className = 'morph';
+  morph.innerHTML = '<div class="ph" style="background-image:url(' + card.dataset.img + ')"></div>';
+  Object.assign(morph.style, { top: from.top + 'px', left: from.left + 'px',
+    width: from.width + 'px', height: from.height + 'px', borderRadius: '12px' });
+
+  const fly = document.createElement('h1');
+  fly.className = 'flytitle';
+  fly.textContent = card.dataset.name;
+  Object.assign(fly.style, { top: nameFrom.top + 'px', left: nameFrom.left + 'px',
+    fontSize: '20px', fontWeight: '700' });
+
+  const meta = document.createElement('div');
+  meta.className = 'flymeta mono';
+  Object.assign(meta.style, { top: (stripFrom.top + 16) + 'px', left: (stripFrom.left + 12) + 'px',
+    fontSize: '13px', fontWeight: '700', opacity: '1' });
+  meta.textContent = card.dataset.meta;
+
+  phone.append(morph, fly, meta);
+  card.classList.add('hidden');
+
+  /* The detail header is swapped in FIRST so the title has a real slot to fly to, measured from the
+     live DOM rather than assumed. */
+  hdr.innerHTML = detailHeaderHTML;
+  const slot = rectIn(document.getElementById('slot'));
+  document.getElementById('demoBack').addEventListener('click', () => close());
+
+  const eb = document.createElement('div');
+  eb.className = 'flymeta eyebrow';
+  Object.assign(eb.style, { top: (HDR_H + HERO_H - 32) + 'px', left: '16px', opacity: '0' });
+  eb.textContent = card.dataset.eyebrow;
+  phone.appendChild(eb);
+
+  pane.classList.add('on');
+  /* One forced reflow AFTER every start value is in the DOM, so all four elements have something to
+     transition FROM. Without it the browser coalesces start and end and jumps. */
+  void phone.offsetHeight;
+
+  Object.assign(morph.style, { top: HDR_H + 'px', left: '0px', width: '360px',
+    height: HERO_H + 'px', borderRadius: '0px' });
+  Object.assign(fly.style, { top: slot.top + 'px', left: slot.left + 'px' });
+  meta.style.opacity = '0';
+  eb.style.opacity = '1';
+  pane.classList.add('shown');
+
+  state = { card, morph, fly, meta, eb, from, nameFrom };
+  whenLanded(morph, () => { busy = false; });
+}
+
+function close() {
+  if (busy || !state) return; busy = true;
+  const { card, morph, fly, meta, eb, from, nameFrom } = state;
+
+  pane.classList.remove('shown');
+  eb.style.opacity = '0';
+  void phone.offsetHeight;
+
+  Object.assign(morph.style, { top: from.top + 'px', left: from.left + 'px',
+    width: from.width + 'px', height: from.height + 'px', borderRadius: '12px' });
+  Object.assign(fly.style, { top: nameFrom.top + 'px', left: nameFrom.left + 'px' });
+  meta.style.opacity = '1';
+
+  /* Reveal the real card only once the photo has LANDED back on it. Revealing it early is what made
+     the previous round double-image and pop. */
+  whenLanded(morph, () => {
+    card.classList.remove('hidden');
+    morph.remove(); fly.remove(); meta.remove(); eb.remove();
+    pane.classList.remove('on');
+    hdr.innerHTML = listHeaderHTML;
+    state = null; busy = false;
+  });
+}
+
+for (const c of document.querySelectorAll('.dcard')) {
+  c.addEventListener('click', () => open(c));
+}
+</script>
+</body>
+</html>

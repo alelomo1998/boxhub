@@ -33,7 +33,14 @@ import { Component, DestroyRef, ElementRef, computed, inject, input, signal } fr
       <div class="acts"><ng-content select="[actions]" /></div>
     </header>`,
   styles: [`
+    /* Named so the nested-detail push/pop (M17a Task 12c) can pin it: the bar is CHROME, and the
+       mail/bell/avatar in it are identical on both screens, so sliding them makes the chrome read
+       as part of the page (user-ruled 2026-09-20). view-transition-class is what styles.scss
+       excludes, because the title inside carries a per-session name that CSS cannot spell. Outside
+       a slide this name changes nothing -- the router skips the transition entirely on ordinary
+       navigations, and the detail morph leaves the bar in place anyway. */
     :host { display: block; position: sticky; top: 0; z-index: 20;
+      view-transition-name: bh-shell-header; view-transition-class: bh-pinned;
       transition: transform var(--dur) var(--ease-out); }
     :host(.hide) { transform: translateY(-100%); }
     @media (prefers-reduced-motion: reduce) { :host { transition: none; } }

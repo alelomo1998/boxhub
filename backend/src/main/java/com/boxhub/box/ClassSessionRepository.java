@@ -21,6 +21,10 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, UUID
 
     List<ClassSession> findByScheduleSlotIdAndStartAtGreaterThanEqual(UUID scheduleSlotId, Instant from);
 
+    // Home's habit suggestion: a slot's SCHEDULED sessions in the booking window, earliest first.
+    List<ClassSession> findByScheduleSlotIdAndStatusAndStartAtBetweenOrderByStartAt(
+            UUID scheduleSlotId, String status, Instant from, Instant to);
+
     /** Sessions starting inside a window. The reminder sweep's only read; indexed on start_at. */
     List<ClassSession> findByStatusAndStartAtBetween(String status, Instant from, Instant to);
 
